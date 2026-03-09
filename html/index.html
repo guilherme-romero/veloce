@@ -40,7 +40,7 @@
                 <div class="hidden md:flex space-x-6">
                     <button onclick="scrollToSection('profile')" class="text-stone-600 hover:text-teal-600 font-medium">Perfil</button>
                     <button onclick="scrollToSection('zones')" class="text-stone-600 hover:text-teal-600 font-medium">Zonas FC</button>
-                    <button onclick="scrollToSection('home-workout')" class="text-stone-600 hover:text-teal-600 font-medium text-teal-600 border-b-2 border-teal-500">Fortalecimento</button>
+                    <button onclick="scrollToSection('home-workout')" class="text-teal-600 hover:text-teal-700 font-medium border-b-2 border-teal-500">Fortalecimento</button>
                     <button onclick="scrollToSection('plan')" class="text-stone-600 hover:text-teal-600 font-medium">Treino Bike</button>
                 </div>
             </div>
@@ -125,6 +125,14 @@
                     <p class="text-xs text-stone-400 mt-2 text-center">Baseado num deficit calórico moderado + treino regular.</p>
                 </div>
             </div>
+
+            <!-- Intensity Distribution Chart -->
+            <div class="mt-6 bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
+                <h3 class="text-lg font-semibold text-stone-700 mb-4">Distribuição de Intensidade Semanal</h3>
+                <div class="chart-container" style="height:200px; max-width:400px;">
+                    <canvas id="intensityChart"></canvas>
+                </div>
+            </div>
         </section>
 
         <!-- SECTION 2: THE 6 HEART ZONES -->
@@ -186,10 +194,6 @@
                     </div>
                     <p class="text-xs text-stone-500 italic">Tiros curtos (< 2 min). Explosão máxima.</p>
                 </div>
-            </div>
-        </section>
-
-
             </div>
         </section>
 
@@ -375,7 +379,7 @@
         function renderCalendar() {
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
-            workouts[currentMode].forEach((w, idx) => {
+            workouts[currentMode].forEach((w) => {
                 const card = document.createElement('div');
                 let borderCol = "border-stone-200";
                 if(w.type === 'home') borderCol = "border-amber-400";
@@ -420,33 +424,7 @@
         function closeDetail() { document.getElementById('workout-detail').classList.add('hidden'); }
         function scrollToSection(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
 
-        function initCharts() {
-            const ctx = document.getElementById('weightChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Semana 0', 'S 4', 'S 8', 'S 12'],
-                    datasets: [{
-                        label: 'Peso',
-                        data: [85, 81.5, 78, 75],
-                        borderColor: '#2dd4bf',
-                        backgroundColor: 'rgba(45, 212, 191, 0.2)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 3,
-                        pointBackgroundColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#99f6e4', font: { size: 10 } } } }
-                }
-            });
-        }
-
-                // --- CHARTS ---
+        // --- CHARTS ---
 
         function initCharts() {
             // 1. Weight Chart

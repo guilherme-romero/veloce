@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plano de Treinamento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .bg-gradient-mtb {
+            background: linear-gradient(135deg, #0f172a 0%, #134e4a 100%);
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800 font-sans antialiased">
+
+    <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-person-biking text-teal-600 text-2xl"></i>
+                    <span class="font-bold text-xl tracking-tight text-stone-800 uppercase italic">Treino Cicloviagem</span>
+                </div>
+                <div class="hidden md:flex space-x-6">
+                    <button onclick="scrollToSection('profile')" class="text-stone-600 hover:text-teal-600 font-medium">Perfil</button>
+                    <button onclick="scrollToSection('zones')" class="text-stone-600 hover:text-teal-600 font-medium">Zonas FC</button>
+                    <button onclick="scrollToSection('home-workout')" class="text-teal-600 hover:text-teal-700 font-medium border-b-2 border-teal-500">Fortalecimento</button>
+                    <button onclick="scrollToSection('plan')" class="text-stone-600 hover:text-teal-600 font-medium">Treino Bike</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- SECTION 1: PROFILE & GOALS -->
+        <section id="profile" class="animate-fade-in">
+            <div class="mb-6">
+                <h2 class="text-3xl font-bold text-stone-800">Objetivos</h2>
+                <p class="text-stone-600 mt-2 max-w-2xl">
+                    Pela análise do seu perfil atual e projeção para o objetivo de realizar longos percursos de bicicleta. 
+                    Com 85kg e 170cm, o foco é otimizar a relação peso/potência para vencer a inércia, especialmente considerando a MTB de 17kg.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Current Stats Card -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-stone-700">Estado Atual</h3>
+                            <i class="fa-solid fa-id-card text-teal-500 bg-teal-50 p-2 rounded-lg"></i>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center border-b border-stone-100 pb-2">
+                                <span class="text-stone-500">Idade</span>
+                                <span class="font-bold text-xl">41 <span class="text-sm font-normal text-stone-400">anos</span></span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-stone-100 pb-2">
+                                <span class="text-stone-500">Altura</span>
+                                <span class="font-bold text-xl">170 <span class="text-sm font-normal text-stone-400">cm</span></span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-stone-100 pb-2">
+                                <span class="text-stone-500">Peso Atual</span>
+                                <span class="font-bold text-xl text-amber-600">85 <span class="text-sm font-normal text-stone-400">kg</span></span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-stone-500">IMC</span>
+                                <span class="font-bold text-xl text-stone-800" id="bmi-display">29.4</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Goal Stats Card -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col justify-between border-l-4 border-l-teal-500">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-stone-700">Objetivo</h3>
+                            <i class="fa-solid fa-bullseye text-teal-500 bg-teal-50 p-2 rounded-lg"></i>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center border-b border-stone-100 pb-2">
+                                <span class="text-stone-500">Meta de Peso</span>
+                                <span class="font-bold text-xl text-teal-600">75 <span class="text-sm font-normal text-stone-400">kg</span></span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-stone-100 pb-2">
+                                <span class="text-stone-500">Perda Total</span>
+                                <span class="font-bold text-xl text-red-500">-10 <span class="text-sm font-normal text-stone-400">kg</span></span>
+                            </div>
+                             <div class="flex justify-between items-center pb-2">
+                                <span class="text-stone-500">Novo IMC</span>
+                                <span class="font-bold text-xl text-teal-600">26.0</span>
+                            </div>
+                            <div class="mt-4 p-3 bg-teal-50 rounded-lg text-sm text-teal-800">
+                                <i class="fa-solid fa-circle-info mr-1"></i>
+                                Perder 10kg vai melhorar drasticamente sua subida e tera um ganho adicional de resistência.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weight Projection Chart -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 flex flex-col items-center">
+                    <h3 class="text-lg font-semibold text-stone-700 mb-2 w-full">Projeção (12 Semanas)</h3>
+                    <div class="chart-container h-48">
+                        <canvas id="weightChart"></canvas>
+                    </div> 
+                    <p class="text-xs text-stone-400 mt-2 text-center">Baseado num deficit calórico moderado + treino regular.</p>
+                </div>
+            </div>
+
+            <!-- Intensity Distribution Chart -->
+            <div class="mt-6 bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
+                <h3 class="text-lg font-semibold text-stone-700 mb-4">Distribuição de Intensidade Semanal</h3>
+                <div class="chart-container" style="height:200px; max-width:400px;">
+                    <canvas id="intensityChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: THE 6 HEART ZONES -->
+        <section id="zones" class="scroll-mt-20">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-stone-800 flex items-center gap-2">
+                    <i class="fa-solid fa-heart-pulse text-red-500"></i>
+                    Zonas de Treino
+                </h2>
+                <p class="text-stone-600">Calculado para homem de 41 anos (FCM ~179 bpm). Configure estas zonas no <strong>Garmin</strong> e deixe no ajuste automático.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Z1 -->
+                <div class="bg-white p-4 rounded-2xl border-l-8 border-gray-400 shadow-sm">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-gray-600">Z1 - Recuperação</span>
+                        <span class="text-xs font-mono bg-stone-100 px-2 py-1 rounded"> < 107 BPM</span>
+                    </div>
+                    <p class="text-xs text-stone-500 italic">Ideal para eliminar resíduos metabólicos.</p>
+                </div>
+                <!-- Z2 -->
+                <div class="bg-white p-4 rounded-2xl border-l-8 border-blue-500 shadow-sm">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-blue-600">Z2 - Resistência (Gordura)</span>
+                        <span class="text-xs font-mono bg-blue-50 px-2 py-1 rounded">108 - 125 BPM</span>
+                    </div>
+                    <p class="text-xs text-stone-500 italic">Zona mágica para perder peso. Eficiência lipídica.</p>
+                </div>
+                <!-- Z3 -->
+                <div class="bg-white p-4 rounded-2xl border-l-8 border-green-500 shadow-sm">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-green-600">Z3 - Tempo (Aeróbica)</span>
+                        <span class="text-xs font-mono bg-green-50 px-2 py-1 rounded">126 - 143 BPM</span>
+                    </div>
+                    <p class="text-xs text-stone-500 italic">Melhora o transporte de oxigénio.</p>
+                </div>
+                <!-- Z4 -->
+                <div class="bg-white p-4 rounded-2xl border-l-8 border-yellow-500 shadow-sm">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-yellow-600">Z4 - Limiar de Lactato</span>
+                        <span class="text-xs font-mono bg-yellow-50 px-2 py-1 rounded">144 - 161 BPM</span>
+                    </div>
+                    <p class="text-xs text-stone-500 italic">Suportar o esforço em subidas longas.</p>
+                </div>
+                <!-- Z5 -->
+                <div class="bg-white p-4 rounded-2xl border-l-8 border-orange-500 shadow-sm">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-orange-600">Z5 - VO2 Máx</span>
+                        <span class="text-xs font-mono bg-orange-50 px-2 py-1 rounded">162 - 179 BPM</span>
+                    </div>
+                    <p class="text-xs text-stone-500 italic">Aumentar a cilindrada do motor.</p>
+                </div>
+                <!-- Z6 -->
+                <div class="bg-white p-4 rounded-2xl border-l-8 border-purple-600 shadow-sm">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-bold text-purple-600">Z6 - Cap. Anaeróbica</span>
+                        <span class="text-xs font-mono bg-purple-50 px-2 py-1 rounded">Máximo (Sprint)</span>
+                    </div>
+                    <p class="text-xs text-stone-500 italic">Tiros curtos (< 2 min). Explosão máxima.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- TREINO EM CASA (NOVA SEÇÃO) -->
+        <section id="home-workout" class="scroll-mt-20">
+            <div class="bg-white rounded-3xl p-8 border border-stone-200 shadow-sm">
+                <div class="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-stone-900">Fortalecimento em Casa</h2>
+                        <p class="text-stone-600 mt-2">Circuito focado em Core (Abdômen) e pernas. Faça 2 a 3x por semana nos dias de descanso da bike ou após giros leves.</p>
+                    </div>
+                    <div class="bg-amber-100 text-amber-800 px-4 py-2 rounded-xl text-sm font-bold border border-amber-200">
+                        <i class="fa-solid fa-fire mr-1"></i> Foco: Fortalecimento do Core & Estabilidade
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Exercício 1 -->
+                    <div class="space-y-3 group">
+                        <div class="aspect-video bg-stone-100 rounded-2xl flex items-center justify-center text-stone-300 text-4xl group-hover:bg-teal-50 group-hover:text-teal-500 transition-colors">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <h4 class="font-bold text-stone-800">Plancha Frontal</h4>
+                        <p class="text-xs text-stone-500 italic">3 séries de 45 a 60 seg.</p>
+                        <p class="text-sm text-stone-600 leading-tight">Fortalece o abdômen profundo para evitar oscilação do tronco na bike de 17kg.</p>
+                    </div>
+                    <!-- Exercício 2 -->
+                    <div class="space-y-3 group">
+                        <div class="aspect-video bg-stone-100 rounded-2xl flex items-center justify-center text-stone-300 text-4xl group-hover:bg-teal-50 group-hover:text-teal-500 transition-colors">
+                            <i class="fa-solid fa-arrows-up-down"></i>
+                        </div>
+                        <h4 class="font-bold text-stone-800">Agachamento Sumô</h4>
+                        <p class="text-xs text-stone-500 italic">3 séries de 20 reps.</p>
+                        <p class="text-sm text-stone-600 leading-tight">Pés afastados. Trabalha internos da coxa e glúteo, essenciais para subidas técnicas.</p>
+                    </div>
+                    <!-- Exercício 3 -->
+                    <div class="space-y-3 group">
+                        <div class="aspect-video bg-stone-100 rounded-2xl flex items-center justify-center text-stone-300 text-4xl group-hover:bg-teal-50 group-hover:text-teal-500 transition-colors">
+                            <i class="fa-solid fa-repeat"></i>
+                        </div>
+                        <h4 class="font-bold text-stone-800">Escalador (Mountain Climbers)</h4>
+                        <p class="text-xs text-stone-500 italic">3 séries de 40 seg (Intenso).</p>
+                        <p class="text-sm text-stone-600 leading-tight">Simula a corrida e queima gordura abdominal rápido. Mantenha as costas retas.</p>
+                    </div>
+                    <!-- Exercício 4 -->
+                    <div class="space-y-3 group">
+                        <div class="aspect-video bg-stone-100 rounded-2xl flex items-center justify-center text-stone-300 text-4xl group-hover:bg-teal-50 group-hover:text-teal-500 transition-colors">
+                            <i class="fa-solid fa-person-walking-arrow-right"></i>
+                        </div>
+                        <h4 class="font-bold text-stone-800">Afundo (Lunge)</h4>
+                        <p class="text-xs text-stone-500 italic">3 séries de 12 cada perna.</p>
+                        <p class="text-sm text-stone-600 leading-tight">Equilíbrio e força unilateral. Melhora a arrancada quando você sai do selim.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CALENDÁRIO SEMANAL -->
+        <section id="plan" class="scroll-mt-20">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-stone-800">Agenda de Treino Bike & Cadência</h2>
+                </div>
+                <div class="mt-4 md:mt-0 bg-white rounded-xl p-1 shadow-sm border border-stone-200 inline-flex">
+                    <button onclick="switchPlan('base')" id="btn-base" class="px-5 py-2 rounded-lg text-sm font-bold transition-all bg-teal-600 text-white shadow-md">Fortalecimento - Core</button>
+                    <button onclick="switchPlan('build')" id="btn-build" class="px-5 py-2 rounded-lg text-sm font-bold text-stone-500 hover:text-stone-800 transition-all ml-1">Condicionamento - Bike</button>
+                </div>
+            </div>
+
+            <div id="calendar-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                <!-- JS Injects -->
+            </div>
+
+            <!-- Painel de Detalhes -->
+            <div id="workout-detail" class="mt-8 bg-stone-900 text-white rounded-3xl p-6 md:p-10 hidden animate-fade-in shadow-2xl">
+                <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <div id="detail-tag" class="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase mb-3 bg-teal-500 text-teal-950">--</div>
+                        <h3 id="detail-title" class="text-3xl font-black text-white italic uppercase tracking-tighter">--</h3>
+                    </div>
+                    <button onclick="closeDetail()" class="text-stone-500 hover:text-white transition-colors p-2"><i class="fa-solid fa-xmark text-2xl"></i></button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-stone-800/50 p-5 rounded-2xl border border-stone-700 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-500">
+                            <i class="fa-solid fa-heart"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs uppercase text-stone-500 font-bold">Alvo de FC</span>
+                            <span id="detail-bpm" class="text-lg font-bold">--</span>
+                        </div>
+                    </div>
+                    <div class="bg-stone-800/50 p-5 rounded-2xl border border-stone-700 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-500">
+                            <i class="fa-solid fa-rotate"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs uppercase text-stone-500 font-bold">Alvo de RPM</span>
+                            <span id="detail-rpm" class="text-lg font-bold">--</span>
+                        </div>
+                    </div>
+                    <div class="bg-stone-800/50 p-5 rounded-2xl border border-stone-700 flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs uppercase text-stone-500 font-bold">Duração</span>
+                            <span id="detail-time" class="text-lg font-bold">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-10 border-t border-white/10 pt-8">
+                    <div>
+                        <h4 class="text-stone-400 font-bold mb-4 uppercase text-xs">Instruções de Execução</h4>
+                        <ul id="detail-steps" class="space-y-3 text-stone-200"></ul>
+                    </div>
+                    <div class="bg-teal-500/10 p-6 rounded-2xl border border-teal-500/20">
+                        <h4 class="text-teal-400 font-bold mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-bullseye"></i> Foco Estratégico
+                        </h4>
+                        <p id="detail-tip" class="text-stone-300 text-sm leading-relaxed italic"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const workouts = {
+            base: [
+                { day: "SEG", type: "home", title: "Core & Pernas I", bpm: "Z1/Z2", rpm: "N/A", time: "30 min", 
+                  tag: "FORTALECIMENTO", steps: ["Plancha: 3x 45s", "Agachamento: 3x 20", "Elevação de Quadril: 3x 15", "Mobilidade de Quadril"], 
+                  tip: "Fortalecer o glúteo ajuda a tirar a tensão da sua lombar nas subidas longas." },
+                { day: "TER", type: "hiit", title: "HIIT Queima Gordura", bpm: "Z4-Z5", rpm: "100+", time: "45 min", 
+                  tag: "BIKE INTENSO", steps: ["Aquecimento: 15min Z2", "8x (1min Esforço Máximo / 2min Z1)", "Giro solto: 10min"], 
+                  tip: "O RPM alto (>100) aqui serve para queimar gordura sem fadigar tanto os músculos das pernas." },
+                { day: "QUA", type: "group", title: "Pedal em Grupo", bpm: "Z2-Z3", rpm: "85-95", time: "30km", 
+                  tag: "MTB RITMO", steps: ["Mantenha cadência média de 90 RPM", "Evite marchas muito pesadas", "Use o sensor XOSS para conferir o RPM nas subidas"], 
+                  tip: "Com uma bike de 17kg, sua cadência é sua melhor amiga para não esgotar as pernas." },
+                { day: "QUI", type: "home", title: "Core & Pernas II", bpm: "Z1/Z2", rpm: "N/A", time: "30 min", 
+                  tag: "FORTALECIMENTO", steps: ["Escalador: 3x 40s", "Afundo: 3x 12 cada lado", "Ponte lateral: 3x 30s cada", "Abdominal bicicleta: 3x 20"], 
+                  tip: "O abdômen forte estabiliza a bike quando você está fazendo força no guidão." },
+                { day: "SEX", type: "rest", title: "Descanso Ativo", bpm: "Z1", rpm: "80", time: "20 min", 
+                  tag: "RECUPERAÇÃO", steps: ["Giro bem leve ou apenas alongamento", "Foco em relaxar a musculatura"], 
+                  tip: "Dia de preparar o corpo para o volume de sábado." },
+                { day: "SAB", type: "long", title: "Longão Endurance", bpm: "Z2 Estrito", rpm: "80-90", time: "3h", 
+                  tag: "BIKE VOLUME", steps: ["Manter batimentos entre 108 e 125 BPM", "Beber 500ml de água/hora", "Cadência constante"], 
+                  tip: "A Zona 2 é onde você ensina seu corpo a usar a gordura estocada como fonte de energia principal." },
+                { day: "DOM", type: "rest", title: "Descanso Total", bpm: "OFF", rpm: "OFF", time: "OFF", 
+                  tag: "OFF", steps: ["Pausar treinos", "Focar em boa alimentação e sono"], 
+                  tip: "O repouso é quando as fibras musculares se reconstroem mais fortes." }
+            ],
+            build: [
+                { day: "SEG", type: "home", title: "Potência em Casa", bpm: "Z2", rpm: "N/A", time: "40 min", tag: "FORÇA", steps: ["Agachamento Búlgaro", "Prancha", "Burpees"], tip: "Treino metabólico." },
+                { day: "TER", type: "climb", title: "Força nas Subidas", bpm: "Z4-Z5", rpm: "60-70", time: "60 min", tag: "POTÊNCIA", steps: ["Simulação de subida pesada", "3x 5min força bruta"], tip: "Para dominar os 17kg da bike." },
+                { day: "QUA", type: "group", title: "Pedal em Grupo", bpm: "Z4", rpm: "90", time: "35km", tag: "RITMO", steps: ["Manter o vácuo"], tip: "Resistência." },
+                { day: "QUI", type: "home", title: "Estabilidade Core", bpm: "Z1", rpm: "N/A", time: "30 min", tag: "CORE", steps: ["Prancha braços esticados", "Super-homem (lombar)"], tip: "Proteção da coluna." },
+                { day: "SEX", type: "rest", title: "Giro Recuperação", bpm: "Z1", rpm: "95", time: "30 min", tag: "SOLTURA", steps: ["Giro solto"], tip: "Recuperação." },
+                { day: "SAB", type: "long", title: "MTB de Exploração", bpm: "Z2-Z3", rpm: "85", time: "3.5h", tag: "RESISTÊNCIA", steps: ["Trilha técnica"], tip: "Foco em técnica." },
+                { day: "DOM", type: "rest", title: "Descanso", bpm: "OFF", rpm: "OFF", time: "OFF", tag: "OFF", steps: ["Descanso"], tip: "Zerar." }
+            ]
+        };
+
+        let currentMode = 'base';
+
+        function switchPlan(mode) {
+            currentMode = mode;
+            renderCalendar();
+            closeDetail();
+            const bB = document.getElementById('btn-base');
+            const bBuild = document.getElementById('btn-build');
+            if(mode === 'base') {
+                bB.className = "px-5 py-2 rounded-lg text-sm font-bold transition-all bg-teal-600 text-white shadow-md";
+                bBuild.className = "px-5 py-2 rounded-lg text-sm font-bold text-stone-500 hover:text-stone-800 transition-all ml-1";
+            } else {
+                bBuild.className = "px-5 py-2 rounded-lg text-sm font-bold transition-all bg-teal-600 text-white shadow-md ml-1";
+                bB.className = "px-5 py-2 rounded-lg text-sm font-bold text-stone-500 hover:text-stone-800 transition-all";
+            }
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            workouts[currentMode].forEach((w) => {
+                const card = document.createElement('div');
+                let borderCol = "border-stone-200";
+                if(w.type === 'home') borderCol = "border-amber-400";
+                if(w.type === 'long') borderCol = "border-teal-500";
+                if(w.type === 'hiit' || w.type === 'climb') borderCol = "border-red-500";
+                if(w.type === 'rest') borderCol = "border-stone-100 opacity-50";
+
+                card.className = `bg-white p-5 rounded-2xl shadow-sm border-t-8 ${borderCol} cursor-pointer hover:shadow-md transition-all flex flex-col h-full`;
+                card.onclick = () => showDetail(w);
+                card.innerHTML = `
+                    <span class="text-[10px] font-black text-stone-400 mb-1">${w.day}</span>
+                    <h4 class="font-bold text-stone-800 text-sm mb-3 leading-tight">${w.title}</h4>
+                    <div class="mt-auto flex justify-between items-center">
+                        <span class="text-[9px] font-bold py-1 px-2 bg-stone-50 rounded-md text-stone-500 uppercase">${w.tag}</span>
+                        <i class="fa-solid ${w.type === 'home' ? 'fa-house-user text-amber-500' : 'fa-bicycle text-stone-300'}"></i>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function showDetail(w) {
+            const d = document.getElementById('workout-detail');
+            document.getElementById('detail-title').innerText = w.title;
+            document.getElementById('detail-tag').innerText = w.tag;
+            document.getElementById('detail-bpm').innerText = w.bpm;
+            document.getElementById('detail-rpm').innerText = w.rpm;
+            document.getElementById('detail-time').innerText = w.time;
+            document.getElementById('detail-tip').innerText = w.tip;
+            const steps = document.getElementById('detail-steps');
+            steps.innerHTML = '';
+            w.steps.forEach(s => {
+                const li = document.createElement('li');
+                li.className = "flex gap-3 text-sm";
+                li.innerHTML = `<i class="fa-solid fa-check text-teal-500 mt-1"></i> <span>${s}</span>`;
+                steps.appendChild(li);
+            });
+            d.classList.remove('hidden');
+            d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function closeDetail() { document.getElementById('workout-detail').classList.add('hidden'); }
+        function scrollToSection(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+
+        // --- CHARTS ---
+
+        function initCharts() {
+            // 1. Weight Chart
+            const ctxWeight = document.getElementById('weightChart').getContext('2d');
+            new Chart(ctxWeight, {
+                type: 'line',
+                data: {
+                    labels: ['Sem 0', 'Sem 2', 'Sem 4', 'Sem 6', 'Sem 8', 'Sem 10', 'Sem 12'],
+                    datasets: [{
+                        label: 'Meta de Peso',
+                        data: [85, 84, 82.5, 81, 79.5, 77, 75],
+                        borderColor: '#0d9488', // Teal 600
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#0d9488',
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { 
+                            callbacks: {
+                                label: function(context) { return context.raw + ' kg'; }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { min: 70, max: 90, grid: { borderDash: [5, 5] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // 2. Intensity Distribution (Doughnut)
+            const ctxInt = document.getElementById('intensityChart').getContext('2d');
+            new Chart(ctxInt, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Baixa (Z1/Z2)', 'Média (Z3)', 'Alta (Z4/Z5)'],
+                    datasets: [{
+                        data: [80, 5, 15],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], // Green, Amber, Red
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+                        title: { display: false }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        window.onload = () => { renderCalendar(); initCharts(); };
+    </script>
+</body>
+</html>
