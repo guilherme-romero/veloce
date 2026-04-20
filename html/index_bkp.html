@@ -1,9 +1,18 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <link rel="icon" type="image/png" href="icone.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plano de Treinamento</title>
+    <script>
+        // Apply saved theme immediately to prevent flash of wrong theme (FOUC)
+        (function() {
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -26,6 +35,91 @@
         .bg-gradient-mtb {
             background: linear-gradient(135deg, #0f172a 0%, #134e4a 100%);
         }
+
+        /* ── Dark Mode ── */
+        html.dark body { background-color: #0f172a; color: #e2e8f0; }
+
+        /* Nav */
+        html.dark nav { background-color: rgba(15,23,42,0.95) !important; border-color: #1e293b !important; }
+        html.dark nav span.text-stone-800 { color: #e2e8f0 !important; }
+        /* Nav buttons: default state */
+        html.dark #nav-profile,
+        html.dark #nav-zones,
+        html.dark #nav-home-workout,
+        html.dark #nav-plan { color: #94a3b8 !important; border-color: transparent; }
+        /* Nav active state — must beat the rule above */
+        html.dark #nav-profile.text-teal-600,
+        html.dark #nav-zones.text-teal-600,
+        html.dark #nav-home-workout.text-teal-600,
+        html.dark #nav-plan.text-teal-600 { color: #2dd4bf !important; border-color: #2dd4bf !important; }
+
+        /* Backgrounds */
+        html.dark .bg-white { background-color: #1e293b !important; }
+        html.dark body, html.dark main { background-color: #0f172a !important; }
+        html.dark .bg-stone-50 { background-color: #1e293b !important; }
+        html.dark .bg-stone-100 { background-color: #334155 !important; }
+
+        /* Zone badge backgrounds */
+        html.dark .bg-blue-50   { background-color: rgba(59,130,246,0.15) !important; }
+        html.dark .bg-green-50  { background-color: rgba(34,197,94,0.15) !important; }
+        html.dark .bg-yellow-50 { background-color: rgba(234,179,8,0.15) !important; }
+        html.dark .bg-orange-50 { background-color: rgba(249,115,22,0.15) !important; }
+        html.dark .bg-purple-50 { background-color: rgba(168,85,247,0.15) !important; }
+        html.dark .bg-teal-50   { background-color: rgba(20,184,166,0.15) !important; }
+        html.dark .bg-amber-100 { background-color: rgba(251,191,36,0.12) !important; }
+
+        /* Borders */
+        html.dark .border-stone-100,
+        html.dark .border-stone-200 { border-color: #334155 !important; }
+        html.dark .border-b { border-color: #334155 !important; }
+        html.dark .border-amber-200 { border-color: rgba(251,191,36,0.3) !important; }
+
+        /* Text */
+        html.dark .text-stone-900,
+        html.dark .text-stone-800 { color: #e2e8f0 !important; }
+        html.dark .text-stone-700 { color: #cbd5e1 !important; }
+        html.dark .text-stone-600 { color: #94a3b8 !important; }
+        html.dark .text-stone-500 { color: #64748b !important; }
+        html.dark .text-stone-400 { color: #475569 !important; }
+        html.dark .text-teal-800  { color: #5eead4 !important; }
+        html.dark .text-amber-800 { color: #fcd34d !important; }
+
+        /* Shadows */
+        html.dark .shadow-sm  { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
+        html.dark .shadow-2xl { box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important; }
+
+        /* Dynamically generated calendar cards */
+        html.dark #calendar-grid .bg-white { background-color: #1e293b !important; }
+        html.dark #calendar-grid .text-stone-800 { color: #e2e8f0 !important; }
+        html.dark #calendar-grid .text-stone-400 { color: #64748b !important; }
+        html.dark #calendar-grid .text-stone-500 { color: #64748b !important; }
+        html.dark #calendar-grid .bg-stone-50 { background-color: #334155 !important; }
+        html.dark #calendar-grid .text-stone-300 { color: #475569 !important; }
+
+        /* Plan switcher buttons */
+        html.dark #btn-base.text-stone-500,
+        html.dark #btn-build.text-stone-500 { color: #64748b !important; }
+
+        /* theme toggle button */
+        #theme-toggle {
+            display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: transparent;
+            border: 1.5px solid #d1d5db;
+            cursor: pointer;
+            color: #78716c;
+            font-size: 1rem;
+            flex-shrink: 0;
+            transition: background 0.2s, border-color 0.2s, transform 0.2s;
+        }
+        #theme-toggle:hover { background: #f1f5f9; transform: rotate(20deg); }
+        html.dark #theme-toggle { border-color: #334155; color: #94a3b8; }
+        html.dark #theme-toggle:hover { background: #293548; }
+
+        /* Smooth transitions — but not on animated elements */
+        *, *::before, *::after { transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease; }
+        .animate-fade-in, .animate-fade-in * { animation: fadeIn 0.4s ease-out !important; }
     </style>
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans antialiased">
@@ -37,11 +131,16 @@
                     <i class="fa-solid fa-person-biking text-teal-600 text-2xl"></i>
                     <span class="font-bold text-xl tracking-tight text-stone-800 uppercase italic">Treino Cicloviagem</span>
                 </div>
-                <div class="hidden md:flex space-x-6">
-                    <button id="nav-profile" onclick="scrollToSection('profile')" class="text-stone-600 hover:text-teal-600 font-medium">Perfil</button>
-                    <button id="nav-zones" onclick="scrollToSection('zones')" class="text-stone-600 hover:text-teal-600 font-medium">Zonas FC</button>
-                    <button id="nav-home-workout" onclick="scrollToSection('home-workout')" class="text-stone-600 hover:text-teal-600 font-medium">Fortalecimento</button>
-                    <button id="nav-plan" onclick="scrollToSection('plan')" class="text-stone-600 hover:text-teal-600 font-medium">Treino Bike</button>
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex space-x-6">
+                        <button id="nav-profile" onclick="scrollToSection('profile')" class="text-stone-600 hover:text-teal-600 font-medium">Perfil</button>
+                        <button id="nav-zones" onclick="scrollToSection('zones')" class="text-stone-600 hover:text-teal-600 font-medium">Zonas FC</button>
+                        <button id="nav-home-workout" onclick="scrollToSection('home-workout')" class="text-stone-600 hover:text-teal-600 font-medium">Fortalecimento</button>
+                        <button id="nav-plan" onclick="scrollToSection('plan')" class="text-stone-600 hover:text-teal-600 font-medium">Treino Bike</button>
+                    </div>
+                    <button id="theme-toggle" onclick="toggleTheme()" title="Alternar tema claro/escuro">
+                        <i id="theme-icon" class="fa-solid fa-moon"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -53,9 +152,9 @@
         <section id="profile" class="animate-fade-in">
             <div class="mb-6">
                 <h2 class="text-3xl font-bold text-stone-800">Objetivos</h2>
-                <p class="text-stone-600 mt-2 max-w-2xl">
-                    Pela análise do seu perfil atual e projeção para o objetivo de realizar longos percursos de bicicleta. 
-                    Com 85kg e 170cm, o foco é otimizar a relação peso/potência para vencer a inércia, especialmente considerando a MTB de 17kg.
+                <p id="intro-desc" class="text-stone-600 mt-2 max-w-2xl">
+                    Olá, <strong>Guilherme</strong>! Pela análise do seu perfil atual e projeção para o objetivo de realizar longos percursos de bicicleta.
+                    Com 85kg e 170cm, o foco é otimizar a relação peso/potência, especialmente com a sua Gravel de 11kg.
                 </p>
             </div>
 
@@ -70,7 +169,7 @@
                         <div class="space-y-4">
                             <div class="flex justify-between items-center border-b border-stone-100 pb-2">
                                 <span class="text-stone-500">Idade</span>
-                                <span class="font-bold text-xl">41 <span class="text-sm font-normal text-stone-400">anos</span></span>
+                                <span class="font-bold text-xl">40 <span class="text-sm font-normal text-stone-400">anos</span></span>
                             </div>
                             <div class="flex justify-between items-center border-b border-stone-100 pb-2">
                                 <span class="text-stone-500">Altura</span>
@@ -98,19 +197,19 @@
                         <div class="space-y-4">
                             <div class="flex justify-between items-center border-b border-stone-100 pb-2">
                                 <span class="text-stone-500">Meta de Peso</span>
-                                <span class="font-bold text-xl text-teal-600">75 <span class="text-sm font-normal text-stone-400">kg</span></span>
+                                <span class="font-bold text-xl text-teal-600"><span id="meta-peso">75</span> <span class="text-sm font-normal text-stone-400">kg</span></span>
                             </div>
                             <div class="flex justify-between items-center border-b border-stone-100 pb-2">
                                 <span class="text-stone-500">Perda Total</span>
-                                <span class="font-bold text-xl text-red-500">-10 <span class="text-sm font-normal text-stone-400">kg</span></span>
+                                <span class="font-bold text-xl text-red-500"><span id="perda-total">-10</span> <span class="text-sm font-normal text-stone-400">kg</span></span>
                             </div>
                              <div class="flex justify-between items-center pb-2">
                                 <span class="text-stone-500">Novo IMC</span>
-                                <span class="font-bold text-xl text-teal-600">26.0</span>
+                                <span id="novo-imc" class="font-bold text-xl text-teal-600">26.0</span>
                             </div>
                             <div class="mt-4 p-3 bg-teal-50 rounded-lg text-sm text-teal-800">
                                 <i class="fa-solid fa-circle-info mr-1"></i>
-                                Perder 10kg vai melhorar drasticamente sua subida e tera um ganho adicional de resistência.
+                                <span id="info-perda">Perder 10kg vai melhorar drasticamente sua subida. Com a Gravel de 11kg, você já larga na frente!</span>
                             </div>
                         </div>
                     </div>
@@ -142,7 +241,7 @@
                     <i class="fa-solid fa-heart-pulse text-red-500"></i>
                     Zonas de Treino
                 </h2>
-                <p class="text-stone-600">Calculado para homem de 41 anos (FCM ~179 bpm). Configure estas zonas no <strong>Garmin</strong> e deixe no ajuste automático.</p>
+                <p id="zones-desc" class="text-stone-600">Calculado para <strong>Guilherme</strong>, 40 anos (FCM ~180 bpm pela fórmula de Tanaka). Configure estas zonas no <strong>Garmin</strong> e deixe no ajuste automático.</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -150,7 +249,7 @@
                 <div class="bg-white p-4 rounded-2xl border-l-8 border-gray-400 shadow-sm">
                     <div class="flex justify-between items-start mb-1">
                         <span class="font-bold text-gray-600">Z1 - Recuperação</span>
-                        <span class="text-xs font-mono bg-stone-100 px-2 py-1 rounded"> < 107 BPM</span>
+                        <span id="z1-badge" class="text-xs font-mono bg-stone-100 px-2 py-1 rounded">&lt; 108 BPM</span>
                     </div>
                     <p class="text-xs text-stone-500 italic">Ideal para eliminar resíduos metabólicos.</p>
                 </div>
@@ -158,7 +257,7 @@
                 <div class="bg-white p-4 rounded-2xl border-l-8 border-blue-500 shadow-sm">
                     <div class="flex justify-between items-start mb-1">
                         <span class="font-bold text-blue-600">Z2 - Resistência (Gordura)</span>
-                        <span class="text-xs font-mono bg-blue-50 px-2 py-1 rounded">108 - 125 BPM</span>
+                        <span id="z2-badge" class="text-xs font-mono bg-blue-50 px-2 py-1 rounded">108 – 126 BPM</span>
                     </div>
                     <p class="text-xs text-stone-500 italic">Zona mágica para perder peso. Eficiência lipídica.</p>
                 </div>
@@ -166,7 +265,7 @@
                 <div class="bg-white p-4 rounded-2xl border-l-8 border-green-500 shadow-sm">
                     <div class="flex justify-between items-start mb-1">
                         <span class="font-bold text-green-600">Z3 - Tempo (Aeróbica)</span>
-                        <span class="text-xs font-mono bg-green-50 px-2 py-1 rounded">126 - 143 BPM</span>
+                        <span id="z3-badge" class="text-xs font-mono bg-green-50 px-2 py-1 rounded">127 – 144 BPM</span>
                     </div>
                     <p class="text-xs text-stone-500 italic">Melhora o transporte de oxigénio.</p>
                 </div>
@@ -174,7 +273,7 @@
                 <div class="bg-white p-4 rounded-2xl border-l-8 border-yellow-500 shadow-sm">
                     <div class="flex justify-between items-start mb-1">
                         <span class="font-bold text-yellow-600">Z4 - Limiar de Lactato</span>
-                        <span class="text-xs font-mono bg-yellow-50 px-2 py-1 rounded">144 - 161 BPM</span>
+                        <span id="z4-badge" class="text-xs font-mono bg-yellow-50 px-2 py-1 rounded">145 – 162 BPM</span>
                     </div>
                     <p class="text-xs text-stone-500 italic">Suportar o esforço em subidas longas.</p>
                 </div>
@@ -182,7 +281,7 @@
                 <div class="bg-white p-4 rounded-2xl border-l-8 border-orange-500 shadow-sm">
                     <div class="flex justify-between items-start mb-1">
                         <span class="font-bold text-orange-600">Z5 - VO2 Máx</span>
-                        <span class="text-xs font-mono bg-orange-50 px-2 py-1 rounded">162 - 179 BPM</span>
+                        <span id="z5-badge" class="text-xs font-mono bg-orange-50 px-2 py-1 rounded">163 – 180 BPM</span>
                     </div>
                     <p class="text-xs text-stone-500 italic">Aumentar a cilindrada do motor.</p>
                 </div>
@@ -192,7 +291,7 @@
                         <span class="font-bold text-purple-600">Z6 - Cap. Anaeróbica</span>
                         <span class="text-xs font-mono bg-purple-50 px-2 py-1 rounded">Máximo (Sprint)</span>
                     </div>
-                    <p class="text-xs text-stone-500 italic">Tiros curtos (< 2 min). Explosão máxima.</p>
+                    <p class="text-xs text-stone-500 italic">Tiros curtos (&lt; 2 min). Explosão máxima.</p>
                 </div>
             </div>
         </section>
@@ -218,7 +317,7 @@
                         </div>
                         <h4 class="font-bold text-stone-800">Plancha Frontal</h4>
                         <p class="text-xs text-stone-500 italic">3 séries de 45 a 60 seg.</p>
-                        <p class="text-sm text-stone-600 leading-tight">Fortalece o abdômen profundo para evitar oscilação do tronco na bike de 17kg.</p>
+                        <p class="text-sm text-stone-600 leading-tight">Fortalece o abdômen profundo para evitar oscilação do tronco na Gravel de 11kg.</p>
                     </div>
                     <!-- Exercício 2 -->
                     <div class="space-y-3 group">
@@ -333,8 +432,8 @@
                   tag: "BIKE INTENSO", steps: ["Aquecimento: 15min Z2", "8x (1min Esforço Máximo / 2min Z1)", "Giro solto: 10min"], 
                   tip: "O RPM alto (>100) aqui serve para queimar gordura sem fadigar tanto os músculos das pernas." },
                 { day: "QUA", type: "group", title: "Pedal em Grupo", bpm: "Z2-Z3", rpm: "85-95", time: "30km", 
-                  tag: "MTB RITMO", steps: ["Mantenha cadência média de 90 RPM", "Evite marchas muito pesadas", "Use o sensor XOSS para conferir o RPM nas subidas"], 
-                  tip: "Com uma bike de 17kg, sua cadência é sua melhor amiga para não esgotar as pernas." },
+                  tag: "GRAVEL RITMO", steps: ["Mantenha cadência média de 90 RPM", "Evite marchas muito pesadas", "Use o sensor XOSS para conferir o RPM nas subidas"], 
+                  tip: "Com a Gravel de 11kg você tem vantagem de leveza — use isso nas subidas e mantenha a cadência alta." },
                 { day: "QUI", type: "home", title: "Core & Pernas II", bpm: "Z1/Z2", rpm: "N/A", time: "30 min", 
                   tag: "FORTALECIMENTO", steps: ["Escalador: 3x 40s", "Afundo: 3x 12 cada lado", "Ponte lateral: 3x 30s cada", "Abdominal bicicleta: 3x 20"], 
                   tip: "O abdômen forte estabiliza a bike quando você está fazendo força no guidão." },
@@ -342,7 +441,7 @@
                   tag: "RECUPERAÇÃO", steps: ["Giro bem leve ou apenas alongamento", "Foco em relaxar a musculatura"], 
                   tip: "Dia de preparar o corpo para o volume de sábado." },
                 { day: "SAB", type: "long", title: "Longão Endurance", bpm: "Z2 Estrito", rpm: "80-90", time: "3h", 
-                  tag: "BIKE VOLUME", steps: ["Manter batimentos entre 108 e 125 BPM", "Beber 500ml de água/hora", "Cadência constante"], 
+                  tag: "BIKE VOLUME", steps: ["Manter batimentos entre 108 e 126 BPM", "Beber 500ml de água/hora", "Cadência constante"], 
                   tip: "A Zona 2 é onde você ensina seu corpo a usar a gordura estocada como fonte de energia principal." },
                 { day: "DOM", type: "rest", title: "Descanso Total", bpm: "OFF", rpm: "OFF", time: "OFF", 
                   tag: "OFF", steps: ["Pausar treinos", "Focar em boa alimentação e sono"], 
@@ -350,7 +449,7 @@
             ],
             build: [
                 { day: "SEG", type: "home", title: "Potência em Casa", bpm: "Z2", rpm: "N/A", time: "40 min", tag: "FORÇA", steps: ["Agachamento Búlgaro", "Prancha", "Burpees"], tip: "Treino metabólico." },
-                { day: "TER", type: "climb", title: "Força nas Subidas", bpm: "Z4-Z5", rpm: "60-70", time: "60 min", tag: "POTÊNCIA", steps: ["Simulação de subida pesada", "3x 5min força bruta"], tip: "Para dominar os 17kg da bike." },
+                { day: "TER", type: "climb", title: "Força nas Subidas", bpm: "Z4-Z5", rpm: "60-70", time: "60 min", tag: "POTÊNCIA", steps: ["Simulação de subida pesada", "3x 5min força bruta"], tip: "A Gravel de 11kg é mais ágil — treine força para aproveitar cada watt de potência." },
                 { day: "QUA", type: "group", title: "Pedal em Grupo", bpm: "Z4", rpm: "90", time: "35km", tag: "RITMO", steps: ["Manter o vácuo"], tip: "Resistência." },
                 { day: "QUI", type: "home", title: "Estabilidade Core", bpm: "Z1", rpm: "N/A", time: "30 min", tag: "CORE", steps: ["Prancha braços esticados", "Super-homem (lombar)"], tip: "Proteção da coluna." },
                 { day: "SEX", type: "rest", title: "Giro Recuperação", bpm: "Z1", rpm: "95", time: "30 min", tag: "SOLTURA", steps: ["Giro solto"], tip: "Recuperação." },
@@ -460,18 +559,95 @@
 
         // --- CHARTS ---
 
+        // ── Dados do Usuário (fonte: dados_usuario.txt) ──
+        const usuario = {
+            nome:       "Guilherme",
+            nascimento: new Date(1985, 2, 3), // 03/03/1985
+            altura:     170,   // cm
+            pesoAtual:  85,    // kg
+            pesoMeta:   75,    // kg
+            bikePeso:   11,    // kg
+            bikeModelo: "Gravel"
+        };
+
+        // ── Cálculos derivados ──
+        const hoje       = new Date();
+        const aniversarioEsteAno = new Date(hoje.getFullYear(), usuario.nascimento.getMonth(), usuario.nascimento.getDate());
+        const idade      = hoje.getFullYear() - usuario.nascimento.getFullYear() - (hoje < aniversarioEsteAno ? 1 : 0);
+        const alturaM    = usuario.altura / 100;
+        const imcAtual   = (usuario.pesoAtual / (alturaM * alturaM)).toFixed(1);
+        const imcMeta    = (usuario.pesoMeta  / (alturaM * alturaM)).toFixed(1);
+        const perdaTotal = usuario.pesoAtual - usuario.pesoMeta;
+
+        // FCM — fórmula de Tanaka: 208 − (0,7 × idade)
+        const fcm   = Math.round(208 - 0.7 * idade);
+        const z1max = Math.round(fcm * 0.60);
+        const z2min = z1max + 1;
+        const z2max = Math.round(fcm * 0.70);
+        const z3min = z2max + 1;
+        const z3max = Math.round(fcm * 0.80);
+        const z4min = z3max + 1;
+        const z4max = Math.round(fcm * 0.90);
+        const z5min = z4max + 1;
+        const z5max = fcm;
+
+        // Projeção de peso: redução linear em 12 semanas (7 pontos de 2 em 2 semanas)
+        function gerarProjecaoPeso() {
+            const step = perdaTotal / 6;
+            return Array.from({length: 7}, (_, i) => parseFloat((usuario.pesoAtual - step * i).toFixed(1)));
+        }
+
+        // ── Preenche todos os dados dinâmicos no HTML ──
+        function preencherDados() {
+            // Perfil — Estado Atual
+            document.getElementById('bmi-display').textContent = imcAtual;
+
+            // Perfil — Objetivo
+            document.getElementById('meta-peso').textContent    = usuario.pesoMeta;
+            document.getElementById('perda-total').textContent  = '-' + perdaTotal;
+            document.getElementById('novo-imc').textContent     = imcMeta;
+            document.getElementById('info-perda').textContent   =
+                `Perder ${perdaTotal}kg vai melhorar drasticamente sua subida. Com a ${usuario.bikeModelo} de ${usuario.bikePeso}kg, você já larga na frente!`;
+
+            // Zonas FC — badges BPM
+            document.getElementById('z1-badge').textContent = `< ${z1max} BPM`;
+            document.getElementById('z2-badge').textContent = `${z2min} – ${z2max} BPM`;
+            document.getElementById('z3-badge').textContent = `${z3min} – ${z3max} BPM`;
+            document.getElementById('z4-badge').textContent = `${z4min} – ${z4max} BPM`;
+            document.getElementById('z5-badge').textContent = `${z5min} – ${z5max} BPM`;
+
+            // Cabeçalho das zonas
+            document.getElementById('zones-desc').innerHTML =
+                `Calculado para <strong>${usuario.nome}</strong>, ${idade} anos (FCM ~${fcm} bpm pela fórmula de Tanaka). Configure estas zonas no <strong>Garmin</strong> e deixe no ajuste automático.`;
+
+            // Texto introdutório
+            document.getElementById('intro-desc').innerHTML =
+                `Olá, <strong>${usuario.nome}</strong>! Pela análise do seu perfil atual e projeção para o objetivo de realizar longos percursos de bicicleta. Com ${usuario.pesoAtual}kg e ${usuario.altura}cm, o foco é otimizar a relação peso/potência, especialmente com a sua ${usuario.bikeModelo} de ${usuario.bikePeso}kg.`;
+
+            // Longão — atualiza o step com o BPM correto da Z2
+            const longaoIdx = workouts.base.findIndex(w => w.tag === 'BIKE VOLUME');
+            if (longaoIdx !== -1) {
+                workouts.base[longaoIdx].steps[0] = `Manter batimentos entre ${z2min} e ${z2max} BPM`;
+            }
+        }
+
+        // ── Gráficos ──
         function initCharts() {
-            // 1. Weight Chart
+            const projecao = gerarProjecaoPeso();
+            const yMin = usuario.pesoMeta - 5;
+            const yMax = usuario.pesoAtual + 5;
+
+            // 1. Projeção de Peso
             const ctxWeight = document.getElementById('weightChart').getContext('2d');
             new Chart(ctxWeight, {
                 type: 'line',
                 data: {
-                    labels: ['Sem 0', 'Sem 2', 'Sem 4', 'Sem 6', 'Sem 8', 'Sem 10', 'Sem 12'],
+                    labels: ['Sem 0','Sem 2','Sem 4','Sem 6','Sem 8','Sem 10','Sem 12'],
                     datasets: [{
                         label: 'Meta de Peso',
-                        data: [85, 84, 82.5, 81, 79.5, 77, 75],
-                        borderColor: '#0d9488', // Teal 600
-                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        data: projecao,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13,148,136,0.1)',
                         borderWidth: 2,
                         tension: 0.3,
                         pointBackgroundColor: '#fff',
@@ -484,20 +660,16 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { display: false },
-                        tooltip: { 
-                            callbacks: {
-                                label: function(context) { return context.raw + ' kg'; }
-                            }
-                        }
+                        tooltip: { callbacks: { label: ctx => ctx.raw + ' kg' } }
                     },
                     scales: {
-                        y: { min: 70, max: 90, grid: { borderDash: [5, 5] } },
+                        y: { min: yMin, max: yMax, grid: { borderDash: [5,5] } },
                         x: { grid: { display: false } }
                     }
                 }
             });
 
-            // 2. Intensity Distribution (Doughnut)
+            // 2. Distribuição de Intensidade
             const ctxInt = document.getElementById('intensityChart').getContext('2d');
             new Chart(ctxInt, {
                 type: 'doughnut',
@@ -505,7 +677,7 @@
                     labels: ['Baixa (Z1/Z2)', 'Média (Z3)', 'Alta (Z4/Z5)'],
                     datasets: [{
                         data: [80, 5, 15],
-                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], // Green, Amber, Red
+                        backgroundColor: ['#10b981','#f59e0b','#ef4444'],
                         borderWidth: 0,
                         hoverOffset: 4
                     }]
@@ -522,7 +694,19 @@
             });
         }
 
-        window.onload = () => { renderCalendar(); initCharts(); };
+        window.onload = () => { preencherDados(); renderCalendar(); initCharts(); syncThemeIcon(); };
+
+        // ── Theme Toggle ──
+        function syncThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('theme-icon').className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-icon').className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        }
     </script>
 </body>
 </html>
