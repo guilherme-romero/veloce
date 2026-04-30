@@ -42,6 +42,9 @@ function navMonth(delta) {
 }
 
 function renderRides() {
+  // Chamado antes do init (ex: via renderAll)? Sai silenciosamente.
+  if (!monthCursor) return;
+
   const monthBox = document.getElementById('rides-month');
   const listBox  = document.getElementById('rides-list');
   const navBox   = document.getElementById('rides-month-nav');

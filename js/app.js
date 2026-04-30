@@ -192,25 +192,25 @@ function esc(s) {
    BOOT
 ═══════════════════════════════════════════════════════════════════════ */
 async function boot() {
-  // 1. Migração
+  // 1. Migração (lê dados_usuario.txt na 1ª execução)
   await tbMigrate();
 
-  // 2. Charts vazios
+  // 2. Charts — inicia estrutura vazia antes de renderizar
   Charts.init();
 
-  // 3. Render inicial
-  renderAll();
-
-  // 4. Inicializa rides (tem estado interno: cursor de mês)
+  // 3. Rides — init ANTES de renderAll (registra addEventListener nos botões)
   Rides.init();
 
-  // 5. Wire dos botões da nav
+  // 4. Render global (usa estado já inicializado do Rides)
+  renderAll();
+
+  // 5. Wire dos botões fixos da nav
   document.getElementById('btn-edit-profile')?.addEventListener('click', openProfileModal);
   document.getElementById('btn-edit-profile-2')?.addEventListener('click', openProfileModal);
   document.getElementById('btn-add-weight')?.addEventListener('click', openWeightModal);
   document.getElementById('btn-backup')?.addEventListener('click', Backup.open);
 
-  // 6. IntersectionObserver para nav ativo
+  // 6. IntersectionObserver para nav ativo no scroll
   const obs = new IntersectionObserver(entries => {
     entries.forEach(e => {
       if (e.isIntersecting) setActiveNav(e.target.id);
