@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0c0d10">
+  <meta name="description" content="Plano de treino de ciclismo com foco em perda de peso e ganho de condicionamento.">
+
+  <link rel="icon" type="image/png" href="icone.png">
+  <link rel="apple-touch-icon" href="icone.png">
+  <link rel="manifest" href="manifest.json">
+
+  <title>Treino Cicloviagem</title>
+
+  <!-- Fontes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Ícones -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <!-- Estilo do projeto (cache-busted via ?v=) -->
+  <link rel="stylesheet" href="css/style.css?v=1.0.0">
+</head>
+<body>
+
+<!-- ═══════════════════ NAV ══════════════════════════════════════════ -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-brand">
+      <div class="nav-brand-icon"><i class="fa-solid fa-person-biking"></i></div>
+      Treino Cicloviagem
+    </div>
+    <div class="nav-links">
+      <button id="nav-profile"      class="nav-btn active" onclick="scrollToSection('profile')">Perfil</button>
+      <button id="nav-zones"        class="nav-btn"        onclick="scrollToSection('zones')">Zonas FC</button>
+      <button id="nav-home-workout" class="nav-btn"        onclick="scrollToSection('home-workout')">Fortalecimento</button>
+      <button id="nav-plan"         class="nav-btn"        onclick="scrollToSection('plan')">Treinos</button>
+      <button id="nav-rides"        class="nav-btn"        onclick="scrollToSection('rides')">Passeios</button>
+    </div>
+    <div class="nav-right">
+      <button id="btn-edit-profile" class="nav-icon-btn" title="Editar perfil" type="button">
+        <i class="fa-solid fa-pen"></i>
+      </button>
+      <button id="btn-backup" class="nav-icon-btn" title="Backup" type="button">
+        <i class="fa-solid fa-cloud-arrow-down"></i>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════ MAIN ═════════════════════════════════════════ -->
+<main>
+
+  <!-- ┌─ PERFIL ────────────────────────────────────────────────────┐ -->
+  <section id="profile" class="scroll-mt-20">
+    <div class="section-label">Atleta</div>
+    <h2 class="section-title">Objetivos</h2>
+    <p id="profile-intro" class="section-sub" style="margin-bottom:28px;">Carregando dados do perfil…</p>
+
+    <div class="profile-grid">
+      <!-- ID Card -->
+      <div class="profile-id-card">
+        <button id="btn-edit-profile-2" class="id-card-edit" title="Editar perfil" type="button">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        <div class="avatar-ring"><i class="fa-solid fa-user"></i></div>
+        <div class="stat-name" id="stat-nome">—</div>
+        <div class="stat-meta-row">
+          <span id="stat-idade">—</span> anos &nbsp;·&nbsp;
+          <span id="stat-altura">—</span> cm
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-row">
+          <span class="stat-key">Peso atual</span>
+          <span class="stat-val" id="stat-peso">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">IMC</span>
+          <span class="stat-val" id="stat-imc">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">FC Máxima</span>
+          <span class="stat-val" style="color:var(--red)" id="stat-fcm">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">Bike</span>
+          <span class="stat-val" style="font-size:14px" id="stat-bike">—</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="goal-card">
+          <div class="goal-metric">
+            <span class="goal-metric-label">Meta de peso</span>
+            <span class="goal-metric-val" style="color:var(--teal)" id="stat-meta">—</span>
+          </div>
+          <div class="goal-metric">
+            <span class="goal-metric-label">Perda total</span>
+            <span class="goal-metric-val" style="color:var(--red)" id="stat-perda">—</span>
+          </div>
+          <div class="goal-metric">
+            <span class="goal-metric-label">IMC na meta</span>
+            <span class="goal-metric-val" style="color:var(--teal)" id="stat-imc-meta">—</span>
+          </div>
+        </div>
+
+        <div class="tip-box" id="goal-tip" style="margin-top:16px;">
+          <i class="fa-solid fa-circle-info"></i> Carregando…
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="card-head">
+              <span class="card-label" style="margin:0;">Projeção de peso · 12 semanas</span>
+              <button id="btn-add-weight" class="btn btn-sm btn-primary" type="button">
+                <i class="fa-solid fa-plus"></i> Pesagem
+              </button>
+            </div>
+            <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+            <div class="chart-card-foot">
+              <div class="legend-row">
+                <span><span class="swatch swatch-dashed"></span>Projeção</span>
+                <span><span class="swatch" style="background:var(--teal)"></span>Real</span>
+                <span><span class="swatch" style="background:var(--muted)"></span>Histórico</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <span class="card-label">Distribuição de intensidade</span>
+            <div class="chart-wrap"><canvas id="intensityChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ┌─ ZONAS FC ──────────────────────────────────────────────────┐ -->
+  <section id="zones" class="scroll-mt-20">
+    <div class="section-label">Fisiologia</div>
+    <h2 class="section-title">
+      <i class="fa-solid fa-heart-pulse" style="color:var(--red);font-size:0.7em;margin-right:10px"></i>Zonas de treino
+    </h2>
+    <p class="section-sub" id="zones-subtitle">Calculando zonas…</p>
+
+    <div class="zones-grid">
+      <div class="zone-card z1">
+        <div class="zone-top">
+          <span class="zone-name">Z1 — Recuperação</span>
+          <span class="zone-bpm" id="zone1-range">—</span>
+        </div>
+        <p class="zone-desc">Ideal para eliminar resíduos metabólicos.</p>
+      </div>
+      <div class="zone-card z2">
+        <div class="zone-top">
+          <span class="zone-name">Z2 — Resistência (Gordura)</span>
+          <span class="zone-bpm" id="zone2-range">—</span>
+        </div>
+        <p class="zone-desc">Zona mágica para perder peso. Eficiência lipídica.</p>
+      </div>
+      <div class="zone-card z3">
+        <div class="zone-top">
+          <span class="zone-name">Z3 — Tempo (Aeróbica)</span>
+          <span class="zone-bpm" id="zone3-range">—</span>
+        </div>
+        <p class="zone-desc">Melhora o transporte de oxigênio.</p>
+      </div>
+      <div class="zone-card z4">
+        <div class="zone-top">
+          <span class="zone-name">Z4 — Limiar de Lactato</span>
+          <span class="zone-bpm" id="zone4-range">—</span>
+        </div>
+        <p class="zone-desc">Suportar o esforço em subidas longas.</p>
+      </div>
+      <div class="zone-card z5">
+        <div class="zone-top">
+          <span class="zone-name">Z5 — VO₂ Máx</span>
+          <span class="zone-bpm" id="zone5-range">—</span>
+        </div>
+        <p class="zone-desc">Aumentar a cilindrada do motor.</p>
+      </div>
+      <div class="zone-card z6">
+        <div class="zone-top">
+          <span class="zone-name">Z6 — Cap. Anaeróbica</span>
+          <span class="zone-bpm">Máximo (Sprint)</span>
+        </div>
+        <p class="zone-desc">Tiros curtos (&lt;2 min). Explosão máxima.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ┌─ FORTALECIMENTO ────────────────────────────────────────────┐ -->
+  <section id="home-workout" class="scroll-mt-20">
+    <div class="section-label">Em casa</div>
+    <div class="card">
+      <div class="workout-header">
+        <div style="max-width:600px;">
+          <h2 style="font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-0.025em;margin-bottom:8px;color:var(--text);">Fortalecimento em casa</h2>
+          <p class="section-sub">Circuito Core &amp; Pernas — 2 a 3× por semana nos dias de descanso da bike.</p>
+        </div>
+        <span class="badge badge-amber"><i class="fa-solid fa-fire"></i> Foco: Core &amp; Estabilidade</span>
+      </div>
+
+      <div class="home-exercises">
+        <div class="exercise-card">
+          <div class="exercise-thumb"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="exercise-body">
+            <div class="exercise-name">Prancha frontal</div>
+            <div class="exercise-sets">3 séries × 45–60 s</div>
+            <div class="exercise-desc">Fortalece o abdômen profundo para evitar oscilação do tronco na bike.</div>
+          </div>
+        </div>
+        <div class="exercise-card">
+          <div class="exercise-thumb"><i class="fa-solid fa-arrows-up-down"></i></div>
+          <div class="exercise-body">
+            <div class="exercise-name">Agachamento sumô</div>
+            <div class="exercise-sets">3 séries × 20 reps</div>
+            <div class="exercise-desc">Trabalha internos da coxa e glúteo, essenciais para subidas técnicas.</div>
+          </div>
+        </div>
+        <div class="exercise-card">
+          <div class="exercise-thumb"><i class="fa-solid fa-repeat"></i></div>
+          <div class="exercise-body">
+            <div class="exercise-name">Escalador</div>
+            <div class="exercise-sets">3 séries × 40 s</div>
+            <div class="exercise-desc">Queima gordura abdominal rápido. Mantenha as costas retas.</div>
+          </div>
+        </div>
+        <div class="exercise-card">
+          <div class="exercise-thumb"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
+          <div class="exercise-body">
+            <div class="exercise-name">Afundo (Lunge)</div>
+            <div class="exercise-sets">3 séries × 12 cada perna</div>
+            <div class="exercise-desc">Equilíbrio e força unilateral. Melhora a arrancada ao sair do selim.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ┌─ AGENDA DE TREINO ──────────────────────────────────────────┐ -->
+  <section id="plan" class="scroll-mt-20">
+    <div class="section-head">
+      <div>
+        <div class="section-label">Semana padrão</div>
+        <h2 class="section-title">Agenda de treino</h2>
+      </div>
+      <div id="plan-toggle" class="plan-toggle">
+        <!-- preenchido por workouts.js -->
+      </div>
+    </div>
+
+    <div id="calendar-grid" class="calendar-grid"></div>
+
+    <div id="workout-detail" class="hidden"></div>
+  </section>
+
+  <!-- ┌─ PASSEIOS PLANEJADOS (NOVO) ────────────────────────────────┐ -->
+  <section id="rides" class="scroll-mt-20">
+    <div class="section-head">
+      <div>
+        <div class="section-label">Objetivos</div>
+        <h2 class="section-title">Passeios planejados</h2>
+        <p class="section-sub">Cadastre passeios futuros como objetivos. Eles aparecem aqui e te lembram do compromisso.</p>
+      </div>
+
+      <div class="rides-controls">
+        <div class="rides-view-toggle">
+          <button id="btn-view-month" class="active" type="button">
+            <i class="fa-solid fa-calendar-days"></i> Mês
+          </button>
+          <button id="btn-view-list" type="button">
+            <i class="fa-solid fa-list"></i> Lista
+          </button>
+        </div>
+        <button id="btn-add-ride" class="btn btn-primary btn-sm" type="button">
+          <i class="fa-solid fa-plus"></i> Novo passeio
+        </button>
+      </div>
+    </div>
+
+    <!-- Vista Mês -->
+    <div id="rides-month">
+      <div id="rides-month-nav">
+        <button class="btn btn-ghost btn-icon" id="btn-prev-month" type="button" title="Mês anterior">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <div class="month-title" id="rides-month-title">—</div>
+        <button class="btn btn-ghost btn-icon" id="btn-next-month" type="button" title="Próximo mês">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+      <div id="rides-month-grid"></div>
+    </div>
+
+    <!-- Vista Lista -->
+    <div id="rides-list" class="hidden">
+      <div id="rides-list-grid"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ═══════════════════ SCRIPTS ══════════════════════════════════════ -->
+<!-- CDN externo (versionamento próprio) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<!-- App scripts (com cache-busting via ?v=) -->
+<script src="js/version.js?v=1.0.0"></script>
+<script src="js/defaults.js?v=1.0.0"></script>
+<script src="js/storage.js?v=1.0.0"></script>
+<script src="js/profile.js?v=1.0.0"></script>
+<script src="js/charts.js?v=1.0.0"></script>
+<script src="js/modals.js?v=1.0.0"></script>
+<script src="js/workouts.js?v=1.0.0"></script>
+<script src="js/rides.js?v=1.0.0"></script>
+<script src="js/backup.js?v=1.0.0"></script>
+<script src="js/app.js?v=1.0.0"></script>
+<script src="js/pwa.js?v=1.0.0"></script>
+
+</body>
+</html>
