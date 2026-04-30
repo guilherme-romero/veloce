@@ -1,0 +1,557 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   RIDES.CSS - Estilos integrados ao projeto Treino Cicloviagem
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────
+   RIDES CONTROLS
+   ───────────────────────────────────────────────────────────────────── */
+
+.rides-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rides-view-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rides-view-toggle button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rides-view-toggle button:last-child {
+  border-right: none;
+}
+
+.rides-view-toggle button.active {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.rides-view-toggle button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   MONTH VIEW
+   ───────────────────────────────────────────────────────────────────── */
+
+#rides-month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.month-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 180px;
+  text-align: center;
+}
+
+.rides-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.rides-weekday {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 0;
+}
+
+.rides-day {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 60px;
+}
+
+.rides-day-empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+.rides-day:not(.rides-day-empty):hover {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  transform: scale(1.02);
+}
+
+.rides-day-today {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3));
+  border-color: #3b82f6;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.rides-day-today .rides-day-number {
+  color: #fff;
+  font-weight: 800;
+}
+
+.rides-day-has-rides {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.rides-day-number {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 4px;
+}
+
+.rides-day-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: auto;
+}
+
+.rides-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3b82f6;
+}
+
+.rides-indicator-baixo {
+  background: #10b981;
+}
+
+.rides-indicator-medio {
+  background: #f59e0b;
+}
+
+.rides-indicator-alto {
+  background: #ef4444;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   LIST VIEW
+   ───────────────────────────────────────────────────────────────────── */
+
+#rides-list-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.rides-empty-state {
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 48px 32px;
+  text-align: center;
+}
+
+.rides-empty-state i {
+  font-size: 48px;
+  color: rgba(255, 255, 255, 0.2);
+  margin-bottom: 16px;
+}
+
+.rides-empty-state p {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.ride-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ride-card:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.ride-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ride-card-date {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: capitalize;
+}
+
+.ride-card-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.ride-card-destination {
+  font-size: 20px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ride-card-destination i {
+  color: #3b82f6;
+}
+
+.ride-card-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ride-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ride-stat i {
+  font-size: 20px;
+  color: #3b82f6;
+}
+
+.ride-stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ride-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ride-stat-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ride-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rides-difficulty-badge {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rides-difficulty-baixo {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.rides-difficulty-medio {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.rides-difficulty-alto {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.ride-card-rating {
+  display: flex;
+  gap: 4px;
+}
+
+.ride-card-rating i {
+  color: #fbbf24;
+  font-size: 14px;
+}
+
+.ride-card-rating .fa-regular {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   DAY RIDES MODAL
+   ───────────────────────────────────────────────────────────────────── */
+
+.day-rides-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.day-ride-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.day-ride-item h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+}
+
+.day-ride-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.day-ride-stats span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.day-ride-stats i {
+  color: #3b82f6;
+}
+
+.day-ride-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   RIDE FORM
+   ───────────────────────────────────────────────────────────────────── */
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-group label i {
+  color: #3b82f6;
+}
+
+.form-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.form-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.rides-rating-input {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.rides-rating-star {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 4px;
+}
+
+.rides-rating-star:hover,
+.rides-rating-star.active {
+  color: #fbbf24;
+  transform: scale(1.15);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   RESPONSIVE
+   ───────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .rides-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .rides-calendar-grid {
+    gap: 4px;
+    padding: 12px;
+  }
+  
+  .rides-day {
+    padding: 4px;
+    min-height: 50px;
+  }
+  
+  .rides-day-number {
+    font-size: 12px;
+  }
+  
+  .rides-weekday {
+    font-size: 10px;
+    padding: 6px 0;
+  }
+  
+  .ride-card-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .ride-stat {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+  }
+  
+  .ride-stat i {
+    font-size: 18px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .month-title {
+    font-size: 16px;
+    min-width: 140px;
+  }
+  
+  .rides-calendar-grid {
+    gap: 2px;
+    padding: 8px;
+  }
+  
+  .rides-day {
+    min-height: 45px;
+  }
+  
+  .rides-weekday {
+    font-size: 9px;
+  }
+  
+  .ride-card-destination {
+    font-size: 18px;
+  }
+  
+  .ride-card-stats {
+    gap: 12px;
+  }
+  
+  .ride-stat-value {
+    font-size: 16px;
+  }
+  
+  .ride-stat-label {
+    font-size: 10px;
+  }
+}

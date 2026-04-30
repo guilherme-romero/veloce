@@ -1,369 +1,650 @@
-/* ═══════════════════════════════════════════════════════════════════════
-   RIDES — calendário de passeios planejados
-   Duas vistas: 'month' (grid mensal) e 'list' (cronológica)
-═══════════════════════════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════════════════════════
+// RIDES.JS - Sistema de planejamento de passeios (Integrado)
+// ═══════════════════════════════════════════════════════════════════════
 
-let ridesView = 'month';     // 'month' | 'list'
-let monthCursor = null;      // { y, m } — m é 0-indexed
+// ─────────────────────────────────────────────────────────────────────
+// STORAGE & DATA MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────
 
-const MONTH_NAMES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril',
-  'Maio', 'Junho', 'Julho', 'Agosto',
-  'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-];
-const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-function initRides() {
-  const today = new Date();
-  monthCursor = { y: today.getFullYear(), m: today.getMonth() };
-
-  // Wire dos botões da seção
-  document.getElementById('btn-add-ride')?.addEventListener('click', () => openRideModal(null));
-  document.getElementById('btn-view-month')?.addEventListener('click', () => switchView('month'));
-  document.getElementById('btn-view-list')?.addEventListener('click', () => switchView('list'));
-  document.getElementById('btn-prev-month')?.addEventListener('click', () => navMonth(-1));
-  document.getElementById('btn-next-month')?.addEventListener('click', () => navMonth(1));
-
-  renderRides();
-}
-
-function switchView(v) {
-  ridesView = v;
-  document.getElementById('btn-view-month')?.classList.toggle('active', v === 'month');
-  document.getElementById('btn-view-list')?.classList.toggle('active', v === 'list');
-  renderRides();
-}
-
-function navMonth(delta) {
-  monthCursor.m += delta;
-  if (monthCursor.m > 11) { monthCursor.m = 0; monthCursor.y++; }
-  if (monthCursor.m < 0)  { monthCursor.m = 11; monthCursor.y--; }
-  renderRides();
-}
-
-function renderRides() {
-  // Chamado antes do init (ex: via renderAll)? Sai silenciosamente.
-  if (!monthCursor) return;
-
-  const monthBox = document.getElementById('rides-month');
-  const listBox  = document.getElementById('rides-list');
-  const navBox   = document.getElementById('rides-month-nav');
-  if (!monthBox || !listBox) return;
-
-  if (ridesView === 'month') {
-    monthBox.classList.remove('hidden');
-    listBox.classList.add('hidden');
-    if (navBox) navBox.classList.remove('hidden');
-    renderMonth();
-  } else {
-    monthBox.classList.add('hidden');
-    listBox.classList.remove('hidden');
-    if (navBox) navBox.classList.add('hidden');
-    renderList();
-  }
-}
-
-/* ── Vista mensal (grid 7×N) ────────────────────────────────────────── */
-function renderMonth() {
-  const { y, m } = monthCursor;
-  const titleEl = document.getElementById('rides-month-title');
-  if (titleEl) titleEl.textContent = `${MONTH_NAMES[m]} ${y}`;
-
-  const grid = document.getElementById('rides-month-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-
-  // Header com nomes dos dias da semana
-  WEEKDAY_LABELS.forEach(d => {
-    const head = document.createElement('div');
-    head.className = 'month-head';
-    head.textContent = d;
-    grid.appendChild(head);
-  });
-
-  const firstDay = new Date(y, m, 1);
-  const startWeekday = firstDay.getDay();              // 0 = dom
-  const daysInMonth  = new Date(y, m + 1, 0).getDate();
-
-  // Espaçamento até o primeiro dia
-  for (let i = 0; i < startWeekday; i++) {
-    const blank = document.createElement('div');
-    blank.className = 'month-cell month-cell-empty';
-    grid.appendChild(blank);
-  }
-
-  const todayStr = tbToday();
-  const rides = Storage.getRides();
-
-  // Index de passeios por data
-  const ridesByDate = {};
-  rides.forEach(r => {
-    if (!ridesByDate[r.data]) ridesByDate[r.data] = [];
-    ridesByDate[r.data].push(r);
-  });
-
-  // Cells dos dias
-  for (let day = 1; day <= daysInMonth; day++) {
-    const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const cell = document.createElement('div');
-    cell.className = 'month-cell';
-    if (iso === todayStr) cell.classList.add('today');
-    if (ridesByDate[iso]) cell.classList.add('has-ride');
-
-    const dayRides = ridesByDate[iso] || [];
-    cell.innerHTML = `
-      <div class="month-cell-day">${day}</div>
-      ${dayRides.slice(0, 2).map(r => `
-        <div class="month-cell-ride" data-ride-id="${r.id}" title="${esc(r.nome)}">
-          <i class="fa-solid fa-bicycle"></i>
-          <span>${esc(r.nome)}</span>
-        </div>
-      `).join('')}
-      ${dayRides.length > 2
-        ? `<div class="month-cell-more">+${dayRides.length - 2} mais</div>`
-        : ''}
-    `;
-
-    // Clicar no dia abre cadastro novo (se vazio) ou abre o passeio (se já tem 1)
-    cell.addEventListener('click', e => {
-      const rideEl = e.target.closest('[data-ride-id]');
-      if (rideEl) {
-        showRideDetail(rideEl.dataset.rideId);
-      } else if (dayRides.length === 1) {
-        showRideDetail(dayRides[0].id);
-      } else if (dayRides.length === 0) {
-        openRideModal(null, iso);
-      } else {
-        // múltiplos: abre o primeiro (lista mostra todos)
-        showRideDetail(dayRides[0].id);
-      }
+const RidesStorage = {
+  KEY: 'tb.rides',
+  
+  load() {
+    const data = localStorage.getItem(this.KEY);
+    return data ? JSON.parse(data) : [];
+  },
+  
+  save(rides) {
+    localStorage.setItem(this.KEY, JSON.stringify(rides));
+  },
+  
+  add(ride) {
+    const rides = this.load();
+    const newRide = {
+      id: Date.now().toString(),
+      ...ride,
+      createdAt: new Date().toISOString()
+    };
+    rides.push(newRide);
+    this.save(rides);
+    return newRide;
+  },
+  
+  update(id, updates) {
+    const rides = this.load();
+    const index = rides.findIndex(r => r.id === id);
+    if (index !== -1) {
+      rides[index] = { ...rides[index], ...updates };
+      this.save(rides);
+      return rides[index];
+    }
+    return null;
+  },
+  
+  delete(id) {
+    const rides = this.load();
+    const filtered = rides.filter(r => r.id !== id);
+    this.save(filtered);
+  },
+  
+  getByMonth(year, month) {
+    const rides = this.load();
+    return rides.filter(ride => {
+      const date = new Date(ride.date);
+      return date.getFullYear() === year && date.getMonth() === month;
     });
-
-    grid.appendChild(cell);
+  },
+  
+  getFuture() {
+    const rides = this.load();
+    const today = new Date().setHours(0, 0, 0, 0);
+    return rides
+      .filter(ride => new Date(ride.date).getTime() >= today)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
   }
-}
+};
 
-/* ── Vista lista (cronológica) ──────────────────────────────────────── */
-function renderList() {
-  const list = document.getElementById('rides-list-grid');
-  if (!list) return;
+// ─────────────────────────────────────────────────────────────────────
+// CALENDAR CONTROLLER
+// ─────────────────────────────────────────────────────────────────────
 
-  const rides = Storage.getRides();
-  const todayStr = tbToday();
-
-  if (rides.length === 0) {
-    list.innerHTML = `
-      <div class="card" style="text-align:center;padding:40px 24px;color:var(--muted);">
-        <i class="fa-solid fa-route" style="font-size:32px;display:block;margin-bottom:12px"></i>
-        Nenhum passeio cadastrado ainda.<br>
-        Clique em <strong style="color:var(--teal)">Novo passeio</strong> para começar.
+class RidesCalendar {
+  constructor() {
+    this.currentDate = new Date();
+    this.viewMode = 'month'; // 'month' ou 'list'
+    
+    // Referências DOM
+    this.btnViewMonth = document.getElementById('btn-view-month');
+    this.btnViewList = document.getElementById('btn-view-list');
+    this.btnAddRide = document.getElementById('btn-add-ride');
+    this.btnPrevMonth = document.getElementById('btn-prev-month');
+    this.btnNextMonth = document.getElementById('btn-next-month');
+    this.monthTitle = document.getElementById('rides-month-title');
+    this.monthContainer = document.getElementById('rides-month');
+    this.listContainer = document.getElementById('rides-list');
+    this.monthGrid = document.getElementById('rides-month-grid');
+    this.listGrid = document.getElementById('rides-list-grid');
+    
+    this.init();
+  }
+  
+  init() {
+    this.attachEvents();
+    this.renderMonthView();
+  }
+  
+  attachEvents() {
+    // Toggle de vista
+    this.btnViewMonth?.addEventListener('click', () => this.switchView('month'));
+    this.btnViewList?.addEventListener('click', () => this.switchView('list'));
+    
+    // Navegação de mês
+    this.btnPrevMonth?.addEventListener('click', () => this.changeMonth(-1));
+    this.btnNextMonth?.addEventListener('click', () => this.changeMonth(1));
+    
+    // Adicionar passeio
+    this.btnAddRide?.addEventListener('click', () => this.openRideModal());
+    
+    // Clicks no grid
+    this.monthGrid?.addEventListener('click', (e) => this.handleMonthGridClick(e));
+    this.listGrid?.addEventListener('click', (e) => this.handleListGridClick(e));
+  }
+  
+  switchView(mode) {
+    this.viewMode = mode;
+    
+    if (mode === 'month') {
+      this.btnViewMonth?.classList.add('active');
+      this.btnViewList?.classList.remove('active');
+      this.monthContainer?.classList.remove('hidden');
+      this.listContainer?.classList.add('hidden');
+      this.renderMonthView();
+    } else {
+      this.btnViewMonth?.classList.remove('active');
+      this.btnViewList?.classList.add('active');
+      this.monthContainer?.classList.add('hidden');
+      this.listContainer?.classList.remove('hidden');
+      this.renderListView();
+    }
+  }
+  
+  changeMonth(delta) {
+    this.currentDate.setMonth(this.currentDate.getMonth() + delta);
+    this.renderMonthView();
+  }
+  
+  renderMonthView() {
+    const year = this.currentDate.getFullYear();
+    const month = this.currentDate.getMonth();
+    
+    // Atualizar título
+    const monthNames = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    if (this.monthTitle) {
+      this.monthTitle.textContent = `${monthNames[month]} ${year}`;
+    }
+    
+    // Renderizar grid
+    if (this.monthGrid) {
+      this.monthGrid.innerHTML = this.buildMonthGrid(year, month);
+    }
+  }
+  
+  buildMonthGrid(year, month) {
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    const rides = RidesStorage.getByMonth(year, month);
+    
+    let html = '<div class="rides-calendar-grid">';
+    
+    // Headers dos dias da semana
+    const weekdays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    weekdays.forEach(day => {
+      html += `<div class="rides-weekday">${day}</div>`;
+    });
+    
+    // Dias vazios antes do primeiro dia
+    for (let i = 0; i < firstDay; i++) {
+      html += '<div class="rides-day rides-day-empty"></div>';
+    }
+    
+    // Dias do mês
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const dateStr = this.formatDate(date);
+      const isToday = this.isSameDay(date, today);
+      const dayRides = rides.filter(r => r.date === dateStr);
+      
+      const classes = ['rides-day'];
+      if (isToday) classes.push('rides-day-today');
+      if (dayRides.length > 0) classes.push('rides-day-has-rides');
+      
+      html += `
+        <div class="${classes.join(' ')}" data-date="${dateStr}">
+          <div class="rides-day-number">${day}</div>
+          ${dayRides.length > 0 ? `
+            <div class="rides-day-indicators">
+              ${dayRides.map(ride => `
+                <span class="rides-indicator rides-indicator-${ride.difficulty}" 
+                      title="${ride.destination}"></span>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+    
+    html += '</div>';
+    return html;
+  }
+  
+  renderListView() {
+    const rides = RidesStorage.getFuture();
+    
+    if (!this.listGrid) return;
+    
+    if (rides.length === 0) {
+      this.listGrid.innerHTML = `
+        <div class="rides-empty-state">
+          <i class="fa-solid fa-bicycle"></i>
+          <p>Nenhum passeio planejado</p>
+          <button class="btn btn-primary" onclick="ridesCalendar.openRideModal()">
+            <i class="fa-solid fa-plus"></i> Adicionar Primeiro Passeio
+          </button>
+        </div>
+      `;
+      return;
+    }
+    
+    this.listGrid.innerHTML = rides.map(ride => this.buildRideCard(ride)).join('');
+  }
+  
+  buildRideCard(ride) {
+    const date = new Date(ride.date);
+    const dateFormatted = date.toLocaleDateString('pt-BR', { 
+      weekday: 'long', 
+      day: 'numeric',
+      month: 'long', 
+      year: 'numeric'
+    });
+    
+    const difficultyLabels = {
+      baixo: 'Baixa',
+      medio: 'Média',
+      alto: 'Alta'
+    };
+    
+    const stars = Array(5).fill(0).map((_, i) => {
+      const icon = i < ride.rating ? 'fa-solid fa-star' : 'fa-regular fa-star';
+      return `<i class="${icon}"></i>`;
+    }).join('');
+    
+    return `
+      <div class="ride-card" data-ride-id="${ride.id}">
+        <div class="ride-card-header">
+          <div class="ride-card-date">
+            <i class="fa-solid fa-calendar-day"></i>
+            ${dateFormatted}
+          </div>
+          <div class="ride-card-actions">
+            <button class="btn btn-icon btn-ghost" data-action="edit" data-ride-id="${ride.id}" title="Editar">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="btn btn-icon btn-ghost" data-action="delete" data-ride-id="${ride.id}" title="Excluir">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        
+        <h3 class="ride-card-destination">
+          <i class="fa-solid fa-map-marker-alt"></i>
+          ${ride.destination}
+        </h3>
+        
+        <div class="ride-card-stats">
+          <div class="ride-stat">
+            <i class="fa-solid fa-route"></i>
+            <div class="ride-stat-content">
+              <span class="ride-stat-value">${ride.distance}</span>
+              <span class="ride-stat-label">km</span>
+            </div>
+          </div>
+          <div class="ride-stat">
+            <i class="fa-solid fa-mountain"></i>
+            <div class="ride-stat-content">
+              <span class="ride-stat-value">${ride.altitude}</span>
+              <span class="ride-stat-label">m</span>
+            </div>
+          </div>
+          <div class="ride-stat">
+            <i class="fa-solid fa-clock"></i>
+            <div class="ride-stat-content">
+              <span class="ride-stat-value">${ride.duration}</span>
+              <span class="ride-stat-label">duração</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="ride-card-footer">
+          <span class="rides-difficulty-badge rides-difficulty-${ride.difficulty}">
+            ${difficultyLabels[ride.difficulty]}
+          </span>
+          <div class="ride-card-rating">
+            ${stars}
+          </div>
+        </div>
       </div>
     `;
-    return;
   }
-
-  // Separa em "futuros" e "passados"
-  const future = rides.filter(r => r.data >= todayStr);
-  const past   = rides.filter(r => r.data < todayStr);
-
-  let html = '';
-  if (future.length > 0) {
-    html += `<div class="rides-group-label">Próximos</div>`;
-    html += future.map(r => rideCardHTML(r, false)).join('');
+  
+  handleMonthGridClick(e) {
+    const dayEl = e.target.closest('.rides-day:not(.rides-day-empty)');
+    if (!dayEl) return;
+    
+    const dateStr = dayEl.dataset.date;
+    const rides = RidesStorage.load().filter(r => r.date === dateStr);
+    
+    if (rides.length > 0) {
+      this.showDayModal(dateStr, rides);
+    } else {
+      this.openRideModal(null, dateStr);
+    }
   }
-  if (past.length > 0) {
-    html += `<div class="rides-group-label" style="margin-top:24px;">Anteriores</div>`;
-    html += past.map(r => rideCardHTML(r, true)).join('');
+  
+  handleListGridClick(e) {
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    const rideId = e.target.closest('[data-ride-id]')?.dataset.rideId;
+    
+    if (!action || !rideId) return;
+    
+    if (action === 'edit') {
+      const ride = RidesStorage.load().find(r => r.id === rideId);
+      this.openRideModal(ride);
+    } else if (action === 'delete') {
+      this.deleteRide(rideId);
+    }
   }
-
-  list.innerHTML = html;
-  list.querySelectorAll('[data-ride-id]').forEach(el => {
-    el.onclick = () => showRideDetail(el.dataset.rideId);
-  });
-}
-
-function rideCardHTML(r, isPast) {
-  const d = new Date(r.data + 'T00:00:00');
-  const dia = String(d.getDate()).padStart(2, '0');
-  const mes = MONTH_NAMES[d.getMonth()].slice(0, 3).toUpperCase();
-  const ano = d.getFullYear();
-
-  return `
-    <div class="ride-card ${isPast ? 'ride-past' : ''}" data-ride-id="${r.id}">
-      <div class="ride-date">
-        <div class="ride-date-day">${dia}</div>
-        <div class="ride-date-mes">${mes}</div>
-        <div class="ride-date-ano">${ano}</div>
-      </div>
-      <div class="ride-info">
-        <div class="ride-name">${esc(r.nome)}</div>
-        <div class="ride-meta">
-          ${r.distanciaKm ? `<span><i class="fa-solid fa-route"></i> ${esc(r.distanciaKm)} km</span>` : ''}
-          ${r.local       ? `<span><i class="fa-solid fa-location-dot"></i> ${esc(r.local)}</span>` : ''}
-        </div>
-        ${r.notas ? `<div class="ride-notes">${esc(r.notas)}</div>` : ''}
-      </div>
-      <div class="ride-arrow"><i class="fa-solid fa-chevron-right"></i></div>
-    </div>
-  `;
-}
-
-/* ── Detalhe → modal de visualização com botões editar/excluir ──────── */
-function showRideDetail(rideId) {
-  const r = Storage.getRides().find(x => x.id === rideId);
-  if (!r) return;
-
-  const d = new Date(r.data + 'T00:00:00');
-  const dataFmt = d.toLocaleDateString('pt-BR', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
-  });
-
-  Modals.open({
-    tag: 'Passeio planejado',
-    title: esc(r.nome),
-    bodyHTML: `
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <div class="metric-box" style="padding:14px 18px;">
-          <div class="metric-icon" style="background:var(--teal-dim);color:var(--teal)"><i class="fa-solid fa-calendar-day"></i></div>
-          <div>
-            <div class="metric-label">Data</div>
-            <div style="font-size:14px;font-weight:600;text-transform:capitalize;">${esc(dataFmt)}</div>
+  
+  showDayModal(dateStr, rides) {
+    const date = new Date(dateStr + 'T00:00:00');
+    const dateFormatted = date.toLocaleDateString('pt-BR', { 
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long', 
+      year: 'numeric'
+    });
+    
+    const modalHTML = `
+      <div class="modal-overlay" id="dayRidesModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">Passeios em ${dateFormatted}</h3>
+            <button class="btn btn-icon btn-ghost" onclick="closeModal('dayRidesModal')">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="day-rides-list">
+              ${rides.map(ride => `
+                <div class="day-ride-item">
+                  <h4>${ride.destination}</h4>
+                  <div class="day-ride-stats">
+                    <span><i class="fa-solid fa-route"></i> ${ride.distance} km</span>
+                    <span><i class="fa-solid fa-mountain"></i> ${ride.altitude} m</span>
+                    <span><i class="fa-solid fa-clock"></i> ${ride.duration}</span>
+                  </div>
+                  <div class="day-ride-actions">
+                    <button class="btn btn-sm btn-primary" onclick="ridesCalendar.editRideFromDay('${ride.id}')">
+                      <i class="fa-solid fa-pen"></i> Editar
+                    </button>
+                    <button class="btn btn-sm btn-ghost" onclick="ridesCalendar.deleteRideFromDay('${ride.id}')">
+                      <i class="fa-solid fa-trash"></i> Excluir
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button class="btn btn-primary" onclick="ridesCalendar.openRideModal(null, '${dateStr}'); closeModal('dayRidesModal');">
+              <i class="fa-solid fa-plus"></i> Adicionar Outro Passeio
+            </button>
           </div>
         </div>
-        ${r.distanciaKm ? `
-        <div class="metric-box" style="padding:14px 18px;">
-          <div class="metric-icon" style="background:var(--blue-dim);color:var(--blue)"><i class="fa-solid fa-route"></i></div>
-          <div>
-            <div class="metric-label">Distância prevista</div>
-            <div style="font-size:14px;font-weight:600;">${esc(r.distanciaKm)} km</div>
-          </div>
-        </div>
-        ` : ''}
-        ${r.local ? `
-        <div class="metric-box" style="padding:14px 18px;">
-          <div class="metric-icon" style="background:var(--amber-dim);color:var(--amber)"><i class="fa-solid fa-location-dot"></i></div>
-          <div>
-            <div class="metric-label">Local / Rota</div>
-            <div style="font-size:14px;font-weight:600;">${esc(r.local)}</div>
-          </div>
-        </div>
-        ` : ''}
-        ${r.notas ? `
-        <div class="focus-box">
-          <div class="focus-box-label"><i class="fa-solid fa-note-sticky"></i> Observações</div>
-          <p style="font-size:14px;color:var(--muted2);line-height:1.6;">${esc(r.notas)}</p>
-        </div>
-        ` : ''}
       </div>
-    `,
-    actions: [
-      { label: 'Excluir', kind: 'danger', onClick: () => confirmDeleteRide(r) },
-      { label: 'Editar',  kind: 'ghost',  onClick: () => { Modals.close(); openRideModal(r.id); } },
-      { label: 'Fechar',  kind: 'primary', onClick: () => Modals.close() },
-    ],
-  });
-}
-
-/* ── Modal: novo / editar passeio ───────────────────────────────────── */
-function openRideModal(rideId, prefilledDate) {
-  const isEdit = !!rideId;
-  const r = isEdit
-    ? Storage.getRides().find(x => x.id === rideId)
-    : { data: prefilledDate || tbToday(), nome: '', distanciaKm: '', local: '', notas: '' };
-  if (isEdit && !r) return;
-
-  Modals.open({
-    tag: isEdit ? 'Editar passeio' : 'Novo passeio',
-    title: isEdit ? esc(r.nome) : 'Cadastrar passeio planejado',
-    bodyHTML: `
-      <div class="field">
-        <label class="field-label" for="r-nome">Nome do passeio</label>
-        <input id="r-nome" class="field-input" type="text" value="${esc(r.nome)}" placeholder="Ex.: Volta no Parque, Subida do Jaraguá" />
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label class="field-label" for="r-data">Data</label>
-          <input id="r-data" class="field-input" type="date" value="${esc(r.data)}" />
-        </div>
-        <div class="field">
-          <label class="field-label" for="r-dist">Distância (km)</label>
-          <input id="r-dist" class="field-input" type="number" min="0" step="1" value="${esc(r.distanciaKm)}" placeholder="60" />
-        </div>
-      </div>
-      <div class="field">
-        <label class="field-label" for="r-local">Local / Rota</label>
-        <input id="r-local" class="field-input" type="text" value="${esc(r.local)}" placeholder="Bairro, cidade ou nome da trilha" />
-      </div>
-      <div class="field">
-        <label class="field-label" for="r-notas">Observações</label>
-        <textarea id="r-notas" class="field-textarea" placeholder="Companhia, ponto de encontro, recomendações…">${esc(r.notas)}</textarea>
-      </div>
-    `,
-    actions: [
-      { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
-      { label: isEdit ? 'Salvar' : 'Cadastrar', kind: 'primary', onClick: (modal) => saveRide(modal, rideId) },
-    ],
-    onMount: (modal) => modal.querySelector('#r-nome').focus(),
-  });
-}
-
-function saveRide(modal, rideId) {
-  const v = (id) => modal.querySelector('#' + id).value.trim();
-
-  const data = {
-    nome:         v('r-nome'),
-    data:         v('r-data'),
-    distanciaKm:  v('r-dist'),
-    local:        v('r-local'),
-    notas:        v('r-notas'),
-  };
-
-  if (!data.nome) { toast('Informe o nome', { kind: 'error' }); return; }
-  if (!data.data) { toast('Informe a data', { kind: 'error' }); return; }
-
-  if (rideId) {
-    Storage.updateRide(rideId, data);
-    toast('Passeio atualizado');
-  } else {
-    Storage.addRide(data);
-    toast('Passeio cadastrado');
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    requestAnimationFrame(() => {
+      document.getElementById('dayRidesModal')?.classList.add('active');
+    });
   }
-  renderRides();
-  Modals.close();
+  
+  openRideModal(ride = null, presetDate = null) {
+    const isEdit = !!ride;
+    const today = new Date().toISOString().split('T')[0];
+    const defaultDate = presetDate || ride?.date || today;
+    
+    const modalHTML = `
+      <div class="modal-overlay" id="rideFormModal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">${isEdit ? 'Editar Passeio' : 'Novo Passeio'}</h3>
+            <button class="btn btn-icon btn-ghost" onclick="closeModal('rideFormModal')">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </div>
+          
+          <form id="rideForm" class="modal-body">
+            <div class="form-group">
+              <label for="rideDestination">
+                <i class="fa-solid fa-map-marker-alt"></i>
+                Destino
+              </label>
+              <input 
+                type="text" 
+                id="rideDestination" 
+                class="form-input"
+                required 
+                value="${ride?.destination || ''}"
+                placeholder="Ex: Serra da Mantiqueira"
+              />
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rideDate">
+                  <i class="fa-solid fa-calendar"></i>
+                  Data
+                </label>
+                <input 
+                  type="date" 
+                  id="rideDate" 
+                  class="form-input"
+                  required 
+                  value="${defaultDate}"
+                  min="${today}"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label for="rideDuration">
+                  <i class="fa-solid fa-clock"></i>
+                  Tempo de Pedal
+                </label>
+                <input 
+                  type="text" 
+                  id="rideDuration" 
+                  class="form-input"
+                  required 
+                  value="${ride?.duration || ''}"
+                  placeholder="Ex: 2h 30min"
+                />
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rideDistance">
+                  <i class="fa-solid fa-route"></i>
+                  Distância (km)
+                </label>
+                <input 
+                  type="number" 
+                  id="rideDistance" 
+                  class="form-input"
+                  required 
+                  step="0.1"
+                  value="${ride?.distance || ''}"
+                  placeholder="0.0"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label for="rideAltitude">
+                  <i class="fa-solid fa-mountain"></i>
+                  Altitude (m)
+                </label>
+                <input 
+                  type="number" 
+                  id="rideAltitude" 
+                  class="form-input"
+                  required 
+                  value="${ride?.altitude || ''}"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rideDifficulty">
+                  <i class="fa-solid fa-signal"></i>
+                  Nível de Dificuldade
+                </label>
+                <select id="rideDifficulty" class="form-input" required>
+                  <option value="baixo" ${ride?.difficulty === 'baixo' ? 'selected' : ''}>Baixa</option>
+                  <option value="medio" ${ride?.difficulty === 'medio' ? 'selected' : ''}>Média</option>
+                  <option value="alto" ${ride?.difficulty === 'alto' ? 'selected' : ''}>Alta</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label>
+                  <i class="fa-solid fa-star"></i>
+                  Nota do Passeio
+                </label>
+                <div class="rides-rating-input" id="rideRatingInput">
+                  ${Array(5).fill(0).map((_, i) => `
+                    <button 
+                      type="button" 
+                      class="rides-rating-star ${ride?.rating > i ? 'active' : ''}" 
+                      data-value="${i + 1}"
+                    >
+                      <i class="fa-solid fa-star"></i>
+                    </button>
+                  `).join('')}
+                </div>
+                <input type="hidden" id="rideRating" value="${ride?.rating || 0}" required />
+              </div>
+            </div>
+          </form>
+          
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" onclick="closeModal('rideFormModal')">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary" form="rideForm">
+              <i class="fa-solid fa-check"></i>
+              ${isEdit ? 'Atualizar' : 'Salvar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Ativar modal
+    requestAnimationFrame(() => {
+      document.getElementById('rideFormModal')?.classList.add('active');
+    });
+    
+    // Eventos do formulário
+    const form = document.getElementById('rideForm');
+    const ratingInput = document.getElementById('rideRatingInput');
+    const ratingValue = document.getElementById('rideRating');
+    
+    // Rating stars
+    ratingInput?.addEventListener('click', (e) => {
+      const star = e.target.closest('.rides-rating-star');
+      if (!star) return;
+      
+      const value = parseInt(star.dataset.value);
+      ratingValue.value = value;
+      
+      ratingInput.querySelectorAll('.rides-rating-star').forEach((s, i) => {
+        s.classList.toggle('active', i < value);
+      });
+    });
+    
+    // Submit
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.saveRide(ride?.id);
+    });
+    
+    // Focus
+    setTimeout(() => document.getElementById('rideDestination')?.focus(), 100);
+  }
+  
+  saveRide(editingId = null) {
+    const formData = {
+      destination: document.getElementById('rideDestination').value,
+      date: document.getElementById('rideDate').value,
+      duration: document.getElementById('rideDuration').value,
+      distance: parseFloat(document.getElementById('rideDistance').value),
+      altitude: parseInt(document.getElementById('rideAltitude').value),
+      difficulty: document.getElementById('rideDifficulty').value,
+      rating: parseInt(document.getElementById('rideRating').value)
+    };
+    
+    if (editingId) {
+      RidesStorage.update(editingId, formData);
+    } else {
+      RidesStorage.add(formData);
+    }
+    
+    closeModal('rideFormModal');
+    this.refresh();
+  }
+  
+  editRideFromDay(id) {
+    closeModal('dayRidesModal');
+    const ride = RidesStorage.load().find(r => r.id === id);
+    setTimeout(() => this.openRideModal(ride), 100);
+  }
+  
+  deleteRideFromDay(id) {
+    if (confirm('Deseja realmente excluir este passeio?')) {
+      RidesStorage.delete(id);
+      closeModal('dayRidesModal');
+      this.refresh();
+    }
+  }
+  
+  deleteRide(id) {
+    if (confirm('Deseja realmente excluir este passeio?')) {
+      RidesStorage.delete(id);
+      this.refresh();
+    }
+  }
+  
+  refresh() {
+    if (this.viewMode === 'month') {
+      this.renderMonthView();
+    } else {
+      this.renderListView();
+    }
+  }
+  
+  // Utility methods
+  formatDate(date) {
+    return date.toISOString().split('T')[0];
+  }
+  
+  isSameDay(date1, date2) {
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate();
+  }
 }
 
-function confirmDeleteRide(r) {
-  Modals.open({
-    tag: 'Confirmação',
-    title: `Excluir "${esc(r.nome)}"?`,
-    bodyHTML: `
-      <p style="color:var(--muted2);font-size:14px;line-height:1.6;">
-        O passeio será removido permanentemente. Essa ação não pode ser desfeita.
-      </p>
-    `,
-    actions: [
-      { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
-      { label: 'Excluir', kind: 'danger', onClick: () => {
-        Storage.deleteRide(r.id);
-        renderRides();
-        Modals.close();
-        toast('Passeio excluído');
-      }},
-    ],
-  });
+// ─────────────────────────────────────────────────────────────────────
+// MODAL UTILITIES
+// ─────────────────────────────────────────────────────────────────────
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  
+  modal.classList.remove('active');
+  setTimeout(() => modal.remove(), 300);
 }
 
-/* ── Helpers ─────────────────────────────────────────────────────────── */
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, m => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[m]));
-}
+// ─────────────────────────────────────────────────────────────────────
+// INITIALIZATION
+// ─────────────────────────────────────────────────────────────────────
 
-/* expor */
-window.Rides = {
-  init: initRides,
-  render: renderRides,
-  switchView,
-  navMonth,
-};
+let ridesCalendar;
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('rides')) {
+    ridesCalendar = new RidesCalendar();
+  }
+});
