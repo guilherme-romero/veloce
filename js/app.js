@@ -24,11 +24,12 @@ function renderAll() {
   const user = Storage.getUser();
   const weights = Storage.getWeights();
 
-  Profile.render(user);
-  Charts.renderWeight(user, weights);
-  Workouts.renderModes();
-  Workouts.renderCalendar();
-  Rides.render();
+  // Cada bloco é independente — falha em um não impede os outros
+  try { Profile.render(user); }                     catch (e) { console.error('[render] Profile:', e); }
+  try { Charts.renderWeight(user, weights); }       catch (e) { console.error('[render] Charts:', e); }
+  try { Workouts.renderModes(); }                   catch (e) { console.error('[render] Workouts.renderModes:', e); }
+  try { Workouts.renderCalendar(); }                catch (e) { console.error('[render] Workouts.renderCalendar:', e); }
+  try { Rides.render(); }                           catch (e) { console.error('[render] Rides:', e); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -192,34 +193,54 @@ function esc(s) {
    BOOT
 ═══════════════════════════════════════════════════════════════════════ */
 async function boot() {
+  console.log(`%c[Treino Cicloviagem] Boot v${window.APP_VERSION || '?'}`, 'color:#14d9b8;font-weight:bold');
+
+  // Helper: roda passo do boot capturando erro mas não interrompendo
+  const safe = async (label, fn) => {
+    try {
+      const r = fn();
+      if (r && typeof r.then === 'function') await r;
+      console.log(`  ✓ ${label}`);
+    } catch (e) {
+      console.error(`  ✗ ${label}:`, e);
+    }
+  };
+
   // 1. Migração (lê dados_usuario.txt na 1ª execução)
-  await tbMigrate();
+  await safe('Migração de dados', () => tbMigrate());
 
   // 2. Charts — inicia estrutura vazia antes de renderizar
-  Charts.init();
+  await safe('Charts.init()', () => Charts && Charts.init && Charts.init());
 
   // 3. Rides — init ANTES de renderAll (registra addEventListener nos botões)
-  Rides.init();
+  await safe('Rides.init()', () => Rides && Rides.init && Rides.init());
 
-  // 4. Render global (usa estado já inicializado do Rides)
-  renderAll();
+  // 4. Render global
+  await safe('renderAll()', () => renderAll());
 
-  // 5. Wire dos botões fixos da nav
-  document.getElementById('btn-edit-profile')?.addEventListener('click', openProfileModal);
-  document.getElementById('btn-edit-profile-2')?.addEventListener('click', openProfileModal);
-  document.getElementById('btn-add-weight')?.addEventListener('click', openWeightModal);
-  document.getElementById('btn-backup')?.addEventListener('click', Backup.open);
+  // 5. Wire dos botões fixos da nav (sempre, mesmo se algo acima falhou)
+  await safe('Wire dos botões da nav', () => {
+    document.getElementById('btn-edit-profile')?.addEventListener('click', openProfileModal);
+    document.getElementById('btn-edit-profile-2')?.addEventListener('click', openProfileModal);
+    document.getElementById('btn-add-weight')?.addEventListener('click', openWeightModal);
+    document.getElementById('btn-backup')?.addEventListener('click', () => Backup && Backup.open && Backup.open());
+  });
 
   // 6. IntersectionObserver para nav ativo no scroll
-  const obs = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting) setActiveNav(e.target.id);
+  await safe('IntersectionObserver nav', () => {
+    if (typeof IntersectionObserver !== 'function') return;
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) setActiveNav(e.target.id);
+      });
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+    NAV_SECTIONS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el);
     });
-  }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
-  NAV_SECTIONS.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) obs.observe(el);
   });
+
+  console.log('[Treino Cicloviagem] Boot concluído');
 }
 
 document.addEventListener('DOMContentLoaded', boot);

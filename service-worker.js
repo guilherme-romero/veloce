@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v1.1.0';
+const CACHE_VERSION = 'v1.1.1';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
@@ -38,7 +38,8 @@ const EXTERNAL_ASSETS = [
 /* ── INSTALL: pré-cacheia o shell ───────────────────────────────────── */
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
       // Shell crítico
       await cache.addAll(SHELL).catch(err => {
         console.warn('[SW] addAll partial failure:', err);
@@ -49,9 +50,15 @@ self.addEventListener('install', (event) => {
           .then(r => cache.put(u, r))
           .catch(() => null)
       ));
-    })
+      // Se NÃO há SW controlando ainda (primeira instalação), ativa imediatamente.
+      // Senão, espera o cliente pedir via mensagem (banner "Atualizar").
+      const clients = await self.clients.matchAll();
+      const hasController = clients.some(c => c.frameType !== 'none');
+      if (!hasController) {
+        await self.skipWaiting();
+      }
+    })()
   );
-  // NÃO chama skipWaiting() aqui — espera o cliente confirmar via mensagem.
 });
 
 /* ── ACTIVATE: limpa caches antigos ─────────────────────────────────── */

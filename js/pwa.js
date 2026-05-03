@@ -11,14 +11,20 @@
   window.addEventListener('load', async () => {
     try {
       registration = await navigator.serviceWorker.register('./service-worker.js');
+      console.log(`[PWA] SW registrado (escopo: ${registration.scope})`);
+
+      // FORÇA verificação de update logo após registrar — pega correções rápido
+      try { await registration.update(); } catch (_) {}
 
       // Quando uma nova versão é encontrada, espera estado 'installed'
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         if (!newWorker) return;
+        console.log('[PWA] Nova versão do SW detectada — instalando…');
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
             // Nova versão instalada e pronta para ativar
+            console.log('[PWA] Nova versão pronta — banner exibido');
             showUpdateBanner();
           }
         });
