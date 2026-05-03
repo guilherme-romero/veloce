@@ -6,7 +6,8 @@
      tb.modes     → array de modos de treino
      tb.workouts  → dict { modeId: [workouts] }
      tb.weights   → array de pesagens
-     tb.rides     → array de passeios planejados
+     tb.rides     → array de passeios planejados (schema pt-BR)
+     tb.version   → versão do schema (controle de migração)
 ═══════════════════════════════════════════════════════════════════════ */
 
 const KEYS = {
@@ -18,7 +19,7 @@ const KEYS = {
   VERSION:  'tb.version',
 };
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2; // v2: rides em pt-BR
 
 /* ── Defaults ───────────────────────────────────────────────────────── */
 const DEFAULTS = {
@@ -64,6 +65,50 @@ function remove(key) { localStorage.removeItem(key); }
 
 function clearAllData() {
   Object.values(KEYS).forEach(remove);
+}
+
+/* ── Helpers de Ride ────────────────────────────────────────────────── */
+function genRideId() {
+  return 'ride_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
+}
+
+/**
+ * Normaliza um Ride: converte schema antigo (en) para novo (pt) se necessário,
+ * preenche defaults e força tipos corretos. Retorna sempre um objeto válido.
+ */
+function normalizeRide(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = { ...raw };
+
+  // Migração de campos legados (schema antigo do rides.js v1)
+  if (r.date && !r.data) { r.data = r.date; delete r.date; }
+  if (r.destination && !r.destino) { r.destino = r.destination; delete r.destination; }
+  if (r.distance !== undefined && r.distancia === undefined) {
+    r.distancia = r.distance; delete r.distance;
+  }
+  if (r.duration && !r.duracao) { r.duracao = r.duration; delete r.duration; }
+  if (r.difficulty && !r.dificuldade) {
+    const map = { baixo: 'baixa', medio: 'media', alto: 'alta' };
+    r.dificuldade = map[r.difficulty] || r.difficulty;
+    delete r.difficulty;
+  }
+  if (r.rating !== undefined && r.nota === undefined) {
+    r.nota = r.rating; delete r.rating;
+  }
+
+  // Defaults / coerção de tipos
+  if (!r.id) r.id = genRideId();
+  r.data        = String(r.data || '');
+  r.destino     = String(r.destino || '');
+  r.distancia   = isFinite(parseFloat(r.distancia)) ? parseFloat(r.distancia) : 0;
+  r.altitude    = isFinite(parseInt(r.altitude, 10)) ? parseInt(r.altitude, 10) : 0;
+  r.duracao     = String(r.duracao || '');
+  r.dificuldade = ['baixa', 'media', 'alta'].includes(r.dificuldade) ? r.dificuldade : 'media';
+  r.nota        = Math.max(0, Math.min(5, parseInt(r.nota, 10) || 0));
+  r.notas       = String(r.notas || '');
+  r.createdAt   = r.createdAt || new Date().toISOString();
+
+  return r;
 }
 
 /* ── API tipada por entidade ────────────────────────────────────────── */
@@ -121,7 +166,12 @@ const Storage = {
 
   addWorkout: (modeId, workout) => {
     const list = Storage.getWorkoutsForMode(modeId);
-    if (!workout.id) workout.id = tbGenId();
+    if (!workout.id) {
+      // tbGenId vem de defaults.js; fallback inline se faltar
+      workout.id = (typeof tbGenId === 'function')
+        ? tbGenId()
+        : 'w_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+    }
     list.push(workout);
     Storage.setWorkoutsForMode(modeId, list);
     return workout.id;
@@ -155,23 +205,27 @@ const Storage = {
   },
 
   // ── Rides ──────────────────────────────────────────────────────────
-  getRides: ()      => get(KEYS.RIDES, []),
-  setRides: (r)     => set(KEYS.RIDES, r),
+  getRides: () => {
+    const raw = get(KEYS.RIDES, []);
+    if (!Array.isArray(raw)) return [];
+    return raw.map(normalizeRide).filter(Boolean);
+  },
+  setRides: (r) => set(KEYS.RIDES, r),
 
   addRide: (ride) => {
     const arr = Storage.getRides();
-    if (!ride.id) ride.id = 'ride_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
-    arr.push(ride);
+    const novo = normalizeRide({ ...ride, id: ride.id || genRideId() });
+    arr.push(novo);
     arr.sort((a, b) => a.data.localeCompare(b.data));
     Storage.setRides(arr);
-    return ride.id;
+    return novo.id;
   },
 
   updateRide: (id, patch) => {
     const arr = Storage.getRides();
     const idx = arr.findIndex(r => r.id === id);
     if (idx >= 0) {
-      arr[idx] = { ...arr[idx], ...patch, id };
+      arr[idx] = normalizeRide({ ...arr[idx], ...patch, id });
       arr.sort((a, b) => a.data.localeCompare(b.data));
       Storage.setRides(arr);
       return true;
@@ -203,14 +257,41 @@ const Storage = {
     if (data.modes)    Storage.setModes(data.modes);
     if (data.workouts) Storage.setWorkouts(data.workouts);
     if (data.weights)  Storage.setWeights(data.weights);
-    if (data.rides)    Storage.setRides(data.rides);
+    if (data.rides && Array.isArray(data.rides)) {
+      Storage.setRides(data.rides.map(normalizeRide).filter(Boolean));
+    }
+    // Garante que versão fica em dia após import
+    set(KEYS.VERSION, SCHEMA_VERSION);
   },
 };
 
-/* ── Migração: lê dados_usuario.txt (legado) na primeira execução ───── */
-async function migrateFromLegacyTxtIfNeeded() {
-  if (localStorage.getItem(KEYS.VERSION)) return;
+/* ── Migrações entre versões de schema ──────────────────────────────── */
+function migrateSchema() {
+  const current = get(KEYS.VERSION, 0);
+  if (current === SCHEMA_VERSION) return;
 
+  // v0/v1 → v2: normalizar rides com schema antigo
+  if (current < 2) {
+    const rides = get(KEYS.RIDES, []);
+    if (Array.isArray(rides) && rides.length > 0) {
+      const normalized = rides.map(normalizeRide).filter(Boolean);
+      Storage.setRides(normalized);
+      console.info(`[Storage] Migrados ${normalized.length} passeios para schema v2.`);
+    }
+  }
+
+  set(KEYS.VERSION, SCHEMA_VERSION);
+}
+
+/* ── Migração inicial: lê dados_usuario.txt (legado) na primeira execução ── */
+async function migrateFromLegacyTxtIfNeeded() {
+  // Já tem versão registrada? Só roda migração de schema entre versões.
+  if (localStorage.getItem(KEYS.VERSION)) {
+    migrateSchema();
+    return;
+  }
+
+  // Primeira execução: tenta ler dados_usuario.txt
   const user = { ...DEFAULTS.user };
 
   try {
@@ -267,3 +348,4 @@ window.Storage = Storage;
 window.tbMigrate = migrateFromLegacyTxtIfNeeded;
 window.tbToday = todayISO;
 window.tbBrToISO = brToISO;
+window.tbNormalizeRide = normalizeRide;

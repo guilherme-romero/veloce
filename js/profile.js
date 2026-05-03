@@ -5,11 +5,13 @@
 /* ── Pure helpers ───────────────────────────────────────────────────── */
 function calcAge(isoBirth) {
   if (!isoBirth) return 0;
-  const [y, m, d] = isoBirth.split('-').map(Number);
+  const parts = isoBirth.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return 0;
+  const [y, m, d] = parts;
   const today = new Date();
   let age = today.getFullYear() - y;
   if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
-  return age;
+  return age > 0 ? age : 0;
 }
 
 function calcBMI(pesoKg, alturaCm) {
@@ -19,6 +21,7 @@ function calcBMI(pesoKg, alturaCm) {
 }
 
 function bmiInfo(imc) {
+  if (!imc)      return { label: '—',                color: 'var(--muted)' };
   if (imc < 18.5) return { label: 'Abaixo do peso', color: 'var(--blue)' };
   if (imc < 25)   return { label: 'Peso normal',    color: 'var(--green)' };
   if (imc < 30)   return { label: 'Sobrepeso',      color: 'var(--amber)' };
@@ -29,6 +32,7 @@ function calcFCMax(age) {
   return age > 0 ? 220 - age : 0;
 }
 
+/* Zonas: Z1=<60% · Z2=60-70% · Z3=70-80% · Z4=80-90% · Z5=90-100% · Z6=neuromuscular (>FCM curto) */
 function calcZones(fcm) {
   if (!fcm) return null;
   const z1max = Math.round(fcm * 0.60);
@@ -41,6 +45,7 @@ function calcZones(fcm) {
     z3: { min: z2max + 1, max: z3max },
     z4: { min: z3max + 1, max: z4max },
     z5: { min: z4max + 1, max: fcm },
+    z6: { min: fcm, label: 'Sprint (FCM máx)' },
   };
 }
 
@@ -50,7 +55,7 @@ function renderProfile(user) {
   const imc     = calcBMI(user.pesoAtual, user.altura);
   const imcMeta = calcBMI(user.pesoMeta,  user.altura);
   const fcm     = calcFCMax(idade);
-  const perda   = +(user.pesoAtual - user.pesoMeta).toFixed(1);
+  const perda   = +(((user.pesoAtual || 0) - (user.pesoMeta || 0)).toFixed(1));
   const info    = bmiInfo(imc);
 
   // ── ID Card ───────────────────────────────
@@ -68,14 +73,17 @@ function renderProfile(user) {
   setHTML('stat-fcm',  fcm ? `${fcm}<span class="unit">bpm</span>` : '—');
   setHTML('stat-bike',
     user.bikeModelo
-      ? `${user.bikeModelo} · ${(user.bikePeso || 0).toFixed(1).replace('.', ',')} <span class="unit">kg</span>`
+      ? `${escAttr(user.bikeModelo)} · ${(user.bikePeso || 0).toFixed(1).replace('.', ',')} <span class="unit">kg</span>`
       : '—');
 
   // ── Goal metrics ──────────────────────────
   setHTML('stat-meta', user.pesoMeta
-    ? `${user.pesoMeta.toFixed(0)}<span class="unit" style="font-size:14px">kg</span>` : '—');
-  setHTML('stat-perda', perda
-    ? `−${perda.toString().replace('.', ',')}<span class="unit" style="font-size:14px">kg</span>` : '—');
+    ? `${Math.round(user.pesoMeta)}<span class="unit" style="font-size:14px">kg</span>` : '—');
+  setHTML('stat-perda', perda > 0
+    ? `−${perda.toString().replace('.', ',')}<span class="unit" style="font-size:14px">kg</span>`
+    : (perda < 0
+      ? `+${Math.abs(perda).toString().replace('.', ',')}<span class="unit" style="font-size:14px">kg</span>`
+      : '—'));
   setHTML('stat-imc-meta',
     imcMeta
       ? `${imcMeta.toString().replace('.', ',')}<span class="unit" style="font-size:14px;color:var(--muted)"> ${bmiInfo(imcMeta).label}</span>`
@@ -87,6 +95,9 @@ function renderProfile(user) {
     const sistemaMeta  = (user.pesoMeta  + user.bikePeso).toFixed(1);
     setHTML('goal-tip',
       `<i class="fa-solid fa-circle-info"></i> Perder <strong>${perda.toString().replace('.', ',')} kg</strong> melhora drasticamente a subida. Sistema atual: <strong>${sistemaAtual.replace('.', ',')} kg</strong> → meta <strong>${sistemaMeta.replace('.', ',')} kg</strong>.`);
+  } else if (perda < 0) {
+    setHTML('goal-tip',
+      `<i class="fa-solid fa-circle-info"></i> Sua meta é <strong>ganhar peso</strong>. Foque em treinos de força e nutrição calórica positiva.`);
   } else {
     setHTML('goal-tip',
       `<i class="fa-solid fa-circle-info"></i> Configure suas metas no botão de edição do perfil.`);
@@ -109,14 +120,18 @@ function renderProfile(user) {
     setText('zone3-range', `${zones.z3.min} – ${zones.z3.max} BPM`);
     setText('zone4-range', `${zones.z4.min} – ${zones.z4.max} BPM`);
     setText('zone5-range', `${zones.z5.min} – ${zones.z5.max} BPM`);
+    // Z6 já tem texto no HTML; aqui ajustamos se quisermos dinamizar
+    const z6El = document.getElementById('zone6-range');
+    if (z6El) z6El.textContent = `> ${zones.z6.min} BPM (Sprint)`;
+
     if (user.nome) {
       setHTML('zones-subtitle',
-        `Calculado para <strong>${user.nome}</strong>, ${idade} anos (FCM ~${fcm} bpm). Configure estas zonas no <strong>Garmin</strong>.`);
+        `Calculado para <strong>${escHTML(user.nome)}</strong>, ${idade} anos (FCM ~${fcm} bpm). Configure estas zonas no <strong>Garmin</strong>.`);
     } else {
       setText('zones-subtitle', `FCM estimada: ${fcm} bpm. Configure estas zonas no Garmin.`);
     }
   } else {
-    ['zone1-range', 'zone2-range', 'zone3-range', 'zone4-range', 'zone5-range']
+    ['zone1-range', 'zone2-range', 'zone3-range', 'zone4-range', 'zone5-range', 'zone6-range']
       .forEach(id => setText(id, '—'));
     setText('zones-subtitle', 'Cadastre sua data de nascimento para calcular as zonas.');
   }
@@ -130,6 +145,14 @@ function setText(id, txt) {
 function setHTML(id, html) {
   const el = document.getElementById(id);
   if (el) el.innerHTML = html;
+}
+function escHTML(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+}
+function escAttr(s) {
+  return escHTML(s);
 }
 
 /* expor */
