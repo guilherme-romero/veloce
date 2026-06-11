@@ -11,12 +11,15 @@
 ═══════════════════════════════════════════════════════════════════════ */
 
 const KEYS = {
-  USER:     'tb.user',
-  MODES:    'tb.modes',
-  WORKOUTS: 'tb.workouts',
-  WEIGHTS:  'tb.weights',
-  RIDES:    'tb.rides',
-  VERSION:  'tb.version',
+  USER:           'tb.user',
+  MODES:          'tb.modes',
+  WORKOUTS:       'tb.workouts',
+  WEIGHTS:        'tb.weights',
+  RIDES:          'tb.rides',
+  TRAINING_LOG:   'tb.training_log',
+  HOME_EXERCISES: 'tb.home_exercises',
+  ROUTES:         'tb.routes',
+  VERSION:        'tb.version',
 };
 
 const SCHEMA_VERSION = 2; // v2: rides em pt-BR
@@ -238,17 +241,91 @@ const Storage = {
     Storage.setRides(arr.filter(r => r.id !== id));
   },
 
+  // ── Training Log ───────────────────────────────────────────────────
+  getTrainingLog: () => {
+    const raw = get(KEYS.TRAINING_LOG, []);
+    // Normaliza entradas antigas que usavam campo 'tipo' (singular)
+    return raw.map(e => ({
+      ...e,
+      tipos: Array.isArray(e.tipos) ? e.tipos : (e.tipo ? [e.tipo] : ['bike']),
+    }));
+  },
+  setTrainingLog: (log) => set(KEYS.TRAINING_LOG, log),
+
+  addTrainingEntry: (entry) => {
+    const log = get(KEYS.TRAINING_LOG, []);
+    const id = 'tl_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
+    // Garante que tipos é sempre array
+    const tipos = Array.isArray(entry.tipos) ? entry.tipos : (entry.tipo ? [entry.tipo] : ['bike']);
+    log.push({ ...entry, tipos, id, createdAt: new Date().toISOString() });
+    log.sort((a, b) => a.data.localeCompare(b.data));
+    set(KEYS.TRAINING_LOG, log);
+    return id;
+  },
+
+  deleteTrainingEntry: (id) => {
+    Storage.setTrainingLog(Storage.getTrainingLog().filter(e => e.id !== id));
+  },
+
+  // ── Home Exercises ─────────────────────────────────────────────────
+  getHomeExercises: () => {
+    const raw = get(KEYS.HOME_EXERCISES, null);
+    if (raw !== null && Array.isArray(raw)) return raw;
+    // Primeira vez: inicializa dos defaults
+    const defaults = (window.DEFAULT_HOME_EXERCISES || []).map(e => ({ ...e }));
+    set(KEYS.HOME_EXERCISES, defaults);
+    return defaults;
+  },
+  setHomeExercises: (exs) => set(KEYS.HOME_EXERCISES, exs),
+
+  addHomeExercise: (ex) => {
+    const list = Storage.getHomeExercises();
+    const id = 'hw_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
+    list.push({ ...ex, id });
+    Storage.setHomeExercises(list);
+    return id;
+  },
+
+  updateHomeExercise: (id, patch) => {
+    const list = Storage.getHomeExercises();
+    const idx = list.findIndex(e => e.id === id);
+    if (idx >= 0) { list[idx] = { ...list[idx], ...patch, id }; Storage.setHomeExercises(list); }
+  },
+
+  deleteHomeExercise: (id) => {
+    Storage.setHomeExercises(Storage.getHomeExercises().filter(e => e.id !== id));
+  },
+
+  // ── Routes ─────────────────────────────────────────────────────────
+  getRoutes: () => get(KEYS.ROUTES, []),
+  setRoutes: (r) => set(KEYS.ROUTES, r),
+
+  addRoute: (route) => {
+    const routes = Storage.getRoutes();
+    const id = 'route_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
+    routes.push({ ...route, id, createdAt: new Date().toISOString() });
+    Storage.setRoutes(routes);
+    return id;
+  },
+
+  deleteRoute: (id) => {
+    Storage.setRoutes(Storage.getRoutes().filter(r => r.id !== id));
+  },
+
   // ── Util ───────────────────────────────────────────────────────────
   clearAll: clearAllData,
 
   exportJSON: () => JSON.stringify({
-    version:    SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
-    user:       Storage.getUser(),
-    modes:      Storage.getModes(),
-    workouts:   Storage.getWorkouts(),
-    weights:    Storage.getWeights(),
-    rides:      Storage.getRides(),
+    version:       SCHEMA_VERSION,
+    exportedAt:    new Date().toISOString(),
+    user:          Storage.getUser(),
+    modes:         Storage.getModes(),
+    workouts:      Storage.getWorkouts(),
+    weights:       Storage.getWeights(),
+    rides:         Storage.getRides(),
+    trainingLog:   Storage.getTrainingLog(),
+    homeExercises: Storage.getHomeExercises(),
+    routes:        Storage.getRoutes(),
   }, null, 2),
 
   importJSON: (jsonStr) => {
@@ -260,7 +337,15 @@ const Storage = {
     if (data.rides && Array.isArray(data.rides)) {
       Storage.setRides(data.rides.map(normalizeRide).filter(Boolean));
     }
-    // Garante que versão fica em dia após import
+    if (data.trainingLog && Array.isArray(data.trainingLog)) {
+      Storage.setTrainingLog(data.trainingLog);
+    }
+    if (data.homeExercises && Array.isArray(data.homeExercises)) {
+      Storage.setHomeExercises(data.homeExercises);
+    }
+    if (data.routes && Array.isArray(data.routes)) {
+      Storage.setRoutes(data.routes);
+    }
     set(KEYS.VERSION, SCHEMA_VERSION);
   },
 };

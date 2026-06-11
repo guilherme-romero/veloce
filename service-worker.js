@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v1.1.1';
+const CACHE_VERSION = 'v1.3.5';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
@@ -16,7 +16,9 @@ const SHELL = [
   './icone.png',
   './css/style.css',
   './css/rides.css',
+  './css/routes.css',
   './js/version.js',
+  './js/utils.js',
   './js/defaults.js',
   './js/storage.js',
   './js/profile.js',
@@ -24,7 +26,11 @@ const SHELL = [
   './js/modals.js',
   './js/workouts.js',
   './js/rides.js',
+  './js/training-log.js',
+  './js/home-workout.js',
   './js/backup.js',
+  './js/gpx.js',
+  './js/routes.js',
   './js/app.js',
   './js/pwa.js',
   // dados_usuario.txt entra como cache opcional — não falha install se faltar
@@ -33,6 +39,8 @@ const SHELL = [
 const EXTERNAL_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
 ];
 
 /* ── INSTALL: pré-cacheia o shell ───────────────────────────────────── */

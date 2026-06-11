@@ -100,6 +100,15 @@ function renderMonthView() {
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
+  // Training log badges
+  const tlByDate = {};
+  if (typeof TrainingLog !== 'undefined') {
+    TrainingLog.getForMonth(year, month).forEach(e => {
+      if (!tlByDate[e.data]) tlByDate[e.data] = [];
+      tlByDate[e.data].push(e);
+    });
+  }
+
   let html = '';
 
   // Cabeçalho dos dias da semana
@@ -125,6 +134,20 @@ function renderMonthView() {
 
     html += `<div class="${classes.join(' ')}" data-date="${dateISO}">`;
     html += `<div class="month-cell-day">${day}</div>`;
+
+    // Badges de dias treinados (suporta múltiplos tipos por entrada)
+    const dayTL = tlByDate[dateISO] || [];
+    if (dayTL.length > 0) {
+      html += '<div class="tl-badges">';
+      dayTL.forEach(e => {
+        const tipos = e.tipos || (e.tipo ? [e.tipo] : []);
+        tipos.forEach(tipo => {
+          const label = TrainingLog?.TL_TYPES?.[tipo]?.label || tipo;
+          html += `<span class="tl-badge" data-tipo="${escAttr(tipo)}" title="${escAttr(label)}"></span>`;
+        });
+      });
+      html += '</div>';
+    }
 
     // Mostra até 2 passeios no card; resto vira "+N"
     const visible = dayRides.slice(0, 2);
@@ -503,13 +526,6 @@ function confirmDeleteRide(ride) {
 /* ═══════════════════════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════════════════════ */
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, m => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[m]));
-}
-function escAttr(s) { return esc(s); }
-
 function isoFromYMD(year, month1based, day) {
   return `${year}-${String(month1based).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
@@ -532,6 +548,7 @@ function capitalize(s) {
 
 /* expor */
 window.Rides = {
-  init:   initRides,
-  render: renderRides,
+  init:          initRides,
+  render:        renderRides,
+  openRideModal: openRideModal,
 };

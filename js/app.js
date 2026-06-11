@@ -2,7 +2,7 @@
    APP — bootstrap, navegação, handlers globais
 ═══════════════════════════════════════════════════════════════════════ */
 
-const NAV_SECTIONS = ['profile', 'zones', 'home-workout', 'plan', 'rides'];
+const NAV_SECTIONS = ['profile', 'zones', 'home-workout', 'plan', 'rides', 'routes'];
 
 function setActiveNav(id) {
   NAV_SECTIONS.forEach(sec => {
@@ -25,11 +25,14 @@ function renderAll() {
   const weights = Storage.getWeights();
 
   // Cada bloco é independente — falha em um não impede os outros
-  try { Profile.render(user); }                     catch (e) { console.error('[render] Profile:', e); }
-  try { Charts.renderWeight(user, weights); }       catch (e) { console.error('[render] Charts:', e); }
-  try { Workouts.renderModes(); }                   catch (e) { console.error('[render] Workouts.renderModes:', e); }
-  try { Workouts.renderCalendar(); }                catch (e) { console.error('[render] Workouts.renderCalendar:', e); }
-  try { Rides.render(); }                           catch (e) { console.error('[render] Rides:', e); }
+  try { Profile.render(user); }                                                            catch (e) { console.error('[render] Profile:', e); }
+  try { Charts.renderWeight(user, weights); }                                             catch (e) { console.error('[render] Charts:', e); }
+  try { Workouts.renderModes(); }                                                         catch (e) { console.error('[render] Workouts.renderModes:', e); }
+  try { Workouts.renderCalendar(); }                                                      catch (e) { console.error('[render] Workouts.renderCalendar:', e); }
+  try { Charts.renderIntensity(Workouts.getCurrentWorkouts()); }                          catch (e) { console.error('[render] Charts.renderIntensity:', e); }
+  try { Rides.render(); }                                                                  catch (e) { console.error('[render] Rides:', e); }
+  try { if (typeof HomeWorkout !== 'undefined') HomeWorkout.render(); }                  catch (e) { console.error('[render] HomeWorkout:', e); }
+  try { if (typeof renderMiniReport === 'function') renderMiniReport(); }                 catch (e) { console.error('[render] MiniReport:', e); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -182,18 +185,120 @@ function saveWeight(modal) {
   toast('Pesagem registrada');
 }
 
-/* ── Helpers ─────────────────────────────────────────────────────────── */
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, m => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[m]));
+/* ═══════════════════════════════════════════════════════════════════════
+   ONBOARDING — abre automaticamente no primeiro acesso (sem nome)
+═══════════════════════════════════════════════════════════════════════ */
+function openOnboardingModal() {
+  Modals.open({
+    tag: 'Bem-vindo',
+    title: 'Bem-vindo ao Treino Bike',
+    bodyHTML: `
+      <p style="color:var(--muted2);font-size:13px;line-height:1.6;margin-bottom:20px;">
+        Vamos configurar seu perfil para personalizar as zonas de treino e a projeção de peso.
+      </p>
+      <div class="field">
+        <label class="field-label" for="ob-nome">Nome *</label>
+        <input id="ob-nome" class="field-input" type="text" placeholder="Seu nome" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label" for="ob-nasc">Data de nascimento</label>
+          <input id="ob-nasc" class="field-input" type="date" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="ob-altura">Altura (cm)</label>
+          <input id="ob-altura" class="field-input" type="number" min="100" max="230" step="1" placeholder="170" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label" for="ob-peso">Peso atual (kg)</label>
+          <input id="ob-peso" class="field-input" type="number" min="30" max="250" step="0.1" placeholder="80,0" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="ob-meta">Peso meta (kg)</label>
+          <input id="ob-meta" class="field-input" type="number" min="30" max="250" step="0.1" placeholder="70,0" />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label" for="ob-bmodelo">Modelo da bike</label>
+          <input id="ob-bmodelo" class="field-input" type="text" placeholder="Gravel / MTB / Road" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="ob-bpeso">Peso da bike (kg)</label>
+          <input id="ob-bpeso" class="field-input" type="number" min="3" max="30" step="0.1" placeholder="11,0" />
+        </div>
+      </div>
+    `,
+    actions: [
+      { label: 'Começar!', kind: 'primary', onClick: (modal) => saveOnboarding(modal) },
+    ],
+    onMount: (modal) => modal.querySelector('#ob-nome').focus(),
+  });
+}
+
+function saveOnboarding(modal) {
+  const get = (id) => modal.querySelector('#' + id).value.trim();
+  const num = (id) => { const v = parseFloat(get(id)); return isNaN(v) ? 0 : v; };
+
+  const nome = get('ob-nome');
+  if (!nome) { toast('Informe seu nome', { kind: 'error' }); return; }
+
+  const u = Storage.getUser();
+  Storage.setUser({
+    ...u,
+    nome,
+    dataNascimento:  get('ob-nasc'),
+    altura:          num('ob-altura') || 170,
+    pesoAtual:       num('ob-peso')   || 80,
+    pesoMeta:        num('ob-meta')   || 70,
+    bikeModelo:      get('ob-bmodelo') || 'Gravel',
+    bikePeso:        num('ob-bpeso')  || 11,
+    dataInicioPlano: u.dataInicioPlano || tbToday(),
+  });
+
+  renderAll();
+  Modals.close();
+  toast(`Bem-vindo, ${esc(nome)}! Perfil configurado.`);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MINI-RELATÓRIO 90 DIAS
+═══════════════════════════════════════════════════════════════════════ */
+function renderMiniReport() {
+  const el = document.getElementById('report-90d');
+  if (!el || typeof TrainingLog === 'undefined') return;
+
+  const stats = TrainingLog.get90DayStats();
+
+  if (stats.diasTreinados === 0) {
+    el.style.display = 'none';
+    return;
+  }
+
+  el.style.display = '';
+  document.getElementById('r90-dias').textContent = stats.diasTreinados;
+  document.getElementById('r90-tipo').textContent =
+    stats.tipoMaisFreq ? (TrainingLog.TL_TYPES[stats.tipoMaisFreq]?.label || stats.tipoMaisFreq) : '—';
+  document.getElementById('r90-peso').textContent =
+    stats.mediaPeso ? stats.mediaPeso.toString().replace('.', ',') + ' kg' : '—';
+}
+window.renderMiniReport = renderMiniReport;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MODO DE EDIÇÃO — toggle global que exibe botões de edit/delete
+═══════════════════════════════════════════════════════════════════════ */
+function toggleEditMode() {
+  const on = document.body.classList.toggle('edit-mode');
+  document.getElementById('btn-edit-profile')?.classList.toggle('active', on);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
    BOOT
 ═══════════════════════════════════════════════════════════════════════ */
 async function boot() {
-  console.log(`%c[Treino Cicloviagem] Boot v${window.APP_VERSION || '?'}`, 'color:#14d9b8;font-weight:bold');
+  console.log(`%c[Treino Bike] Boot v${window.APP_VERSION || '?'}`, 'color:#14d9b8;font-weight:bold');
 
   // Helper: roda passo do boot capturando erro mas não interrompendo
   const safe = async (label, fn) => {
@@ -215,18 +320,42 @@ async function boot() {
   // 3. Rides — init ANTES de renderAll (registra addEventListener nos botões)
   await safe('Rides.init()', () => Rides && Rides.init && Rides.init());
 
-  // 4. Render global
+  // 4. TrainingLog.init
+  await safe('TrainingLog.init()', () => TrainingLog && TrainingLog.init && TrainingLog.init());
+
+  // 5. HomeWorkout.init
+  await safe('HomeWorkout.init()', () => HomeWorkout && HomeWorkout.init && HomeWorkout.init());
+
+  // 6. Routes.init
+  await safe('Routes.init()', () => Routes && Routes.init && Routes.init());
+
+  // 7. Render global
   await safe('renderAll()', () => renderAll());
 
-  // 5. Wire dos botões fixos da nav (sempre, mesmo se algo acima falhou)
+  // 8. Wire dos botões fixos da nav
   await safe('Wire dos botões da nav', () => {
-    document.getElementById('btn-edit-profile')?.addEventListener('click', openProfileModal);
+    document.getElementById('btn-edit-profile')?.addEventListener('click', toggleEditMode);
     document.getElementById('btn-edit-profile-2')?.addEventListener('click', openProfileModal);
     document.getElementById('btn-add-weight')?.addEventListener('click', openWeightModal);
     document.getElementById('btn-backup')?.addEventListener('click', () => Backup && Backup.open && Backup.open());
+
+    // Plano de treino — export/import isolado
+    document.getElementById('btn-export-plan')?.addEventListener('click', () => Workouts.exportPlan());
+    document.getElementById('plan-import-file')?.addEventListener('change', (e) => {
+      Workouts.importPlan(e.target.files[0]);
+      e.target.value = '';
+    });
   });
 
-  // 6. IntersectionObserver para nav ativo no scroll
+  // 9. Footer — versão e ano
+  await safe('Footer', () => {
+    const fv = document.getElementById('footer-version');
+    const fy = document.getElementById('footer-year');
+    if (fv) fv.textContent = 'v' + (window.APP_VERSION || '?');
+    if (fy) fy.textContent = new Date().getFullYear();
+  });
+
+  // 10. IntersectionObserver para nav ativo no scroll
   await safe('IntersectionObserver nav', () => {
     if (typeof IntersectionObserver !== 'function') return;
     const obs = new IntersectionObserver(entries => {
@@ -240,7 +369,13 @@ async function boot() {
     });
   });
 
-  console.log('[Treino Cicloviagem] Boot concluído');
+  // 11. Onboarding — abre se não há nome cadastrado (primeiro acesso)
+  await safe('Onboarding', () => {
+    const u = Storage.getUser();
+    if (!u.nome) setTimeout(() => openOnboardingModal(), 400);
+  });
+
+  console.log('[Treino Bike] Boot concluído');
 }
 
 document.addEventListener('DOMContentLoaded', boot);

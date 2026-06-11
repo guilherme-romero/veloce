@@ -5,12 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0c0d10">
   <meta name="description" content="Plano de treino de ciclismo com foco em perda de peso e ganho de condicionamento.">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com;
+             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com;
+             font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com;
+             img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://server.arcgisonline.com;
+             connect-src 'self' https://api.open-meteo.com;
+             worker-src 'self';"
+  >
 
   <link rel="icon" type="image/png" href="icone.png">
   <link rel="apple-touch-icon" href="icone.png">
   <link rel="manifest" href="manifest.json">
 
-  <title>Treino Cicloviagem</title>
+  <title>Treino Bike</title>
 
   <!-- Fontes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,9 +29,13 @@
   <!-- Ícones -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
+  <!-- Leaflet (mapa de rotas) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=1.1.1">
-  <link rel="stylesheet" href="css/rides.css?v=1.1.1">
+  <link rel="stylesheet" href="css/style.css?v=1.3.5">
+  <link rel="stylesheet" href="css/rides.css?v=1.3.5">
+  <link rel="stylesheet" href="css/routes.css?v=1.3.5">
 </head>
 <body>
 
@@ -31,7 +44,7 @@
   <div class="nav-inner">
     <div class="nav-brand">
       <div class="nav-brand-icon"><i class="fa-solid fa-person-biking"></i></div>
-      Treino Cicloviagem
+      Treino Bike
     </div>
     <div class="nav-links">
       <button id="nav-profile"      class="nav-btn active" onclick="scrollToSection('profile')">Perfil</button>
@@ -39,9 +52,10 @@
       <button id="nav-home-workout" class="nav-btn"        onclick="scrollToSection('home-workout')">Fortalecimento</button>
       <button id="nav-plan"         class="nav-btn"        onclick="scrollToSection('plan')">Treinos</button>
       <button id="nav-rides"        class="nav-btn"        onclick="scrollToSection('rides')">Passeios</button>
+      <button id="nav-routes"       class="nav-btn"        onclick="scrollToSection('routes')">Rotas</button>
     </div>
     <div class="nav-right">
-      <button id="btn-edit-profile" class="nav-icon-btn" title="Editar perfil" type="button">
+      <button id="btn-edit-profile" class="nav-icon-btn" title="Modo de edição" type="button">
         <i class="fa-solid fa-pen"></i>
       </button>
       <button id="btn-backup" class="nav-icon-btn" title="Backup" type="button">
@@ -134,6 +148,26 @@
             <div class="chart-wrap"><canvas id="intensityChart"></canvas></div>
           </div>
         </div>
+
+        <!-- Mini-relatório 90 dias -->
+        <div class="report-90d card" id="report-90d" style="display:none;margin-top:20px;">
+          <div class="card-label">Evolução — Últimos 90 dias</div>
+          <div class="report-stats">
+            <div class="report-stat">
+              <div class="report-stat-val" id="r90-dias">—</div>
+              <div class="report-stat-label">dias treinados</div>
+            </div>
+            <div class="report-stat">
+              <div class="report-stat-val" id="r90-tipo">—</div>
+              <div class="report-stat-label">tipo mais frequente</div>
+            </div>
+            <div class="report-stat">
+              <div class="report-stat-val" id="r90-peso">—</div>
+              <div class="report-stat-label">média de peso</div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
@@ -197,46 +231,27 @@
     <div class="section-label">Em casa</div>
     <div class="card">
       <div class="workout-header">
-        <div style="max-width:600px;">
+        <div style="max-width:500px;">
           <h2 style="font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-0.025em;margin-bottom:8px;color:var(--text);">Fortalecimento em casa</h2>
           <p class="section-sub">Circuito Core &amp; Pernas — 2 a 3× por semana nos dias de descanso da bike.</p>
         </div>
-        <span class="badge badge-amber"><i class="fa-solid fa-fire"></i> Foco: Core &amp; Estabilidade</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="badge badge-amber"><i class="fa-solid fa-fire"></i> Core &amp; Estabilidade</span>
+          <button id="btn-add-home-exercise" class="btn btn-primary btn-sm" type="button">
+            <i class="fa-solid fa-plus"></i> Exercício
+          </button>
+          <button id="btn-export-home" class="btn btn-ghost btn-sm btn-icon" type="button" title="Exportar circuito">
+            <i class="fa-solid fa-download"></i>
+          </button>
+          <label class="btn btn-ghost btn-sm btn-icon" style="cursor:pointer;" title="Importar circuito">
+            <i class="fa-solid fa-upload"></i>
+            <input id="home-import-file" type="file" accept="application/json,.json" style="display:none" />
+          </label>
+        </div>
       </div>
 
-      <div class="home-exercises">
-        <div class="exercise-card">
-          <div class="exercise-thumb"><i class="fa-solid fa-shield-halved"></i></div>
-          <div class="exercise-body">
-            <div class="exercise-name">Prancha frontal</div>
-            <div class="exercise-sets">3 séries × 45–60 s</div>
-            <div class="exercise-desc">Fortalece o abdômen profundo para evitar oscilação do tronco na bike.</div>
-          </div>
-        </div>
-        <div class="exercise-card">
-          <div class="exercise-thumb"><i class="fa-solid fa-arrows-up-down"></i></div>
-          <div class="exercise-body">
-            <div class="exercise-name">Agachamento sumô</div>
-            <div class="exercise-sets">3 séries × 20 reps</div>
-            <div class="exercise-desc">Trabalha internos da coxa e glúteo, essenciais para subidas técnicas.</div>
-          </div>
-        </div>
-        <div class="exercise-card">
-          <div class="exercise-thumb"><i class="fa-solid fa-repeat"></i></div>
-          <div class="exercise-body">
-            <div class="exercise-name">Escalador</div>
-            <div class="exercise-sets">3 séries × 40 s</div>
-            <div class="exercise-desc">Queima gordura abdominal rápido. Mantenha as costas retas.</div>
-          </div>
-        </div>
-        <div class="exercise-card">
-          <div class="exercise-thumb"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
-          <div class="exercise-body">
-            <div class="exercise-name">Afundo (Lunge)</div>
-            <div class="exercise-sets">3 séries × 12 cada perna</div>
-            <div class="exercise-desc">Equilíbrio e força unilateral. Melhora a arrancada ao sair do selim.</div>
-          </div>
-        </div>
+      <div id="home-exercises-grid" class="home-exercises">
+        <!-- preenchido por home-workout.js -->
       </div>
     </div>
   </section>
@@ -248,8 +263,17 @@
         <div class="section-label">Semana padrão</div>
         <h2 class="section-title">Agenda de treino</h2>
       </div>
-      <div id="plan-toggle" class="plan-toggle">
-        <!-- preenchido por workouts.js -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div id="plan-toggle" class="plan-toggle">
+          <!-- preenchido por workouts.js -->
+        </div>
+        <button id="btn-export-plan" class="btn btn-ghost btn-sm btn-icon" type="button" title="Exportar plano de treino">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        <label class="btn btn-ghost btn-sm btn-icon" style="cursor:pointer;" title="Importar plano de treino">
+          <i class="fa-solid fa-upload"></i>
+          <input id="plan-import-file" type="file" accept="application/json,.json" style="display:none" />
+        </label>
       </div>
     </div>
 
@@ -279,6 +303,9 @@
         <button id="btn-add-ride" class="btn btn-primary btn-sm" type="button">
           <i class="fa-solid fa-plus"></i> Novo passeio
         </button>
+        <button id="btn-mark-training" class="btn btn-ghost btn-sm" type="button">
+          <i class="fa-solid fa-check"></i> Registrar treino
+        </button>
       </div>
     </div>
 
@@ -302,24 +329,131 @@
     </div>
   </section>
 
+
+  <!-- ┌─ ROTAS ─────────────────────────────────────────────────────────┐ -->
+  <section id="routes" class="scroll-mt-20">
+    <div class="section-head">
+      <div>
+        <div class="section-label">Planejamento</div>
+        <h2 class="section-title">Análise de Rotas</h2>
+        <p class="section-sub">Carregue um arquivo GPX para visualizar a rota, calcular o tempo estimado e checar a previsão do tempo.</p>
+      </div>
+      <div id="routes-saved-controls"></div>
+    </div>
+
+    <!-- Upload GPX -->
+    <div id="routes-upload" class="routes-upload-zone">
+      <i class="fa-solid fa-file-import fa-2x" style="color:var(--muted);margin-bottom:16px;display:block;"></i>
+      <p style="color:var(--muted2);margin-bottom:16px;">Arraste um arquivo GPX ou clique para selecionar</p>
+      <label class="btn btn-primary" style="cursor:pointer;">
+        <i class="fa-solid fa-folder-open"></i> Selecionar GPX
+        <input id="gpx-file-input" type="file" accept=".gpx,application/gpx+xml" style="display:none" />
+      </label>
+    </div>
+
+    <!-- Análise (oculta até GPX carregado) -->
+    <div id="routes-analysis" class="hidden">
+
+      <!-- Mapa + stats -->
+      <div class="routes-map-row">
+        <div id="routes-map"></div>
+        <div class="routes-stats-panel">
+          <div class="routes-stat">
+            <div class="routes-stat-icon" style="background:var(--teal-dim);color:var(--teal)"><i class="fa-solid fa-route"></i></div>
+            <div><div class="routes-stat-label">Distância</div><div class="routes-stat-val" id="stat-distancia">—</div></div>
+          </div>
+          <div class="routes-stat">
+            <div class="routes-stat-icon" style="background:var(--green-dim);color:var(--green)"><i class="fa-solid fa-arrow-trend-up"></i></div>
+            <div><div class="routes-stat-label">Desnível +</div><div class="routes-stat-val" id="stat-desnivel-pos">—</div></div>
+          </div>
+          <div class="routes-stat">
+            <div class="routes-stat-icon" style="background:var(--red-dim);color:var(--red)"><i class="fa-solid fa-arrow-trend-down"></i></div>
+            <div><div class="routes-stat-label">Desnível −</div><div class="routes-stat-val" id="stat-desnivel-neg">—</div></div>
+          </div>
+          <div class="routes-stat">
+            <div class="routes-stat-icon" style="background:var(--amber-dim);color:var(--amber)"><i class="fa-solid fa-mountain"></i></div>
+            <div><div class="routes-stat-label">Alt. máxima</div><div class="routes-stat-val" id="stat-alt-max">—</div></div>
+          </div>
+          <button id="btn-plan-ride"   class="btn btn-primary btn-sm" type="button" style="width:100%;margin-top:12px;"><i class="fa-solid fa-calendar-plus"></i> Planejar passeio</button>
+          <button id="btn-save-route"  class="btn btn-ghost btn-sm" type="button" style="width:100%;margin-top:6px;"><i class="fa-solid fa-bookmark"></i> Salvar rota</button>
+          <button id="btn-clear-route" class="btn btn-ghost btn-sm" type="button" style="width:100%;margin-top:4px;"><i class="fa-solid fa-xmark"></i> Limpar</button>
+        </div>
+      </div>
+
+      <!-- Perfil de elevação -->
+      <div class="card" style="margin-top:16px;">
+        <span class="card-label">Perfil de Elevação</span>
+        <div class="chart-wrap"><canvas id="elevationChart"></canvas></div>
+      </div>
+
+      <!-- Calculadora + Clima -->
+      <div class="routes-tools-row">
+        <div class="card">
+          <span class="card-label">Calculadora de Tempo</span>
+          <div class="routes-calc">
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label" for="calc-velocidade">Velocidade média (km/h)</label>
+                <input id="calc-velocidade" class="field-input" type="number" min="5" max="60" step="0.5" value="18" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="calc-data">Data do pedal</label>
+                <input id="calc-data" class="field-input" type="date" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="calc-horario">Horário de saída</label>
+              <input id="calc-horario" class="field-input" type="time" value="07:00" />
+            </div>
+            <button id="btn-calcular" class="btn btn-primary" type="button" style="width:100%">
+              <i class="fa-solid fa-calculator"></i> Calcular
+            </button>
+            <div id="calc-resultado" class="routes-calc-result hidden"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <span class="card-label">Previsão do Tempo</span>
+          <div id="routes-weather" class="routes-weather">
+            <p style="color:var(--muted);font-size:13px;">Preencha a data e clique em Calcular para consultar.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
 </main>
 
+<!-- ═══════════════════ FOOTER ════════════════════════════════════════ -->
+<footer class="app-footer">
+  <span>Treino Bike</span>
+  <span id="footer-version" style="color:var(--teal)"></span>
+  <span>© <span id="footer-year"></span></span>
+</footer>
+
 <!-- ═══════════════════ SCRIPTS ══════════════════════════════════════ -->
-<!-- CDN externo (versionamento próprio) -->
+<!-- CDN externos (versionamento próprio) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=1.1.1"></script>
-<script src="js/defaults.js?v=1.1.1"></script>
-<script src="js/storage.js?v=1.1.1"></script>
-<script src="js/profile.js?v=1.1.1"></script>
-<script src="js/charts.js?v=1.1.1"></script>
-<script src="js/modals.js?v=1.1.1"></script>
-<script src="js/workouts.js?v=1.1.1"></script>
-<script src="js/rides.js?v=1.1.1"></script>
-<script src="js/backup.js?v=1.1.1"></script>
-<script src="js/app.js?v=1.1.1"></script>
-<script src="js/pwa.js?v=1.1.1"></script>
+<script src="js/version.js?v=1.3.5"></script>
+<script src="js/utils.js?v=1.3.5"></script>
+<script src="js/defaults.js?v=1.3.5"></script>
+<script src="js/storage.js?v=1.3.5"></script>
+<script src="js/profile.js?v=1.3.5"></script>
+<script src="js/charts.js?v=1.3.5"></script>
+<script src="js/modals.js?v=1.3.5"></script>
+<script src="js/workouts.js?v=1.3.5"></script>
+<script src="js/rides.js?v=1.3.5"></script>
+<script src="js/training-log.js?v=1.3.5"></script>
+<script src="js/home-workout.js?v=1.3.5"></script>
+<script src="js/backup.js?v=1.3.5"></script>
+<script src="js/gpx.js?v=1.3.5"></script>
+<script src="js/routes.js?v=1.3.5"></script>
+<script src="js/app.js?v=1.3.5"></script>
+<script src="js/pwa.js?v=1.3.5"></script>
 
 </body>
 </html>

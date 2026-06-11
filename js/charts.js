@@ -156,6 +156,43 @@ function initCharts() {
   }
 }
 
+/* ── Render da distribuição de intensidade (dinâmico) ───────────────── */
+function renderIntensity(workouts) {
+  if (!intensityChart) return;
+
+  const active = (workouts || []).filter(w => w.type !== 'rest');
+
+  let baixa = 0, media = 0, alta = 0;
+  active.forEach(w => {
+    const t = w.type || 'home';
+    if (t === 'hiit' || t === 'climb') alta++;
+    else if (t === 'group') media++;
+    else baixa++; // home, long e outros → endurance
+  });
+
+  const total = baixa + media + alta;
+  let data;
+
+  if (total === 0) {
+    data = [80, 5, 15]; // fallback quando não há treinos
+  } else {
+    data = [
+      Math.round((baixa / total) * 100),
+      Math.round((media / total) * 100),
+      Math.round((alta  / total) * 100),
+    ];
+    // Aplica correção de arredondamento no valor mais alto (nunca vai ficar negativo)
+    const diff = 100 - data.reduce((s, v) => s + v, 0);
+    if (diff !== 0) {
+      const maxIdx = data.indexOf(Math.max(...data));
+      data[maxIdx] += diff;
+    }
+  }
+
+  intensityChart.data.datasets[0].data = data;
+  intensityChart.update();
+}
+
 /* ── Render do gráfico de peso ──────────────────────────────────────── */
 /**
  * @param {Object}  user     — { pesoAtual, pesoMeta, dataInicioPlano }
@@ -201,9 +238,6 @@ function renderWeightChart(user, weights) {
   });
 
   /* ── Histórico anterior ao plano ──────────────────────────────────── */
-  // Cada pesagem histórica vira uma posição própria à esquerda do eixo.
-  // Não há ponte forçada entre histórico e atual — o Chart.js desenha
-  // cada série independente (com spanGaps:true).
   let finalLabels = planLabels;
   let finalProj   = projection;
   let finalReal   = real;
@@ -223,6 +257,10 @@ function renderWeightChart(user, weights) {
     finalProj   = [...new Array(histN).fill(null), ...projection];
     finalReal   = [...new Array(histN).fill(null), ...real];
     finalHist   = [...histVals, ...new Array(13).fill(null)];
+
+    // Conecta linha histórica ao registro mais recente (mesmo com lacunas)
+    const lastRealIdx = finalReal.reduce((acc, v, i) => v !== null ? i : acc, -1);
+    if (lastRealIdx >= histN) finalHist[lastRealIdx] = finalReal[lastRealIdx];
   }
 
   weightChart.data.labels           = finalLabels;
@@ -269,6 +307,7 @@ function shortBR(iso) {
 
 /* expor */
 window.Charts = {
-  init: initCharts,
-  renderWeight: renderWeightChart,
+  init:            initCharts,
+  renderWeight:    renderWeightChart,
+  renderIntensity: renderIntensity,
 };

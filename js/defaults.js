@@ -69,3 +69,10 @@ function genId() {
   return 'w_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
 }
 window.tbGenId = genId;
+
+window.DEFAULT_HOME_EXERCISES = [
+  { id: 'hw_1', icon: 'fa-shield-halved',              name: 'Prancha frontal',    sets: '3 séries × 45–60 s',       desc: 'Fortalece o abdômen profundo para evitar oscilação do tronco na bike.' },
+  { id: 'hw_2', icon: 'fa-arrows-up-down',             name: 'Agachamento sumô',   sets: '3 séries × 20 reps',       desc: 'Trabalha internos da coxa e glúteo, essenciais para subidas técnicas.' },
+  { id: 'hw_3', icon: 'fa-repeat',                     name: 'Escalador',          sets: '3 séries × 40 s',          desc: 'Queima gordura abdominal rápido. Mantenha as costas retas.' },
+  { id: 'hw_4', icon: 'fa-person-walking-arrow-right', name: 'Afundo (Lunge)',     sets: '3 séries × 12 cada perna', desc: 'Equilíbrio e força unilateral. Melhora a arrancada ao sair do selim.' },
+];

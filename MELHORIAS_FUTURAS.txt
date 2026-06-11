@@ -1,0 +1,306 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║            TREINO BIKE — PLANO DE MELHORIAS E ROADMAP                ║
+║         Versão atual: 1.3.5  |  Documento: v1.2  |  2026-06-10      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+Legenda de status:
+  ✅ Implementado
+  🚧 Em andamento
+  📋 Planejado
+  ❌ Descartado / Dependência bloqueante
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  MODELO CLAUDE RECOMENDADO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Para tarefas de frontend (HTML/CSS/JS): Claude Sonnet 4.6 (atual)
+Para arquitetura de backend / OAuth / DB: Claude Opus 4.7
+Justificativa: Sonnet 4.6 tem excelente custo-benefício para código web.
+Opus 4.7 é necessário quando a lógica envolve sistemas distribuídos,
+segurança de autenticação e raciocínio de múltiplas camadas.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  REVISÃO DO CÓDIGO ATUAL — PROBLEMAS ENCONTRADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUG / CORREÇÕES URGENTES
+  [B1] Gráfico de intensidade HARDCODED: charts.js:122 usa [80, 5, 15]
+       fixo. Deveria calcular a partir dos treinos do usuário por tipo.
+  [B2] Função esc() DUPLICADA em 3 arquivos (app.js, rides.js,
+       workouts.js) e escHTML()/escAttr() em profile.js com a mesma
+       lógica. Risco de divergência futura.
+
+MELHORIAS TÉCNICAS
+  [T1] Sem rodapé com versão do app (o refactor.txt pede).
+  [T2] Exercícios de "Fortalecimento em casa" hardcoded no HTML
+       (index.html:207-241) sem CRUD — não é personalizável.
+  [T3] Legado de migração de dados_usuario.txt ainda ativo no
+       storage.js. Pode ser removido em v2.0.
+  [T4] Distribuição de intensidade não reflete o plano real do usuário.
+  [T5] Não há onboarding: usuário novo cai direto no app sem guia.
+
+SEGURANÇA
+  [S1] importJSON em backup.js não valida estrutura profunda — risco
+       de importar dados malformados e corromper o localStorage.
+  [S2] Sem Content Security Policy (CSP) no index.html.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FASE 1 — POLIMENTO E CORREÇÕES (sem backend)
+  Meta: v1.2.0  |  Impacto: Alto  |  Complexidade: Baixa  |  Modelo: Claude Sonnet 4.6
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATUS GERAL: ✅ Implementado (incluído na v1.3.0)
+
+1.1  ✅ js/utils.js — esc() e escAttr() centralizados; duplicatas removidas
+1.2  ✅ Charts.renderIntensity(workouts) — dinâmico por modo ativo
+1.3  ✅ <footer class="app-footer"> preenchido no boot() com versão e ano
+1.4  ✅ openOnboardingModal() — dispara no boot() se user.nome vazio
+1.5  ✅ validateBackupStructure() em backup.js — tipos, ranges e limites
+1.6  ✅ Meta CSP no <head> do index.html
+1.7  ✅ js/training-log.js + tb.training_log + badges no calendário
+1.8  ✅ Card #report-90d na seção Perfil — dias, tipo, peso médio
+
+Versão entregue: 1.3.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FASE 2 — PÁGINA DE ROTAS (GPX + MAPA + CLIMA)
+  Meta: v1.3.0  |  Impacto: Alto  |  Complexidade: Média  |  Modelo: Claude Sonnet 4.6
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATUS GERAL: ✅ Implementado (v1.3.0)
+
+2.1  ✅ Seção #routes no index.html + botão "Rotas" na nav
+2.2  ✅ js/gpx.js — DOMParser + haversine, sem dependência externa
+2.3  ✅ Leaflet.js (OSM tiles) + poliline teal + marcadores início/fim
+       + perfil de elevação via Chart.js (área)
+2.4  ✅ Calculadora: distância/vel + penalidade Naismith → horário chegada
+2.5  ✅ Open-Meteo API — temperatura, chuva, vento + estimativa de esforço
+2.6  ✅ tb.routes — até 10 rotas salvas (waypoints amostrados a 200pts)
+
+Versão entregue: 1.3.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FASE 3 — BACKEND MÍNIMO (Node.js + SQLite + Auth)
+  Meta: v2.0.0  |  Impacto: Muito Alto  |  Complexidade: Alta  |  Modelo: Claude Opus 4.7
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATUS GERAL: 📋 Planejado
+
+ATENÇÃO: Esta fase transforma o app de SPA offline para um sistema
+com servidor. Requer decisão sobre hospedagem (VPS, Railway, etc.).
+
+3.1  📋 Estrutura do backend
+     - Servidor: Node.js + Fastify (leve, rápido)
+     - Banco: SQLite via better-sqlite3 (arquivo em data/)
+     - Estrutura de diretórios:
+         data/           → arquivos .db
+         server/         → código do servidor
+         server/routes/  → handlers de API
+         server/db/      → schemas e migrations
+
+3.2  📋 Banco de dados (SQLite — data/)
+     - data/users.db         → usuários e auth
+     - data/training.db      → treinos, modos, passeios, rotas
+     Tables principais:
+       users(id, email, senha_hash, nome, criado_em)
+       sessions(id, user_id, token, expira_em)
+       training_log(id, user_id, data, tipos, notas)
+       weights(id, user_id, data, peso, tipo)
+       rides(id, user_id, ...schema atual...)
+       workouts(id, user_id, mode_id, ...schema atual...)
+       routes(id, user_id, nome, gpx_data, stats)
+
+3.3  📋 Tela de cadastro de usuário
+     - Campos: nome, email, senha (mín. 8 chars, maiúsc., minúsc.,
+       número e símbolo), data nascimento, altura, peso, meta, bike
+     - Validação client-side + server-side
+     - Hash de senha: bcrypt (custo 12)
+
+3.4  📋 Tela de login
+     - Email + senha
+     - Sessão via JWT (expira em 7 dias) ou cookie httpOnly
+     - Botão "Esqueci minha senha" (placeholder por ora)
+     - Redirecionamento automático se já autenticado
+
+3.5  📋 Migração localStorage → API
+     - Criar endpoints REST:
+         GET/POST/PUT/DELETE /api/user
+         GET/POST            /api/weights
+         GET/POST/PUT/DELETE /api/rides
+         GET/POST/PUT/DELETE /api/workouts
+         GET/POST            /api/training-log
+     - Módulo js/api.js: wrapper fetch com auth header
+     - Manter Storage como cache local (offline-first)
+
+3.6  📋 Atualizar PWA para funcionar offline com sincronização
+     - Fila de operações pendentes quando offline
+     - Sync ao reconectar (Background Sync API ou fallback manual)
+
+Versão alvo: 2.0.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FASE 4 — INTEGRAÇÃO STRAVA
+  Meta: v2.1.0  |  Impacto: Alto  |  Complexidade: Alta  |  Modelo: Claude Opus 4.7
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATUS GERAL: 📋 Planejado (requer Fase 3)
+
+PRÉ-REQUISITO: Backend funcionando (Fase 3) — OAuth requer server-side
+para proteger o client_secret.
+
+Documentação oficial: https://developers.strava.com/docs/reference/
+
+4.1  📋 OAuth2 com Strava (server-side)
+     - Registrar app em https://www.strava.com/settings/api
+     - Flow: redirect → callback → trocar code por token
+     - Guardar access_token e refresh_token no banco (users.db)
+     - Renovação automática do token (expira a cada 6h)
+
+4.2  📋 Funcionalidades úteis da API Strava identificadas
+     ALTA prioridade:
+       - GET /athlete/activities → listar atividades de bike
+       - GET /activities/{id}    → detalhe (mapa, FC, cadência, watts)
+       - GET /athlete/stats      → totais (km, tempo, elevação)
+     MÉDIA prioridade:
+       - GET /routes/{id}        → rotas salvas no Strava
+       - GET /segments           → segmentos conhecidos
+     BAIXA prioridade (complexidade alta):
+       - WebHook de atividade    → receber push ao salvar no Garmin
+
+4.3  📋 Sincronização automática de atividades
+     - Importar atividades de bike dos últimos 90 dias
+     - Cruzar com training_log local (não duplicar)
+     - Exibir no histórico de 90 dias
+
+4.4  📋 Dashboard "Estilo Strava" na home
+     - Card de atividade recente (última ride importada)
+     - KMs da semana vs. semana anterior
+     - Evolução mensal de volume (km)
+
+Versão alvo: 2.1.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FASE 5 — RELATÓRIOS AVANÇADOS
+  Meta: v2.2.0  |  Impacto: Médio  |  Complexidade: Baixa/Média  |  Modelo: Claude Sonnet 4.6
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATUS GERAL: 📋 Planejado
+
+5.1  📋 Relatório de dias treinados (90 dias)
+     - Calendário de heat-map (estilo GitHub contributions)
+     - Cores por tipo: bike=teal, físico=amber, alongamento=blue,
+       combinação=purple, descanso=muted
+     - Totais: % de dias ativos, sequência atual, recorde
+
+5.2  📋 Relatório de evolução de peso (90 dias)
+     - Gráfico expandido (já parcialmente feito)
+     - Acrescentar: taxa de perda semanal, previsão de atingir meta
+     - Comparar com meta do plano
+
+5.3  📋 Relatório de volume de treino
+     - Requer dados do Strava OU input manual de km/duração por sessão
+     - Km por semana, tempo total, elevação acumulada
+     - Distribuição por zona de FC (se dados do Strava disponíveis)
+
+5.4  📋 Exportação de relatórios
+     - PDF simples via window.print() + CSS @media print
+     - CSV de pesagens para planilha
+
+Versão alvo: 2.2.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RESUMO EXECUTIVO — ORDEM DE IMPLEMENTAÇÃO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Fase │ Versão │ Tipo        │ Valor   │ Esforço │ Backend?        │ Modelo
+─────┼────────┼─────────────┼─────────┼─────────┼─────────────────┼────────────────────
+  1  │ 1.2.0  │ Polimento   │ Alto    │ Baixo   │ Não             │ Claude Sonnet 4.6
+  2  │ 1.3.0  │ Nova feature│ Alto    │ Médio   │ Não             │ Claude Sonnet 4.6
+  3  │ 2.0.0  │ Arquitetura │ Crítico │ Alto    │ SIM ← decisão   │ Claude Opus 4.7 ⚠️
+  4  │ 2.1.0  │ Integração  │ Alto    │ Alto    │ Sim (requer F3) │ Claude Opus 4.7 ⚠️
+  5  │ 2.2.0  │ Relatórios  │ Médio   │ Baixo   │ Sim (requer F3) │ Claude Sonnet 4.6
+
+RECOMENDAÇÃO: implementar Fases 1 e 2 primeiro (ganho imediato, sem
+mudança de arquitetura). Decidir se haverá backend antes de iniciar
+a Fase 3 — é um ponto de não retorno.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  HISTÓRICO DE IMPLEMENTAÇÃO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+v1.0.0 (2026-04-20) ✅
+  - Inclusão de treino semanal (modos + CRUD)
+  - Histórico de peso + gráfico de projeção 12 semanas
+  - Re-design dark mode
+  - Encapsulamento como PWA (manifest + service worker)
+
+v1.1.0 (2026-04-??) ✅
+  - Planejamento de Passeios (calendário + lista)
+  - Schema de passeio em pt-BR (migração v2)
+  - Patch de segurança XSS
+
+v1.1.1 (2026-05-03) ✅
+  - Melhorias no service worker (banner de atualização)
+  - Ajustes de estabilidade no boot
+
+v1.3.0 (2026-06-10) ✅  ← Fases 1 e 2 unificadas
+  Fase 1 — Polimento:
+  - utils.js: esc()/escAttr() centralizados (remove duplicatas)
+  - Gráfico de intensidade dinamizado por modo ativo
+  - Footer com versão e ano
+  - Onboarding modal no primeiro acesso
+  - Validação robusta no importJSON do backup
+  - CSP (Content-Security-Policy) no index.html
+  - Training Log: marcar dias treinados com badges no calendário
+  - Mini-relatório 90 dias na seção Perfil
+  Fase 2 — Rotas:
+  - Nova seção "Rotas" na nav e no HTML
+  - gpx.js: parser GPX client-side (DOMParser + Haversine)
+  - Mapa Leaflet.js com OSM, poliline e marcadores
+  - Perfil de elevação (Chart.js área)
+  - Calculadora de tempo (Naismith adaptado)
+  - Previsão do tempo Open-Meteo + estimativa de esforço
+  - Rotas salvas em tb.routes (até 10, waypoints amostrados)
+
+v1.3.1–1.3.3 (2026-06-10) ✅  — Ajustes pós-lançamento Fases 1+2
+  - Multi-seleção de tipos no Training Log (bike/físico/alongamento)
+  - Seletor de topologia no mapa (OSM / Topomap / Satélite)
+  - Linha de rota em vermelho para maior visibilidade
+  - Marcadores início/fim de rota + km markers adaptativos
+  - Destaque visual na nota da calculadora (teal-dim + border-left)
+  - Export/import isolado para Semana Padrão e Em Casa
+  - Modais de confirmação para exclusão de rotas e exercícios
+  - Auto-carregamento da rota ao selecionar no combo
+  - Correção: acúmulo de marcadores ao trocar rota
+  - Correção: NaN na elevação de GPX sem <ele>
+  - Correção: arredondamento % no gráfico de intensidade
+  - Integração Rotas → Planejar passeio (pré-preenche o modal)
+  - Z-index corrigido: modal > mapa (1000 > 800)
+
+v1.3.4 (2026-06-10) ✅  — Botão de topologia do mapa
+  - Substituído L.control.layers() por controle HTML customizado
+  - 3 botões Padrão/Topo/Satélite visíveis no tema dark
+  - Estilos via variáveis CSS do design system
+
+v1.3.5 (2026-06-10) ✅  — Ajustes e melhorias de UX
+  - Renomeação: Treino Cicloviagem → Treino Bike (nav, title, manifest)
+  - Botão "Marcar treino" → "Registrar treino"
+  - Botão lápis no header vira toggle de modo de edição global:
+      • Habilitado: exibe botões edit/delete em Em Casa e botão de
+        edição no card de Perfil (btn-edit-profile-2)
+      • Ícone fica destacado em teal quando ativo
+  - Gráfico de peso: linha histórica sempre conecta ao registro mais
+    recente, mesmo com lacunas entre o período histórico e atual
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  NOTAS IMPORTANTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Sempre questionar antes de implementar cada fase ou item
+- Sempre criar mockup visual para validar layouts novos
+- Ao publicar qualquer atualização, bumpar versão em TRÊS lugares:
+    js/version.js → window.APP_VERSION
+    service-worker.js → CACHE_VERSION
+    index.html → todos os ?v= nos <link> e <script>
+- O arquivo CLAUDE.md é a fonte da verdade de arquitetura
+- Este arquivo deve ser atualizado a cada item implementado

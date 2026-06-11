@@ -52,6 +52,7 @@ function switchPlan(modeId) {
   renderModes();
   renderCalendar();
   closeDetail();
+  try { Charts && Charts.renderIntensity && Charts.renderIntensity(getCurrentWorkouts()); } catch(e) {}
 }
 window.switchPlan = switchPlan;
 
@@ -451,11 +452,45 @@ function confirmDeleteMode(modeId) {
   });
 }
 
+/* ── Export / Import isolado do plano ───────────────────────────────── */
+function exportPlan() {
+  const json = JSON.stringify({ modes: Storage.getModes(), workouts: Storage.getWorkouts() }, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `plano-treino-${tbToday()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('Plano exportado');
+}
+
+function importPlan(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.modes && !data.workouts) throw new Error('Arquivo sem dados de plano');
+      if (data.modes)    Storage.setModes(data.modes);
+      if (data.workouts) Storage.setWorkouts(data.workouts);
+      renderModes();
+      renderCalendar();
+      try { Charts && Charts.renderIntensity && Charts.renderIntensity(getCurrentWorkouts()); } catch(e) {}
+      toast('Plano importado');
+    } catch (err) {
+      toast('Arquivo inválido: ' + err.message, { kind: 'error' });
+    }
+  };
+  reader.readAsText(file);
+}
+
 /* ── Helpers ─────────────────────────────────────────────────────────── */
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, m => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[m]));
+function getCurrentWorkouts() {
+  if (!currentModeId) return [];
+  return Storage.getWorkoutsForMode(currentModeId);
 }
 
 /* expor */
@@ -464,4 +499,7 @@ window.Workouts = {
   renderCalendar,
   switchPlan,
   closeDetail,
+  getCurrentWorkouts,
+  exportPlan,
+  importPlan,
 };

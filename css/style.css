@@ -115,7 +115,8 @@ nav {
   display: flex; align-items: center; justify-content: center;
   transition: all 0.2s;
 }
-.nav-icon-btn:hover { color: var(--teal); border-color: var(--teal); }
+.nav-icon-btn:hover  { color: var(--teal); border-color: var(--teal); }
+.nav-icon-btn.active { color: var(--teal); border-color: var(--teal); background: var(--teal-dim); }
 
 /* ═══════════════════════════════════════════════════════════════════════
    LAYOUT
@@ -228,6 +229,9 @@ main {
   transition: all 0.2s;
 }
 .id-card-edit:hover { color: var(--teal); border-color: var(--teal); }
+
+#btn-edit-profile-2             { display: none; }
+body.edit-mode #btn-edit-profile-2 { display: flex; }
 
 .avatar-ring {
   width: 64px; height: 64px; border-radius: 50%;
@@ -588,7 +592,7 @@ main {
   background: rgba(0,0,0,0.7);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  z-index: 200;
+  z-index: 1000; /* acima dos controles Leaflet (z-index: 800) */
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
   animation: backdropIn 0.2s ease-out;
@@ -678,7 +682,7 @@ main {
 ═══════════════════════════════════════════════════════════════════════ */
 .toast-stack {
   position: fixed; bottom: 24px; right: 24px;
-  z-index: 300;
+  z-index: 1100; /* acima do modal-backdrop */
   display: flex; flex-direction: column; gap: 10px;
   pointer-events: none;
 }
@@ -956,3 +960,145 @@ main {
 @media (max-width: 480px) {
   .update-banner-inner { font-size: 13px; padding: 10px 12px 10px 14px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════════════════════════ */
+.app-footer {
+  text-align: center;
+  padding: 24px 24px 20px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MINI-RELATÓRIO 90 DIAS
+═══════════════════════════════════════════════════════════════════════ */
+.report-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.report-stat {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+}
+.report-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--teal);
+  margin-bottom: 4px;
+  line-height: 1.1;
+}
+.report-stat-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+@media (max-width: 600px) {
+  .report-stats { grid-template-columns: 1fr; gap: 8px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TRAINING LOG — badges no calendário de passeios
+═══════════════════════════════════════════════════════════════════════ */
+.tl-badges {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  padding: 2px 0 1px;
+  min-height: 9px;
+}
+.tl-badge {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.tl-badge[data-tipo="bike"]        { background: var(--teal); }
+.tl-badge[data-tipo="fisico"]      { background: var(--amber); }
+.tl-badge[data-tipo="alongamento"] { background: var(--blue); }
+.tl-badge[data-tipo="combinacao"]  { background: var(--purple); }
+
+/* ── Training Log Modal ──────────────────────────────────────────────── */
+.tl-existing-list {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.tl-existing-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.tl-existing-item:last-child { border-bottom: none; }
+.tl-existing-item > span:first-child { flex: 1; font-weight: 600; }
+.tl-notes-preview {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 90px;
+}
+
+/* ── Training Log — botões de tipo multi-select ──────────────────────── */
+.tl-type-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.tl-type-btn {
+  flex: 1;
+  min-width: 100px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted2);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.tl-type-btn:hover { border-color: var(--border2); color: var(--text); }
+.tl-type-btn[data-tipo="bike"].active        { border-color: var(--teal);  color: var(--teal);  background: var(--teal-dim);  }
+.tl-type-btn[data-tipo="fisico"].active      { border-color: var(--amber); color: var(--amber); background: var(--amber-dim); }
+.tl-type-btn[data-tipo="alongamento"].active { border-color: var(--blue);  color: var(--blue);  background: var(--blue-dim);  }
+
+/* ── Home Workout — botões de ação no card ───────────────────────────── */
+.exercise-card {
+  position: relative;
+}
+.exercise-actions {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
+}
+body.edit-mode .exercise-actions { display: flex; }
