@@ -112,6 +112,7 @@
 
   function init() {
     window.addEventListener('hashchange', onHashChange);
+    initDrawer();
     // Render inicial baseado no hash atual (ou default)
     const slug = parseHash();
     const route = findRoute(slug);
@@ -127,7 +128,29 @@
       btn.onclick = (e) => {
         e.preventDefault();
         navigate(r.slug || DEFAULT_SLUG);
+        closeDrawer(); // fecha drawer ao navegar em mobile
       };
+    });
+  }
+
+  // ── Mobile drawer (Fase 8.8) ────────────────────────────────────
+  function toggleDrawer() {
+    document.body.classList.toggle('nav-open');
+    const burger = document.getElementById('nav-hamburger');
+    if (burger) {
+      const icon = burger.querySelector('i');
+      if (icon) icon.className = document.body.classList.contains('nav-open') ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+    }
+  }
+  function closeDrawer() {
+    if (document.body.classList.contains('nav-open')) toggleDrawer();
+  }
+  function initDrawer() {
+    const burger = document.getElementById('nav-hamburger');
+    if (burger) burger.addEventListener('click', toggleDrawer);
+    // Fecha ao redimensionar para desktop
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 700) closeDrawer();
     });
   }
 
