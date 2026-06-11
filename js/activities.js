@@ -197,6 +197,7 @@
       renderLastActivity(last);
       renderWeek(bucketByWeek(combined));
       renderVolume(bucketByMonth(combined, 6));
+      renderVolumeTraining(combined);
     } catch (err) {
       console.error('[activities]', err);
       empty.textContent = 'Falha ao carregar atividades.';
@@ -304,11 +305,120 @@
     if (window.Rides?.render) Rides.render();
   }
 
+  // ── Volume de treino (Fase 5c) ──────────────────────────────────
+  let _weeklyChart = null, _zoneChart = null;
+
+  function getWeekStart(d) {
+    const date = new Date(d);
+    const dow = (date.getDay() + 6) % 7;
+    date.setDate(date.getDate() - dow);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  function renderVolumeTraining(acts) {
+    const card = $('volume-training-card');
+    if (!card || !window.Chart) return;
+    if (!acts || acts.length === 0) { card.hidden = true; return; }
+
+    card.hidden = false;
+
+    // KM e tempo totais
+    const totalKm   = acts.reduce((s, a) => s + (a.distanciaKm || 0), 0);
+    const totalMovS  = acts.reduce((s, a) => s + (a.tempoMovS || 0), 0);
+    const totalElevM = acts.reduce((s, a) => s + (a.elevacaoM || 0), 0);
+    const h = Math.floor(totalMovS / 3600), m = Math.floor((totalMovS % 3600) / 60);
+
+    const statsEl = $('volume-training-stats');
+    if (statsEl) {
+      statsEl.innerHTML =
+        `<div class="vt-stat"><strong>${totalKm.toFixed(0)} km</strong><span>total</span></div>` +
+        `<div class="vt-stat"><strong>${h}h${String(m).padStart(2,'0')}</strong><span>em movimento</span></div>` +
+        `<div class="vt-stat"><strong>${totalElevM.toFixed(0)} m</strong><span>elevação</span></div>` +
+        `<div class="vt-stat"><strong>${acts.length}</strong><span>atividades</span></div>`;
+    }
+
+    // Km por semana (12 semanas)
+    const weeks = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const ws = getWeekStart(new Date(now.getTime() - i * 7 * 86400_000));
+      const we = new Date(ws.getTime() + 7 * 86400_000);
+      const label = ws.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
+      const km = acts
+        .filter(a => { const d = new Date(a.inicio); return d >= ws && d < we; })
+        .reduce((s, a) => s + (a.distanciaKm || 0), 0);
+      weeks.push({ label, km: +km.toFixed(1) });
+    }
+
+    const kmCanvas = $('weeklyKmChart');
+    if (kmCanvas) {
+      if (_weeklyChart) _weeklyChart.destroy();
+      _weeklyChart = new Chart(kmCanvas, {
+        type: 'bar',
+        data: {
+          labels: weeks.map(w => w.label),
+          datasets: [{ data: weeks.map(w => w.km), backgroundColor: 'rgba(20,217,184,0.45)', borderColor: '#14d9b8', borderWidth: 1, borderRadius: 3 }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y + ' km' } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { color: '#9299a8', callback: v => v + ' km' }, grid: { color: '#252830' } },
+            x: { ticks: { color: '#9299a8', maxRotation: 45 }, grid: { display: false } },
+          },
+        },
+      });
+    }
+
+    // Zonas FC
+    const user = window.Storage ? Storage.getUser() : {};
+    const fcMax = user.fcMax || (user.dataNascimento ? 220 - Math.floor((Date.now() - new Date(user.dataNascimento).getTime()) / (365.25 * 86400_000)) : null);
+    const zoneCanvas = $('zoneDistChart');
+    if (zoneCanvas && fcMax) {
+      const ZONES = [
+        { label: 'Z1', min: 0,    max: 0.60, color: '#4e9ef5' },
+        { label: 'Z2', min: 0.60, max: 0.70, color: '#14d9b8' },
+        { label: 'Z3', min: 0.70, max: 0.80, color: '#f5a523' },
+        { label: 'Z4', min: 0.80, max: 0.90, color: '#f0523a' },
+        { label: 'Z5', min: 0.90, max: 1.00, color: '#a855f7' },
+      ];
+      const zoneCounts = ZONES.map(() => 0);
+      let withFC = 0;
+      acts.forEach(a => {
+        if (!a.fcMedia) return;
+        withFC++;
+        const pct = a.fcMedia / fcMax;
+        const zi = ZONES.findIndex(z => pct < z.max);
+        if (zi >= 0) zoneCounts[zi]++;
+      });
+      if (withFC > 0) {
+        if (_zoneChart) _zoneChart.destroy();
+        _zoneChart = new Chart(zoneCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: ZONES.map(z => z.label),
+            datasets: [{ data: zoneCounts, backgroundColor: ZONES.map(z => z.color), borderWidth: 0 }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { color: '#9299a8', boxWidth: 12, font: { size: 11 } } },
+              tooltip: { callbacks: { label: c => `${c.label}: ${c.raw} atividades` } },
+            },
+          },
+        });
+      } else {
+        zoneCanvas.parentElement.innerHTML = '<div class="vt-chart-label">Distribuição por zona FC</div><div style="color:var(--muted2);font-size:12px;padding:20px 0;text-align:center;">Sem dados de FC nas atividades importadas.</div>';
+      }
+    }
+  }
+
   // Expor o trigger principal
   async function loadAndRender() {
     await load();
     renderReview();
   }
 
-  window.Activities = { load: loadAndRender, renderReview };
+  window.Activities = { load: loadAndRender, renderReview, renderVolumeTraining };
 })();

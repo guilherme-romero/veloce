@@ -33,6 +33,7 @@ function renderAll() {
   try { Rides.render(); }                                                                  catch (e) { console.error('[render] Rides:', e); }
   try { if (typeof HomeWorkout !== 'undefined') HomeWorkout.render(); }                  catch (e) { console.error('[render] HomeWorkout:', e); }
   try { if (typeof renderMiniReport === 'function') renderMiniReport(); }                 catch (e) { console.error('[render] MiniReport:', e); }
+  try { if (typeof renderWeightAnalysis === 'function') renderWeightAnalysis(); }         catch (e) { console.error('[render] WeightAnalysis:', e); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -362,6 +363,7 @@ function saveOnboarding(modal) {
    MINI-RELATÓRIO 90 DIAS
 ═══════════════════════════════════════════════════════════════════════ */
 function renderMiniReport() {
+  if (window.Heatmap) Heatmap.render();
   const el = document.getElementById('report-90d');
   if (!el || typeof TrainingLog === 'undefined') return;
 
@@ -380,6 +382,75 @@ function renderMiniReport() {
     stats.mediaPeso ? stats.mediaPeso.toString().replace('.', ',') + ' kg' : '—';
 }
 window.renderMiniReport = renderMiniReport;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ANÁLISE DE PESO — taxa semanal por regressão linear + previsão da meta
+   (Fase 5b)
+═══════════════════════════════════════════════════════════════════════ */
+function renderWeightAnalysis() {
+  const card = document.getElementById('weight-analysis');
+  if (!card) return;
+
+  const user    = Storage.getUser();
+  const weights = Storage.getWeights()
+    .filter(w => w.tipo === 'atual')
+    .sort((a, b) => a.data.localeCompare(b.data));
+
+  if (weights.length < 2 || !user.pesoMeta) {
+    card.style.display = 'none';
+    return;
+  }
+
+  // Regressão linear simples: y = peso, x = dias desde primeiro registro
+  const t0 = new Date(weights[0].data + 'T12:00:00').getTime();
+  const pts = weights.map(w => ({
+    x: (new Date(w.data + 'T12:00:00').getTime() - t0) / 86400_000,
+    y: w.peso,
+  }));
+  const n  = pts.length;
+  const sx = pts.reduce((s, p) => s + p.x, 0);
+  const sy = pts.reduce((s, p) => s + p.y, 0);
+  const sxy= pts.reduce((s, p) => s + p.x * p.y, 0);
+  const sx2= pts.reduce((s, p) => s + p.x * p.x, 0);
+  const denom = n * sx2 - sx * sx;
+  if (denom === 0) { card.style.display = 'none'; return; }
+  const slope = (n * sxy - sx * sy) / denom; // kg/dia
+  const taxaKgSem = +(slope * 7).toFixed(2);  // negativo = perda
+
+  const pesoAtual = weights[weights.length - 1].peso;
+  const faltam    = +(pesoAtual - user.pesoMeta).toFixed(1);
+
+  card.style.display = '';
+
+  const sign = taxaKgSem <= 0 ? '' : '+';
+  document.getElementById('wa-taxa').textContent     = `${sign}${taxaKgSem.toString().replace('.', ',')}`;
+  document.getElementById('wa-faltam').textContent   = faltam > 0 ? `${faltam.toString().replace('.', ',')} kg` : '✓ Meta atingida';
+
+  let previsao = '—', semanas = '—', msg = '';
+  if (faltam <= 0) {
+    previsao = 'Meta atingida!';
+    semanas  = '0';
+    msg      = 'Parabéns! Você atingiu sua meta de peso.';
+  } else if (slope < 0) {
+    const diasNecessarios = faltam / Math.abs(slope);
+    const semsNec = Math.ceil(diasNecessarios / 7);
+    const dataEst = new Date(Date.now() + diasNecessarios * 86400_000);
+    previsao = dataEst.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+    semanas  = semsNec.toString();
+    if (semsNec > 52) msg = 'Taxa atual lenta — considere ajustar plano.';
+    else if (semsNec > 26) msg = 'Progresso consistente — mantenha o ritmo!';
+    else msg = `Meta em ~${semsNec} semanas no ritmo atual.`;
+  } else {
+    previsao = 'N/A';
+    semanas  = '—';
+    msg      = 'Taxa atual indica ganho de peso — revise alimentação e treinos.';
+  }
+  document.getElementById('wa-previsao').textContent = previsao;
+  document.getElementById('wa-semanas').textContent  = semanas;
+  const msgEl = document.getElementById('wa-msg');
+  if (msgEl) { msgEl.textContent = msg; msgEl.style.display = msg ? '' : 'none'; }
+}
+window.renderWeightAnalysis = renderWeightAnalysis;
 
 /* ═══════════════════════════════════════════════════════════════════════
    MODO DE EDIÇÃO — toggle global que exibe botões de edit/delete

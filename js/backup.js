@@ -21,11 +21,23 @@ function openBackupModal() {
           <i class="fa-solid fa-upload"></i> Importar backup (.json)
           <input id="backup-file" type="file" accept="application/json,.json" style="display:none" />
         </label>
+      </div>
 
-        <button class="btn btn-danger" type="button" data-reset style="margin-top:8px;">
-          <i class="fa-solid fa-triangle-exclamation"></i> Apagar todos os dados
+      <div style="border-top:1px solid var(--border);margin:14px 0 8px;"></div>
+      <div class="field-label" style="margin-bottom:8px;">Exportar relatórios</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-ghost" type="button" data-export-csv>
+          <i class="fa-solid fa-file-csv"></i> Exportar pesagens (.csv)
+        </button>
+        <button class="btn btn-ghost" type="button" data-print>
+          <i class="fa-solid fa-print"></i> Imprimir / salvar como PDF
         </button>
       </div>
+
+      <div style="border-top:1px solid var(--border);margin:14px 0 8px;"></div>
+      <button class="btn btn-danger" type="button" data-reset>
+        <i class="fa-solid fa-triangle-exclamation"></i> Apagar todos os dados
+      </button>
 
       <div class="tip-box" style="margin-top:8px;font-size:12px;">
         <i class="fa-solid fa-circle-info"></i> O backup é um arquivo JSON simples. Guarde em local seguro (ex.: Google Drive, Dropbox).
@@ -38,6 +50,8 @@ function openBackupModal() {
       modal.querySelector('[data-export]').onclick = exportData;
       modal.querySelector('#backup-file').onchange = (e) => importData(e.target.files[0]);
       modal.querySelector('[data-reset]').onclick = confirmReset;
+      modal.querySelector('[data-export-csv]').onclick = exportWeightsCSV;
+      modal.querySelector('[data-print]').onclick = () => { Modals.close(); setTimeout(() => window.print(), 300); };
     },
   });
 }
@@ -152,4 +166,28 @@ function confirmReset() {
   });
 }
 
-window.Backup = { open: openBackupModal };
+function exportWeightsCSV() {
+  try {
+    const weights = Storage.getWeights().sort((a, b) => a.data.localeCompare(b.data));
+    if (!weights.length) { toast('Nenhuma pesagem registrada', { kind: 'error' }); return; }
+    const header = 'data,peso_kg,tipo,fonte\n';
+    const rows = weights.map(w =>
+      `${w.data},${w.peso},${w.tipo || 'atual'},${w.fonte || 'manual'}`
+    ).join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pesagens-${tbToday()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast('CSV exportado');
+  } catch (e) {
+    console.error(e);
+    toast('Falha ao exportar CSV', { kind: 'error' });
+  }
+}
+
+window.Backup = { open: openBackupModal, exportWeightsCSV };

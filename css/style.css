@@ -1301,3 +1301,121 @@ body.edit-mode .exercise-actions { display: flex; }
 .review-item-metrics strong { color: var(--text); font-weight: 700; }
 .review-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .review-item-actions .btn { width: 32px; padding: 6px; }
+
+/* ── Heat-map de atividade (Fase 5a) ─────────────────────────────────── */
+.heatmap-card { padding: 16px 18px; }
+.heatmap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.heatmap-totals { display: flex; gap: 16px; }
+.heatmap-stat { font-size: 12px; color: var(--muted2); }
+.heatmap-stat strong { color: var(--text); font-weight: 700; font-size: 14px; }
+
+.heatmap-grid-wrap { display: flex; gap: 4px; }
+
+.heatmap-weekdays {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  gap: 2px;
+  padding-top: 1px;
+}
+.heatmap-wd {
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 12px;
+  text-align: right;
+  padding-right: 2px;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  grid-auto-flow: column;
+  gap: 2px;
+  flex: 1;
+  overflow: hidden;
+}
+.heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--surface2);
+  cursor: default;
+  transition: opacity 0.1s;
+}
+.heatmap-cell-pad { background: transparent; }
+.heatmap-cell:hover { opacity: 0.75; }
+.heatmap-cell[data-tipo="bike"]        { background: var(--teal-dim);   border: 1px solid var(--teal);   }
+.heatmap-cell[data-tipo="fisico"]      { background: var(--amber-dim);  border: 1px solid var(--amber);  }
+.heatmap-cell[data-tipo="alongamento"] { background: var(--blue-dim);   border: 1px solid var(--blue);   }
+.heatmap-cell[data-tipo="multi"]       { background: var(--purple-dim); border: 1px solid var(--purple); }
+.heatmap-cell[data-tipo="none"]        { background: var(--surface2);   border: 1px solid var(--border); }
+.heatmap-today                         { outline: 2px solid var(--text); outline-offset: 1px; }
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+.heatmap-legend-label { font-size: 10px; color: var(--muted); }
+.heatmap-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.heatmap-swatch[data-tipo="bike"]        { background: var(--teal-dim);   border-color: var(--teal);   }
+.heatmap-swatch[data-tipo="fisico"]      { background: var(--amber-dim);  border-color: var(--amber);  }
+.heatmap-swatch[data-tipo="alongamento"] { background: var(--blue-dim);   border-color: var(--blue);   }
+.heatmap-swatch[data-tipo="multi"]       { background: var(--purple-dim); border-color: var(--purple); }
+
+/* ── Análise de peso (Fase 5b) ───────────────────────────────────────── */
+.weight-analysis-card { padding: 16px 18px; }
+.weight-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+@media (max-width: 600px) { .weight-analysis-grid { grid-template-columns: repeat(2, 1fr); } }
+.wa-stat { text-align: center; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; }
+.wa-val  { font-size: 18px; font-weight: 700; color: var(--teal); }
+.wa-label{ font-size: 10px; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+.wa-msg  { font-size: 12px; color: var(--muted2); margin-top: 10px; text-align: center; }
+
+/* ── Volume de treino (Fase 5c) ──────────────────────────────────────── */
+.volume-training-card { padding: 18px; }
+.volume-training-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 12px 0 18px;
+}
+@media (max-width: 600px) { .volume-training-stats { grid-template-columns: repeat(2, 1fr); } }
+.vt-stat { text-align: center; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; }
+.vt-stat strong { display: block; font-size: 18px; font-weight: 700; color: var(--text); }
+.vt-stat span   { font-size: 10px; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; }
+.volume-training-charts { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .volume-training-charts { grid-template-columns: 1fr; } }
+.vt-chart-wrap { }
+.vt-chart-label { font-size: 11px; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+
+/* ── Impressão / PDF (Fase 5d) ───────────────────────────────────────── */
+@media print {
+  nav, .app-footer, #btn-edit-profile, #btn-backup, #btn-logout,
+  #btn-edit-profile-2, #btn-add-weight, .btn, .strava-actions,
+  #review-card, .integrations-grid, #activities, .tip-box { display: none !important; }
+  body { background: #fff !important; color: #111 !important; }
+  .card { border: 1px solid #ccc !important; background: #fff !important; box-shadow: none !important; }
+  .section-title, .card-label { color: #111 !important; }
+  canvas { max-width: 100% !important; }
+  section { page-break-inside: avoid; margin-bottom: 24px; }
+}
