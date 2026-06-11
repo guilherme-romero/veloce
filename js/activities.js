@@ -205,5 +205,110 @@
     }
   }
 
-  window.Activities = { load };
+  // ── Revisão de auto-registros (Fase 4.6c) ─────────────────────
+  function fmtTimeShort(s) {
+    if (!s) return '—';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h${String(m).padStart(2,'0')}` : `${m}min`;
+  }
+
+  function renderReview() {
+    const card = $('review-card');
+    const list = $('review-list');
+    const countEl = $('review-count');
+    if (!card || !list) return;
+
+    const log = (window.Storage && Storage.getTrainingLog) ? Storage.getTrainingLog() : [];
+    const cutoff = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10);
+    // Itens com payload.bike preenchido por sync (fonte != manual) E nao confirmados manualmente
+    const items = log
+      .filter(e => e.data >= cutoff)
+      .filter(e => e.payload?.bike && e.payload.bike.fonte && e.payload.bike.fonte !== 'manual')
+      .filter(e => e.payload?.manual !== true)
+      .sort((a, b) => b.data.localeCompare(a.data));
+
+    if (countEl) countEl.textContent = items.length;
+    if (items.length === 0) { card.hidden = true; return; }
+    card.hidden = false;
+
+    const esc = window.esc || (s => String(s || ''));
+    list.innerHTML = items.map(e => {
+      const b = e.payload.bike || {};
+      const fonte = esc(b.fonte || '');
+      const dataFmt = new Date(e.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+      return `
+        <div class="review-item" data-id="${esc(e.id)}">
+          <div class="review-item-info">
+            <div class="review-item-date">${esc(dataFmt)} <span class="source-badge source-${fonte}">${fonte}</span></div>
+            <div class="review-item-metrics">
+              ${b.km != null ? `<span><strong>${b.km}</strong> km</span>` : ''}
+              ${b.tempoMovS ? `<span><strong>${fmtTimeShort(b.tempoMovS)}</strong></span>` : ''}
+              ${b.elevM != null ? `<span><strong>${Math.round(b.elevM)}</strong> m</span>` : ''}
+              ${b.fcMedia ? `<span><strong>${Math.round(b.fcMedia)}</strong> bpm</span>` : ''}
+            </div>
+          </div>
+          <div class="review-item-actions">
+            <button type="button" class="btn btn-sm btn-primary" data-act="confirm" title="Travar como definitivo">
+              <i class="fa-solid fa-check"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-ghost" data-act="edit" title="Editar manualmente">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-danger" data-act="discard" title="Descartar (remove bike e bloqueia re-import)">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+
+    list.querySelectorAll('.review-item').forEach(el => {
+      const id = el.dataset.id;
+      el.querySelector('[data-act="confirm"]').onclick = () => reviewConfirm(id);
+      el.querySelector('[data-act="edit"]').onclick    = () => reviewEdit(id);
+      el.querySelector('[data-act="discard"]').onclick = () => reviewDiscard(id);
+    });
+  }
+
+  function reviewConfirm(id) {
+    const entry = Storage.getTrainingLog().find(e => e.id === id);
+    if (!entry) return;
+    const newPayload = { ...(entry.payload || {}), manual: true };
+    Storage.updateTrainingEntry(id, { payload: newPayload });
+    if (window.toast) window.toast('Confirmado — sync futuro não sobrescreverá');
+    renderReview();
+    if (window.Rides?.render) Rides.render();
+  }
+
+  function reviewEdit(id) {
+    const entry = Storage.getTrainingLog().find(e => e.id === id);
+    if (!entry) return;
+    if (window.TrainingLog?.openMarkTrainingModal) {
+      TrainingLog.openMarkTrainingModal(entry.data);
+    }
+  }
+
+  function reviewDiscard(id) {
+    if (!confirm('Descartar este registro? A bike sairá deste dia e o sync não voltará a importá-la.')) return;
+    const entry = Storage.getTrainingLog().find(e => e.id === id);
+    if (!entry) return;
+    const tipos = (entry.tipos || []).filter(t => t !== 'bike');
+    const newPayload = { ...(entry.payload || {}), bike: null, bikeDiscarded: true };
+    if (tipos.length === 0) {
+      // Sem tipos, remove a entrada inteira
+      Storage.deleteTrainingEntry(id);
+    } else {
+      Storage.updateTrainingEntry(id, { tipos, payload: newPayload });
+    }
+    if (window.toast) window.toast('Registro descartado', 'success');
+    renderReview();
+    if (window.Rides?.render) Rides.render();
+  }
+
+  // Expor o trigger principal
+  async function loadAndRender() {
+    await load();
+    renderReview();
+  }
+
+  window.Activities = { load: loadAndRender, renderReview };
 })();

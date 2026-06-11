@@ -50,6 +50,11 @@ function autoFillBike(db, dataISO, bike, fonte, fonteId, idPrefix = 'tl') {
     payload = {};
   }
 
+  // Se usuario descartou a bike deste dia (Fase 4.6c), nao reintroduz nada
+  if (payload.bikeDiscarded === true) {
+    return 'noop';
+  }
+
   // 1. Adiciona "bike" ao array de tipos se ainda nao tem
   const hadBikeTipo = tipos.includes('bike');
   if (!hadBikeTipo) tipos.push('bike');

@@ -1278,3 +1278,26 @@ body.edit-mode .exercise-actions { display: flex; }
 }
 .tl-metrics strong { color: var(--text); font-weight: 700; }
 .tl-existing-item { flex-wrap: wrap; }
+
+/* ── Revisão de auto-registros (Fase 4.6c) ───────────────────────────── */
+.review-card { padding: 18px; }
+.review-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.review-hint { font-size: 11px; color: var(--muted2); }
+.review-count {
+  font-size: 11px; font-weight: 700;
+  background: var(--teal-dim); color: var(--teal);
+  padding: 4px 10px; border-radius: 999px;
+}
+.review-list { display: flex; flex-direction: column; gap: 8px; }
+.review-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  gap: 12px;
+}
+.review-item-info { flex: 1; min-width: 0; }
+.review-item-date { font-size: 13px; font-weight: 600; color: var(--text); text-transform: capitalize; }
+.review-item-metrics { display: flex; gap: 10px; font-size: 11px; color: var(--muted2); margin-top: 4px; flex-wrap: wrap; }
+.review-item-metrics strong { color: var(--text); font-weight: 700; }
+.review-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.review-item-actions .btn { width: 32px; padding: 6px; }

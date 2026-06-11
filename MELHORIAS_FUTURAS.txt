@@ -209,7 +209,9 @@ Versão alvo: 2.1.0
   Meta: v2.1.5  |  Impacto: Alto  |  Complexidade: Alta  |  Modelo: Claude Opus 4.7
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-STATUS GERAL: 📋 Planejado (requer Fase 3 e idealmente Fase 4 estabilizada)
+STATUS GERAL: 🚧 Em andamento (v1.6.0) — backend, rotas e UI prontos.
+Pendente apenas o primeiro login real (Garmin bloqueando IP por rate limit
+durante a sessao inicial). Quando liberar, basta clicar "Conectar" no card.
 
 CONTEXTO
 A Garmin não disponibiliza API REST pública para usuário final — a
@@ -290,7 +292,8 @@ Versão alvo: 2.1.5
   Meta: v2.1.6  |  Impacto: Alto  |  Complexidade: Média  |  Modelo: Claude Opus 4.7
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-STATUS GERAL: 📋 Planejado (requer Fases 4 e 4.5 concluídas)
+STATUS GERAL: ✅ Implementado parcialmente (v1.6.0) — sub-fases 4.6a + 4.6b + 4.6c.
+Pendente: 4.6.4 (peso da Garmin → weights) depende do login Garmin estabilizar.
 
 CONTEXTO
 Hoje o sync do Strava já marca o dia como "bike" no training_log. A
@@ -494,6 +497,37 @@ v1.4.0-rc1 (2026-06-11) ✅  — Fase 3: backend Fastify + SQLite + auth
     workouts, rides, training-log, home-exercises, routes)
   - storage.js refatorado: caches em memoria + mutators otimistas
   - Schema com coluna payload JSON para entidades aninhadas
+
+v1.6.0 (2026-06-11) ✅  — Fases 4.5 + 4.6 (Garmin + auto-registro)
+  Fase 4.5 — Garmin Connect:
+  - server/garmin/ com Python venv + garminconnect (CLI wrapper)
+  - server/services/garmin.js (spawn + parse JSON + timeout)
+  - Rotas /api/garmin/{status,login,logout,sync,activities}
+  - Tabelas garmin_activities + garmin_sync_meta
+  - Card Garmin lado a lado com Strava (.integrations-grid)
+  - Dashboard Atividades unifica as duas fontes com badge de fonte
+  - Pendente: primeiro login (Garmin bloqueando IP por rate limit)
+
+  Fase 4.6a — Auto-enriquecimento do training_log:
+  - Coluna payload (JSON) em training_log
+  - autoFillBike() compartilhado entre syncs (prioridade
+    manual > garmin > strava; manual=true bloqueia overwrite)
+  - PUT /api/training-log/:id (merge parcial)
+  - Calendario e modal mostram metricas + badge de fonte
+  - Edicao manual marca payload.manual=true preservando auto-fill
+
+  Fase 4.6b — De-dup cruzada Strava x Garmin:
+  - Tabela activity_links com FKs cascade
+  - activity-matcher.js: matching incremental (mesma data,
+    ±100m, ±300s, threshold normalizado)
+  - runMatching() automatico apos cada sync
+  - GET /api/activities/unified retorna lista deduplicada
+    (Garmin vence quando ha link)
+
+  Fase 4.6c — UI de revisao:
+  - Card "Ultimos auto-registros" na secao Atividades
+  - Confirmar/Editar/Descartar nos ultimos 7 dias
+  - Descartar grava payload.bikeDiscarded=true (sync nao volta)
 
 v1.5.0 (2026-06-11) ✅  — Fase 4: integracao Strava + dashboard
   Sub-fase 4a: status + OAuth simplificado
