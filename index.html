@@ -55,6 +55,7 @@
       <button id="nav-routes"       class="nav-btn"        onclick="scrollToSection('routes')">Rotas</button>
       <button id="nav-activities"   class="nav-btn"        onclick="scrollToSection('activities')">Atividades</button>
       <button id="nav-insights"     class="nav-btn"        onclick="scrollToSection('insights')">Insights</button>
+      <button id="nav-integrations" class="nav-btn"        onclick="scrollToSection('integrations')">Conexões</button>
     </div>
     <div class="nav-right">
       <button id="btn-edit-profile" class="nav-icon-btn" title="Modo de edição" type="button">
@@ -215,35 +216,6 @@
             <span class="heatmap-swatch" data-tipo="alongamento"></span>
             <span class="heatmap-swatch" data-tipo="multi"></span>
             <span class="heatmap-legend-label">Múltiplos</span>
-          </div>
-        </div>
-
-        <!-- Cards integracoes (Strava + Garmin) -->
-        <div class="integrations-grid" style="margin-top:20px;">
-          <div class="card strava-card" id="strava-card">
-            <div class="strava-head">
-              <div class="strava-title">
-                <i class="fa-brands fa-strava" style="color:#fc4c02;"></i>
-                <span>Strava</span>
-              </div>
-              <div class="strava-state" id="strava-state">verificando…</div>
-            </div>
-            <div class="strava-body" id="strava-body">
-              <div class="strava-loading">Carregando…</div>
-            </div>
-          </div>
-
-          <div class="card strava-card" id="garmin-card">
-            <div class="strava-head">
-              <div class="strava-title">
-                <img src="icones/garmin-connect.png" alt="Garmin Connect" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;">
-                <span>Garmin Connect</span>
-              </div>
-              <div class="strava-state" id="garmin-state">verificando…</div>
-            </div>
-            <div class="strava-body" id="garmin-body">
-              <div class="strava-loading">Carregando…</div>
-            </div>
           </div>
         </div>
 
@@ -584,6 +556,43 @@
           <span class="review-count" id="review-count">0</span>
         </div>
         <div id="review-list" class="review-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ┌─ INTEGRAÇÕES (Fase 8.3) ───────────────────────────────────┐ -->
+  <section id="integrations" class="scroll-mt-20">
+    <div class="section-label">Conexões</div>
+    <h2 class="section-title">Integrações</h2>
+    <p class="section-sub" style="margin-bottom:28px;">
+      Conecte serviços externos para sincronizar atividades, pesagens e dados de saúde.
+    </p>
+
+    <div class="integrations-grid">
+      <div class="card strava-card" id="strava-card">
+        <div class="strava-head">
+          <div class="strava-title">
+            <i class="fa-brands fa-strava" style="color:#fc4c02;"></i>
+            <span>Strava</span>
+          </div>
+          <div class="strava-state" id="strava-state">verificando…</div>
+        </div>
+        <div class="strava-body" id="strava-body">
+          <div class="strava-loading">Carregando…</div>
+        </div>
+      </div>
+
+      <div class="card strava-card" id="garmin-card">
+        <div class="strava-head">
+          <div class="strava-title">
+            <img src="icones/garmin-connect.png" alt="Garmin Connect" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;">
+            <span>Garmin Connect</span>
+          </div>
+          <div class="strava-state" id="garmin-state">verificando…</div>
+        </div>
+        <div class="strava-body" id="garmin-body">
+          <div class="strava-loading">Carregando…</div>
+        </div>
       </div>
     </div>
   </section>

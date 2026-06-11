@@ -35,7 +35,8 @@
     { slug: 'rotas',           section: 'routes',       navBtn: 'nav-routes',       label: 'Rotas' },
     { slug: 'atividades',      section: 'activities',   navBtn: 'nav-activities',   label: 'Atividades' },
     { slug: 'insights',        section: 'insights',     navBtn: 'nav-insights',     label: 'Insights' },
-    // Adicionar aqui novas seções (integracoes, historico, home)
+    { slug: 'conexoes',        section: 'integrations', navBtn: 'nav-integrations', label: 'Conexões' },
+    // Adicionar aqui novas seções (historico, home)
   ];
 
   // Aliases por section ID (para legacy scrollToSection)

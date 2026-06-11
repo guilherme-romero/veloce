@@ -2,7 +2,7 @@
    APP — bootstrap, navegação, handlers globais
 ═══════════════════════════════════════════════════════════════════════ */
 
-const NAV_SECTIONS = ['profile', 'zones', 'home-workout', 'plan', 'rides', 'routes', 'activities', 'insights'];
+const NAV_SECTIONS = ['profile', 'zones', 'home-workout', 'plan', 'rides', 'routes', 'activities', 'insights', 'integrations'];
 
 function setActiveNav(id) {
   NAV_SECTIONS.forEach(sec => {
