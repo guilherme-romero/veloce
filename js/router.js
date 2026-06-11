@@ -148,9 +148,25 @@
   function initDrawer() {
     const burger = document.getElementById('nav-hamburger');
     if (burger) burger.addEventListener('click', toggleDrawer);
+
+    // Backdrop: cria div fixo atrás do drawer e fecha ao clicar
+    let backdrop = document.getElementById('nav-backdrop');
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'nav-backdrop';
+      backdrop.className = 'nav-backdrop';
+      backdrop.addEventListener('click', closeDrawer);
+      document.body.appendChild(backdrop);
+    }
+
     // Fecha ao redimensionar para desktop
     window.addEventListener('resize', () => {
       if (window.innerWidth > 700) closeDrawer();
+    });
+
+    // Fecha com tecla ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDrawer();
     });
   }
 
