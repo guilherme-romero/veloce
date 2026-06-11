@@ -169,6 +169,45 @@ async function routes(fastify) {
     }
   });
 
+  // ── POST /api/garmin/sync-weights ────────────────────────────────
+  // Importa pesagens da Garmin. Manual vence; pesagem garmin existente
+  // do mesmo dia eh atualizada pra mais recente.
+  fastify.post('/api/garmin/sync-weights', async (req, reply) => {
+    const days = Math.min(Math.max(parseInt((req.body && req.body.days) || 365, 10) || 365, 1), 3650);
+    try {
+      const weighins = await garmin.listWeighIns(days);
+      let imported = 0, updated = 0, skipped = 0;
+
+      const findByDateStmt = fastify.db.prepare('SELECT id, fonte FROM weights WHERE data = ? ORDER BY id DESC');
+      const updateStmt     = fastify.db.prepare('UPDATE weights SET peso = ? WHERE id = ?');
+      const insertStmt     = fastify.db.prepare('INSERT INTO weights (data, peso, tipo, fonte) VALUES (?, ?, ?, ?)');
+
+      const trx = fastify.db.transaction((items) => {
+        for (const w of items) {
+          if (!w.data || w.pesoKg == null) continue;
+          const existing = findByDateStmt.all(w.data);
+          const hasManual = existing.some(r => (r.fonte || 'manual') === 'manual');
+          if (hasManual) { skipped++; continue; }
+          const existingGarmin = existing.find(r => r.fonte === 'garmin');
+          if (existingGarmin) {
+            updateStmt.run(w.pesoKg, existingGarmin.id);
+            updated++;
+          } else {
+            insertStmt.run(w.data, w.pesoKg, 'atual', 'garmin');
+            imported++;
+          }
+        }
+      });
+      trx(weighins);
+
+      return { ok: true, days, totalRetornadas: weighins.length, imported, updated, skipped };
+    } catch (err) {
+      req.log.error({ err }, 'garmin sync-weights falhou');
+      if (err.code === 'NO_SESSION') return reply.code(401).send({ error: err.code, detail: err.message });
+      return reply.code(502).send({ error: 'Falha ao sincronizar pesagens', detail: err.message });
+    }
+  });
+
   // ── GET /api/garmin/activities ───────────────────────────────────
   fastify.get('/api/garmin/activities', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);

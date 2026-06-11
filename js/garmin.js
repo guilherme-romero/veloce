@@ -139,13 +139,25 @@
     const btn = $('btn-garmin-sync');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando…'; }
     try {
-      const res = await window.Api.post('/garmin/sync', { days: 90 });
-      const msg = `${res.imported} importadas · ${res.updated} atualizadas · ${res.daysMarked} dias marcados`;
-      if (window.toast) window.toast(msg, 'success');
+      const [actRes, weiRes] = await Promise.all([
+        window.Api.post('/garmin/sync', { days: 90 }),
+        window.Api.post('/garmin/sync-weights', { days: 365 }).catch(e => ({ error: e })),
+      ]);
+      const parts = [
+        `${actRes.imported} ativ. importadas`,
+        `${actRes.daysMarked} dias marcados`,
+      ];
+      if (!weiRes.error) {
+        parts.push(`${weiRes.imported} pesagens novas`);
+        if (weiRes.updated) parts.push(`${weiRes.updated} atualizadas`);
+        if (weiRes.skipped) parts.push(`${weiRes.skipped} skip (manual)`);
+      }
+      if (window.toast) window.toast(parts.join(' · '), 'success');
       try {
         if (window.Storage && Storage.loadAll) await Storage.loadAll();
         if (window.Rides && Rides.renderCalendar) Rides.renderCalendar();
         if (window.TrainingLog && TrainingLog.refresh) TrainingLog.refresh();
+        if (window.Charts && Charts.renderAll) Charts.renderAll();
         if (window.Activities && Activities.load) await Activities.load();
       } catch (e) { console.warn('[garmin] refresh local falhou', e); }
       await load();

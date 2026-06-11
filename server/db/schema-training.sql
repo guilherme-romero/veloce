@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS weights (
   data       TEXT NOT NULL,   -- YYYY-MM-DD
   peso       REAL NOT NULL,
   tipo       TEXT NOT NULL CHECK (tipo IN ('atual', 'historico')),
+  fonte      TEXT DEFAULT 'manual',  -- 'manual' | 'garmin' | etc.
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_weights_data ON weights(data);

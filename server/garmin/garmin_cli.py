@@ -159,6 +159,34 @@ def cmd_activity(args):
     emit(det)
 
 
+def cmd_weighins(args):
+    client, _ = make_client()
+    authenticate(client)
+    days = max(1, min(int(args.days or 365), 3650))
+    start = (date.today() - timedelta(days=days)).isoformat()
+    end   = date.today().isoformat()
+    try:
+        data = client.get_weigh_ins(start, end)
+    except Exception as e:
+        die(f"FETCH_ERROR: {e}")
+    # API retorna { dailyWeightSummaries: [{ summaryDate, latestWeight: { weight, ... }, allWeightMetrics: [...] }] }
+    summaries = (data or {}).get("dailyWeightSummaries") or []
+    out = []
+    for s in summaries:
+        latest = s.get("latestWeight") or {}
+        weight_g = latest.get("weight")  # gramas
+        if weight_g is None:
+            continue
+        out.append({
+            "data":      s.get("summaryDate"),                # YYYY-MM-DD
+            "pesoKg":    round(weight_g / 1000.0, 2),
+            "timestamp": latest.get("timestamp"),
+            "sourceType": latest.get("sourceType"),           # "INDEX_SCALE", "MANUAL", ...
+            "samplePk":  latest.get("samplePk"),
+        })
+    emit({"days": days, "count": len(out), "items": out})
+
+
 # ── parser ───────────────────────────────────────────────────────────
 
 def main():
@@ -178,10 +206,14 @@ def main():
     pd = sub.add_parser("activity")
     pd.add_argument("id", type=int)
 
+    pw = sub.add_parser("weighins")
+    pw.add_argument("--days", type=int, default=365)
+
     args = p.parse_args()
     handlers = {
         "status": cmd_status, "login": cmd_login, "logout": cmd_logout,
         "activities": cmd_activities, "activity": cmd_activity,
+        "weighins": cmd_weighins,
     }
     handlers[args.cmd](args)
 

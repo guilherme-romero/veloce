@@ -19,20 +19,21 @@ async function routes(fastify) {
   // ── GET /api/weights ──────────────────────────────────────────────
   fastify.get('/api/weights', async () => {
     const rows = fastify.db
-      .prepare('SELECT id, data, peso, tipo, created_at FROM weights ORDER BY data ASC, id ASC')
+      .prepare('SELECT id, data, peso, tipo, fonte, created_at FROM weights ORDER BY data ASC, id ASC')
       .all();
     return rows.map(r => ({
       id: r.id,
       data: r.data,
       peso: r.peso,
       tipo: r.tipo,
+      fonte: r.fonte || 'manual',
       createdAt: r.created_at,
     }));
   });
 
   // ── POST /api/weights ─────────────────────────────────────────────
   fastify.post('/api/weights', async (req, reply) => {
-    const { data, peso, tipo } = req.body || {};
+    const { data, peso, tipo, fonte } = req.body || {};
 
     if (!isISODate(data)) {
       return reply.code(400).send({ error: 'data inválida (use YYYY-MM-DD)' });
@@ -44,13 +45,14 @@ async function routes(fastify) {
     if (!TIPOS_VALIDOS.includes(tipo)) {
       return reply.code(400).send({ error: 'tipo inválido (atual|historico)' });
     }
+    const fonteFinal = fonte && typeof fonte === 'string' ? fonte : 'manual';
 
     const info = fastify.db
-      .prepare('INSERT INTO weights (data, peso, tipo) VALUES (?, ?, ?)')
-      .run(data, pesoNum, tipo);
+      .prepare('INSERT INTO weights (data, peso, tipo, fonte) VALUES (?, ?, ?, ?)')
+      .run(data, pesoNum, tipo, fonteFinal);
 
     const row = fastify.db
-      .prepare('SELECT id, data, peso, tipo, created_at FROM weights WHERE id = ?')
+      .prepare('SELECT id, data, peso, tipo, fonte, created_at FROM weights WHERE id = ?')
       .get(info.lastInsertRowid);
 
     return reply.code(201).send({
@@ -58,6 +60,7 @@ async function routes(fastify) {
       data: row.data,
       peso: row.peso,
       tipo: row.tipo,
+      fonte: row.fonte || 'manual',
       createdAt: row.created_at,
     });
   });

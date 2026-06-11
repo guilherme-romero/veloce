@@ -82,6 +82,11 @@ async function listActivities(days = 90) {
   return res.items || [];
 }
 
+async function listWeighIns(days = 365) {
+  const res = await runCli(['weighins', '--days', String(days)], { timeoutMs: 60_000 });
+  return res.items || [];
+}
+
 const BIKE_TYPES = new Set([
   'cycling', 'road_biking', 'mountain_biking', 'gravel_cycling',
   'virtual_ride', 'indoor_cycling', 'cyclocross', 'bmx', 'e_bike',
@@ -90,4 +95,4 @@ function isBikeActivity(a) {
   return BIKE_TYPES.has(String(a.activityType || '').toLowerCase());
 }
 
-module.exports = { isConfigured, status, login, logout, listActivities, isBikeActivity };
+module.exports = { isConfigured, status, login, logout, listActivities, isBikeActivity, listWeighIns };
