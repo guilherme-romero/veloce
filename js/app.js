@@ -582,18 +582,12 @@ async function boot() {
     if (fy) fy.textContent = new Date().getFullYear();
   });
 
-  // 10. IntersectionObserver para nav ativo no scroll
-  await safe('IntersectionObserver nav', () => {
-    if (typeof IntersectionObserver !== 'function') return;
-    const obs = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) setActiveNav(e.target.id);
-      });
-    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
-    NAV_SECTIONS.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) obs.observe(el);
-    });
+  // 10. Router SPA — substitui o IntersectionObserver de scroll por hash routing
+  await safe('Router.init()', () => {
+    if (window.Router) {
+      Router.rebindNav();
+      Router.init();
+    }
   });
 
   // 11. Onboarding — abre se não há nome cadastrado (primeiro acesso)
