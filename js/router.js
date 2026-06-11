@@ -26,7 +26,9 @@
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const ROUTES = [
-    { slug: '',                section: 'profile',      navBtn: 'nav-profile',      label: 'Perfil' },
+    { slug: '',                section: 'home',         navBtn: 'nav-home',         label: 'Início' },
+    { slug: 'inicio',          section: 'home',         navBtn: 'nav-home',         label: 'Início' },
+    { slug: 'home',            section: 'home',         navBtn: 'nav-home',         label: 'Início' },
     { slug: 'perfil',          section: 'profile',      navBtn: 'nav-profile',      label: 'Perfil' },
     { slug: 'zonas',           section: 'zones',        navBtn: 'nav-zones',        label: 'Zonas FC' },
     { slug: 'fortalecimento',  section: 'home-workout', navBtn: 'nav-home-workout', label: 'Fortalecimento' },
@@ -44,7 +46,7 @@
   const SECTION_TO_SLUG = {};
   ROUTES.forEach(r => { if (r.slug) SECTION_TO_SLUG[r.section] = r.slug; });
 
-  const DEFAULT_SLUG = 'perfil';
+  const DEFAULT_SLUG = 'inicio';
 
   function parseHash() {
     const h = (location.hash || '').replace(/^#\/?/, '').trim();

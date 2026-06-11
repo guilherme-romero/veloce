@@ -47,7 +47,8 @@
       Treino Bike
     </div>
     <div class="nav-links">
-      <button id="nav-profile"      class="nav-btn active" onclick="scrollToSection('profile')">Perfil</button>
+      <button id="nav-home"         class="nav-btn"        onclick="scrollToSection('home')">Início</button>
+      <button id="nav-profile"      class="nav-btn"        onclick="scrollToSection('profile')">Perfil</button>
       <button id="nav-zones"        class="nav-btn"        onclick="scrollToSection('zones')">Zonas FC</button>
       <button id="nav-home-workout" class="nav-btn"        onclick="scrollToSection('home-workout')">Fortalecimento</button>
       <button id="nav-plan"         class="nav-btn"        onclick="scrollToSection('plan')">Treinos</button>
@@ -73,6 +74,58 @@
 
 <!-- ═══════════════════ MAIN ═════════════════════════════════════════ -->
 <main>
+
+  <!-- ┌─ HOME (Fase 8.2) ──────────────────────────────────────────┐ -->
+  <section id="home" class="scroll-mt-20">
+    <div class="section-label">Início</div>
+    <h2 class="section-title" id="home-greeting">Olá!</h2>
+    <p class="section-sub" style="margin-bottom:28px;" id="home-subline">Carregando seu resumo…</p>
+
+    <!-- Linha de KPIs -->
+    <div class="home-kpis">
+      <div class="home-kpi">
+        <div class="home-kpi-label">Meta de peso</div>
+        <div class="home-kpi-val" id="home-meta-val">—</div>
+        <div class="home-kpi-sub" id="home-meta-sub">—</div>
+      </div>
+      <div class="home-kpi">
+        <div class="home-kpi-label">Esta semana</div>
+        <div class="home-kpi-val" id="home-week-km">—</div>
+        <div class="home-kpi-sub" id="home-week-sub">km pedalados</div>
+      </div>
+      <div class="home-kpi">
+        <div class="home-kpi-label">Sequência</div>
+        <div class="home-kpi-val" id="home-streak">—</div>
+        <div class="home-kpi-sub" id="home-streak-sub">dias ativos</div>
+      </div>
+      <div class="home-kpi">
+        <div class="home-kpi-label">Fadiga</div>
+        <div class="home-kpi-val" id="home-fadiga">—</div>
+        <div class="home-kpi-sub" id="home-fadiga-sub">índice 0-100</div>
+      </div>
+    </div>
+
+    <!-- Ações rápidas -->
+    <div class="home-actions">
+      <button type="button" class="btn btn-primary" id="home-btn-weight">
+        <i class="fa-solid fa-weight-scale"></i> Registrar pesagem
+      </button>
+      <button type="button" class="btn btn-ghost" id="home-btn-training">
+        <i class="fa-solid fa-bicycle"></i> Marcar treino
+      </button>
+      <button type="button" class="btn btn-ghost" id="home-btn-sync">
+        <i class="fa-solid fa-rotate"></i> Sincronizar Garmin
+      </button>
+    </div>
+
+    <!-- Últimas atividades -->
+    <div class="card home-recent" id="home-recent-card" style="margin-top:20px;">
+      <div class="card-label">Últimas atividades</div>
+      <div id="home-recent-list" class="home-recent-list">
+        <div style="color:var(--muted2);font-size:13px;">Carregando…</div>
+      </div>
+    </div>
+  </section>
 
   <!-- ┌─ PERFIL ────────────────────────────────────────────────────┐ -->
   <section id="profile" class="scroll-mt-20">
@@ -721,6 +774,7 @@
 <script src="js/garmin.js?v=1.10.0-alpha"></script>
 <script src="js/activities.js?v=1.10.0-alpha"></script>
 <script src="js/insights.js?v=1.10.0-alpha"></script>
+<script src="js/home.js?v=1.10.0-alpha"></script>
 <script src="js/app.js?v=1.10.0-alpha"></script>
 <script src="js/pwa.js?v=1.10.0-alpha"></script>
 

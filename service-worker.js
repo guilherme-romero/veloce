@@ -40,6 +40,7 @@ const SHELL = [
   './js/garmin.js',
   './js/activities.js',
   './js/insights.js',
+  './js/home.js',
   './js/app.js',
   './js/login.js',
   './js/pwa.js',

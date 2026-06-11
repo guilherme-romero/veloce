@@ -2,7 +2,7 @@
    APP — bootstrap, navegação, handlers globais
 ═══════════════════════════════════════════════════════════════════════ */
 
-const NAV_SECTIONS = ['profile', 'zones', 'home-workout', 'plan', 'rides', 'routes', 'activities', 'insights', 'integrations'];
+const NAV_SECTIONS = ['home', 'profile', 'zones', 'home-workout', 'plan', 'rides', 'routes', 'activities', 'insights', 'integrations'];
 
 function setActiveNav(id) {
   NAV_SECTIONS.forEach(sec => {
@@ -554,6 +554,9 @@ async function boot() {
 
   // 6.7 Insights (Fase 7) — relatórios derivados dos dados Garmin
   await safe('Insights.load()', () => window.Insights && window.Insights.load && window.Insights.load());
+
+  // 6.8 Home (Fase 8.2) — landing page com resumo executivo
+  await safe('Home.load()', () => window.Home && window.Home.load && window.Home.load());
 
   // 7. Render global
   await safe('renderAll()', () => renderAll());
