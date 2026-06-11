@@ -38,7 +38,7 @@ def emit(obj):
 
 
 def has_session():
-    # Garth grava OAUTH1_TOKEN_FILE e OAUTH2_TOKEN_FILE no diretorio
+    # garminconnect grava oauth1_token.json e oauth2_token.json no diretorio
     return any(SESSION_DIR.iterdir()) if SESSION_DIR.exists() else False
 
 
@@ -51,6 +51,13 @@ def make_client():
     return Garmin(email, password), email
 
 
+def dump_session(client):
+    # Em garminconnect 0.3.5 o atributo correto e .client (nao .garth)
+    backend = getattr(client, "client", None) or getattr(client, "garth", None)
+    if backend and hasattr(backend, "dump"):
+        backend.dump(str(SESSION_DIR))
+
+
 def authenticate(client):
     """Restaura sessao salva ou faz login novo. Retorna True/False."""
     if has_session():
@@ -61,7 +68,7 @@ def authenticate(client):
             pass  # sessao invalida -> tenta login limpo
     try:
         client.login()
-        client.garth.dump(str(SESSION_DIR))
+        dump_session(client)
         return True
     except Exception as e:
         die(f"AUTH_ERROR: {e}")
