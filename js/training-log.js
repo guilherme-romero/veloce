@@ -81,22 +81,35 @@ function openMarkTrainingModal(dateISO) {
       ${existing.length > 0 ? `
         <div class="tl-existing-list">
           <div class="field-label" style="margin-bottom:8px;">Registros neste dia:</div>
-          ${existing.map(e => `
-            <div class="tl-existing-item">
-              <span>
-                ${(e.tipos || []).map(t =>
-                  `<span style="color:${TL_TYPES[t]?.color || 'var(--text)'}">
-                    <i class="fa-solid ${esc(TL_TYPES[t]?.icon || 'fa-circle')}"></i>
-                    ${esc(TL_TYPES[t]?.label || t)}
-                  </span>`
-                ).join(' + ')}
-              </span>
-              ${e.notas ? `<span class="tl-notes-preview">${esc(e.notas)}</span>` : ''}
-              <button class="btn btn-sm btn-danger" type="button" data-tl-delete="${escAttr(e.id)}">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-          `).join('')}
+          ${existing.map(e => {
+            const b = e.payload?.bike;
+            const metrics = b ? `
+              <div class="tl-metrics">
+                ${b.km != null ? `<span><strong>${b.km}</strong> km</span>` : ''}
+                ${b.tempoMovS ? `<span><strong>${Math.floor(b.tempoMovS/3600)}h${String(Math.floor((b.tempoMovS%3600)/60)).padStart(2,'0')}</strong> mov</span>` : ''}
+                ${b.elevM != null ? `<span><strong>${Math.round(b.elevM)}</strong> m</span>` : ''}
+                ${b.fcMedia ? `<span><strong>${Math.round(b.fcMedia)}</strong> bpm</span>` : ''}
+                ${b.fonte ? `<span class="source-badge source-${esc(b.fonte)}">${esc(b.fonte)}</span>` : ''}
+              </div>` : '';
+            const manualBadge = e.payload?.manual ? '<span class="source-badge" style="background:var(--teal-dim);color:var(--teal)">manual</span>' : '';
+            return `
+              <div class="tl-existing-item">
+                <span>
+                  ${(e.tipos || []).map(t =>
+                    `<span style="color:${TL_TYPES[t]?.color || 'var(--text)'}">
+                      <i class="fa-solid ${esc(TL_TYPES[t]?.icon || 'fa-circle')}"></i>
+                      ${esc(TL_TYPES[t]?.label || t)}
+                    </span>`
+                  ).join(' + ')} ${manualBadge}
+                </span>
+                ${e.notas ? `<span class="tl-notes-preview">${esc(e.notas)}</span>` : ''}
+                ${metrics}
+                <button class="btn btn-sm btn-danger" type="button" data-tl-delete="${escAttr(e.id)}">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            `;
+          }).join('')}
         </div>
       ` : ''}
     `,
@@ -132,11 +145,19 @@ function saveTrainingEntry(modal) {
   if (data > tbToday())    { toast('A data não pode ser no futuro', { kind: 'error' }); return; }
   if (!tipos.length)       { toast('Selecione pelo menos um tipo', { kind: 'error' }); return; }
 
-  Storage.addTrainingEntry({ data, tipos, notas });
+  const existing = getForDate(data);
+  if (existing.length) {
+    // Atualiza o registro existente, marcando como manual e preservando metricas auto-fill
+    const prev = existing[0];
+    const newPayload = { ...(prev.payload || {}), manual: true };
+    Storage.updateTrainingEntry(prev.id, { tipos, notas, payload: newPayload });
+  } else {
+    Storage.addTrainingEntry({ data, tipos, notas, payload: { manual: true } });
+  }
   Modals.close();
   if (window.Rides?.render) Rides.render();
   if (window.renderMiniReport) renderMiniReport();
-  toast('Treino marcado');
+  toast('Treino registrado');
 }
 
 window.TrainingLog = {

@@ -58,11 +58,18 @@ CREATE TABLE IF NOT EXISTS rides (
 CREATE INDEX IF NOT EXISTS idx_rides_data ON rides(data);
 
 -- ── Training log (registro diario) ────────────────────────────────────
+-- payload (opcional, JSON): {
+--   manual: bool,                                  -- usuario editou? sync nao sobrescreve
+--   sources: ["strava","garmin",...],
+--   bike:    { km, tempoMovS, elevM, fcMedia, fcMax, fonte, fonteId },
+--   fisico:  { tempoMinutos, fc, fonte, fonteId }
+-- }
 CREATE TABLE IF NOT EXISTS training_log (
   id         TEXT PRIMARY KEY,
   data       TEXT NOT NULL UNIQUE,   -- YYYY-MM-DD
   tipos      TEXT NOT NULL,          -- JSON array: ["bike","fisico",...]
   notas      TEXT,
+  payload    TEXT,                   -- JSON opcional (Fase 4.6a)
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_training_log_data ON training_log(data);
@@ -117,3 +124,51 @@ CREATE TABLE IF NOT EXISTS strava_sync_meta (
   last_sync   TEXT,
   last_count  INTEGER DEFAULT 0
 );
+
+-- ── Atividades importadas do Garmin Connect (Fase 4.5) ────────────────
+CREATE TABLE IF NOT EXISTS garmin_activities (
+  id_garmin       INTEGER PRIMARY KEY,
+  nome            TEXT,
+  tipo            TEXT,            -- typeKey: cycling, road_biking, etc.
+  data_inicio     TEXT NOT NULL,   -- YYYY-MM-DD
+  inicio_local    TEXT NOT NULL,
+  inicio_gmt      TEXT,
+  distancia_m     REAL,
+  tempo_mov_s     INTEGER,
+  tempo_total_s   INTEGER,
+  elevacao_m      REAL,
+  fc_media        REAL,
+  fc_max          REAL,
+  watts_avg       REAL,
+  watts_max       REAL,
+  cadencia_avg    REAL,
+  velocidade_avg  REAL,            -- m/s
+  velocidade_max  REAL,            -- m/s
+  calorias        REAL,
+  device_id       INTEGER,
+  payload         TEXT,
+  imported_at     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_garmin_data ON garmin_activities(data_inicio);
+
+-- ── Metadados de sync Garmin (1 linha) ────────────────────────────────
+CREATE TABLE IF NOT EXISTS garmin_sync_meta (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  last_sync   TEXT,
+  last_count  INTEGER DEFAULT 0
+);
+
+-- ── Vinculo Strava ⇄ Garmin (Fase 4.6b) ──────────────────────────────
+-- Mesma ride pode aparecer em ambos (Garmin auto-publica no Strava).
+-- Matching por data + distancia(+/-100m) + tempo(+/-60s).
+CREATE TABLE IF NOT EXISTS activity_links (
+  strava_id   INTEGER NOT NULL,
+  garmin_id   INTEGER NOT NULL,
+  matched_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+  score       REAL,             -- diferenca relativa (menor = melhor match)
+  PRIMARY KEY (strava_id, garmin_id),
+  FOREIGN KEY (strava_id) REFERENCES strava_activities(id_strava) ON DELETE CASCADE,
+  FOREIGN KEY (garmin_id) REFERENCES garmin_activities(id_garmin) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_activity_links_strava ON activity_links(strava_id);
+CREATE INDEX IF NOT EXISTS idx_activity_links_garmin ON activity_links(garmin_id);

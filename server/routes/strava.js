@@ -6,6 +6,8 @@
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
 const strava = require('../services/strava');
+const { autoFillBike } = require('../utils/training-log-helper');
+const { runMatching } = require('../utils/activity-matcher');
 
 const DEFAULT_DAYS = 90;
 
@@ -54,26 +56,9 @@ async function routes(fastify) {
       kudos=excluded.kudos, payload=excluded.payload
   `);
 
-  const getLogStmt    = fastify.db.prepare('SELECT id, tipos FROM training_log WHERE data = ?');
-  const updateLogStmt = fastify.db.prepare('UPDATE training_log SET tipos = ? WHERE id = ?');
-  const insertLogStmt = fastify.db.prepare('INSERT INTO training_log (id, data, tipos) VALUES (?, ?, ?)');
-
-  function markBikeDay(dataISO) {
-    const existing = getLogStmt.get(dataISO);
-    if (existing) {
-      let tipos;
-      try { tipos = JSON.parse(existing.tipos); } catch { tipos = []; }
-      if (!Array.isArray(tipos)) tipos = [];
-      if (!tipos.includes('bike')) {
-        tipos.push('bike');
-        updateLogStmt.run(JSON.stringify(tipos), existing.id);
-        return 'updated';
-      }
-      return 'noop';
-    }
-    const id = 'tl_strava_' + dataISO.replace(/-/g, '');
-    insertLogStmt.run(id, dataISO, JSON.stringify(['bike']));
-    return 'created';
+  // Helper de auto-enriquecimento extraido em utils/training-log-helper.js
+  function markBikeDay(dataISO, bikeMetrics, fonteId) {
+    return autoFillBike(fastify.db, dataISO, bikeMetrics, 'strava', fonteId);
   }
 
   // ── GET /api/strava/status ───────────────────────────────────────
@@ -133,7 +118,14 @@ async function routes(fastify) {
             payload:         JSON.stringify(a),
           });
           if (before) updated++; else imported++;
-          const tag = markBikeDay(dataIso);
+          const bikeMetrics = {
+            km:        a.distance != null ? +(a.distance / 1000).toFixed(2) : null,
+            tempoMovS: a.moving_time ?? null,
+            elevM:     a.total_elevation_gain ?? null,
+            fcMedia:   a.average_heartrate ?? null,
+            fcMax:     a.max_heartrate ?? null,
+          };
+          const tag = markBikeDay(dataIso, bikeMetrics, a.id);
           if (tag === 'created' || tag === 'updated') daysMarked++;
         }
       });
@@ -145,6 +137,9 @@ async function routes(fastify) {
         ON CONFLICT(id) DO UPDATE SET last_sync = excluded.last_sync, last_count = excluded.last_count
       `).run(nowIso, bikeActs.length);
 
+      // Roda matching cruzado (custo baixo, so atividades sem link)
+      const matchRes = runMatching(fastify.db);
+
       return {
         ok: true,
         days,
@@ -153,6 +148,7 @@ async function routes(fastify) {
         imported,
         updated,
         daysMarked,
+        links: matchRes.created,
         lastSync: nowIso,
       };
     } catch (err) {

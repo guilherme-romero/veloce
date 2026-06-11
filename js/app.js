@@ -455,6 +455,9 @@ async function boot() {
   // 6.5 Strava — carrega status (fire-and-forget; nao bloqueia boot)
   await safe('Strava.load()', () => window.Strava && window.Strava.load && window.Strava.load());
 
+  // 6.55 Garmin — carrega status
+  await safe('Garmin.load()', () => window.Garmin && window.Garmin.load && window.Garmin.load());
+
   // 6.6 Activities dashboard
   await safe('Activities.load()', () => window.Activities && window.Activities.load && window.Activities.load());
 

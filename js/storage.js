@@ -293,11 +293,26 @@ const Storage = {
   addTrainingEntry: (entry) => {
     const id = _genId('tl');
     const tipos = Array.isArray(entry.tipos) ? entry.tipos : (entry.tipo ? [entry.tipo] : ['bike']);
-    const body = { id, data: entry.data, tipos, notas: entry.notas || '', createdAt: new Date().toISOString() };
+    const payload = entry.payload || null;
+    const body = { id, data: entry.data, tipos, notas: entry.notas || '', payload, createdAt: new Date().toISOString() };
     _trainingLogCache.push(body);
     _trainingLogCache.sort((a, b) => a.data.localeCompare(b.data));
     window.Api.post('/training-log', body).catch(e => _apiError('addTrainingEntry', e));
     return id;
+  },
+
+  updateTrainingEntry: (id, patch) => {
+    const idx = _trainingLogCache.findIndex(e => e.id === id);
+    if (idx < 0) return false;
+    const updated = { ..._trainingLogCache[idx], ...patch };
+    _trainingLogCache[idx] = updated;
+    const body = {};
+    if (patch.tipos !== undefined)   body.tipos   = patch.tipos;
+    if (patch.notas !== undefined)   body.notas   = patch.notas;
+    if (patch.payload !== undefined) body.payload = patch.payload;
+    window.Api.put('/training-log/' + encodeURIComponent(id), body)
+      .catch(e => _apiError('updateTrainingEntry', e));
+    return true;
   },
 
   deleteTrainingEntry: (id) => {

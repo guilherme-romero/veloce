@@ -95,8 +95,11 @@
   function renderLastActivity(act) {
     const body = $('last-activity-body');
     const esc  = window.esc || (s => String(s || ''));
+    const fonteBadge = act.fonte
+      ? `<span class="source-badge source-${esc(act.fonte)}">${esc(act.fonte)}</span>`
+      : '';
     body.innerHTML =
-      `<div class="last-activity-title">${esc(act.nome || 'Atividade')}</div>` +
+      `<div class="last-activity-title">${esc(act.nome || 'Atividade')} ${fonteBadge}</div>` +
       `<div class="last-activity-meta">${esc(fmtDate(act.inicio))} · ${esc(act.tipo || 'Ride')}</div>` +
       '<div class="last-activity-stats">' +
         `<div><span class="lv">${fmtKm(act.distanciaKm * 1000)}</span><span class="ll">distância</span></div>` +
@@ -170,28 +173,30 @@
     if (!empty || !content) return;
 
     try {
-      const acts = await window.Api.get('/strava/activities?days=180');
-      if (!acts || acts.length === 0) {
+      // Endpoint unificado: server-side dedupe via activity_links (Garmin > Strava)
+      const resp = await window.Api.get('/activities/unified?days=180');
+      const combined = (resp && resp.items) || [];
+
+      if (combined.length === 0) {
         empty.hidden = false;
         content.hidden = true;
         return;
       }
-      // Atividade mais recente = primeira (a rota retorna ORDER BY DESC)
-      // Precisamos puxar a polyline do payload bruto via novo endpoint? Por enquanto, fica sem mapa
-      // se nao houver polyline embutida. Ajustaremos abaixo se necessario.
-      const last = acts[0];
       empty.hidden = true;
       content.hidden = false;
 
-      // Tenta enriquecer last com polyline via /strava/activities-detail (fallback: sem mapa)
-      try {
-        const detail = await window.Api.get('/strava/activity/' + last.id);
-        last.polyline = detail.polyline;
-      } catch (_) { /* sem mapa */ }
+      const last = combined[0];
+      // Polyline so existe pra Strava por enquanto
+      if (last.fonte === 'strava') {
+        try {
+          const detail = await window.Api.get('/strava/activity/' + last.id);
+          last.polyline = detail.polyline;
+        } catch (_) {}
+      }
 
       renderLastActivity(last);
-      renderWeek(bucketByWeek(acts));
-      renderVolume(bucketByMonth(acts, 6));
+      renderWeek(bucketByWeek(combined));
+      renderVolume(bucketByMonth(combined, 6));
     } catch (err) {
       console.error('[activities]', err);
       empty.textContent = 'Falha ao carregar atividades.';

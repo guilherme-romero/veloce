@@ -1243,3 +1243,38 @@ body.edit-mode .exercise-actions { display: flex; }
 
 .volume-card { padding: 18px; }
 .volume-card .chart-wrap { height: 220px; }
+
+/* ── Grid de integracoes (Strava + Garmin) ──────────────────────────── */
+.integrations-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 720px) { .integrations-grid { grid-template-columns: 1fr; } }
+
+/* ── Badges de fonte (strava/garmin) ─────────────────────────────────── */
+.source-badge {
+  display: inline-block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  font-weight: 700;
+}
+.source-strava { background: rgba(252,76,2,0.14); color: #fc4c02; }
+.source-garmin { background: rgba(0,124,195,0.14); color: #007cc3; }
+
+/* ── Training log: metricas enriquecidas (Fase 4.6a) ─────────────────── */
+.tl-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--muted2);
+  margin-top: 4px;
+}
+.tl-metrics strong { color: var(--text); font-weight: 700; }
+.tl-existing-item { flex-wrap: wrap; }

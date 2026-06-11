@@ -141,9 +141,14 @@ function renderMonthView() {
       html += '<div class="tl-badges">';
       dayTL.forEach(e => {
         const tipos = e.tipos || (e.tipo ? [e.tipo] : []);
+        const bike = e.payload?.bike;
+        const bikeSuffix = bike
+          ? ` — ${bike.km != null ? bike.km + ' km' : ''}${bike.tempoMovS ? ' · ' + Math.floor(bike.tempoMovS/3600) + 'h' + String(Math.floor((bike.tempoMovS%3600)/60)).padStart(2,'0') : ''}${bike.fonte ? ' (' + bike.fonte + ')' : ''}`
+          : '';
         tipos.forEach(tipo => {
           const label = TrainingLog?.TL_TYPES?.[tipo]?.label || tipo;
-          html += `<span class="tl-badge" data-tipo="${escAttr(tipo)}" title="${escAttr(label)}"></span>`;
+          const title = (tipo === 'bike' && bikeSuffix) ? label + bikeSuffix : label;
+          html += `<span class="tl-badge" data-tipo="${escAttr(tipo)}" title="${escAttr(title)}"></span>`;
         });
       });
       html += '</div>';

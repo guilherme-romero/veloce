@@ -2,6 +2,10 @@
 server/node_modules/
 server/.env
 
+# Python venv (Garmin CLI)
+server/garmin/venv/
+server/garmin/__pycache__/
+
 # SQLite databases (dados do usuário)
 data/*.db
 data/*.db-journal
@@ -10,6 +14,9 @@ data/*.db-shm
 
 # Avatares (dados pessoais)
 data/avatars/
+
+# Sessao SSO do Garmin (tokens)
+data/garmin_session/
 
 # Logs
 *.log
