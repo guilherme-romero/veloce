@@ -22,6 +22,9 @@ data/garmin_session/
 *.log
 npm-debug.log*
 
+# Roadmap interno (planejamento, não distribuído)
+roadmap.txt
+
 # Editor
 .vscode/
 .idea/
