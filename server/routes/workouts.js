@@ -73,6 +73,7 @@ async function routes(fastify) {
     const { modeId } = req.params;
     const arr = req.body;
     if (!Array.isArray(arr)) return reply.code(400).send({ error: 'esperado array' });
+    if (arr.length === 0) return reply.code(400).send({ error: 'array nao pode ser vazio' });
     const trx = fastify.db.transaction((list) => {
       fastify.db.prepare('DELETE FROM workouts WHERE mode_id = ?').run(modeId);
       const stmt = fastify.db.prepare('INSERT INTO workouts (id, mode_id, payload, ordem) VALUES (?, ?, ?, ?)');

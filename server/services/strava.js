@@ -46,7 +46,9 @@ async function refreshAccessToken() {
   // Se o Strava devolver um novo refresh_token, fica registrado em log para
   // o usuario atualizar o .env. Tokens raramente rotacionam, mas pode acontecer.
   if (data.refresh_token && data.refresh_token !== config.STRAVA_REFRESH_TOKEN) {
-    console.warn('[strava] Novo refresh_token recebido — atualize STRAVA_REFRESH_TOKEN no .env:', data.refresh_token);
+    const t = data.refresh_token;
+    const masked = t.slice(0, 6) + '****' + t.slice(-4);
+    console.warn('[strava] Novo refresh_token recebido — atualize STRAVA_REFRESH_TOKEN no .env:', masked);
   }
   return _accessToken;
 }

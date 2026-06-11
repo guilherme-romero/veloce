@@ -163,9 +163,9 @@ async function routes(fastify) {
     } catch (err) {
       req.log.error({ err }, 'garmin sync falhou');
       if (err.code === 'NO_SESSION' || err.code === 'MFA_REQUIRED') {
-        return reply.code(401).send({ error: err.code, detail: err.message });
+        return reply.code(401).send({ error: err.code });
       }
-      return reply.code(502).send({ error: 'Falha ao sincronizar com Garmin', detail: err.message });
+      return reply.code(502).send({ error: 'Falha ao sincronizar com Garmin' });
     }
   });
 
@@ -203,8 +203,8 @@ async function routes(fastify) {
       return { ok: true, days, totalRetornadas: weighins.length, imported, updated, skipped };
     } catch (err) {
       req.log.error({ err }, 'garmin sync-weights falhou');
-      if (err.code === 'NO_SESSION') return reply.code(401).send({ error: err.code, detail: err.message });
-      return reply.code(502).send({ error: 'Falha ao sincronizar pesagens', detail: err.message });
+      if (err.code === 'NO_SESSION') return reply.code(401).send({ error: err.code });
+      return reply.code(502).send({ error: 'Falha ao sincronizar pesagens' });
     }
   });
 
@@ -247,7 +247,7 @@ async function routes(fastify) {
       return { ok: true, days, synced: items.length };
     } catch (err) {
       req.log.error({ err }, 'garmin sync-health falhou');
-      return reply.code(502).send({ error: 'Falha ao sincronizar saude', detail: err.message });
+      return reply.code(502).send({ error: 'Falha ao sincronizar saude' });
     }
   });
 

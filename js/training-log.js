@@ -85,10 +85,10 @@ function openMarkTrainingModal(dateISO) {
             const b = e.payload?.bike;
             const metrics = b ? `
               <div class="tl-metrics">
-                ${b.km != null ? `<span><strong>${b.km}</strong> km</span>` : ''}
-                ${b.tempoMovS ? `<span><strong>${Math.floor(b.tempoMovS/3600)}h${String(Math.floor((b.tempoMovS%3600)/60)).padStart(2,'0')}</strong> mov</span>` : ''}
-                ${b.elevM != null ? `<span><strong>${Math.round(b.elevM)}</strong> m</span>` : ''}
-                ${b.fcMedia ? `<span><strong>${Math.round(b.fcMedia)}</strong> bpm</span>` : ''}
+                ${isFinite(b.km) && b.km > 0 ? `<span><strong>${b.km}</strong> km</span>` : ''}
+                ${isFinite(b.tempoMovS) && b.tempoMovS > 0 ? `<span><strong>${Math.floor(b.tempoMovS/3600)}h${String(Math.floor((b.tempoMovS%3600)/60)).padStart(2,'0')}</strong> mov</span>` : ''}
+                ${isFinite(b.elevM) && b.elevM > 0 ? `<span><strong>${Math.round(b.elevM)}</strong> m</span>` : ''}
+                ${isFinite(b.fcMedia) && b.fcMedia > 0 ? `<span><strong>${Math.round(b.fcMedia)}</strong> bpm</span>` : ''}
                 ${b.fonte ? `<span class="source-badge source-${esc(b.fonte)}">${esc(b.fonte)}</span>` : ''}
               </div>` : '';
             const manualBadge = e.payload?.manual ? '<span class="source-badge" style="background:var(--teal-dim);color:var(--teal)">manual</span>' : '';

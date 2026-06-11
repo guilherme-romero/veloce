@@ -148,7 +148,14 @@ function wireAvatarUpload(modal) {
     try {
       const base64 = await new Promise((res, rej) => {
         const reader = new FileReader();
-        reader.onload  = () => res(String(reader.result).split(',')[1]);
+        reader.onload  = () => {
+          const parts = String(reader.result).split(',');
+          if (parts.length !== 2 || !parts[1]) {
+            rej(new Error('Arquivo não gerou data URI válido'));
+            return;
+          }
+          res(parts[1]);
+        };
         reader.onerror = rej;
         reader.readAsDataURL(file);
       });
@@ -207,7 +214,7 @@ function saveProfile(modal) {
 
   if (!updated.nome)                          { toast('Informe seu nome', { kind: 'error' }); return; }
   if (!updated.altura || updated.altura < 100) { toast('Altura inválida', { kind: 'error' }); return; }
-  if (!updated.pesoAtual)                      { toast('Informe o peso atual', { kind: 'error' }); return; }
+  if (isNaN(updated.pesoAtual) || updated.pesoAtual <= 0) { toast('Informe o peso atual', { kind: 'error' }); return; }
 
   Storage.setUser(updated);
   renderAll();
@@ -260,7 +267,7 @@ async function saveWeight(modal) {
   const tipo = modal.querySelector('#w-tipo').value;
 
   if (!data) { toast('Informe a data', { kind: 'error' }); return; }
-  if (!peso) { toast('Informe o peso', { kind: 'error' }); return; }
+  if (isNaN(peso) || peso <= 0) { toast('Informe o peso', { kind: 'error' }); return; }
 
   try {
     await Storage.addWeight({ data, peso: +peso.toFixed(1), tipo });
@@ -392,9 +399,22 @@ function renderWeightAnalysis() {
   if (!card) return;
 
   const user    = Storage.getUser();
-  const weights = Storage.getWeights()
+  // Consolida múltiplas pesagens do mesmo dia pela média — evita distorção
+  // na regressão linear quando há 2 registros em x=0 com pesos diferentes
+  const rawWeights = Storage.getWeights()
     .filter(w => w.tipo === 'atual')
     .sort((a, b) => a.data.localeCompare(b.data));
+  const byDay = {};
+  rawWeights.forEach(w => {
+    if (!byDay[w.data]) byDay[w.data] = [];
+    byDay[w.data].push(w.peso);
+  });
+  const weights = Object.entries(byDay)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([data, pesos]) => ({
+      data,
+      peso: pesos.reduce((s, p) => s + p, 0) / pesos.length,
+    }));
 
   if (weights.length < 2 || !user.pesoMeta) {
     card.style.display = 'none';

@@ -51,6 +51,7 @@ async function routes(fastify) {
   fastify.put('/api/home-exercises', async (req, reply) => {
     const arr = req.body;
     if (!Array.isArray(arr)) return reply.code(400).send({ error: 'esperado array' });
+    if (arr.length === 0) return reply.code(400).send({ error: 'array nao pode ser vazio' });
     const trx = fastify.db.transaction((list) => {
       fastify.db.prepare('DELETE FROM home_exercises').run();
       const stmt = fastify.db.prepare('INSERT INTO home_exercises (id, nome, payload, ordem) VALUES (?, ?, ?, ?)');

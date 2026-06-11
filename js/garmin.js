@@ -153,9 +153,9 @@
       if (window.toast) window.toast(parts.join(' · '), 'success');
       try {
         if (window.Storage && Storage.loadAll) await Storage.loadAll();
-        if (window.Rides && Rides.renderCalendar) Rides.renderCalendar();
-        if (window.TrainingLog && TrainingLog.refresh) TrainingLog.refresh();
-        if (window.Charts && Charts.renderAll) Charts.renderAll();
+        if (window.Rides && Rides.render) Rides.render();
+        if (window.renderMiniReport) renderMiniReport();
+        if (window.renderWeightAnalysis) renderWeightAnalysis();
         if (window.Activities && Activities.load) await Activities.load();
       } catch (e) { console.warn('[garmin] refresh local falhou', e); }
       await load();

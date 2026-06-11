@@ -60,7 +60,10 @@ async function routes(fastify) {
       .prepare('SELECT payload FROM user_profile WHERE id = 1')
       .get();
     if (!row) return {};
-    try { return JSON.parse(row.payload); } catch (_) { return {}; }
+    try { return JSON.parse(row.payload); } catch (e) {
+      fastify.log.warn({ err: e }, 'profile payload corrompido no banco — retornando vazio');
+      return {};
+    }
   });
 
   fastify.put('/api/profile', async (req, reply) => {

@@ -352,7 +352,7 @@ const Storage = {
 
   updateHomeExercise: (id, patch) => {
     const idx = _homeExercisesCache.findIndex(e => e.id === id);
-    if (idx < 0) return;
+    if (idx < 0) return false;
     _homeExercisesCache[idx] = { ..._homeExercisesCache[idx], ...patch, id };
     window.Api.put('/home-exercises/' + encodeURIComponent(id), patch)
       .catch(e => _apiError('updateHomeExercise', e));

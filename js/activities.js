@@ -242,10 +242,10 @@
           <div class="review-item-info">
             <div class="review-item-date">${esc(dataFmt)} <span class="source-badge source-${fonte}">${fonte}</span></div>
             <div class="review-item-metrics">
-              ${b.km != null ? `<span><strong>${b.km}</strong> km</span>` : ''}
-              ${b.tempoMovS ? `<span><strong>${fmtTimeShort(b.tempoMovS)}</strong></span>` : ''}
-              ${b.elevM != null ? `<span><strong>${Math.round(b.elevM)}</strong> m</span>` : ''}
-              ${b.fcMedia ? `<span><strong>${Math.round(b.fcMedia)}</strong> bpm</span>` : ''}
+              ${isFinite(b.km) && b.km > 0 ? `<span><strong>${b.km}</strong> km</span>` : ''}
+              ${isFinite(b.tempoMovS) && b.tempoMovS > 0 ? `<span><strong>${fmtTimeShort(b.tempoMovS)}</strong></span>` : ''}
+              ${isFinite(b.elevM) && b.elevM > 0 ? `<span><strong>${Math.round(b.elevM)}</strong> m</span>` : ''}
+              ${isFinite(b.fcMedia) && b.fcMedia > 0 ? `<span><strong>${Math.round(b.fcMedia)}</strong> bpm</span>` : ''}
             </div>
           </div>
           <div class="review-item-actions">
@@ -403,6 +403,7 @@
           },
         });
       } else {
+        if (_zoneChart) { _zoneChart.destroy(); _zoneChart = null; }
         zoneCanvas.parentElement.innerHTML = '<div class="vt-chart-label">Distribuição por zona FC</div><div style="color:var(--muted2);font-size:12px;padding:20px 0;text-align:center;">Sem dados de FC nas atividades importadas.</div>';
       }
     }

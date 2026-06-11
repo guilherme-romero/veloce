@@ -4,7 +4,8 @@
 const config = require('./config');
 const fastify = require('fastify')({
   logger: { level: 'info' },
-  trustProxy: true, // confia em X-Forwarded-* (nginx)
+  trustProxy: true,   // confia em X-Forwarded-* (nginx)
+  bodyLimit: 524288,  // 512 KB — avatar usa bodyLimit próprio de 5MB
 });
 
 // Cookies (httpOnly de sessao)

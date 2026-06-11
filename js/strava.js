@@ -103,8 +103,8 @@
       // Recarrega training_log no cache local p/ refletir badges no calendario
       try {
         if (window.Storage && Storage.loadAll) await Storage.loadAll();
-        if (window.Rides && Rides.renderCalendar) Rides.renderCalendar();
-        if (window.TrainingLog && TrainingLog.refresh) TrainingLog.refresh();
+        if (window.Rides && Rides.render) Rides.render();
+        if (window.renderMiniReport) renderMiniReport();
       } catch (e) { console.warn('[strava] refresh local falhou', e); }
       await load();
     } catch (err) {

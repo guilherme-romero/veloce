@@ -21,11 +21,11 @@ async function routes(fastify) {
       return reply.code(400).send({ error: 'Usuario e senha sao obrigatorios' });
     }
 
-    if (user !== config.ADMIN_USER) {
-      return reply.code(401).send({ error: 'Credenciais invalidas' });
-    }
-
-    const ok = await password.verify(pass, config.ADMIN_PASS_HASH);
+    // Sempre executa bcrypt mesmo se username errado — evita timing attack
+    // (username errado retornaria instantaneamente sem o hash, revelando
+    // qual username existe por diferença de tempo de resposta)
+    const ok = (user === config.ADMIN_USER)
+             && await password.verify(pass, config.ADMIN_PASS_HASH);
     if (!ok) {
       return reply.code(401).send({ error: 'Credenciais invalidas' });
     }

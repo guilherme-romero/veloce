@@ -75,7 +75,7 @@ async function routes(fastify) {
       return status;
     } catch (err) {
       req.log.error({ err }, 'strava status falhou');
-      return reply.code(500).send({ error: 'Falha ao consultar Strava', detail: err.message });
+      return reply.code(500).send({ error: 'Falha ao consultar Strava' });
     }
   });
 
@@ -153,7 +153,7 @@ async function routes(fastify) {
       };
     } catch (err) {
       req.log.error({ err }, 'strava sync falhou');
-      return reply.code(502).send({ error: 'Falha ao sincronizar com Strava', detail: err.message });
+      return reply.code(502).send({ error: 'Falha ao sincronizar com Strava' });
     }
   });
 
