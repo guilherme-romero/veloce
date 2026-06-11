@@ -139,19 +139,17 @@
     const btn = $('btn-garmin-sync');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando…'; }
     try {
-      const [actRes, weiRes] = await Promise.all([
+      const [actRes, weiRes, healthRes] = await Promise.all([
         window.Api.post('/garmin/sync', { days: 90 }),
         window.Api.post('/garmin/sync-weights', { days: 365 }).catch(e => ({ error: e })),
+        window.Api.post('/garmin/sync-health', { days: 30 }).catch(e => ({ error: e })),
       ]);
       const parts = [
-        `${actRes.imported} ativ. importadas`,
+        `${actRes.imported} ativ.`,
         `${actRes.daysMarked} dias marcados`,
       ];
-      if (!weiRes.error) {
-        parts.push(`${weiRes.imported} pesagens novas`);
-        if (weiRes.updated) parts.push(`${weiRes.updated} atualizadas`);
-        if (weiRes.skipped) parts.push(`${weiRes.skipped} skip (manual)`);
-      }
+      if (!weiRes.error && weiRes.imported) parts.push(`${weiRes.imported} pesagens`);
+      if (!healthRes.error && healthRes.synced) parts.push(`${healthRes.synced} dias de saúde`);
       if (window.toast) window.toast(parts.join(' · '), 'success');
       try {
         if (window.Storage && Storage.loadAll) await Storage.loadAll();

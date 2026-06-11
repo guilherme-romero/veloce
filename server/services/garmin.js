@@ -95,4 +95,9 @@ function isBikeActivity(a) {
   return BIKE_TYPES.has(String(a.activityType || '').toLowerCase());
 }
 
-module.exports = { isConfigured, status, login, logout, listActivities, isBikeActivity, listWeighIns };
+async function listDailyHealth(days = 30) {
+  const res = await runCli(['daily-health', '--days', String(days)], { timeoutMs: 120_000 });
+  return res.items || [];
+}
+
+module.exports = { isConfigured, status, login, logout, listActivities, isBikeActivity, listWeighIns, listDailyHealth };

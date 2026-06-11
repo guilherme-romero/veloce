@@ -135,20 +135,30 @@ function renderMonthView() {
     html += `<div class="${classes.join(' ')}" data-date="${dateISO}">`;
     html += `<div class="month-cell-day">${day}</div>`;
 
-    // Badges de dias treinados (suporta múltiplos tipos por entrada)
+    // Badges de dias treinados com ícone + métricas
     const dayTL = tlByDate[dateISO] || [];
     if (dayTL.length > 0) {
+      const TL_ICONS = {
+        bike:        'fa-bicycle',
+        fisico:      'fa-dumbbell',
+        alongamento: 'fa-person-walking',
+      };
       html += '<div class="tl-badges">';
       dayTL.forEach(e => {
         const tipos = e.tipos || (e.tipo ? [e.tipo] : []);
         const bike = e.payload?.bike;
-        const bikeSuffix = bike
-          ? ` — ${bike.km != null ? bike.km + ' km' : ''}${bike.tempoMovS ? ' · ' + Math.floor(bike.tempoMovS/3600) + 'h' + String(Math.floor((bike.tempoMovS%3600)/60)).padStart(2,'0') : ''}${bike.fonte ? ' (' + bike.fonte + ')' : ''}`
+        // Linha de métricas: km ou tempo (só para bike com dados)
+        const metricLine = (bike && tipos.includes('bike'))
+          ? (bike.km != null ? bike.km + ' km' : bike.tempoMovS ? Math.floor(bike.tempoMovS/3600) + 'h' + String(Math.floor((bike.tempoMovS%3600)/60)).padStart(2,'0') : '')
           : '';
         tipos.forEach(tipo => {
           const label = TrainingLog?.TL_TYPES?.[tipo]?.label || tipo;
-          const title = (tipo === 'bike' && bikeSuffix) ? label + bikeSuffix : label;
-          html += `<span class="tl-badge" data-tipo="${escAttr(tipo)}" title="${escAttr(title)}"></span>`;
+          const icon  = TL_ICONS[tipo] || 'fa-circle';
+          const tip   = label + (tipo === 'bike' && metricLine ? ` — ${metricLine}` : '') + (bike?.fonte ? ` (${bike.fonte})` : '');
+          html += `<span class="tl-badge" data-tipo="${escAttr(tipo)}" title="${escAttr(tip)}">` +
+                  `<i class="fa-solid ${esc(icon)}"></i>` +
+                  (tipo === 'bike' && metricLine ? `<span class="tl-badge-metric">${esc(metricLine)}</span>` : '') +
+                  `</span>`;
         });
       });
       html += '</div>';

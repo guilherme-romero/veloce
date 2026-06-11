@@ -159,6 +159,30 @@ CREATE TABLE IF NOT EXISTS garmin_sync_meta (
   last_count  INTEGER DEFAULT 0
 );
 
+-- ── Saude diaria Garmin (passos, sono, stress, HRV, body battery) ────
+CREATE TABLE IF NOT EXISTS garmin_daily_health (
+  data              TEXT PRIMARY KEY,  -- YYYY-MM-DD
+  passos            INTEGER,
+  kcal_total        REAL,
+  kcal_ativa        REAL,
+  distancia_m       INTEGER,
+  fc_repouso        INTEGER,
+  fc_min            INTEGER,
+  fc_max            INTEGER,
+  sono_total_s      INTEGER,
+  sono_deep_s       INTEGER,
+  sono_light_s      INTEGER,
+  sono_rem_s        INTEGER,
+  stress_avg        INTEGER,
+  stress_max        INTEGER,
+  body_battery_max  INTEGER,
+  body_battery_drain INTEGER,
+  hrv_semanal_avg   INTEGER,
+  hrv_noite_avg     INTEGER,
+  hrv_status        TEXT,
+  imported_at       TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ── Vinculo Strava ⇄ Garmin (Fase 4.6b) ──────────────────────────────
 -- Mesma ride pode aparecer em ambos (Garmin auto-publica no Strava).
 -- Matching por data + distancia(+/-100m) + tempo(+/-60s).

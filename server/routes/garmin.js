@@ -208,6 +208,56 @@ async function routes(fastify) {
     }
   });
 
+  // ── POST /api/garmin/sync-health ─────────────────────────────────
+  fastify.post('/api/garmin/sync-health', async (req, reply) => {
+    const days = Math.min(Math.max(parseInt((req.body && req.body.days) || 30, 10) || 30, 1), 365);
+    try {
+      const items = await garmin.listDailyHealth(days);
+      const upsert = fastify.db.prepare(`
+        INSERT INTO garmin_daily_health (
+          data, passos, kcal_total, kcal_ativa, distancia_m, fc_repouso, fc_min, fc_max,
+          sono_total_s, sono_deep_s, sono_light_s, sono_rem_s, stress_avg, stress_max,
+          body_battery_max, body_battery_drain, hrv_semanal_avg, hrv_noite_avg, hrv_status
+        ) VALUES (
+          @data, @passos, @kcal_total, @kcal_ativa, @distancia_m, @fc_repouso, @fc_min, @fc_max,
+          @sono_total_s, @sono_deep_s, @sono_light_s, @sono_rem_s, @stress_avg, @stress_max,
+          @body_battery_max, @body_battery_drain, @hrv_semanal_avg, @hrv_noite_avg, @hrv_status
+        ) ON CONFLICT(data) DO UPDATE SET
+          passos=excluded.passos, kcal_total=excluded.kcal_total, kcal_ativa=excluded.kcal_ativa,
+          distancia_m=excluded.distancia_m, fc_repouso=excluded.fc_repouso, fc_min=excluded.fc_min,
+          fc_max=excluded.fc_max, sono_total_s=excluded.sono_total_s, sono_deep_s=excluded.sono_deep_s,
+          sono_light_s=excluded.sono_light_s, sono_rem_s=excluded.sono_rem_s,
+          stress_avg=excluded.stress_avg, stress_max=excluded.stress_max,
+          body_battery_max=excluded.body_battery_max, body_battery_drain=excluded.body_battery_drain,
+          hrv_semanal_avg=excluded.hrv_semanal_avg, hrv_noite_avg=excluded.hrv_noite_avg,
+          hrv_status=excluded.hrv_status
+      `);
+      const trx = fastify.db.transaction((rows) => rows.forEach(r => upsert.run({
+        data: r.data, passos: r.passos ?? null, kcal_total: r.kcal_total ?? null,
+        kcal_ativa: r.kcal_ativa ?? null, distancia_m: r.distancia_m ?? null,
+        fc_repouso: r.fc_repouso ?? null, fc_min: r.fc_min ?? null, fc_max: r.fc_max ?? null,
+        sono_total_s: r.sono_total_s ?? null, sono_deep_s: r.sono_deep_s ?? null,
+        sono_light_s: r.sono_light_s ?? null, sono_rem_s: r.sono_rem_s ?? null,
+        stress_avg: r.stress_avg ?? null, stress_max: r.stress_max ?? null,
+        body_battery_max: r.body_battery_max ?? null, body_battery_drain: r.body_battery_drain ?? null,
+        hrv_semanal_avg: r.hrv_semanal_avg ?? null, hrv_noite_avg: r.hrv_noite_avg ?? null,
+        hrv_status: r.hrv_status ?? null,
+      })));
+      trx(items);
+      return { ok: true, days, synced: items.length };
+    } catch (err) {
+      req.log.error({ err }, 'garmin sync-health falhou');
+      return reply.code(502).send({ error: 'Falha ao sincronizar saude', detail: err.message });
+    }
+  });
+
+  // ── GET /api/garmin/health?days=N ────────────────────────────────
+  fastify.get('/api/garmin/health', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query?.days || 30, 10) || 30, 1), 365);
+    const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+    return fastify.db.prepare('SELECT * FROM garmin_daily_health WHERE data >= ? ORDER BY data DESC').all(cutoff);
+  });
+
   // ── GET /api/garmin/activities ───────────────────────────────────
   fastify.get('/api/garmin/activities', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);

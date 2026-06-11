@@ -19,15 +19,39 @@ const SCORE_THRESHOLD = 1.0; // < soma normalizada (1.0 = limite tolerancia)
 
 function parseIso(s) {
   if (!s) return 0;
-  // Strava: "2026-03-14T13:48:30Z" | Garmin local: "2026-03-14 10:48:30"
-  const norm = String(s).includes('T') ? s : s.replace(' ', 'T') + 'Z';
-  const t = Date.parse(norm);
+  // Normaliza: Strava usa "2026-03-14T13:48:30Z" (UTC com Z)
+  // Garmin local usa "2026-03-14 12:23:44" (sem Z, horario local)
+  // Garmin GMT  usa "2026-03-14 15:23:44" (sem Z, UTC)
+  const str = String(s).trim();
+  // Se tem T e nao tem Z nem +, assume UTC
+  if (str.includes('T') && !str.match(/[Z+\-]\d*$/)) {
+    const t = Date.parse(str + 'Z');
+    return isFinite(t) ? t : 0;
+  }
+  // Se tem espaco (sem T), e sem sufixo de timezone: trata como UTC
+  if (str.includes(' ') && !str.match(/[Z+\-]\d+$/)) {
+    const t = Date.parse(str.replace(' ', 'T') + 'Z');
+    return isFinite(t) ? t : 0;
+  }
+  const t = Date.parse(str);
   return isFinite(t) ? t : 0;
 }
 
-function timeDiffSeconds(stravaIso, garminLocal, garminGmt) {
-  const ts = parseIso(stravaIso);
-  const tg = parseIso(garminGmt || garminLocal);
+function parseLocal(s) {
+  // Interpreta string como horario local (sem conversao de fuso)
+  // Strava: "2026-03-14T13:48:30Z" -> trata como local removendo Z
+  // Garmin local: "2026-03-14 13:53:26" -> normaliza T
+  if (!s) return 0;
+  const str = String(s).replace('Z', '').replace(' ', 'T');
+  // Date.parse sem Z/offset usa horario local do sistema
+  const t = Date.parse(str);
+  return isFinite(t) ? t : 0;
+}
+
+function timeDiffSeconds(stravaIso, garminLocal) {
+  // Comparar como horario local (ambos representam o mesmo instante local do usuario)
+  const ts = parseLocal(stravaIso);
+  const tg = parseLocal(garminLocal);
   if (!ts || !tg) return Infinity;
   return Math.abs(ts - tg) / 1000;
 }
@@ -63,7 +87,7 @@ function runMatching(db) {
     let best = null, bestScore = Infinity;
     for (const g of candidates) {
       const distDiff = Math.abs((g.distancia_m || 0) - (s.distancia_m || 0));
-      const timeDiff = timeDiffSeconds(s.inicio_iso, g.inicio_local, g.inicio_gmt);
+      const timeDiff = timeDiffSeconds(s.inicio_iso, g.inicio_local);
       if (distDiff > DIST_TOL_M || timeDiff > TIME_TOL_S) continue;
       const score = (distDiff / DIST_TOL_M) + (timeDiff / TIME_TOL_S);
       if (score < bestScore) { bestScore = score; best = g; }

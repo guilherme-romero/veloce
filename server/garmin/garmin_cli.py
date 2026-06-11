@@ -159,6 +159,62 @@ def cmd_activity(args):
     emit(det)
 
 
+def cmd_daily_health(args):
+    """Busca dados diarios de saude: steps, sleep, stress, body battery, HRV, FC repouso, SpO2."""
+    client, _ = make_client()
+    authenticate(client)
+    days = max(1, min(int(args.days or 30), 365))
+    results = []
+    for i in range(days - 1, -1, -1):
+        cdate = (date.today() - timedelta(days=i)).isoformat()
+        row = {"data": cdate}
+        # Stats diarios (steps, calorias, distancia)
+        try:
+            s = client.get_stats(cdate) or {}
+            row["passos"]        = s.get("totalSteps")
+            row["kcal_total"]    = s.get("totalKilocalories")
+            row["kcal_ativa"]    = s.get("activeKilocalories")
+            row["distancia_m"]   = s.get("totalDistanceMeters")
+        except Exception: pass
+        # FC repouso
+        try:
+            hr = client.get_heart_rates(cdate) or {}
+            row["fc_repouso"]    = hr.get("restingHeartRate")
+            row["fc_min"]        = hr.get("minHeartRate")
+            row["fc_max"]        = hr.get("maxHeartRate")
+        except Exception: pass
+        # Sono
+        try:
+            sl = (client.get_sleep_data(cdate) or {}).get("dailySleepDTO") or {}
+            row["sono_total_s"]  = sl.get("sleepTimeSeconds")
+            row["sono_deep_s"]   = sl.get("deepSleepSeconds")
+            row["sono_light_s"]  = sl.get("lightSleepSeconds")
+            row["sono_rem_s"]    = sl.get("remSleepSeconds")
+        except Exception: pass
+        # Stress
+        try:
+            st = client.get_stress_data(cdate) or {}
+            row["stress_avg"]    = st.get("avgStressLevel")
+            row["stress_max"]    = st.get("maxStressLevel")
+        except Exception: pass
+        # Body Battery
+        try:
+            bb = client.get_body_battery(cdate, cdate)
+            if bb and len(bb) > 0:
+                row["body_battery_max"]   = bb[0].get("charged")
+                row["body_battery_drain"] = bb[0].get("drained")
+        except Exception: pass
+        # HRV
+        try:
+            hrv = (client.get_hrv_data(cdate) or {}).get("hrvSummary") or {}
+            row["hrv_semanal_avg"] = hrv.get("weeklyAvg")
+            row["hrv_noite_avg"]   = hrv.get("lastNightAvg")
+            row["hrv_status"]      = hrv.get("status")
+        except Exception: pass
+        results.append(row)
+    emit({"days": days, "count": len(results), "items": results})
+
+
 def cmd_weighins(args):
     client, _ = make_client()
     authenticate(client)
@@ -209,11 +265,14 @@ def main():
     pw = sub.add_parser("weighins")
     pw.add_argument("--days", type=int, default=365)
 
+    pdh = sub.add_parser("daily-health")
+    pdh.add_argument("--days", type=int, default=30)
+
     args = p.parse_args()
     handlers = {
         "status": cmd_status, "login": cmd_login, "logout": cmd_logout,
         "activities": cmd_activities, "activity": cmd_activity,
-        "weighins": cmd_weighins,
+        "weighins": cmd_weighins, "daily-health": cmd_daily_health,
     }
     handlers[args.cmd](args)
 

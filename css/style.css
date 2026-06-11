@@ -1017,18 +1017,27 @@ body.edit-mode #btn-edit-profile-2 { display: flex; }
 ═══════════════════════════════════════════════════════════════════════ */
 .tl-badges {
   display: flex;
+  flex-direction: column;
   gap: 2px;
-  flex-wrap: wrap;
   padding: 2px 0 1px;
-  min-height: 9px;
 }
 .tl-badge {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 3px;
+  padding: 1px 4px 1px 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
   flex-shrink: 0;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 100%;
 }
+.tl-badge i { font-size: 8px; flex-shrink: 0; }
+.tl-badge-metric { font-size: 8px; font-weight: 600; opacity: 0.92; overflow: hidden; text-overflow: ellipsis; }
 .tl-badge[data-tipo="bike"]        { background: var(--teal); }
 .tl-badge[data-tipo="fisico"]      { background: var(--amber); }
 .tl-badge[data-tipo="alongamento"] { background: var(--blue); }
