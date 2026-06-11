@@ -1615,13 +1615,13 @@ body.edit-mode .exercise-actions { display: flex; }
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(12, 13, 16, 0.96);
+    background: rgba(12, 13, 16, 0.98);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     flex-direction: column;
     gap: 4px;
     padding: 24px 16px;
-    z-index: 90;
+    z-index: 110; /* acima do conteúdo da página (que pode criar stacking context) */
     overflow-y: auto;
   }
   body.nav-open .nav-links { display: flex; }
@@ -1866,7 +1866,7 @@ body.edit-mode .exercise-actions { display: flex; }
   position: fixed;
   inset: 64px 0 0 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 89; /* abaixo do drawer (90) e nav (100) */
+  z-index: 105; /* entre o conteúdo e o drawer (110) */
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s;
