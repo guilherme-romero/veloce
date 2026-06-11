@@ -53,7 +53,7 @@
       <button id="nav-plan"         class="nav-btn"        onclick="scrollToSection('plan')">Treinos</button>
       <button id="nav-rides"        class="nav-btn"        onclick="scrollToSection('rides')">Passeios</button>
       <button id="nav-routes"       class="nav-btn"        onclick="scrollToSection('routes')">Rotas</button>
-      <button id="nav-activities"   class="nav-btn"        onclick="scrollToSection('activities')">Atividades</button>
+      <button id="nav-activities"   class="nav-btn"        onclick="scrollToSection('activities')">Histórico</button>
       <button id="nav-insights"     class="nav-btn"        onclick="scrollToSection('insights')">Insights</button>
       <button id="nav-integrations" class="nav-btn"        onclick="scrollToSection('integrations')">Conexões</button>
     </div>
@@ -177,46 +177,6 @@
             </div>
           </div>
           <div id="wa-msg" class="wa-msg"></div>
-        </div>
-
-        <!-- Mini-relatório 90 dias -->
-        <div class="report-90d card" id="report-90d" style="display:none;margin-top:20px;">
-          <div class="card-label">Evolução — Últimos 90 dias</div>
-          <div class="report-stats">
-            <div class="report-stat">
-              <div class="report-stat-val" id="r90-dias">—</div>
-              <div class="report-stat-label">dias treinados</div>
-            </div>
-            <div class="report-stat">
-              <div class="report-stat-val" id="r90-tipo">—</div>
-              <div class="report-stat-label">tipo mais frequente</div>
-            </div>
-            <div class="report-stat">
-              <div class="report-stat-val" id="r90-peso">—</div>
-              <div class="report-stat-label">média de peso</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Heat-map 90 dias (Fase 5a) -->
-        <div class="card heatmap-card" id="heatmap-card" style="margin-top:20px;display:none;">
-          <div class="heatmap-head">
-            <div class="card-label" style="margin:0;">Atividade — Últimos 90 dias</div>
-            <div class="heatmap-totals" id="heatmap-totals"></div>
-          </div>
-          <div class="heatmap-grid-wrap">
-            <div class="heatmap-weekdays" id="heatmap-weekdays"></div>
-            <div class="heatmap-grid" id="heatmap-grid"></div>
-          </div>
-          <div class="heatmap-legend">
-            <span class="heatmap-legend-label">Nenhum</span>
-            <span class="heatmap-swatch" data-tipo="none"></span>
-            <span class="heatmap-swatch" data-tipo="bike"></span>
-            <span class="heatmap-swatch" data-tipo="fisico"></span>
-            <span class="heatmap-swatch" data-tipo="alongamento"></span>
-            <span class="heatmap-swatch" data-tipo="multi"></span>
-            <span class="heatmap-legend-label">Múltiplos</span>
-          </div>
         </div>
 
       </div>
@@ -476,15 +436,55 @@
 
   <!-- ┌─ ATIVIDADES ────────────────────────────────────────────────┐ -->
   <section id="activities" class="scroll-mt-20">
-    <div class="section-label">Dashboard</div>
-    <h2 class="section-title">Atividades</h2>
+    <div class="section-label">Histórico</div>
+    <h2 class="section-title">Histórico</h2>
     <p class="section-sub" style="margin-bottom:28px;">
-      Visão consolidada das atividades importadas. Hoje vem do Strava; em breve, do Garmin também.
+      Visão consolidada das suas atividades, heat-map de constância e auto-registros importados.
     </p>
+
+    <!-- Mini-relatório 90 dias (movido do Perfil em 8.5) -->
+    <div class="report-90d card" id="report-90d" style="display:none;margin-bottom:20px;">
+      <div class="card-label">Evolução — Últimos 90 dias</div>
+      <div class="report-stats">
+        <div class="report-stat">
+          <div class="report-stat-val" id="r90-dias">—</div>
+          <div class="report-stat-label">dias treinados</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-val" id="r90-tipo">—</div>
+          <div class="report-stat-label">tipo mais frequente</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-val" id="r90-peso">—</div>
+          <div class="report-stat-label">média de peso</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Heat-map 90 dias (movido do Perfil em 8.5) -->
+    <div class="card heatmap-card" id="heatmap-card" style="margin-bottom:20px;display:none;">
+      <div class="heatmap-head">
+        <div class="card-label" style="margin:0;">Atividade — Últimos 90 dias</div>
+        <div class="heatmap-totals" id="heatmap-totals"></div>
+      </div>
+      <div class="heatmap-grid-wrap">
+        <div class="heatmap-weekdays" id="heatmap-weekdays"></div>
+        <div class="heatmap-grid" id="heatmap-grid"></div>
+      </div>
+      <div class="heatmap-legend">
+        <span class="heatmap-legend-label">Nenhum</span>
+        <span class="heatmap-swatch" data-tipo="none"></span>
+        <span class="heatmap-swatch" data-tipo="bike"></span>
+        <span class="heatmap-swatch" data-tipo="fisico"></span>
+        <span class="heatmap-swatch" data-tipo="alongamento"></span>
+        <span class="heatmap-swatch" data-tipo="multi"></span>
+        <span class="heatmap-legend-label">Múltiplos</span>
+      </div>
+    </div>
 
     <!-- Estado vazio / carregando -->
     <div id="activities-empty" class="card" style="padding:28px;text-align:center;color:var(--muted2);">
-      Sincronize com o Strava para ver seus dados aqui.
+      Sincronize com o Strava ou Garmin para ver seus dados aqui.
     </div>
 
     <!-- Conteúdo do dashboard (preenchido por activities.js) -->

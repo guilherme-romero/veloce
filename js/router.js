@@ -33,7 +33,8 @@
     { slug: 'treinos',         section: 'plan',         navBtn: 'nav-plan',         label: 'Treinos' },
     { slug: 'passeios',        section: 'rides',        navBtn: 'nav-rides',        label: 'Passeios' },
     { slug: 'rotas',           section: 'routes',       navBtn: 'nav-routes',       label: 'Rotas' },
-    { slug: 'atividades',      section: 'activities',   navBtn: 'nav-activities',   label: 'Atividades' },
+    { slug: 'atividades',      section: 'activities',   navBtn: 'nav-activities',   label: 'Histórico' },
+    { slug: 'historico',       section: 'activities',   navBtn: 'nav-activities',   label: 'Histórico' },
     { slug: 'insights',        section: 'insights',     navBtn: 'nav-insights',     label: 'Insights' },
     { slug: 'conexoes',        section: 'integrations', navBtn: 'nav-integrations', label: 'Conexões' },
     // Adicionar aqui novas seções (historico, home)
