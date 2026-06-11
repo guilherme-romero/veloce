@@ -376,13 +376,7 @@
     const fcMax = user.fcMax || (user.dataNascimento ? 220 - Math.floor((Date.now() - new Date(user.dataNascimento).getTime()) / (365.25 * 86400_000)) : null);
     const zoneCanvas = $('zoneDistChart');
     if (zoneCanvas && fcMax) {
-      const ZONES = [
-        { label: 'Z1', min: 0,    max: 0.60, color: '#4e9ef5' },
-        { label: 'Z2', min: 0.60, max: 0.70, color: '#14d9b8' },
-        { label: 'Z3', min: 0.70, max: 0.80, color: '#f5a523' },
-        { label: 'Z4', min: 0.80, max: 0.90, color: '#f0523a' },
-        { label: 'Z5', min: 0.90, max: 1.00, color: '#a855f7' },
-      ];
+      const ZONES = (window.FC_ZONES || []).filter(z => z.max !== Infinity);
       const zoneCounts = ZONES.map(() => 0);
       let withFC = 0;
       acts.forEach(a => {
