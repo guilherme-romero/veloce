@@ -1,6 +1,6 @@
 ╔══════════════════════════════════════════════════════════════════════╗
 ║            TREINO BIKE — PLANO DE MELHORIAS E ROADMAP                ║
-║         Versão atual: 1.3.5  |  Documento: v1.2  |  2026-06-10      ║
+║         Versão atual: 1.7.0  |  Documento: v2.0  |  2026-06-11      ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
 Legenda de status:
@@ -391,29 +391,29 @@ Versão alvo: 2.1.6
   Meta: v2.2.0  |  Impacto: Médio  |  Complexidade: Baixa/Média  |  Modelo: Claude Sonnet 4.6
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-STATUS GERAL: 📋 Planejado
+STATUS GERAL: ✅ Implementado (v1.7.0)
 
-5.1  📋 Relatório de dias treinados (90 dias)
+5.1  ✅ Relatório de dias treinados (90 dias)
      - Calendário de heat-map (estilo GitHub contributions)
      - Cores por tipo: bike=teal, físico=amber, alongamento=blue,
        combinação=purple, descanso=muted
      - Totais: % de dias ativos, sequência atual, recorde
 
-5.2  📋 Relatório de evolução de peso (90 dias)
+5.2  ✅ Relatório de evolução de peso (90 dias)
      - Gráfico expandido (já parcialmente feito)
      - Acrescentar: taxa de perda semanal, previsão de atingir meta
      - Comparar com meta do plano
 
-5.3  📋 Relatório de volume de treino
+5.3  ✅ Relatório de volume de treino
      - Requer dados do Strava OU input manual de km/duração por sessão
      - Km por semana, tempo total, elevação acumulada
      - Distribuição por zona de FC (se dados do Strava disponíveis)
 
-5.4  📋 Exportação de relatórios
+5.4  ✅ Exportação de relatórios
      - PDF simples via window.print() + CSS @media print
      - CSV de pesagens para planilha
 
-Versão alvo: 2.2.0
+Versão entregue: 1.7.0
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   RESUMO EXECUTIVO — ORDEM DE IMPLEMENTAÇÃO
@@ -423,9 +423,9 @@ Fase │ Versão │ Tipo        │ Valor   │ Esforço │ Backend?        �
 ─────┼────────┼─────────────┼─────────┼─────────┼─────────────────┼────────────────────
   1  │ 1.2.0  │ Polimento   │ Alto    │ Baixo   │ Não             │ Claude Sonnet 4.6
   2  │ 1.3.0  │ Nova feature│ Alto    │ Médio   │ Não             │ Claude Sonnet 4.6
-  3  │ 2.0.0  │ Arquitetura │ Crítico │ Alto    │ SIM ← decisão   │ Claude Opus 4.7 ⚠️
-  4  │ 2.1.0  │ Integração  │ Alto    │ Alto    │ Sim (requer F3) │ Claude Opus 4.7 ⚠️
-  5  │ 2.2.0  │ Relatórios  │ Médio   │ Baixo   │ Sim (requer F3) │ Claude Sonnet 4.6
+  3  │ 1.4.0  │ Arquitetura │ Crítico │ Alto    │ SIM ✅          │ Claude Opus 4.7
+  4  │ 1.5–6  │ Integração  │ Alto    │ Alto    │ Sim ✅          │ Claude Opus 4.7
+  5  │ 1.7.0  │ Relatórios  │ Médio   │ Baixo   │ Sim ✅          │ Claude Sonnet 4.6
 
 RECOMENDAÇÃO: implementar Fases 1 e 2 primeiro (ganho imediato, sem
 mudança de arquitetura). Decidir se haverá backend antes de iniciar
@@ -497,6 +497,17 @@ v1.4.0-rc1 (2026-06-11) ✅  — Fase 3: backend Fastify + SQLite + auth
     workouts, rides, training-log, home-exercises, routes)
   - storage.js refatorado: caches em memoria + mutators otimistas
   - Schema com coluna payload JSON para entidades aninhadas
+
+v1.7.0 (2026-06-11) ✅  — Fase 5: Relatorios avancados
+  5a - Heat-map de atividade 90 dias (grid estilo GitHub,
+       cores por tipo, tooltip com metricas, sequencia/recorde)
+  5b - Analise de peso (regressao linear, taxa kg/sem,
+       previsao da meta, semanas estimadas)
+  5c - Volume de treino (km/sem 12 semanas, tempo/elev totais,
+       distribuicao por zona FC via grafico de rosca)
+  5d - Export CSV de pesagens + Print/PDF via window.print
+
+v1.6.1 (2026-06-11) ✅  — Fix login Garmin (.client em vez de .garth)
 
 v1.6.0 (2026-06-11) ✅  — Fases 4.5 + 4.6 (Garmin + auto-registro)
   Fase 4.5 — Garmin Connect:
