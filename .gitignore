@@ -1,0 +1,23 @@
+# Node
+server/node_modules/
+server/.env
+
+# SQLite databases (dados do usuário)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

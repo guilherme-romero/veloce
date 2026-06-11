@@ -5,21 +5,24 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v1.3.5';
+const CACHE_VERSION = 'v1.4.0-rc1';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
 const SHELL = [
   './',
   './index.html',
+  './login.html',
   './manifest.json',
   './icone.png',
   './css/style.css',
   './css/rides.css',
   './css/routes.css',
+  './css/login.css',
   './js/version.js',
   './js/utils.js',
   './js/defaults.js',
+  './js/api.js',
   './js/storage.js',
   './js/profile.js',
   './js/charts.js',
@@ -32,6 +35,7 @@ const SHELL = [
   './js/gpx.js',
   './js/routes.js',
   './js/app.js',
+  './js/login.js',
   './js/pwa.js',
   // dados_usuario.txt entra como cache opcional — não falha install se faltar
 ];
@@ -89,6 +93,9 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (!['http:', 'https:'].includes(url.protocol)) return;
+
+  // /api/* NUNCA passa pelo cache — sempre vai direto pra rede (com cookies)
+  if (url.pathname.startsWith('/api/')) return;
 
   // Para HTML (navegação): network-first com fallback ao cache
   // (garante que sempre tenta pegar a versão mais nova primeiro)

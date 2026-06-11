@@ -1,0 +1,16 @@
+[Unit]
+Description=Treino Bike API (Fastify + SQLite)
+After=network.target
+
+[Service]
+Type=simple
+User=prod
+WorkingDirectory=/home/prod/env/prod/treino_bike/server
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

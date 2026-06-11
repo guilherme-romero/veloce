@@ -1,0 +1,87 @@
+-- ═══════════════════════════════════════════════════════════════════════
+-- SCHEMA DA APLICACAO — single-user, sem user_id
+-- Estrategia: colunas top-level para campos usados em indices/busca;
+--             coluna `payload` (JSON TEXT) para o resto, evitando ALTERs
+--             toda vez que o schema do frontend mudar.
+-- ═══════════════════════════════════════════════════════════════════════
+
+-- ── Perfil do usuario (1 row apenas) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_profile (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  payload    TEXT NOT NULL,    -- objeto completo do perfil
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── Pesagens ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS weights (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  data       TEXT NOT NULL,   -- YYYY-MM-DD
+  peso       REAL NOT NULL,
+  tipo       TEXT NOT NULL CHECK (tipo IN ('atual', 'historico')),
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_weights_data ON weights(data);
+
+-- ── Modos de treino ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS modes (
+  id         TEXT PRIMARY KEY,
+  nome       TEXT NOT NULL,
+  ordem      INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── Workouts da semana padrao ─────────────────────────────────────────
+-- payload contem: day, type, title, bpm, rpm, time, tag, steps[], tip, etc
+CREATE TABLE IF NOT EXISTS workouts (
+  id         TEXT PRIMARY KEY,
+  mode_id    TEXT NOT NULL,
+  payload    TEXT NOT NULL,
+  ordem      INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (mode_id) REFERENCES modes(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_workouts_mode ON workouts(mode_id);
+
+-- ── Passeios planejados ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS rides (
+  id          TEXT PRIMARY KEY,
+  data        TEXT NOT NULL,   -- YYYY-MM-DD
+  destino     TEXT,
+  distancia   REAL,
+  altitude    REAL,
+  duracao     TEXT,
+  dificuldade TEXT CHECK (dificuldade IN ('baixa','media','alta')),
+  nota        REAL CHECK (nota >= 0 AND nota <= 5),
+  notas       TEXT,
+  created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_rides_data ON rides(data);
+
+-- ── Training log (registro diario) ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS training_log (
+  id         TEXT PRIMARY KEY,
+  data       TEXT NOT NULL UNIQUE,   -- YYYY-MM-DD
+  tipos      TEXT NOT NULL,          -- JSON array: ["bike","fisico",...]
+  notas      TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_training_log_data ON training_log(data);
+
+-- ── Exercicios de fortalecimento em casa ──────────────────────────────
+-- payload contem: sets, descricao, icon, etc
+CREATE TABLE IF NOT EXISTS home_exercises (
+  id         TEXT PRIMARY KEY,
+  nome       TEXT NOT NULL,
+  payload    TEXT NOT NULL,
+  ordem      INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── Rotas GPX salvas ──────────────────────────────────────────────────
+-- payload contem: stats {distancia, desnivelPos, desnivelNeg, altMax}, waypoints[]
+CREATE TABLE IF NOT EXISTS routes (
+  id          TEXT PRIMARY KEY,
+  nome        TEXT NOT NULL,
+  payload     TEXT NOT NULL,
+  created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+);

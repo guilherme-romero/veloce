@@ -84,7 +84,32 @@ Versão entregue: 1.3.0
   Meta: v2.0.0  |  Impacto: Muito Alto  |  Complexidade: Alta  |  Modelo: Claude Opus 4.7
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-STATUS GERAL: 📋 Planejado
+STATUS GERAL: 🚧 Em andamento (sub-fases 3a/3b/3c)
+
+DECISÕES ARQUITETURAIS (2026-06-10):
+  - Hospedagem: mesmo VPS, nginx faz proxy /api → localhost:3000
+  - Escopo: single-user (sem tabela users, credenciais via .env)
+  - Sessão: JWT em cookie httpOnly (mesma origem, sem CORS)
+  - Migração: importar JSON manual via backup.js (sem migração automática)
+  - Entrega: sub-fases incrementais 3a → 3b → 3c
+
+SUB-FASE 3a ✅ Backend + Auth (v1.4.0-alpha)
+  - Estrutura server/ com Fastify + better-sqlite3 + bcrypt + jsonwebtoken
+  - schema-training.sql cria todas as tabelas (rodadas em 3b/3c)
+  - Login: POST /api/auth/login, /logout, GET /me
+  - Tela login.html isolada + css/login.css + js/login.js
+  - Gate de auth no boot do index.html (redireciona se 401)
+  - Botão "Sair" no header
+  - Service-worker: nunca cacheia /api/*
+  - Script hash-password.js para gerar bcrypt hash
+
+SUB-FASE 3b 📋 Migrar 1 entidade (weights) — validar pattern
+  - js/api.js wrapper de fetch com credentials: same-origin
+  - Endpoints REST /api/weights (GET/POST/DELETE)
+  - Storage.addWeight() passa a chamar API + cache local
+  - Validação completa do ciclo CRUD
+
+SUB-FASE 3c 📋 Migrar entidades restantes + import JSON
 
 ATENÇÃO: Esta fase transforma o app de SPA offline para um sistema
 com servidor. Requer decisão sobre hospedagem (VPS, Railway, etc.).

@@ -1,40 +1,33 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   STORAGE — camada de persistência local
-   Todas as chaves usam prefixo "tb." (treino_bike).
-   Esquema:
-     tb.user      → objeto único (perfil)
-     tb.modes     → array de modos de treino
-     tb.workouts  → dict { modeId: [workouts] }
-     tb.weights   → array de pesagens
-     tb.rides     → array de passeios planejados (schema pt-BR)
-     tb.version   → versão do schema (controle de migração)
+   STORAGE — facade unificada de persistencia
+   - Source of truth: backend (/api/*)
+   - Cache em memoria para manter os getters sincronos (callers nao mudam)
+   - Mutators (add/update/delete/set*) sao async e disparam POST/PUT/DELETE
+   - localStorage so e usado para migracao legada (dados_usuario.txt 1a execucao)
+
+   Convencao de cache: cada entidade tem _xxxCache; loadXxx() popula via API.
 ═══════════════════════════════════════════════════════════════════════ */
 
 const KEYS = {
+  // Mantidos apenas para a migracao inicial legada (dados_usuario.txt) e
+  // para o controle de SCHEMA_VERSION local.
   USER:           'tb.user',
-  MODES:          'tb.modes',
-  WORKOUTS:       'tb.workouts',
-  WEIGHTS:        'tb.weights',
-  RIDES:          'tb.rides',
-  TRAINING_LOG:   'tb.training_log',
-  HOME_EXERCISES: 'tb.home_exercises',
-  ROUTES:         'tb.routes',
   VERSION:        'tb.version',
 };
 
-const SCHEMA_VERSION = 2; // v2: rides em pt-BR
+const SCHEMA_VERSION = 3; // v3: tudo no backend
 
 /* ── Defaults ───────────────────────────────────────────────────────── */
 const DEFAULTS = {
   user: {
     nome: '',
-    dataNascimento: '',     // ISO: YYYY-MM-DD
+    dataNascimento: '',
     altura: 170,
     pesoAtual: 80,
     pesoMeta: 70,
     bikePeso: 11,
     bikeModelo: 'Gravel',
-    dataInicioPlano: '',    // ISO: YYYY-MM-DD
+    dataInicioPlano: '',
   },
   modes: [
     { id: 'base',  nome: 'Fortalecimento · Core',  ordem: 0 },
@@ -42,32 +35,33 @@ const DEFAULTS = {
   ],
 };
 
-/* ── Operações genéricas ────────────────────────────────────────────── */
-function get(key, fallback = null) {
+/* ── Caches em memoria ──────────────────────────────────────────────── */
+let _userCache          = { ...DEFAULTS.user };
+let _modesCache         = [];
+let _workoutsCache      = {};   // { modeId: [workout] }
+let _weightsCache       = [];
+let _ridesCache         = [];
+let _trainingLogCache   = [];
+let _homeExercisesCache = [];
+let _routesCache        = [];
+
+/* ── Erro de API (fire-and-forget): log + toast se disponivel ───────── */
+function _apiError(op, err) {
+  console.error('[Storage.' + op + ']', err);
+  if (typeof window.toast === 'function') {
+    window.toast('Falha ao sincronizar (' + op + '): ' + (err.message || 'erro'), { kind: 'error' });
+  }
+}
+
+/* ── Helpers locais (localStorage so para legado) ───────────────────── */
+function _ls(key, fallback = null) {
   try {
     const raw = localStorage.getItem(key);
-    if (raw === null) return fallback;
-    return JSON.parse(raw);
-  } catch (e) {
-    console.warn(`Storage.get(${key}) failed:`, e);
-    return fallback;
-  }
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch (_) { return fallback; }
 }
-
-function set(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch (e) {
-    console.error(`Storage.set(${key}) failed:`, e);
-    return false;
-  }
-}
-
-function remove(key) { localStorage.removeItem(key); }
-
-function clearAllData() {
-  Object.values(KEYS).forEach(remove);
+function _setLs(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
 }
 
 /* ── Helpers de Ride ────────────────────────────────────────────────── */
@@ -75,31 +69,20 @@ function genRideId() {
   return 'ride_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
 }
 
-/**
- * Normaliza um Ride: converte schema antigo (en) para novo (pt) se necessário,
- * preenche defaults e força tipos corretos. Retorna sempre um objeto válido.
- */
 function normalizeRide(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const r = { ...raw };
-
-  // Migração de campos legados (schema antigo do rides.js v1)
   if (r.date && !r.data) { r.data = r.date; delete r.date; }
   if (r.destination && !r.destino) { r.destino = r.destination; delete r.destination; }
-  if (r.distance !== undefined && r.distancia === undefined) {
-    r.distancia = r.distance; delete r.distance;
-  }
+  if (r.distance !== undefined && r.distancia === undefined) { r.distancia = r.distance; delete r.distance; }
   if (r.duration && !r.duracao) { r.duracao = r.duration; delete r.duration; }
   if (r.difficulty && !r.dificuldade) {
     const map = { baixo: 'baixa', medio: 'media', alto: 'alta' };
     r.dificuldade = map[r.difficulty] || r.difficulty;
     delete r.difficulty;
   }
-  if (r.rating !== undefined && r.nota === undefined) {
-    r.nota = r.rating; delete r.rating;
-  }
+  if (r.rating !== undefined && r.nota === undefined) { r.nota = r.rating; delete r.rating; }
 
-  // Defaults / coerção de tipos
   if (!r.id) r.id = genRideId();
   r.data        = String(r.data || '');
   r.destino     = String(r.destino || '');
@@ -110,210 +93,291 @@ function normalizeRide(raw) {
   r.nota        = Math.max(0, Math.min(5, parseInt(r.nota, 10) || 0));
   r.notas       = String(r.notas || '');
   r.createdAt   = r.createdAt || new Date().toISOString();
-
   return r;
 }
 
-/* ── API tipada por entidade ────────────────────────────────────────── */
-const Storage = {
-  // ── User ───────────────────────────────────────────────────────────
-  getUser:  ()      => get(KEYS.USER, { ...DEFAULTS.user }),
-  setUser:  (u)     => set(KEYS.USER, u),
+/* ── Id generators ──────────────────────────────────────────────────── */
+function _genId(prefix) {
+  return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
+}
 
-  // ── Modes ──────────────────────────────────────────────────────────
-  getModes: ()      => get(KEYS.MODES, [...DEFAULTS.modes]),
-  setModes: (m)     => set(KEYS.MODES, m),
+/* ═══════════════════════════════════════════════════════════════════════
+   STORAGE — API
+═══════════════════════════════════════════════════════════════════════ */
+const Storage = {
+
+  /* ── Load global no boot ───────────────────────────────────────────── */
+  loadAll: async () => {
+    const Api = window.Api;
+    const tasks = [
+      Api.get('/profile').then(r => {
+        _userCache = (r && Object.keys(r).length) ? { ...DEFAULTS.user, ...r } : { ...DEFAULTS.user };
+      }).catch(e => console.warn('[loadAll/profile]', e)),
+
+      Api.get('/modes').then(r => { _modesCache = Array.isArray(r) ? r : []; })
+        .catch(e => console.warn('[loadAll/modes]', e)),
+
+      Api.get('/workouts').then(r => { _workoutsCache = (r && typeof r === 'object') ? r : {}; })
+        .catch(e => console.warn('[loadAll/workouts]', e)),
+
+      Api.get('/weights').then(r => { _weightsCache = Array.isArray(r) ? r : []; })
+        .catch(e => console.warn('[loadAll/weights]', e)),
+
+      Api.get('/rides').then(r => { _ridesCache = Array.isArray(r) ? r.map(normalizeRide).filter(Boolean) : []; })
+        .catch(e => console.warn('[loadAll/rides]', e)),
+
+      Api.get('/training-log').then(r => { _trainingLogCache = Array.isArray(r) ? r : []; })
+        .catch(e => console.warn('[loadAll/training-log]', e)),
+
+      Api.get('/home-exercises').then(r => { _homeExercisesCache = Array.isArray(r) ? r : []; })
+        .catch(e => console.warn('[loadAll/home-exercises]', e)),
+
+      Api.get('/routes').then(r => { _routesCache = Array.isArray(r) ? r : []; })
+        .catch(e => console.warn('[loadAll/routes]', e)),
+    ];
+    await Promise.all(tasks);
+  },
+
+  // Compat: alguns lugares chamavam loadWeights especificamente
+  loadWeights: async () => {
+    try { _weightsCache = await window.Api.get('/weights') || []; }
+    catch (e) { console.error('[loadWeights]', e); _weightsCache = []; }
+    return _weightsCache.slice();
+  },
+
+  /* ── User ──────────────────────────────────────────────────────────── */
+  getUser: () => ({ ...DEFAULTS.user, ..._userCache }),
+  setUser: (u) => {
+    _userCache = { ...DEFAULTS.user, ...u };
+    // fire-and-forget; chamadores existentes nao esperam a resposta
+    window.Api.put('/profile', _userCache).catch(e => console.error('[setUser]', e));
+    return _userCache;
+  },
+
+  /* ── Modes ─────────────────────────────────────────────────────────── */
+  // Mutators sao otimistas: cache atualiza antes; API e fire-and-forget.
+  // Em caso de erro, log + toast pro usuario; cache pode divergir ate
+  // proximo loadAll() (no proximo boot).
+  getModes: () => _modesCache.slice(),
+  setModes: (modes) => {
+    _modesCache = Array.isArray(modes) ? modes.slice() : [];
+    window.Api.put('/modes', _modesCache).catch(e => _apiError('setModes', e));
+  },
 
   addMode: (nome) => {
-    const modes = Storage.getModes();
     const id = 'mode_' + Date.now().toString(36);
-    const ordem = modes.length;
-    modes.push({ id, nome, ordem });
-    Storage.setModes(modes);
-    const w = Storage.getWorkouts();
-    w[id] = [];
-    Storage.setWorkouts(w);
+    const ordem = _modesCache.length;
+    const mode = { id, nome, ordem };
+    _modesCache.push(mode);
+    _workoutsCache[id] = [];
+    window.Api.post('/modes', mode).catch(e => _apiError('addMode', e));
     return id;
   },
 
   renameMode: (id, novoNome) => {
-    const modes = Storage.getModes();
-    const m = modes.find(x => x.id === id);
-    if (m) { m.nome = novoNome; Storage.setModes(modes); }
+    const idx = _modesCache.findIndex(m => m.id === id);
+    if (idx >= 0) _modesCache[idx] = { ..._modesCache[idx], nome: novoNome };
+    window.Api.put('/modes/' + encodeURIComponent(id), { nome: novoNome })
+      .catch(e => _apiError('renameMode', e));
   },
 
   deleteMode: (id) => {
-    const modes = Storage.getModes();
-    if (modes.length <= 1) return false;
-    Storage.setModes(modes.filter(m => m.id !== id));
-    const w = Storage.getWorkouts();
-    delete w[id];
-    Storage.setWorkouts(w);
+    if (_modesCache.length <= 1) return false;
+    _modesCache = _modesCache.filter(m => m.id !== id);
+    delete _workoutsCache[id];
+    window.Api.del('/modes/' + encodeURIComponent(id)).catch(e => _apiError('deleteMode', e));
     return true;
   },
 
-  // ── Workouts ───────────────────────────────────────────────────────
-  getWorkouts: ()   => get(KEYS.WORKOUTS, {}),
-  setWorkouts: (w)  => set(KEYS.WORKOUTS, w),
-
-  getWorkoutsForMode: (modeId) => {
-    const w = Storage.getWorkouts();
-    return w[modeId] || [];
+  /* ── Workouts ──────────────────────────────────────────────────────── */
+  getWorkouts: () => {
+    // retorna copia rasa do dict
+    const out = {};
+    for (const k of Object.keys(_workoutsCache)) out[k] = _workoutsCache[k].slice();
+    return out;
+  },
+  setWorkouts: (w) => {
+    _workoutsCache = (w && typeof w === 'object') ? { ...w } : {};
+    // Sincroniza com backend: substitui cada modo
+    Object.keys(_workoutsCache).forEach(modeId => {
+      window.Api.put('/workouts/mode/' + encodeURIComponent(modeId), _workoutsCache[modeId])
+        .catch(e => console.error('[setWorkouts:' + modeId + ']', e));
+    });
   },
 
+  getWorkoutsForMode: (modeId) => (_workoutsCache[modeId] || []).slice(),
   setWorkoutsForMode: (modeId, list) => {
-    const w = Storage.getWorkouts();
-    w[modeId] = list;
-    Storage.setWorkouts(w);
+    _workoutsCache[modeId] = Array.isArray(list) ? list.slice() : [];
+    window.Api.put('/workouts/mode/' + encodeURIComponent(modeId), _workoutsCache[modeId])
+      .catch(e => _apiError('setWorkoutsForMode', e));
   },
 
   addWorkout: (modeId, workout) => {
-    const list = Storage.getWorkoutsForMode(modeId);
     if (!workout.id) {
-      // tbGenId vem de defaults.js; fallback inline se faltar
       workout.id = (typeof tbGenId === 'function')
         ? tbGenId()
         : 'w_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
     }
-    list.push(workout);
-    Storage.setWorkoutsForMode(modeId, list);
+    if (!_workoutsCache[modeId]) _workoutsCache[modeId] = [];
+    _workoutsCache[modeId].push(workout);
+    window.Api.post('/workouts', { ...workout, modeId }).catch(e => _apiError('addWorkout', e));
     return workout.id;
   },
 
   updateWorkout: (modeId, workoutId, patch) => {
-    const list = Storage.getWorkoutsForMode(modeId);
+    const list = _workoutsCache[modeId] || [];
     const idx = list.findIndex(w => w.id === workoutId);
-    if (idx >= 0) {
-      list[idx] = { ...list[idx], ...patch, id: workoutId };
-      Storage.setWorkoutsForMode(modeId, list);
-      return true;
-    }
-    return false;
+    if (idx < 0) return false;
+    list[idx] = { ...list[idx], ...patch, id: workoutId };
+    window.Api.put('/workouts/' + encodeURIComponent(workoutId), { ...patch, modeId })
+      .catch(e => _apiError('updateWorkout', e));
+    return true;
   },
 
   deleteWorkout: (modeId, workoutId) => {
-    const list = Storage.getWorkoutsForMode(modeId);
-    Storage.setWorkoutsForMode(modeId, list.filter(w => w.id !== workoutId));
+    if (_workoutsCache[modeId]) {
+      _workoutsCache[modeId] = _workoutsCache[modeId].filter(w => w.id !== workoutId);
+    }
+    window.Api.del('/workouts/' + encodeURIComponent(workoutId))
+      .catch(e => _apiError('deleteWorkout', e));
   },
 
-  // ── Weights ────────────────────────────────────────────────────────
-  getWeights: ()    => get(KEYS.WEIGHTS, []),
-  setWeights: (w)   => set(KEYS.WEIGHTS, w),
-  addWeight: (entry) => {
-    const arr = Storage.getWeights();
-    arr.push(entry);
-    arr.sort((a, b) => a.data.localeCompare(b.data));
-    Storage.setWeights(arr);
-    return arr;
+  /* ── Weights ───────────────────────────────────────────────────────── */
+  getWeights: () => _weightsCache.slice(),
+  setWeights: (w) => { _weightsCache = Array.isArray(w) ? w.slice() : []; },
+
+  addWeight: async (entry) => {
+    const created = await window.Api.post('/weights', {
+      data: entry.data, peso: entry.peso, tipo: entry.tipo,
+    });
+    _weightsCache.push(created);
+    _weightsCache.sort((a, b) => a.data.localeCompare(b.data));
+    return created;
   },
 
-  // ── Rides ──────────────────────────────────────────────────────────
-  getRides: () => {
-    const raw = get(KEYS.RIDES, []);
-    if (!Array.isArray(raw)) return [];
-    return raw.map(normalizeRide).filter(Boolean);
+  deleteWeight: async (id) => {
+    await window.Api.del('/weights/' + id);
+    _weightsCache = _weightsCache.filter(w => w.id !== id);
   },
-  setRides: (r) => set(KEYS.RIDES, r),
+
+  /* ── Rides ─────────────────────────────────────────────────────────── */
+  getRides: () => _ridesCache.slice(),
+  setRides: (arr) => { _ridesCache = Array.isArray(arr) ? arr.map(normalizeRide).filter(Boolean) : []; },
 
   addRide: (ride) => {
-    const arr = Storage.getRides();
     const novo = normalizeRide({ ...ride, id: ride.id || genRideId() });
-    arr.push(novo);
-    arr.sort((a, b) => a.data.localeCompare(b.data));
-    Storage.setRides(arr);
+    _ridesCache.push(novo);
+    _ridesCache.sort((a, b) => a.data.localeCompare(b.data));
+    window.Api.post('/rides', novo).catch(e => _apiError('addRide', e));
     return novo.id;
   },
 
   updateRide: (id, patch) => {
-    const arr = Storage.getRides();
-    const idx = arr.findIndex(r => r.id === id);
-    if (idx >= 0) {
-      arr[idx] = normalizeRide({ ...arr[idx], ...patch, id });
-      arr.sort((a, b) => a.data.localeCompare(b.data));
-      Storage.setRides(arr);
-      return true;
-    }
-    return false;
+    const idx = _ridesCache.findIndex(r => r.id === id);
+    if (idx < 0) return false;
+    _ridesCache[idx] = normalizeRide({ ..._ridesCache[idx], ...patch, id });
+    _ridesCache.sort((a, b) => a.data.localeCompare(b.data));
+    window.Api.put('/rides/' + encodeURIComponent(id), patch).catch(e => _apiError('updateRide', e));
+    return true;
   },
 
   deleteRide: (id) => {
-    const arr = Storage.getRides();
-    Storage.setRides(arr.filter(r => r.id !== id));
+    _ridesCache = _ridesCache.filter(r => r.id !== id);
+    window.Api.del('/rides/' + encodeURIComponent(id)).catch(e => _apiError('deleteRide', e));
   },
 
-  // ── Training Log ───────────────────────────────────────────────────
-  getTrainingLog: () => {
-    const raw = get(KEYS.TRAINING_LOG, []);
-    // Normaliza entradas antigas que usavam campo 'tipo' (singular)
-    return raw.map(e => ({
-      ...e,
-      tipos: Array.isArray(e.tipos) ? e.tipos : (e.tipo ? [e.tipo] : ['bike']),
-    }));
-  },
-  setTrainingLog: (log) => set(KEYS.TRAINING_LOG, log),
+  /* ── Training Log ──────────────────────────────────────────────────── */
+  getTrainingLog: () => _trainingLogCache.slice(),
+  setTrainingLog: (log) => { _trainingLogCache = Array.isArray(log) ? log.slice() : []; },
 
   addTrainingEntry: (entry) => {
-    const log = get(KEYS.TRAINING_LOG, []);
-    const id = 'tl_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
-    // Garante que tipos é sempre array
+    const id = _genId('tl');
     const tipos = Array.isArray(entry.tipos) ? entry.tipos : (entry.tipo ? [entry.tipo] : ['bike']);
-    log.push({ ...entry, tipos, id, createdAt: new Date().toISOString() });
-    log.sort((a, b) => a.data.localeCompare(b.data));
-    set(KEYS.TRAINING_LOG, log);
+    const body = { id, data: entry.data, tipos, notas: entry.notas || '', createdAt: new Date().toISOString() };
+    _trainingLogCache.push(body);
+    _trainingLogCache.sort((a, b) => a.data.localeCompare(b.data));
+    window.Api.post('/training-log', body).catch(e => _apiError('addTrainingEntry', e));
     return id;
   },
 
   deleteTrainingEntry: (id) => {
-    Storage.setTrainingLog(Storage.getTrainingLog().filter(e => e.id !== id));
+    _trainingLogCache = _trainingLogCache.filter(e => e.id !== id);
+    window.Api.del('/training-log/' + encodeURIComponent(id))
+      .catch(e => _apiError('deleteTrainingEntry', e));
   },
 
-  // ── Home Exercises ─────────────────────────────────────────────────
+  /* ── Home Exercises ────────────────────────────────────────────────── */
   getHomeExercises: () => {
-    const raw = get(KEYS.HOME_EXERCISES, null);
-    if (raw !== null && Array.isArray(raw)) return raw;
-    // Primeira vez: inicializa dos defaults
-    const defaults = (window.DEFAULT_HOME_EXERCISES || []).map(e => ({ ...e }));
-    set(KEYS.HOME_EXERCISES, defaults);
-    return defaults;
+    if (_homeExercisesCache.length === 0) {
+      // Primeira vez: semeia com defaults se houver
+      const defaults = (window.DEFAULT_HOME_EXERCISES || []).map((e, i) => ({
+        ...e,
+        id: e.id || _genId('hw'),
+        ordem: typeof e.ordem === 'number' ? e.ordem : i,
+      }));
+      if (defaults.length) {
+        _homeExercisesCache = defaults.slice();
+        window.Api.put('/home-exercises', defaults).catch(e => console.error('[seed home-exercises]', e));
+      }
+    }
+    return _homeExercisesCache.slice();
   },
-  setHomeExercises: (exs) => set(KEYS.HOME_EXERCISES, exs),
+  setHomeExercises: (exs) => {
+    _homeExercisesCache = Array.isArray(exs) ? exs.slice() : [];
+    window.Api.put('/home-exercises', _homeExercisesCache).catch(e => _apiError('setHomeExercises', e));
+  },
 
   addHomeExercise: (ex) => {
-    const list = Storage.getHomeExercises();
-    const id = 'hw_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
-    list.push({ ...ex, id });
-    Storage.setHomeExercises(list);
+    const id = _genId('hw');
+    const body = { ...ex, id, ordem: _homeExercisesCache.length };
+    _homeExercisesCache.push(body);
+    window.Api.post('/home-exercises', body).catch(e => _apiError('addHomeExercise', e));
     return id;
   },
 
   updateHomeExercise: (id, patch) => {
-    const list = Storage.getHomeExercises();
-    const idx = list.findIndex(e => e.id === id);
-    if (idx >= 0) { list[idx] = { ...list[idx], ...patch, id }; Storage.setHomeExercises(list); }
+    const idx = _homeExercisesCache.findIndex(e => e.id === id);
+    if (idx < 0) return;
+    _homeExercisesCache[idx] = { ..._homeExercisesCache[idx], ...patch, id };
+    window.Api.put('/home-exercises/' + encodeURIComponent(id), patch)
+      .catch(e => _apiError('updateHomeExercise', e));
   },
 
   deleteHomeExercise: (id) => {
-    Storage.setHomeExercises(Storage.getHomeExercises().filter(e => e.id !== id));
+    _homeExercisesCache = _homeExercisesCache.filter(e => e.id !== id);
+    window.Api.del('/home-exercises/' + encodeURIComponent(id))
+      .catch(e => _apiError('deleteHomeExercise', e));
   },
 
-  // ── Routes ─────────────────────────────────────────────────────────
-  getRoutes: () => get(KEYS.ROUTES, []),
-  setRoutes: (r) => set(KEYS.ROUTES, r),
+  /* ── Routes (GPX) ──────────────────────────────────────────────────── */
+  getRoutes: () => _routesCache.slice(),
+  setRoutes: (r) => { _routesCache = Array.isArray(r) ? r.slice() : []; },
 
   addRoute: (route) => {
-    const routes = Storage.getRoutes();
-    const id = 'route_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5);
-    routes.push({ ...route, id, createdAt: new Date().toISOString() });
-    Storage.setRoutes(routes);
+    const id = _genId('route');
+    const body = { ...route, id, createdAt: new Date().toISOString() };
+    _routesCache.unshift(body);
+    window.Api.post('/routes', body).catch(e => _apiError('addRoute', e));
     return id;
   },
 
   deleteRoute: (id) => {
-    Storage.setRoutes(Storage.getRoutes().filter(r => r.id !== id));
+    _routesCache = _routesCache.filter(r => r.id !== id);
+    window.Api.del('/routes/' + encodeURIComponent(id)).catch(e => _apiError('deleteRoute', e));
   },
 
-  // ── Util ───────────────────────────────────────────────────────────
-  clearAll: clearAllData,
+  /* ── Util ──────────────────────────────────────────────────────────── */
+  clearAll: () => {
+    Object.values(KEYS).forEach(k => localStorage.removeItem(k));
+    _userCache = { ...DEFAULTS.user };
+    _modesCache = [];
+    _workoutsCache = {};
+    _weightsCache = [];
+    _ridesCache = [];
+    _trainingLogCache = [];
+    _homeExercisesCache = [];
+    _routesCache = [];
+  },
 
   exportJSON: () => JSON.stringify({
     version:       SCHEMA_VERSION,
@@ -328,57 +392,113 @@ const Storage = {
     routes:        Storage.getRoutes(),
   }, null, 2),
 
-  importJSON: (jsonStr) => {
+  importJSON: async (jsonStr) => {
     const data = JSON.parse(jsonStr);
-    if (data.user)     Storage.setUser(data.user);
-    if (data.modes)    Storage.setModes(data.modes);
-    if (data.workouts) Storage.setWorkouts(data.workouts);
-    if (data.weights)  Storage.setWeights(data.weights);
-    if (data.rides && Array.isArray(data.rides)) {
-      Storage.setRides(data.rides.map(normalizeRide).filter(Boolean));
+    const Api = window.Api;
+
+    // 1. Perfil (PUT substitui)
+    if (data.user) {
+      await Api.put('/profile', data.user).catch(e => console.warn('[import/profile]', e));
+      _userCache = { ...DEFAULTS.user, ...data.user };
     }
-    if (data.trainingLog && Array.isArray(data.trainingLog)) {
-      Storage.setTrainingLog(data.trainingLog);
+
+    // 2. Modes (PUT bulk substitui tudo)
+    if (Array.isArray(data.modes)) {
+      _modesCache = await Api.put('/modes', data.modes).catch(e => { console.warn('[import/modes]', e); return data.modes; });
     }
-    if (data.homeExercises && Array.isArray(data.homeExercises)) {
-      Storage.setHomeExercises(data.homeExercises);
+
+    // 3. Workouts (PUT por modo)
+    if (data.workouts && typeof data.workouts === 'object') {
+      const w = {};
+      for (const modeId of Object.keys(data.workouts)) {
+        const list = data.workouts[modeId];
+        if (!Array.isArray(list)) continue;
+        try {
+          w[modeId] = await Api.put('/workouts/mode/' + encodeURIComponent(modeId), list);
+        } catch (e) {
+          console.warn('[import/workouts:' + modeId + ']', e);
+          w[modeId] = list;
+        }
+      }
+      _workoutsCache = w;
     }
-    if (data.routes && Array.isArray(data.routes)) {
-      Storage.setRoutes(data.routes);
+
+    // 4. Weights (POST cada um — acumulativo)
+    if (Array.isArray(data.weights)) {
+      for (const w of data.weights) {
+        if (!w || !w.data || w.peso == null || !w.tipo) continue;
+        try {
+          const created = await Api.post('/weights', { data: w.data, peso: w.peso, tipo: w.tipo });
+          _weightsCache.push(created);
+        } catch (e) { console.warn('[import/weights]', w, e); }
+      }
+      _weightsCache.sort((a, b) => a.data.localeCompare(b.data));
     }
-    set(KEYS.VERSION, SCHEMA_VERSION);
+
+    // 5. Rides (POST cada um)
+    if (Array.isArray(data.rides)) {
+      for (const r of data.rides) {
+        const novo = normalizeRide({ ...r, id: r.id || genRideId() });
+        if (!novo) continue;
+        try {
+          const created = await Api.post('/rides', novo);
+          _ridesCache.push(created);
+        } catch (e) { console.warn('[import/rides]', novo, e); }
+      }
+      _ridesCache.sort((a, b) => a.data.localeCompare(b.data));
+    }
+
+    // 6. Training log (POST cada um; UNIQUE em data → ignora duplicatas)
+    if (Array.isArray(data.trainingLog)) {
+      for (const e of data.trainingLog) {
+        if (!e || !e.data) continue;
+        const body = {
+          id: e.id || _genId('tl'),
+          data: e.data,
+          tipos: Array.isArray(e.tipos) ? e.tipos : (e.tipo ? [e.tipo] : ['bike']),
+          notas: e.notas || '',
+        };
+        try {
+          const created = await Api.post('/training-log', body);
+          _trainingLogCache.push(created);
+        } catch (err) { console.warn('[import/training-log]', body, err); }
+      }
+      _trainingLogCache.sort((a, b) => a.data.localeCompare(b.data));
+    }
+
+    // 7. Home exercises (PUT bulk)
+    if (Array.isArray(data.homeExercises)) {
+      try {
+        _homeExercisesCache = await Api.put('/home-exercises', data.homeExercises);
+      } catch (e) { console.warn('[import/home-exercises]', e); }
+    }
+
+    // 8. Routes (POST cada uma)
+    if (Array.isArray(data.routes)) {
+      for (const r of data.routes) {
+        const body = { ...r, id: r.id || _genId('route') };
+        try {
+          const created = await Api.post('/routes', body);
+          _routesCache.unshift(created);
+        } catch (e) { console.warn('[import/routes]', body, e); }
+      }
+    }
+
+    _setLs(KEYS.VERSION, SCHEMA_VERSION);
   },
 };
 
-/* ── Migrações entre versões de schema ──────────────────────────────── */
-function migrateSchema() {
-  const current = get(KEYS.VERSION, 0);
-  if (current === SCHEMA_VERSION) return;
-
-  // v0/v1 → v2: normalizar rides com schema antigo
-  if (current < 2) {
-    const rides = get(KEYS.RIDES, []);
-    if (Array.isArray(rides) && rides.length > 0) {
-      const normalized = rides.map(normalizeRide).filter(Boolean);
-      Storage.setRides(normalized);
-      console.info(`[Storage] Migrados ${normalized.length} passeios para schema v2.`);
-    }
-  }
-
-  set(KEYS.VERSION, SCHEMA_VERSION);
-}
-
-/* ── Migração inicial: lê dados_usuario.txt (legado) na primeira execução ── */
+/* ═══════════════════════════════════════════════════════════════════════
+   MIGRACAO LEGADA — somente na 1a execucao (sem versao em localStorage e
+   sem perfil no backend). Le docs/dados_usuario.txt e POSTa o perfil.
+═══════════════════════════════════════════════════════════════════════ */
 async function migrateFromLegacyTxtIfNeeded() {
-  // Já tem versão registrada? Só roda migração de schema entre versões.
-  if (localStorage.getItem(KEYS.VERSION)) {
-    migrateSchema();
-    return;
-  }
+  // Se o backend ja tem perfil, nao migra
+  const hasProfile = _userCache && _userCache.nome;
+  if (hasProfile) return;
+  if (localStorage.getItem(KEYS.VERSION)) return; // ja migrou alguma vez
 
-  // Primeira execução: tenta ler dados_usuario.txt
   const user = { ...DEFAULTS.user };
-
   try {
     const resp = await fetch('docs/dados_usuario.txt?t=' + Date.now());
     if (resp.ok) {
@@ -392,18 +512,24 @@ async function migrateFromLegacyTxtIfNeeded() {
       if (parsed['PESO'])             user.bikePeso = parseFloat(parsed['PESO']);
       if (parsed['MODELO'])           user.bikeModelo = parsed['MODELO'];
     }
-  } catch (e) {
-    console.info('No legacy dados_usuario.txt; using defaults.');
-  }
+  } catch (_) { /* sem arquivo legado, segue com defaults */ }
 
   if (!user.dataInicioPlano) user.dataInicioPlano = todayISO();
 
-  Storage.setUser(user);
-  Storage.setModes(DEFAULTS.modes);
-  Storage.setWorkouts(window.DEFAULT_WORKOUTS || { base: [], build: [] });
-  Storage.setWeights([]);
-  Storage.setRides([]);
-  set(KEYS.VERSION, SCHEMA_VERSION);
+  // Persiste perfil + modes padrao no backend
+  try {
+    await window.Api.put('/profile', user);
+    _userCache = user;
+  } catch (e) { console.warn('[migrate/profile]', e); }
+
+  // Modes default se backend vazio
+  if (_modesCache.length === 0) {
+    try {
+      _modesCache = await window.Api.put('/modes', DEFAULTS.modes);
+    } catch (e) { console.warn('[migrate/modes]', e); }
+  }
+
+  _setLs(KEYS.VERSION, SCHEMA_VERSION);
 }
 
 /* ── helpers ────────────────────────────────────────────────────────── */

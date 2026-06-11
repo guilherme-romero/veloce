@@ -164,7 +164,7 @@ function openWeightModal() {
   });
 }
 
-function saveWeight(modal) {
+async function saveWeight(modal) {
   const data = modal.querySelector('#w-data').value;
   const peso = parseFloat(modal.querySelector('#w-peso').value);
   const tipo = modal.querySelector('#w-tipo').value;
@@ -172,7 +172,13 @@ function saveWeight(modal) {
   if (!data) { toast('Informe a data', { kind: 'error' }); return; }
   if (!peso) { toast('Informe o peso', { kind: 'error' }); return; }
 
-  Storage.addWeight({ data, peso: +peso.toFixed(1), tipo });
+  try {
+    await Storage.addWeight({ data, peso: +peso.toFixed(1), tipo });
+  } catch (e) {
+    console.error('[saveWeight] falha:', e);
+    toast('Falha ao salvar: ' + (e.message || 'erro'), { kind: 'error' });
+    return;
+  }
 
   if (tipo === 'atual') {
     const u = Storage.getUser();
@@ -295,10 +301,35 @@ function toggleEditMode() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   AUTH — gate de boot e logout
+═══════════════════════════════════════════════════════════════════════ */
+async function ensureAuthenticated() {
+  try {
+    const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    if (resp.ok) return true;
+  } catch (e) {
+    console.warn('[auth] backend indisponível, redirecionando para login');
+  }
+  window.location.replace('/login.html');
+  return false;
+}
+
+async function doLogout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch (e) { /* ignore */ }
+  window.location.replace('/login.html');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    BOOT
 ═══════════════════════════════════════════════════════════════════════ */
 async function boot() {
   console.log(`%c[Treino Bike] Boot v${window.APP_VERSION || '?'}`, 'color:#14d9b8;font-weight:bold');
+
+  // 0. Gate de autenticação — redireciona pra /login.html se não há sessão
+  const authed = await ensureAuthenticated();
+  if (!authed) return;
 
   // Helper: roda passo do boot capturando erro mas não interrompendo
   const safe = async (label, fn) => {
@@ -311,8 +342,11 @@ async function boot() {
     }
   };
 
-  // 1. Migração (lê dados_usuario.txt na 1ª execução)
-  await safe('Migração de dados', () => tbMigrate());
+  // 1. Carrega todas as entidades do backend para os caches em memoria
+  await safe('Storage.loadAll()', () => Storage.loadAll());
+
+  // 1.5. Migracao legada (1a execucao): se backend vazio, le dados_usuario.txt
+  await safe('Migração legada', () => tbMigrate());
 
   // 2. Charts — inicia estrutura vazia antes de renderizar
   await safe('Charts.init()', () => Charts && Charts.init && Charts.init());
@@ -338,6 +372,7 @@ async function boot() {
     document.getElementById('btn-edit-profile-2')?.addEventListener('click', openProfileModal);
     document.getElementById('btn-add-weight')?.addEventListener('click', openWeightModal);
     document.getElementById('btn-backup')?.addEventListener('click', () => Backup && Backup.open && Backup.open());
+    document.getElementById('btn-logout')?.addEventListener('click', doLogout);
 
     // Plano de treino — export/import isolado
     document.getElementById('btn-export-plan')?.addEventListener('click', () => Workouts.exportPlan());

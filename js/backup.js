@@ -65,7 +65,7 @@ function exportData() {
 function importData(file) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const json = e.target.result;
       const parsed = JSON.parse(json);
@@ -76,7 +76,7 @@ function importData(file) {
       }
       validateBackupStructure(parsed);
 
-      Storage.importJSON(json);
+      await Storage.importJSON(json);
       Modals.close();
       toast('Backup importado · recarregando…');
       setTimeout(() => location.reload(), 800);

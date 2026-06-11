@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0c0d10">
+  <meta name="description" content="Login do Treino Bike">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' 'unsafe-inline';
+             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;
+             font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com;
+             img-src 'self' data:;
+             connect-src 'self';">
+
+  <link rel="icon" type="image/png" href="icone.png">
+  <title>Login · Treino Bike</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/login.css?v=1.4.0-rc1">
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-brand">
+    <div class="login-brand-icon"><i class="fa-solid fa-person-biking"></i></div>
+    <div class="login-brand-name">Treino Bike</div>
+  </div>
+
+  <form id="login-form" class="login-card" autocomplete="on">
+    <div class="login-field">
+      <label class="login-label" for="login-user">Usuário</label>
+      <input id="login-user" name="user" class="login-input" type="text"
+             autocomplete="username" required autofocus>
+    </div>
+
+    <div class="login-field">
+      <label class="login-label" for="login-pass">Senha</label>
+      <div class="login-input-wrap">
+        <input id="login-pass" name="pass" class="login-input" type="password"
+               autocomplete="current-password" required>
+        <button type="button" id="login-toggle-pass" class="login-eye"
+                title="Mostrar/ocultar senha">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+      </div>
+    </div>
+
+    <button id="login-submit" type="submit" class="login-btn">
+      <span class="login-btn-label">Entrar</span>
+      <span class="login-btn-spin" hidden><i class="fa-solid fa-spinner fa-spin"></i></span>
+    </button>
+
+    <div id="login-error" class="login-error" hidden></div>
+
+    <button type="button" id="login-forgot" class="login-link">
+      Esqueci minha senha
+    </button>
+  </form>
+
+  <div class="login-footer">
+    <span id="login-version">v?</span> · <span id="login-year">2026</span>
+  </div>
+</div>
+
+<script src="js/version.js?v=1.4.0-rc1"></script>
+<script src="js/login.js?v=1.4.0-rc1"></script>
+</body>
+</html>
