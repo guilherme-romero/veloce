@@ -26,6 +26,7 @@ fastify.register(require('./routes/rides'));
 fastify.register(require('./routes/training-log'));
 fastify.register(require('./routes/home-exercises'));
 fastify.register(require('./routes/gpx-routes'));
+fastify.register(require('./routes/strava'));
 
 // Health check (publico, util para o frontend checar se o backend esta up)
 fastify.get('/api/health', async () => ({ ok: true, version: require('./package.json').version }));

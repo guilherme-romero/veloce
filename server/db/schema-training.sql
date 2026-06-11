@@ -85,3 +85,35 @@ CREATE TABLE IF NOT EXISTS routes (
   payload     TEXT NOT NULL,
   created_at  TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ── Atividades importadas do Strava (Fase 4b) ─────────────────────────
+-- id_strava: id numerico do Strava (UNIQUE para dedupe)
+-- payload: objeto bruto util para detalhe (map polyline, segments, etc)
+CREATE TABLE IF NOT EXISTS strava_activities (
+  id_strava       INTEGER PRIMARY KEY,
+  nome            TEXT,
+  tipo            TEXT,            -- "Ride", "VirtualRide", etc.
+  data_inicio     TEXT NOT NULL,   -- YYYY-MM-DD (start_date_local truncado)
+  inicio_iso      TEXT NOT NULL,   -- ISO completo
+  distancia_m     REAL,            -- metros
+  tempo_mov_s     INTEGER,         -- segundos (moving_time)
+  tempo_total_s   INTEGER,         -- segundos (elapsed_time)
+  elevacao_m      REAL,            -- metros
+  fc_media        REAL,
+  fc_max          REAL,
+  watts_avg       REAL,
+  cadencia_avg    REAL,
+  velocidade_avg  REAL,            -- m/s
+  velocidade_max  REAL,            -- m/s
+  kudos           INTEGER,
+  payload         TEXT,            -- JSON bruto da resposta Strava
+  imported_at     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_strava_data ON strava_activities(data_inicio);
+
+-- ── Metadados de sync Strava (1 linha) ────────────────────────────────
+CREATE TABLE IF NOT EXISTS strava_sync_meta (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  last_sync   TEXT,
+  last_count  INTEGER DEFAULT 0
+);

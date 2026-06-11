@@ -19,4 +19,9 @@ module.exports = {
   PORT:            parseInt(process.env.PORT || '3000', 10),
   HOST:            process.env.HOST || '127.0.0.1',
   COOKIE_SECURE:   process.env.COOKIE_SECURE === 'true',
+
+  // Strava (opcional — se nao configurado, /api/strava/* retorna disconnected)
+  STRAVA_CLIENT_ID:     process.env.STRAVA_CLIENT_ID || '',
+  STRAVA_CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET || '',
+  STRAVA_REFRESH_TOKEN: process.env.STRAVA_REFRESH_TOKEN || '',
 };

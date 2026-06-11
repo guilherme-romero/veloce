@@ -2,7 +2,7 @@
    APP — bootstrap, navegação, handlers globais
 ═══════════════════════════════════════════════════════════════════════ */
 
-const NAV_SECTIONS = ['profile', 'zones', 'home-workout', 'plan', 'rides', 'routes'];
+const NAV_SECTIONS = ['profile', 'zones', 'home-workout', 'plan', 'rides', 'routes', 'activities'];
 
 function setActiveNav(id) {
   NAV_SECTIONS.forEach(sec => {
@@ -45,6 +45,25 @@ function openProfileModal() {
     tag: 'Perfil',
     title: 'Editar dados pessoais',
     bodyHTML: `
+      <div class="field avatar-upload-field">
+        <label class="field-label">Foto do perfil</label>
+        <div class="avatar-upload-row">
+          <div class="avatar-upload-preview" id="avatar-preview">
+            ${window.Avatar.html({ src: u.hasAvatar ? '/api/user/avatar?ts=' + (u.avatarUpdatedAt || '') : null, name: u.nome, size: 'lg' })}
+          </div>
+          <div class="avatar-upload-actions">
+            <input id="f-avatar-file" type="file" accept="image/jpeg,image/png" hidden />
+            <button type="button" id="btn-avatar-pick" class="btn btn-sm btn-primary">
+              <i class="fa-solid fa-upload"></i> Enviar
+            </button>
+            <button type="button" id="btn-avatar-del" class="btn btn-sm btn-ghost" ${u.hasAvatar ? '' : 'hidden'}>
+              <i class="fa-solid fa-trash"></i> Remover
+            </button>
+            <span class="field-hint">JPG ou PNG · até 3 MB · proporção quadrada recomendada</span>
+          </div>
+        </div>
+      </div>
+
       <div class="field">
         <label class="field-label" for="f-nome">Nome</label>
         <input id="f-nome" class="field-input" type="text" value="${esc(u.nome)}" placeholder="Seu nome" />
@@ -93,7 +112,75 @@ function openProfileModal() {
       { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
       { label: 'Salvar',   kind: 'primary', onClick: (modal) => saveProfile(modal) },
     ],
-    onMount: (modal) => modal.querySelector('#f-nome').focus(),
+    onMount: (modal) => {
+      wireAvatarUpload(modal);
+      modal.querySelector('#f-nome').focus();
+    },
+  });
+}
+
+function wireAvatarUpload(modal) {
+  const fileInput = modal.querySelector('#f-avatar-file');
+  const pickBtn   = modal.querySelector('#btn-avatar-pick');
+  const delBtn    = modal.querySelector('#btn-avatar-del');
+  const preview   = modal.querySelector('#avatar-preview');
+  if (!fileInput || !pickBtn) return;
+
+  const refreshPreview = (src) => {
+    const u = Storage.getUser();
+    preview.innerHTML = window.Avatar.html({ src, name: u.nome, size: 'lg' });
+  };
+
+  pickBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      toast('Use JPG ou PNG', { kind: 'error' }); return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      toast('Arquivo maior que 3 MB', { kind: 'error' }); return;
+    }
+    pickBtn.disabled = true;
+    pickBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando…';
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload  = () => res(String(reader.result).split(',')[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      const resp = await window.Api.post('/user/avatar', { data: base64, mime: file.type });
+      const u = Storage.getUser();
+      Storage.setUser({ ...u, hasAvatar: true, avatarUpdatedAt: resp.updatedAt });
+      refreshPreview('/api/user/avatar?ts=' + encodeURIComponent(resp.updatedAt));
+      delBtn.hidden = false;
+      toast('Foto atualizada');
+      // re-renderiza ID card no fundo
+      try { renderAll(); } catch (_) {}
+    } catch (err) {
+      toast('Falha no upload: ' + (err.message || err), { kind: 'error' });
+    } finally {
+      pickBtn.disabled = false;
+      pickBtn.innerHTML = '<i class="fa-solid fa-upload"></i> Enviar';
+      fileInput.value = '';
+    }
+  });
+
+  delBtn?.addEventListener('click', async () => {
+    if (!confirm('Remover a foto do perfil?')) return;
+    try {
+      await window.Api.del('/user/avatar');
+      const u = Storage.getUser();
+      Storage.setUser({ ...u, hasAvatar: false, avatarUpdatedAt: null });
+      refreshPreview(null);
+      delBtn.hidden = true;
+      toast('Foto removida');
+      try { renderAll(); } catch (_) {}
+    } catch (err) {
+      toast('Falha ao remover: ' + (err.message || err), { kind: 'error' });
+    }
   });
 }
 
@@ -104,7 +191,9 @@ function saveProfile(modal) {
     return isNaN(v) ? 0 : v;
   };
 
+  const current = Storage.getUser();
   const updated = {
+    ...current,
     nome:            get('f-nome'),
     dataNascimento:  get('f-nasc'),
     altura:          num('f-altura'),
@@ -362,6 +451,12 @@ async function boot() {
 
   // 6. Routes.init
   await safe('Routes.init()', () => Routes && Routes.init && Routes.init());
+
+  // 6.5 Strava — carrega status (fire-and-forget; nao bloqueia boot)
+  await safe('Strava.load()', () => window.Strava && window.Strava.load && window.Strava.load());
+
+  // 6.6 Activities dashboard
+  await safe('Activities.load()', () => window.Activities && window.Activities.load && window.Activities.load());
 
   // 7. Render global
   await safe('renderAll()', () => renderAll());

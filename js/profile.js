@@ -59,6 +59,17 @@ function renderProfile(user) {
   const info    = bmiInfo(imc);
 
   // ── ID Card ───────────────────────────────
+  const avatarEl = document.getElementById('profile-avatar');
+  if (avatarEl && window.Avatar) {
+    if (user.nome) {
+      const src = user.hasAvatar
+        ? '/api/user/avatar?ts=' + encodeURIComponent(user.avatarUpdatedAt || '')
+        : null;
+      avatarEl.innerHTML = window.Avatar.html({ name: user.nome, src, size: 'lg' });
+    } else {
+      avatarEl.innerHTML = '<i class="fa-solid fa-user"></i>';
+    }
+  }
   setText('stat-nome',   user.nome || '—');
   setHTML('stat-idade',  idade ? `${idade}` : '—');
   setHTML('stat-altura', user.altura ? `${user.altura}` : '—');

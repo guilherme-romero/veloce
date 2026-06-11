@@ -168,7 +168,7 @@ Versão alvo: 2.0.0
   Meta: v2.1.0  |  Impacto: Alto  |  Complexidade: Alta  |  Modelo: Claude Opus 4.7
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-STATUS GERAL: 📋 Planejado (requer Fase 3)
+STATUS GERAL: ✅ Implementado (v1.5.0) — sub-fases 4a + 4b + 4c
 
 PRÉ-REQUISITO: Backend funcionando (Fase 3) — OAuth requer server-side
 para proteger o client_secret.
@@ -203,6 +203,185 @@ Documentação oficial: https://developers.strava.com/docs/reference/
      - Evolução mensal de volume (km)
 
 Versão alvo: 2.1.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FASE 4.5 — INTEGRAÇÃO GARMIN CONNECT (não oficial)
+  Meta: v2.1.5  |  Impacto: Alto  |  Complexidade: Alta  |  Modelo: Claude Opus 4.7
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATUS GERAL: 📋 Planejado (requer Fase 3 e idealmente Fase 4 estabilizada)
+
+CONTEXTO
+A Garmin não disponibiliza API REST pública para usuário final — a
+"Connect Developer Program API" é restrita a parceiros comerciais.
+Para acessar dados do Garmin Connect é preciso recorrer a wrappers da
+comunidade que simulam o app móvel (SSO + endpoints internos).
+
+AVALIAÇÃO — projetos candidatos
+
+[A] python-garminconnect (cyberjunky)
+    - Wrapper Python puro, autenticação SSO + MFA, baixa atividades em
+      .fit/.gpx/.tcx, lê HRV, sono, stress, body battery.
+    - Manutenção semanal (alto, mas dependente de não-quebrar quando a
+      Garmin mexe no servidor SSO).
+    - Encaixe no nosso stack: REQUER subprocesso Python rodando ao lado
+      do Node — adiciona dependência de runtime e empacotamento.
+
+[B] GarminDB (tcgoetz)
+    - Foco em data engineering: baixa histórico completo e materializa
+      em SQLite local com tabelas analíticas (laps, splits, monitoring).
+    - Inclui parser FIT nativo e templates Jupyter.
+    - Encaixe: MUITO PESADO para uso embarcado — pensado para análise
+      offline em notebook. Útil como referência de schema, não como
+      dependência runtime.
+
+RECOMENDAÇÃO
+Usar [A] python-garminconnect via subprocesso isolado, expondo um
+script CLI Python que o backend Node chama on-demand. Motivos:
+  - Mantém Node como única superfície de API exposta
+  - python-garminconnect tem manutenção ativa e cobertura completa
+  - Dá pra rodar dentro do mesmo LXC (prod) sem novo container
+  - Erros do SSO ficam confinados ao script Python (não derruba Fastify)
+
+Alternativa descartada: portar a lógica SSO para Node — caro e
+sujeito a manutenção contínua quando a Garmin mexer no fluxo.
+
+ESCOPO PROPOSTO (sub-fases incrementais)
+
+4.5.1  📋 Empacotamento e auth
+       - Instalar python3 + venv no LXC prod
+       - Script garmin_cli.py com comandos: login, status, activities,
+         hrv, sleep, body_battery
+       - Credenciais Garmin no .env (GARMIN_EMAIL, GARMIN_PASSWORD)
+       - Persistir token SSO em data/garmin_session.json (reduz logins)
+       - Suporte a MFA via prompt CLI inicial (single-shot)
+
+4.5.2  📋 Integração backend Node
+       - server/services/garmin.js: spawn do script com timeout, parse
+         JSON do stdout, mapeamento de erros
+       - Rotas REST:
+           GET  /api/garmin/status          → conta conectada + ultimo sync
+           POST /api/garmin/sync            → baixa atividades novas
+           POST /api/garmin/disconnect      → invalida sessao
+       - Tabela garmin_activities (similar a strava_activities) +
+         tabela garmin_health (HRV, stress, sono, body battery diarios)
+
+4.5.3  📋 UI no Perfil
+       - Card "Garmin Connect" ao lado do card Strava
+       - Botão Sincronizar atividades + última sync exibida
+       - Mini-dashboard de saúde (HRV semanal, sono médio, body battery)
+
+4.5.4  📋 De-duplicação cruzada Strava ⇄ Garmin
+       - Mesma ride pode aparecer em ambos (Garmin auto-publica no Strava)
+       - Matching por timestamp + distancia + duracao (tolerancia ±60s/±100m)
+       - Marcar atividade como "fonte: garmin" / "fonte: strava" no UI
+
+RISCOS
+  - A Garmin pode bloquear contas que fazem polling agressivo —
+    limitar sync a 1x por hora no mínimo
+  - MFA obrigatório em algumas regiões; fluxo CLI inicial precisa ser
+    bem documentado
+  - Cada update do app Garmin pode quebrar o wrapper temporariamente
+
+Versão alvo: 2.1.5
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FASE 4.6 — AUTO-REGISTRO DE TREINOS A PARTIR DE STRAVA + GARMIN
+  Meta: v2.1.6  |  Impacto: Alto  |  Complexidade: Média  |  Modelo: Claude Opus 4.7
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STATUS GERAL: 📋 Planejado (requer Fases 4 e 4.5 concluídas)
+
+CONTEXTO
+Hoje o sync do Strava já marca o dia como "bike" no training_log. A
+proposta é evoluir isso para um registro RICO por dia, alimentado
+por Strava + Garmin, com regra clara de fonte da verdade quando há
+edição manual ou múltiplas fontes para o mesmo dia/atividade.
+
+DADOS QUE PODEM SER AUTO-PREENCHIDOS
+
+  CICLISMO (Strava + Garmin)
+    - distância (km), tempo (mov + total), elevação
+    - FC média, FC máx, zona dominante (Z1-Z6)
+    - watts médios, cadência média
+    - velocidade média/máx
+
+  FORTALECIMENTO / TREINO EM CASA (Garmin)
+    - duração da sessão, FC média, calorias estimadas
+    - tipo da atividade (Strength Training, HIIT, Yoga, etc.)
+
+  BIOMETRIA (Garmin)
+    - peso da balança Garmin Index/conectada -> Storage.addWeight
+    - HRV diário, body battery, sono (sem alterar treino, mas
+      contextualiza no dashboard de 90 dias)
+
+ESCOPO PROPOSTO (sub-fases incrementais)
+
+4.6.1  📋 Modelo de dados unificado
+       - Nova tabela `daily_record` (id, data UNIQUE, payload JSON,
+         fontes JSON: ["strava","garmin","manual"], updated_at)
+       - Migra training_log existente para daily_record preservando
+         tudo (sem perda de histórico)
+       - payload contem: tipos[], bike{km, tempo, elev, fc, zona,
+         watts, fonte_id}, fisico{tempo, fc, fonte_id}, notas, peso
+
+4.6.2  📋 Resolver conflitos: regra "manual wins"
+       - Cada campo do payload tem um "lock" implicito quando o
+         usuario edita manualmente — guardado em flags{km:'manual', ...}
+       - Sync nao sobrescreve campo com lock=manual; apenas adiciona
+         dados em campos vazios ou previamente automaticos
+       - UI sinaliza visualmente quais campos vieram de qual fonte
+         (badge "strava" / "garmin" / "manual" pequeno no canto)
+
+4.6.3  📋 De-duplicação cruzada Strava ⇄ Garmin
+       - Mesma ride pode aparecer em ambos (Garmin auto-publica no
+         Strava). Matching por timestamp ±60s + distancia ±100m
+       - Quando match, usar Garmin como fonte primaria (tem dados
+         mais ricos como zonas FC nativas), Strava como complemento
+       - Registrar a relacao em `activity_links(strava_id, garmin_id)`
+
+4.6.4  📋 Importar peso da Garmin -> tabela weights
+       - Quando Garmin retorna pesagem nova, criar registro com
+         tipo='atual' e flag fonte='garmin'
+       - Conflito (pesagem manual no mesmo dia): manual vence
+       - Toast informativo apos sync se houve peso importado
+
+4.6.5  📋 UI de revisao
+       - Botao "Revisar auto-registros" no card Strava/Garmin
+       - Lista os ultimos 7 dias com auto-fill, permitindo
+         confirmar/editar/descartar antes de promover a definitivo
+       - Modo opcional: "auto-apply sem revisao" para usuario
+         experiente (toggle em Configuracoes)
+
+4.6.6  📋 Limpeza periodica
+       - Re-aplicar sync incremental nao deve criar duplicatas:
+         upsert por activity_id externo + matching de-dup
+       - Logs de sincronizacao acessiveis (timestamp, n_importadas,
+         n_atualizadas, n_ignoradas_por_lock)
+
+REGRAS DE FONTE DA VERDADE (resumo)
+
+  1. Edicao manual SEMPRE prevalece (lock implicito por campo)
+  2. Entre fontes automaticas: Garmin > Strava (Garmin tem mais
+     metricas brutas; Strava as recalcula)
+  3. Para o mesmo campo de fontes diferentes sem lock manual,
+     o sync mais recente sobrescreve
+  4. training_log antigo (so com tipos[]) continua valido —
+     daily_record o estende, nao o substitui
+
+RISCOS / CONSIDERAÇÕES
+
+  - Mexer no schema de training_log impacta o calendario, badges
+    e mini-relatorio 90 dias — testar com cuidado
+  - Auto-registro silencioso pode mascarar dias sem treino real
+    (usuario esquece celular ligado no carro -> Strava registra
+    "atividade"). Mitigacao: filtro de distancia minima (ex.: 2 km)
+  - Garmin Index/balanca pode reportar pesagem multiplas vezes/dia
+    -> manter so a mais recente do dia
+  - Privacidade: dados de HRV/sono ficam apenas no banco local;
+    nada externo
+
+Versão alvo: 2.1.6
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   FASE 5 — RELATÓRIOS AVANÇADOS
@@ -306,6 +485,47 @@ v1.3.4 (2026-06-10) ✅  — Botão de topologia do mapa
   - Substituído L.control.layers() por controle HTML customizado
   - 3 botões Padrão/Topo/Satélite visíveis no tema dark
   - Estilos via variáveis CSS do design system
+
+v1.4.0-rc1 (2026-06-11) ✅  — Fase 3: backend Fastify + SQLite + auth
+  - Sub-fase 3a: server/ com Fastify, JWT em cookie httpOnly,
+    login.html, gate de auth no boot, systemd service
+  - Sub-fase 3b: wrapper js/api.js + migracao de pesagens para API
+  - Sub-fase 3c: migracao de todas as entidades (profile, modes,
+    workouts, rides, training-log, home-exercises, routes)
+  - storage.js refatorado: caches em memoria + mutators otimistas
+  - Schema com coluna payload JSON para entidades aninhadas
+
+v1.5.0 (2026-06-11) ✅  — Fase 4: integracao Strava + dashboard
+  Sub-fase 4a: status + OAuth simplificado
+  - server/services/strava.js: cache de access_token + refresh
+    automatico, single-user (refresh_token no .env)
+  - GET /api/strava/status com dados do atleta conectado
+  - Card "Strava" na secao Perfil
+  - Avatar generico reutilizavel (window.Avatar) com fallback
+    automatico para iniciais
+
+  Sub-fase 4b: sincronizacao de atividades
+  - Tabelas strava_activities + strava_sync_meta
+  - POST /api/strava/sync importa atividades dos ultimos N dias
+  - Filtro de tipos bike (Ride, VirtualRide, EBikeRide, etc.)
+  - Integracao com training_log (marca dias como "bike"
+    sem sobrescrever marcacao manual)
+  - Botao "Sincronizar ultimos 90 dias" no card Strava
+
+  Sub-fase 4c: dashboard de atividades
+  - Nova secao "Atividades" no nav
+  - Card "Ultima atividade" com mini-mapa (polyline decoder nativo)
+  - Comparativo semana atual vs. anterior (km, tempo, elev, count)
+  - Grafico de volume mensal (Chart.js bar, 6 meses)
+
+  Outros ajustes:
+  - Upload de avatar JPG/PNG ate 3MB (POST/GET/DELETE
+    /api/user/avatar com parser de header sem deps externas)
+  - Foto do Strava removida do card (so iniciais)
+  - Fix XSS no Avatar.html (escape de aspas em onerror inline)
+  - bug fix: saveProfile preserva campos extras (hasAvatar,
+    avatarUpdatedAt) ao salvar
+  - CSP liberada para *.cloudfront.net (legado, removido em 1.5.0)
 
 v1.3.5 (2026-06-10) ✅  — Ajustes e melhorias de UX
   - Renomeação: Treino Cicloviagem → Treino Bike (nav, title, manifest)

@@ -8,6 +8,9 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 
+# Avatares (dados pessoais)
+data/avatars/
+
 # Logs
 *.log
 npm-debug.log*

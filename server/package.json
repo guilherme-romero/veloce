@@ -1,6 +1,6 @@
 {
   "name": "treino-bike-server",
-  "version": "1.4.0-rc1",
+  "version": "1.5.0",
   "private": true,
   "description": "Backend do Treino Bike — Fastify + SQLite + auth",
   "main": "index.js",
