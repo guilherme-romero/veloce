@@ -109,14 +109,30 @@
     $('home-streak').textContent = streak;
     $('home-streak-sub').textContent = streak === 1 ? 'dia ativo' : 'dias ativos';
 
-    // KPI 4 — Fadiga (reaproveita score do insights)
-    const fadigaEl = document.getElementById('fadiga-score');
-    if (fadigaEl && fadigaEl.textContent && fadigaEl.textContent !== '—') {
-      $('home-fadiga').textContent = fadigaEl.textContent;
-    } else {
-      $('home-fadiga').textContent = '—';
-      $('home-fadiga-sub').textContent = 'sincronize Garmin';
-    }
+    // KPI 4 — Fadiga / Training Readiness (prioriza Readiness Garmin se disponível)
+    // Busca async — não bloqueia o load síncrono dos outros KPIs
+    (async () => {
+      try {
+        const readiness = await window.Api.get('/garmin/training-readiness?days=1');
+        if (Array.isArray(readiness) && readiness.length > 0 && readiness[0].score != null) {
+          const r = readiness[0];
+          $('home-fadiga').textContent = r.score;
+          $('home-fadiga-sub').textContent = (r.level || '—').toLowerCase();
+          // Label do card vira "Readiness" pra deixar claro
+          const labelEl = document.querySelector('#home .home-kpi:nth-child(4) .home-kpi-label');
+          if (labelEl) labelEl.textContent = 'Readiness';
+          return;
+        }
+      } catch (_) { /* fallback abaixo */ }
+      // Fallback: usa score do Insights (fadiga manual)
+      const fadigaEl = document.getElementById('fadiga-score');
+      if (fadigaEl && fadigaEl.textContent && fadigaEl.textContent !== '—') {
+        $('home-fadiga').textContent = fadigaEl.textContent;
+      } else {
+        $('home-fadiga').textContent = '—';
+        $('home-fadiga-sub').textContent = 'sincronize Garmin';
+      }
+    })();
 
     // Ações rápidas
     $('home-btn-weight')?.addEventListener('click', () => {

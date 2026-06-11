@@ -159,6 +159,67 @@ CREATE TABLE IF NOT EXISTS garmin_sync_meta (
   last_count  INTEGER DEFAULT 0
 );
 
+-- ── Training Readiness diário (Fase 9) ────────────────────────────────
+CREATE TABLE IF NOT EXISTS garmin_training_readiness (
+  data            TEXT PRIMARY KEY,
+  score           INTEGER,
+  level           TEXT,
+  feedback_short  TEXT,
+  feedback_long   TEXT,
+  sleep_score     INTEGER,
+  sleep_factor_pct INTEGER,
+  recovery_time_h INTEGER,
+  recovery_factor_pct INTEGER,
+  acwr_factor_pct INTEGER,
+  hrv_factor_pct  INTEGER,
+  hrv_weekly_avg  INTEGER,
+  stress_factor_pct INTEGER,
+  imported_at     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── Training Status diário (Fase 9) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS garmin_training_status (
+  data           TEXT PRIMARY KEY,
+  status_code    INTEGER,
+  status_label   TEXT,
+  status_feedback TEXT,
+  load_ratio     REAL,
+  load_balance   TEXT,
+  fitness_trend  INTEGER,
+  fitness_trend_sport TEXT,
+  vo2max_cycling REAL,
+  vo2max_generic REAL,
+  weekly_load    REAL,
+  imported_at    TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── Personal Records (Fase 9) ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS garmin_personal_records (
+  id            INTEGER PRIMARY KEY,
+  type_id       INTEGER,
+  status        TEXT,
+  valor         REAL,
+  activity_id   INTEGER,
+  activity_name TEXT,
+  activity_type TEXT,
+  pr_date       TEXT,
+  activity_date TEXT,
+  imported_at   TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── Hill Score + Endurance Score (Fase 9) ────────────────────────────
+CREATE TABLE IF NOT EXISTS garmin_fitness_scores (
+  data                 TEXT PRIMARY KEY,
+  hill_score           INTEGER,
+  hill_classification  INTEGER,
+  endurance_score      INTEGER,
+  endurance_classification INTEGER,
+  endurance_gauge_lower INTEGER,
+  endurance_gauge_upper INTEGER,
+  vo2_max              REAL,
+  imported_at          TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ── Saude diaria Garmin (passos, sono, stress, HRV, body battery) ────
 CREATE TABLE IF NOT EXISTS garmin_daily_health (
   data              TEXT PRIMARY KEY,  -- YYYY-MM-DD

@@ -478,6 +478,196 @@
     return true;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // FASE 9 — Cards baseados em dados Garmin extras (Readiness, PBs, Scores)
+  // ═══════════════════════════════════════════════════════════════
+  let _readinessSparkChart = null;
+
+  // 7.7 — Training Readiness (Garmin)
+  function renderReadiness(items) {
+    const card = $('card-readiness');
+    if (!card) return;
+    if (!items || items.length === 0) { card.hidden = true; return; }
+    card.hidden = false;
+
+    // Ordena asc por data para a sparkline; mais recente é o último
+    const ordered = [...items].sort((a, b) => a.data.localeCompare(b.data));
+    const latest = ordered[ordered.length - 1];
+
+    const score = latest.score ?? null;
+    const level = latest.level || '—';
+    let color, msg;
+    if (level === 'HIGH')      { color = COLORS.green;  msg = 'Garmin diz: pronto para sessão intensa hoje.'; }
+    else if (level === 'MODERATE') { color = COLORS.amber; msg = 'Recuperação moderada — treino normal ok.'; }
+    else if (level === 'LOW')  { color = COLORS.red;    msg = 'Baixa prontidão — priorize recuperação hoje.'; }
+    else                       { color = COLORS.muted2; msg = ''; }
+
+    $('readiness-score').textContent = score ?? '—';
+    $('readiness-level').textContent = level;
+    $('readiness-level').style.background = color + '20';
+    $('readiness-level').style.color = color;
+    if (score != null) {
+      $('readiness-fill').style.width = Math.min(100, Math.max(0, score)) + '%';
+      $('readiness-fill').style.background = color;
+    }
+    $('readiness-sleep').textContent = latest.sleep_score != null ? `${latest.sleep_score}` : '—';
+    $('readiness-recovery').textContent = latest.recovery_time_h != null ? `${latest.recovery_time_h}h` : '—';
+    $('readiness-hrv').textContent = latest.hrv_weekly_avg != null ? `${latest.hrv_weekly_avg} ms` : '—';
+    $('readiness-msg').textContent = msg;
+
+    // Sparkline
+    const canvas = $('readinessSparkChart');
+    if (canvas && window.Chart) {
+      if (_readinessSparkChart) _readinessSparkChart.destroy();
+      _readinessSparkChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: ordered.map(r => r.data.slice(5)), // MM-DD
+          datasets: [{
+            data: ordered.map(r => r.score),
+            borderColor: color,
+            backgroundColor: color + '20',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 2,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          scales: {
+            y: { display: false, min: 0, max: 100 },
+            x: { display: false },
+          },
+        },
+      });
+    }
+    return true;
+  }
+
+  // 7.8 — Personal Records (Garmin)
+  function renderPRs(items) {
+    const card = $('card-prs');
+    if (!card) return;
+    if (!items || items.length === 0) { card.hidden = true; return; }
+    card.hidden = false;
+
+    const esc = window.esc || (s => String(s || ''));
+    // Mapa de typeId → label legível (alguns comuns)
+    const TYPE_LABELS = {
+      1: '1km mais rápido',
+      2: 'Maior distância',
+      3: 'Maior elevação',
+      4: 'Maior duração',
+      5: 'Velocidade máxima',
+      6: '5km mais rápido',
+      7: '10km mais rápido',
+      8: 'Meia-maratona mais rápida',
+      9: 'Maratona mais rápida',
+      10: 'Maior cadência média',
+      11: 'Maior subida em 1h',
+      12: 'Maior potência média (1h)',
+    };
+
+    const formatValue = (typeId, value) => {
+      if (value == null) return '—';
+      // Distâncias (km)
+      if ([2, 3].includes(typeId)) return (value / 1000).toFixed(1).replace('.', ',') + ' km';
+      // Tempos em segundos
+      if ([1, 4, 6, 7, 8, 9].includes(typeId)) {
+        const s = value;
+        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+        return h > 0 ? `${h}h${String(m).padStart(2,'0')}m` : `${m}min ${String(sec).padStart(2,'0')}s`;
+      }
+      // Velocidade m/s → km/h
+      if (typeId === 5) return (value * 3.6).toFixed(1).replace('.', ',') + ' km/h';
+      return value.toFixed(1).replace('.', ',');
+    };
+
+    const top = items.slice(0, 5);
+    $('prs-count').textContent = items.length;
+
+    const now = Date.now();
+    const DAYS_30 = 30 * 86400_000;
+    $('prs-list').innerHTML = top.map(p => {
+      const label = TYPE_LABELS[p.type_id] || `Recorde ${p.type_id}`;
+      const val = formatValue(p.type_id, p.valor);
+      let dataStr = '—';
+      let isNew = false;
+      if (p.pr_date || p.activity_date) {
+        const iso = (p.pr_date || p.activity_date).split('T')[0];
+        try {
+          const d = new Date(iso + 'T12:00:00');
+          dataStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+          isNew = (now - d.getTime()) < DAYS_30;
+        } catch {}
+      }
+      const newBadge = isNew ? '<span class="pr-new">Novo!</span>' : '';
+      return `
+        <div class="pr-item">
+          <div class="pr-info">
+            <div class="pr-label">${esc(label)} ${newBadge}</div>
+            <div class="pr-meta">${esc(p.activity_name || '')} · ${esc(dataStr)}</div>
+          </div>
+          <div class="pr-value">${esc(val)}</div>
+        </div>`;
+    }).join('');
+
+    $('prs-msg').textContent = items.some(p => {
+      const iso = (p.pr_date || p.activity_date || '').split('T')[0];
+      try { return (now - new Date(iso + 'T12:00:00').getTime()) < DAYS_30; } catch { return false; }
+    }) ? 'Você bateu um recorde nos últimos 30 dias!' : '';
+    return true;
+  }
+
+  // 7.9 — Hill + Endurance Score (Garmin)
+  function renderScores(items) {
+    const card = $('card-scores');
+    if (!card) return;
+    if (!items || items.length === 0) { card.hidden = true; return; }
+
+    const latest = [...items].sort((a, b) => b.data.localeCompare(a.data))[0];
+    if (!latest.endurance_score && !latest.hill_score) { card.hidden = true; return; }
+    card.hidden = false;
+
+    // Endurance
+    const eVal = latest.endurance_score;
+    const eMin = latest.endurance_gauge_lower || 0;
+    const eMax = latest.endurance_gauge_upper || 10000;
+    const eClass = latest.endurance_classification;
+    const CLASS_LABELS = ['—','Iniciante','Amador','Intermediário','Treinado','Bem Treinado','Especialista','Superior','Elite'];
+
+    $('endurance-value').textContent = eVal ?? '—';
+    if (eVal != null) {
+      const pct = Math.max(0, Math.min(100, ((eVal - eMin) / (eMax - eMin)) * 100));
+      $('endurance-fill').style.width = pct + '%';
+      $('endurance-fill').style.background = COLORS.teal;
+    }
+    $('endurance-meta').textContent = `${eMin}–${eMax} · ${CLASS_LABELS[eClass] || ''}`;
+
+    // Hill
+    const hVal = latest.hill_score;
+    $('hill-value').textContent = hVal ?? '—';
+    if (hVal != null) {
+      $('hill-fill').style.width = Math.min(100, hVal) + '%';
+      $('hill-fill').style.background = COLORS.amber;
+    } else {
+      $('hill-fill').style.width = '0%';
+    }
+    $('hill-meta').textContent = hVal == null
+      ? 'Sem score ainda — Garmin precisa de mais rides com ganho de elevação.'
+      : 'Capacidade em subidas.';
+
+    $('scores-class').textContent = CLASS_LABELS[eClass] || '—';
+    $('scores-class').style.background = COLORS.teal + '20';
+    $('scores-class').style.color = COLORS.teal;
+
+    $('scores-msg').textContent = (hVal == null && eVal != null)
+      ? 'Endurance bem caracterizada. Para o Hill Score, faça rides com mais elevação acumulada.'
+      : '';
+    return true;
+  }
+
   // ───────────────────────────────────────────────────────────────
   // LOAD — busca dados e renderiza todos os insights
   // ───────────────────────────────────────────────────────────────
@@ -487,9 +677,12 @@
     if (!empty || !content) return;
 
     try {
-      const [unified, health] = await Promise.all([
+      const [unified, health, readiness, prs, scores] = await Promise.all([
         window.Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
         window.Api.get('/garmin/health?days=60').catch(() => []),
+        window.Api.get('/garmin/training-readiness?days=14').catch(() => []),
+        window.Api.get('/garmin/personal-records').catch(() => []),
+        window.Api.get('/garmin/fitness-scores?days=14').catch(() => []),
       ]);
 
       const activities = (unified && unified.items) || [];
@@ -515,6 +708,9 @@
       try { renderSonoVsFC(activities, healthArr, fcMax); }         catch (e) { console.error('[insights] 7.2', e); }
       try { renderCustoMetabolico(activities); }                    catch (e) { console.error('[insights] 7.5', e); }
       try { renderHrvVsCarga(activities, healthArr, fcMax); }       catch (e) { console.error('[insights] 7.6', e); }
+      try { renderReadiness(readiness); }                            catch (e) { console.error('[insights] 7.7', e); }
+      try { renderPRs(prs); }                                        catch (e) { console.error('[insights] 7.8', e); }
+      try { renderScores(scores); }                                  catch (e) { console.error('[insights] 7.9', e); }
     } catch (err) {
       console.error('[insights]', err);
       empty.textContent = 'Falha ao carregar insights.';

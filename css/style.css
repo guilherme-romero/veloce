@@ -1635,3 +1635,151 @@ body.edit-mode .exercise-actions { display: flex; }
   /* Esconde scroll body quando drawer aberto */
   body.nav-open { overflow: hidden; }
 }
+
+/* ── Últimas 5 atividades (Fase 9.1) ─────────────────────────────────── */
+.last5-card { padding: 18px; }
+.last5-list { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.last5-item {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+@media (max-width: 720px) { .last5-item { grid-template-columns: 1fr; } }
+.last5-map {
+  height: 130px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.last5-map.no-map {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted2); font-size: 11px;
+}
+.last5-map.no-map::before { content: 'sem mapa'; }
+.last5-body { display: flex; flex-direction: column; min-width: 0; }
+.last5-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.last5-meta { font-size: 12px; color: var(--muted2); margin-top: 2px; text-transform: capitalize; }
+.last5-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.last5-stat { text-align: center; }
+.last5-stat strong { display: block; font-size: 14px; font-weight: 700; color: var(--text); }
+.last5-stat span {
+  display: block;
+  font-size: 10px;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* ── Insights Fase 9 (Readiness, PBs, Scores) ────────────────────────── */
+
+/* Personal Records */
+.prs-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.pr-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  gap: 12px;
+}
+.pr-info { flex: 1; min-width: 0; }
+.pr-label { font-weight: 600; font-size: 13px; color: var(--text); }
+.pr-meta  { font-size: 11px; color: var(--muted2); margin-top: 2px; }
+.pr-value {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--teal);
+  flex-shrink: 0;
+}
+.pr-new {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: var(--amber-dim);
+  color: var(--amber);
+  border-radius: 4px;
+  margin-left: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Hill + Endurance Score */
+.scores-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 8px 0 12px;
+}
+@media (max-width: 600px) { .scores-grid { grid-template-columns: 1fr; } }
+.score-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+.score-label {
+  font-size: 11px;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.score-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+}
+.score-progress {
+  margin-top: 10px;
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.score-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  background: var(--teal);
+}
+.score-meta {
+  font-size: 11px;
+  color: var(--muted2);
+  margin-top: 6px;
+}
+
+/* ── Badge de Training Status (Fase 9.2) ─────────────────────────────── */
+.garmin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 4px;
+  padding: 8px 12px;
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+.garmin-status-label { font-weight: 400; opacity: 0.8; }

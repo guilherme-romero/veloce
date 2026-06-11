@@ -243,6 +243,186 @@ def cmd_weighins(args):
     emit({"days": days, "count": len(out), "items": out})
 
 
+def cmd_activity_polyline(args):
+    """Busca polyline encoded da atividade via get_activity_details."""
+    client, _ = make_client()
+    authenticate(client)
+    try:
+        det = client.get_activity_details(args.id, maxchart=50, maxpoly=4000)
+    except Exception as e:
+        die(f"FETCH_ERROR: {e}")
+    geo = det.get("geoPolylineDTO") if isinstance(det, dict) else None
+    polyline = (geo or {}).get("polyline") if geo else None
+    # polyline às vezes vem como string Google encoded, às vezes como lista de pontos
+    encoded = None
+    if isinstance(polyline, str):
+        encoded = polyline
+    elif isinstance(polyline, list) and polyline:
+        # Lista de {"lat","lon","altitude",...} → codifica como Google polyline
+        encoded = encode_polyline([(p.get("lat"), p.get("lon")) for p in polyline if p.get("lat") is not None])
+    emit({"id": args.id, "polyline": encoded, "hasGeo": geo is not None})
+
+
+def encode_polyline(points):
+    """Google polyline encoder (algoritmo padrão)."""
+    if not points:
+        return None
+    def _enc(v):
+        v = v << 1 if v >= 0 else ~(v << 1)
+        chunks = []
+        while v >= 0x20:
+            chunks.append((0x20 | (v & 0x1f)) + 63)
+            v >>= 5
+        chunks.append(v + 63)
+        return ''.join(chr(c) for c in chunks)
+    out = []
+    plat = plng = 0
+    for lat, lng in points:
+        if lat is None or lng is None: continue
+        ilat = int(round(lat * 1e5))
+        ilng = int(round(lng * 1e5))
+        out.append(_enc(ilat - plat))
+        out.append(_enc(ilng - plng))
+        plat, plng = ilat, ilng
+    return ''.join(out)
+
+
+def cmd_training_readiness(args):
+    """Score matinal de prontidão para treinar (0..100) por dia."""
+    client, _ = make_client()
+    authenticate(client)
+    days = max(1, min(int(args.days or 7), 90))
+    out = []
+    for i in range(days - 1, -1, -1):
+        cdate = (date.today() - timedelta(days=i)).isoformat()
+        try:
+            data = client.get_training_readiness(cdate)
+        except Exception:
+            data = None
+        if not data:
+            continue
+        item = data[0] if isinstance(data, list) and data else data
+        if not item:
+            continue
+        out.append({
+            "data":             item.get("calendarDate", cdate),
+            "score":            item.get("score"),
+            "level":            item.get("level"),
+            "feedbackShort":    item.get("feedbackShort"),
+            "feedbackLong":     item.get("feedbackLong"),
+            "sleepScore":       item.get("sleepScore"),
+            "sleepScoreFactorPercent": item.get("sleepScoreFactorPercent"),
+            "recoveryTime":     item.get("recoveryTime"),
+            "recoveryTimeFactorPercent": item.get("recoveryTimeFactorPercent"),
+            "acwrFactorPercent":item.get("acwrFactorPercent"),
+            "hrvFactorPercent": item.get("hrvFactorPercent"),
+            "hrvWeeklyAverage": item.get("hrvWeeklyAverage"),
+            "stressHistoryFactorPercent": item.get("stressHistoryFactorPercent"),
+        })
+    emit({"days": days, "count": len(out), "items": out})
+
+
+def cmd_training_status(args):
+    """Estado adaptativo (PRODUCTIVE/MAINTAINING/RECOVERY/etc.)."""
+    client, _ = make_client()
+    authenticate(client)
+    days = max(1, min(int(args.days or 1), 30))
+    out = []
+    for i in range(days - 1, -1, -1):
+        cdate = (date.today() - timedelta(days=i)).isoformat()
+        try:
+            data = client.get_training_status(cdate)
+        except Exception:
+            data = None
+        if not data:
+            continue
+        # Estrutura: { mostRecentVO2Max: {...}, mostRecentTrainingStatus: {...} }
+        ts = (data.get("mostRecentTrainingStatus") or {}).get("latestTrainingStatusData") or {}
+        # latestTrainingStatusData é dict por deviceId — pega o primeiro
+        first = next(iter(ts.values()), {}) if isinstance(ts, dict) else {}
+        vo2  = data.get("mostRecentVO2Max") or {}
+        cycling = vo2.get("cycling") or {}
+        out.append({
+            "data":            cdate,
+            "status":          first.get("trainingStatus"),
+            "statusFeedback":  first.get("trainingStatusFeedbackPhrase"),
+            "loadRatio":       first.get("loadRatio"),
+            "loadBalance":     first.get("trainingBalanceFeedbackPhrase"),
+            "fitnessTrend":    first.get("fitnessTrend"),
+            "fitnessTrendSport":first.get("fitnessTrendSport"),
+            "vo2MaxCycling":   cycling.get("vo2MaxValue"),
+            "vo2MaxGeneric":   (vo2.get("generic") or {}).get("vo2MaxValue"),
+            "weeklyTrainingLoad": first.get("weeklyTrainingLoad"),
+        })
+    emit({"days": days, "count": len(out), "items": out})
+
+
+def cmd_personal_records(args):
+    """Personal Records — snapshot da lista atual de PRs."""
+    client, _ = make_client()
+    authenticate(client)
+    try:
+        data = client.get_personal_record()
+    except Exception as e:
+        die(f"FETCH_ERROR: {e}")
+    if not isinstance(data, list):
+        data = []
+    out = []
+    for r in data:
+        out.append({
+            "id":            r.get("id"),
+            "typeId":        r.get("typeId"),
+            "status":        r.get("status"),
+            "value":         r.get("value"),
+            "activityId":    r.get("activityId"),
+            "activityName":  r.get("activityName"),
+            "activityType":  r.get("activityType"),
+            "prDate":        r.get("prStartTimeLocalFormatted"),
+            "activityDate":  r.get("activityStartDateTimeLocalFormatted"),
+        })
+    emit({"count": len(out), "items": out})
+
+
+def cmd_hill_score(args):
+    """Hill Score + Endurance Score por dia."""
+    client, _ = make_client()
+    authenticate(client)
+    days = max(1, min(int(args.days or 7), 90))
+    out = []
+    for i in range(days - 1, -1, -1):
+        cdate = (date.today() - timedelta(days=i)).isoformat()
+        hill = endur = None
+        vo2_max = None
+        try:
+            hill = client.get_hill_score(cdate)
+        except Exception:
+            pass
+        try:
+            endur = client.get_endurance_score(cdate)
+        except Exception:
+            pass
+        # Pode haver VO2max via max_metrics tb
+        try:
+            mm = client.get_max_metrics(cdate)
+            if mm and isinstance(mm, list) and mm:
+                vo2_max = (mm[0].get("generic") or {}).get("vo2MaxValue")
+        except Exception:
+            pass
+        if not (hill or endur or vo2_max):
+            continue
+        out.append({
+            "data":              cdate,
+            "hillScore":         (hill or {}).get("overallScore") if hill else None,
+            "hillClassification":(hill or {}).get("hillScoreClassificationId") if hill else None,
+            "enduranceScore":    (endur or {}).get("overallScore") if endur else None,
+            "enduranceClassification": (endur or {}).get("classification") if endur else None,
+            "enduranceGaugeLower":     (endur or {}).get("gaugeLowerLimit") if endur else None,
+            "enduranceGaugeUpper":     (endur or {}).get("gaugeUpperLimit") if endur else None,
+            "vo2Max":            vo2_max,
+        })
+    emit({"days": days, "count": len(out), "items": out})
+
+
 # ── parser ───────────────────────────────────────────────────────────
 
 def main():
@@ -268,11 +448,30 @@ def main():
     pdh = sub.add_parser("daily-health")
     pdh.add_argument("--days", type=int, default=30)
 
+    ptr = sub.add_parser("training-readiness")
+    ptr.add_argument("--days", type=int, default=7)
+
+    pts = sub.add_parser("training-status")
+    pts.add_argument("--days", type=int, default=1)
+
+    sub.add_parser("personal-records")
+
+    phs = sub.add_parser("hill-score")
+    phs.add_argument("--days", type=int, default=7)
+
+    pap = sub.add_parser("activity-polyline")
+    pap.add_argument("id", type=int)
+
     args = p.parse_args()
     handlers = {
         "status": cmd_status, "login": cmd_login, "logout": cmd_logout,
         "activities": cmd_activities, "activity": cmd_activity,
         "weighins": cmd_weighins, "daily-health": cmd_daily_health,
+        "training-readiness": cmd_training_readiness,
+        "training-status": cmd_training_status,
+        "personal-records": cmd_personal_records,
+        "hill-score": cmd_hill_score,
+        "activity-polyline": cmd_activity_polyline,
     }
     handlers[args.cmd](args)
 

@@ -17,6 +17,7 @@ data/avatars/
 
 # Sessao SSO do Garmin (tokens)
 data/garmin_session/
+dados_garmin.txt
 
 # Logs
 *.log

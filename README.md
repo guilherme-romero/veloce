@@ -2,7 +2,7 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.10.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.11.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
 
 ---
 
@@ -32,20 +32,24 @@ CRUD de exercícios em casa (core, pernas, mobilidade).
 - Heat-map dos últimos 90 dias (estilo GitHub contributions)
 - Volume de treino: km/semana, tempo total, elevação, distribuição por zona FC
 - Última atividade com mini-mapa
+- **Últimas 5 atividades** em cards detalhados com mini-mapa, distância, tempo, elevação, FC, calorias e potência/cadência
 - Revisão de auto-registros dos últimos 7 dias
 
 ### 🧠 Insights (a partir dos dados Garmin)
-Seis análises derivadas dos dados de saúde do seu relógio:
+Análises derivadas dos dados de saúde e performance do seu relógio:
 1. **Índice de Fadiga** — combina Body Battery, HRV e Stress
 2. **Sono × Desempenho** — sono profundo da noite anterior × FC do treino
 3. **Intensidade/kg semanal** — TRIMP normalizado pelo peso
 4. **Carga de Treino (TSB)** — fitness vs. fadiga (ATL/CTL/TSB)
 5. **Custo metabólico** — kcal/km com baseline
 6. **HRV × Carga** — quanto seu corpo recupera entre treinos
+7. **Training Readiness (Garmin)** — score matinal oficial da Garmin (sono + recuperação + HRV)
+8. **Recordes pessoais** — seus PBs com badge "Novo!" para conquistas recentes
+9. **Hill + Endurance Score** — capacidade em subidas e resistência aeróbica
 
 ### 🔌 Conexões
 - **Strava** — importa atividades de bike, marca os dias treinados
-- **Garmin Connect** — atividades, pesagens da balança e dados de saúde diários
+- **Garmin Connect** — atividades, pesagens da balança, dados de saúde diários e estados de treino (Productive, Recovery, Maintaining)
 - De-duplicação automática quando a mesma ride aparece nos dois
 - Edição manual sempre prevalece sobre o sync (regra "manual wins")
 

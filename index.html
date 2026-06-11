@@ -33,9 +33,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=1.10.0">
-  <link rel="stylesheet" href="css/rides.css?v=1.10.0">
-  <link rel="stylesheet" href="css/routes.css?v=1.10.0">
+  <link rel="stylesheet" href="css/style.css?v=1.11.0">
+  <link rel="stylesheet" href="css/rides.css?v=1.11.0">
+  <link rel="stylesheet" href="css/routes.css?v=1.11.0">
 </head>
 <body>
 
@@ -602,6 +602,12 @@
         </div>
       </div>
 
+      <!-- Linha 3.5: últimas 5 atividades (Fase 9.1) -->
+      <div class="card last5-card" id="last5-card" style="margin-top:20px;" hidden>
+        <div class="card-label">Últimas 5 atividades</div>
+        <div id="last5-list" class="last5-list"></div>
+      </div>
+
       <!-- Linha 4: revisão de auto-registros (Fase 4.6c) -->
       <div class="card review-card" id="review-card" style="margin-top:20px;" hidden>
         <div class="review-head">
@@ -738,6 +744,60 @@
         <div class="chart-wrap" style="height:200px;"><canvas id="hrvLoadChart"></canvas></div>
         <div class="insight-msg" id="hrv-load-msg"></div>
       </div>
+
+      <!-- ═══ Fase 9.2 — Novos cards baseados em dados Garmin extras ═══ -->
+
+      <!-- Training Readiness -->
+      <div class="card insight-card insight-readiness" id="card-readiness" hidden>
+        <div class="insight-head">
+          <div class="card-label">Training Readiness (Garmin)</div>
+          <span class="insight-badge" id="readiness-level">—</span>
+        </div>
+        <div class="insight-gauge">
+          <div class="insight-gauge-fill" id="readiness-fill"></div>
+          <div class="insight-gauge-value" id="readiness-score">—</div>
+        </div>
+        <div class="chart-wrap" style="height:80px; margin-top:8px;"><canvas id="readinessSparkChart"></canvas></div>
+        <div class="insight-breakdown">
+          <div><span class="ib-label">Sono</span><span class="ib-val" id="readiness-sleep">—</span></div>
+          <div><span class="ib-label">Recuperação</span><span class="ib-val" id="readiness-recovery">—</span></div>
+          <div><span class="ib-label">HRV</span><span class="ib-val" id="readiness-hrv">—</span></div>
+        </div>
+        <div class="insight-msg" id="readiness-msg"></div>
+      </div>
+
+      <!-- Personal Records -->
+      <div class="card insight-card insight-prs" id="card-prs" hidden>
+        <div class="insight-head">
+          <div class="card-label">Recordes pessoais (Garmin)</div>
+          <span class="insight-badge" id="prs-count">—</span>
+        </div>
+        <div id="prs-list" class="prs-list"></div>
+        <div class="insight-msg" id="prs-msg"></div>
+      </div>
+
+      <!-- Hill + Endurance Score -->
+      <div class="card insight-card insight-scores" id="card-scores" style="grid-column: span 2;" hidden>
+        <div class="insight-head">
+          <div class="card-label">Hill Score + Endurance Score (Garmin)</div>
+          <span class="insight-badge" id="scores-class">—</span>
+        </div>
+        <div class="scores-grid">
+          <div class="score-box">
+            <div class="score-label">Endurance Score</div>
+            <div class="score-value" id="endurance-value">—</div>
+            <div class="score-progress"><div class="score-progress-fill" id="endurance-fill"></div></div>
+            <div class="score-meta" id="endurance-meta">—</div>
+          </div>
+          <div class="score-box">
+            <div class="score-label">Hill Score</div>
+            <div class="score-value" id="hill-value">—</div>
+            <div class="score-progress"><div class="score-progress-fill" id="hill-fill"></div></div>
+            <div class="score-meta" id="hill-meta">—</div>
+          </div>
+        </div>
+        <div class="insight-msg" id="scores-msg"></div>
+      </div>
     </div>
   </section>
 
@@ -756,30 +816,30 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=1.10.0"></script>
-<script src="js/utils.js?v=1.10.0"></script>
-<script src="js/router.js?v=1.10.0"></script>
-<script src="js/defaults.js?v=1.10.0"></script>
-<script src="js/api.js?v=1.10.0"></script>
-<script src="js/storage.js?v=1.10.0"></script>
-<script src="js/profile.js?v=1.10.0"></script>
-<script src="js/charts.js?v=1.10.0"></script>
-<script src="js/modals.js?v=1.10.0"></script>
-<script src="js/workouts.js?v=1.10.0"></script>
-<script src="js/rides.js?v=1.10.0"></script>
-<script src="js/training-log.js?v=1.10.0"></script>
-<script src="js/home-workout.js?v=1.10.0"></script>
-<script src="js/backup.js?v=1.10.0"></script>
-<script src="js/gpx.js?v=1.10.0"></script>
-<script src="js/routes.js?v=1.10.0"></script>
-<script src="js/heatmap.js?v=1.10.0"></script>
-<script src="js/strava.js?v=1.10.0"></script>
-<script src="js/garmin.js?v=1.10.0"></script>
-<script src="js/activities.js?v=1.10.0"></script>
-<script src="js/insights.js?v=1.10.0"></script>
-<script src="js/home.js?v=1.10.0"></script>
-<script src="js/app.js?v=1.10.0"></script>
-<script src="js/pwa.js?v=1.10.0"></script>
+<script src="js/version.js?v=1.11.0"></script>
+<script src="js/utils.js?v=1.11.0"></script>
+<script src="js/router.js?v=1.11.0"></script>
+<script src="js/defaults.js?v=1.11.0"></script>
+<script src="js/api.js?v=1.11.0"></script>
+<script src="js/storage.js?v=1.11.0"></script>
+<script src="js/profile.js?v=1.11.0"></script>
+<script src="js/charts.js?v=1.11.0"></script>
+<script src="js/modals.js?v=1.11.0"></script>
+<script src="js/workouts.js?v=1.11.0"></script>
+<script src="js/rides.js?v=1.11.0"></script>
+<script src="js/training-log.js?v=1.11.0"></script>
+<script src="js/home-workout.js?v=1.11.0"></script>
+<script src="js/backup.js?v=1.11.0"></script>
+<script src="js/gpx.js?v=1.11.0"></script>
+<script src="js/routes.js?v=1.11.0"></script>
+<script src="js/heatmap.js?v=1.11.0"></script>
+<script src="js/strava.js?v=1.11.0"></script>
+<script src="js/garmin.js?v=1.11.0"></script>
+<script src="js/activities.js?v=1.11.0"></script>
+<script src="js/insights.js?v=1.11.0"></script>
+<script src="js/home.js?v=1.11.0"></script>
+<script src="js/app.js?v=1.11.0"></script>
+<script src="js/pwa.js?v=1.11.0"></script>
 
 </body>
 </html>

@@ -258,6 +258,26 @@ async function routes(fastify) {
     return fastify.db.prepare('SELECT * FROM garmin_daily_health WHERE data >= ? ORDER BY data DESC').all(cutoff);
   });
 
+  // ── GET /api/garmin/activity/:id/polyline ────────────────────────
+  // Cache: salva no campo polyline da tabela garmin_activities
+  fastify.get('/api/garmin/activity/:id/polyline', async (req, reply) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id)) return reply.code(400).send({ error: 'id invalido' });
+    const row = fastify.db.prepare('SELECT polyline FROM garmin_activities WHERE id_garmin = ?').get(id);
+    if (!row) return reply.code(404).send({ error: 'atividade nao encontrada' });
+    if (row.polyline) return { id, polyline: row.polyline, cached: true };
+    try {
+      const polyline = await garmin.getActivityPolyline(id);
+      if (polyline) {
+        fastify.db.prepare('UPDATE garmin_activities SET polyline = ? WHERE id_garmin = ?').run(polyline, id);
+      }
+      return { id, polyline, cached: false };
+    } catch (err) {
+      req.log.warn({ err }, 'garmin polyline falhou');
+      return { id, polyline: null, error: 'fetch_failed' };
+    }
+  });
+
   // ── GET /api/garmin/activities ───────────────────────────────────
   fastify.get('/api/garmin/activities', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);
@@ -266,6 +286,169 @@ async function routes(fastify) {
       .prepare(`SELECT * FROM garmin_activities WHERE data_inicio >= ? ORDER BY inicio_local DESC`)
       .all(cutoff);
     return rows.map(rowToActivity);
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // FASE 9 — extras (Training Readiness, Training Status, PBs, Hill+Endurance)
+  // ═══════════════════════════════════════════════════════════════
+
+  // Mapa numérico do trainingStatus (Garmin retorna código)
+  const TS_LABELS = {
+    0: 'NO_STATUS', 1: 'DETRAINING', 2: 'RECOVERY', 3: 'MAINTAINING',
+    4: 'PRODUCTIVE', 5: 'RECOVERY', 6: 'PEAKING', 7: 'OVERREACHING',
+    8: 'UNPRODUCTIVE', 9: 'STRAINED',
+  };
+
+  // ── POST /api/garmin/sync-extras ─────────────────────────────────
+  fastify.post('/api/garmin/sync-extras', async (req, reply) => {
+    const days = Math.min(Math.max(parseInt((req.body && req.body.days) || 7, 10) || 7, 1), 90);
+    try {
+      const [readiness, status, prs, scores] = await Promise.all([
+        garmin.listTrainingReadiness(days).catch(e => { req.log.warn('readiness:' + e.message); return []; }),
+        garmin.listTrainingStatus(Math.min(days, 30)).catch(e => { req.log.warn('status:' + e.message); return []; }),
+        garmin.listPersonalRecords().catch(e => { req.log.warn('pr:' + e.message); return []; }),
+        garmin.listFitnessScores(days).catch(e => { req.log.warn('scores:' + e.message); return []; }),
+      ]);
+
+      // Upserts
+      const upReadiness = fastify.db.prepare(`
+        INSERT INTO garmin_training_readiness
+          (data, score, level, feedback_short, feedback_long, sleep_score,
+           sleep_factor_pct, recovery_time_h, recovery_factor_pct,
+           acwr_factor_pct, hrv_factor_pct, hrv_weekly_avg, stress_factor_pct)
+        VALUES
+          (@data, @score, @level, @feedback_short, @feedback_long, @sleep_score,
+           @sleep_factor_pct, @recovery_time_h, @recovery_factor_pct,
+           @acwr_factor_pct, @hrv_factor_pct, @hrv_weekly_avg, @stress_factor_pct)
+        ON CONFLICT(data) DO UPDATE SET
+          score=excluded.score, level=excluded.level,
+          feedback_short=excluded.feedback_short, feedback_long=excluded.feedback_long,
+          sleep_score=excluded.sleep_score, sleep_factor_pct=excluded.sleep_factor_pct,
+          recovery_time_h=excluded.recovery_time_h, recovery_factor_pct=excluded.recovery_factor_pct,
+          acwr_factor_pct=excluded.acwr_factor_pct, hrv_factor_pct=excluded.hrv_factor_pct,
+          hrv_weekly_avg=excluded.hrv_weekly_avg, stress_factor_pct=excluded.stress_factor_pct
+      `);
+      const upStatus = fastify.db.prepare(`
+        INSERT INTO garmin_training_status
+          (data, status_code, status_label, status_feedback, load_ratio, load_balance,
+           fitness_trend, fitness_trend_sport, vo2max_cycling, vo2max_generic, weekly_load)
+        VALUES
+          (@data, @status_code, @status_label, @status_feedback, @load_ratio, @load_balance,
+           @fitness_trend, @fitness_trend_sport, @vo2max_cycling, @vo2max_generic, @weekly_load)
+        ON CONFLICT(data) DO UPDATE SET
+          status_code=excluded.status_code, status_label=excluded.status_label,
+          status_feedback=excluded.status_feedback, load_ratio=excluded.load_ratio,
+          load_balance=excluded.load_balance, fitness_trend=excluded.fitness_trend,
+          fitness_trend_sport=excluded.fitness_trend_sport,
+          vo2max_cycling=excluded.vo2max_cycling, vo2max_generic=excluded.vo2max_generic,
+          weekly_load=excluded.weekly_load
+      `);
+      const upPR = fastify.db.prepare(`
+        INSERT INTO garmin_personal_records
+          (id, type_id, status, valor, activity_id, activity_name, activity_type, pr_date, activity_date)
+        VALUES (@id, @type_id, @status, @valor, @activity_id, @activity_name, @activity_type, @pr_date, @activity_date)
+        ON CONFLICT(id) DO UPDATE SET
+          type_id=excluded.type_id, status=excluded.status, valor=excluded.valor,
+          activity_id=excluded.activity_id, activity_name=excluded.activity_name,
+          activity_type=excluded.activity_type, pr_date=excluded.pr_date,
+          activity_date=excluded.activity_date
+      `);
+      const upScore = fastify.db.prepare(`
+        INSERT INTO garmin_fitness_scores
+          (data, hill_score, hill_classification, endurance_score, endurance_classification,
+           endurance_gauge_lower, endurance_gauge_upper, vo2_max)
+        VALUES
+          (@data, @hill_score, @hill_classification, @endurance_score, @endurance_classification,
+           @endurance_gauge_lower, @endurance_gauge_upper, @vo2_max)
+        ON CONFLICT(data) DO UPDATE SET
+          hill_score=excluded.hill_score, hill_classification=excluded.hill_classification,
+          endurance_score=excluded.endurance_score,
+          endurance_classification=excluded.endurance_classification,
+          endurance_gauge_lower=excluded.endurance_gauge_lower,
+          endurance_gauge_upper=excluded.endurance_gauge_upper,
+          vo2_max=excluded.vo2_max
+      `);
+
+      const trx = fastify.db.transaction(() => {
+        readiness.forEach(r => upReadiness.run({
+          data: r.data, score: r.score ?? null, level: r.level ?? null,
+          feedback_short: r.feedbackShort ?? null, feedback_long: r.feedbackLong ?? null,
+          sleep_score: r.sleepScore ?? null, sleep_factor_pct: r.sleepScoreFactorPercent ?? null,
+          recovery_time_h: r.recoveryTime ?? null, recovery_factor_pct: r.recoveryTimeFactorPercent ?? null,
+          acwr_factor_pct: r.acwrFactorPercent ?? null, hrv_factor_pct: r.hrvFactorPercent ?? null,
+          hrv_weekly_avg: r.hrvWeeklyAverage ?? null, stress_factor_pct: r.stressHistoryFactorPercent ?? null,
+        }));
+        status.forEach(s => upStatus.run({
+          data: s.data,
+          status_code: typeof s.status === 'number' ? s.status : null,
+          status_label: typeof s.status === 'number' ? (TS_LABELS[s.status] || null) : (s.status ?? null),
+          status_feedback: s.statusFeedback ?? null,
+          load_ratio: s.loadRatio ?? null, load_balance: s.loadBalance ?? null,
+          fitness_trend: typeof s.fitnessTrend === 'number' ? s.fitnessTrend : null,
+          fitness_trend_sport: s.fitnessTrendSport ?? null,
+          vo2max_cycling: s.vo2MaxCycling ?? null, vo2max_generic: s.vo2MaxGeneric ?? null,
+          weekly_load: s.weeklyTrainingLoad ?? null,
+        }));
+        prs.forEach(p => upPR.run({
+          id: p.id, type_id: p.typeId ?? null, status: p.status ?? null,
+          valor: p.value ?? null, activity_id: p.activityId ?? null,
+          activity_name: p.activityName ?? null, activity_type: p.activityType ?? null,
+          pr_date: p.prDate ?? null, activity_date: p.activityDate ?? null,
+        }));
+        scores.forEach(s => upScore.run({
+          data: s.data, hill_score: s.hillScore ?? null,
+          hill_classification: s.hillClassification ?? null,
+          endurance_score: s.enduranceScore ?? null,
+          endurance_classification: s.enduranceClassification ?? null,
+          endurance_gauge_lower: s.enduranceGaugeLower ?? null,
+          endurance_gauge_upper: s.enduranceGaugeUpper ?? null,
+          vo2_max: s.vo2Max ?? null,
+        }));
+      });
+      trx();
+
+      return {
+        ok: true, days,
+        readiness: readiness.length, status: status.length,
+        prs: prs.length, scores: scores.length,
+      };
+    } catch (err) {
+      req.log.error({ err }, 'garmin sync-extras falhou');
+      return reply.code(502).send({ error: 'Falha ao sincronizar extras' });
+    }
+  });
+
+  // ── GET endpoints dos extras ─────────────────────────────────────
+  fastify.get('/api/garmin/training-readiness', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query?.days || 14, 10) || 14, 1), 365);
+    const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+    return fastify.db.prepare(
+      'SELECT * FROM garmin_training_readiness WHERE data >= ? ORDER BY data DESC'
+    ).all(cutoff);
+  });
+
+  fastify.get('/api/garmin/training-status', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query?.days || 30, 10) || 30, 1), 365);
+    const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+    return fastify.db.prepare(
+      'SELECT * FROM garmin_training_status WHERE data >= ? ORDER BY data DESC'
+    ).all(cutoff);
+  });
+
+  fastify.get('/api/garmin/personal-records', async () => {
+    return fastify.db.prepare(
+      `SELECT * FROM garmin_personal_records
+       WHERE status = 'ACCEPTED'
+       ORDER BY pr_date DESC, activity_date DESC`
+    ).all();
+  });
+
+  fastify.get('/api/garmin/fitness-scores', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query?.days || 90, 10) || 90, 1), 365);
+    const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+    return fastify.db.prepare(
+      'SELECT * FROM garmin_fitness_scores WHERE data >= ? ORDER BY data DESC'
+    ).all(cutoff);
   });
 }
 

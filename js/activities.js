@@ -198,6 +198,7 @@
       renderWeek(bucketByWeek(combined));
       renderVolume(bucketByMonth(combined, 6));
       renderVolumeTraining(combined);
+      renderLast5(combined);
     } catch (err) {
       console.error('[activities]', err);
       empty.textContent = 'Falha ao carregar atividades.';
@@ -409,11 +410,98 @@
     }
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // Últimas 5 atividades (Fase 9.1)
+  // ──────────────────────────────────────────────────────────────
+  const _last5Maps = new Map(); // id → L.Map instance (para destruir antes de re-render)
+
+  function l5Km(v)    { return (v == null || !isFinite(v)) ? '—' : v.toFixed(1).replace('.', ',') + ' km'; }
+  function l5Hm(s)    {
+    if (!s || !isFinite(s)) return '—';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m}min`;
+  }
+  function l5Elev(v)  { return (v == null || !isFinite(v)) ? '—' : Math.round(v) + ' m'; }
+  function l5Fc(v)    { return (v == null || !isFinite(v)) ? '—' : Math.round(v) + ' bpm'; }
+  function l5Kcal(v)  { return (v == null || !isFinite(v)) ? '—' : Math.round(v) + ' kcal'; }
+  function l5Rpm(v)   { return (v == null || !isFinite(v)) ? '—' : Math.round(v) + ' rpm'; }
+  function l5Watts(v) { return (v == null || !isFinite(v)) ? '—' : Math.round(v) + ' W'; }
+  function l5DataLong(iso) {
+    try {
+      const d = new Date(iso + (iso.includes('T') ? '' : 'T12:00:00'));
+      return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+    } catch { return iso; }
+  }
+
+  function renderLast5(acts) {
+    const card = $('last5-card');
+    const list = $('last5-list');
+    if (!card || !list) return;
+
+    // Destrói mapas anteriores para evitar leak
+    _last5Maps.forEach(m => { try { m.remove(); } catch (_) {} });
+    _last5Maps.clear();
+
+    const top5 = (acts || []).slice(0, 5);
+    if (top5.length === 0) { card.hidden = true; return; }
+    card.hidden = false;
+
+    const esc = window.esc || (s => String(s || ''));
+    list.innerHTML = top5.map((a, i) => {
+      const mapId = `last5-map-${i}`;
+      const stats = `
+        <div class="last5-stat"><strong>${l5Km(a.distanciaKm)}</strong><span>distância</span></div>
+        <div class="last5-stat"><strong>${l5Hm(a.tempoMovS)}</strong><span>tempo</span></div>
+        <div class="last5-stat"><strong>${l5Elev(a.elevacaoM)}</strong><span>elevação</span></div>
+        <div class="last5-stat"><strong>${l5Fc(a.fcMedia)}</strong><span>FC média</span></div>
+        <div class="last5-stat"><strong>${l5Kcal(a.calorias)}</strong><span>calorias</span></div>
+        <div class="last5-stat"><strong>${a.wattsAvg ? l5Watts(a.wattsAvg) : l5Rpm(a.cadenciaAvg)}</strong><span>${a.wattsAvg ? 'potência' : 'cadência'}</span></div>
+      `;
+      const fonte = a.fonte ? `<span class="source-badge source-${esc(a.fonte)}">${esc(a.fonte)}</span>` : '';
+      return `
+        <div class="last5-item">
+          <div id="${mapId}" class="last5-map"></div>
+          <div class="last5-body">
+            <div class="last5-title">${esc(a.nome || 'Atividade')} ${fonte}</div>
+            <div class="last5-meta">${esc(l5DataLong(a.data))} · ${esc(a.tipo || 'Ride')}</div>
+            <div class="last5-stats">${stats}</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Carrega polyline assíncrona para cada um dos 5
+    top5.forEach((a, i) => {
+      const mapEl = document.getElementById(`last5-map-${i}`);
+      if (!mapEl || !window.L) return;
+      const endpoint = a.fonte === 'garmin'
+        ? `/garmin/activity/${a.id}/polyline`
+        : `/strava/activity/${a.id}`;
+      window.Api.get(endpoint).then(res => {
+        const enc = res?.polyline;
+        if (!enc) { mapEl.classList.add('no-map'); return; }
+        const pts = decodePolyline(enc);
+        if (!pts.length) { mapEl.classList.add('no-map'); return; }
+        const map = L.map(mapEl, {
+          zoomControl: false, attributionControl: false,
+          dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+        const color = a.fonte === 'garmin' ? '#007cc3' : '#fc4c02';
+        const line = L.polyline(pts, { color, weight: 3 }).addTo(map);
+        map.fitBounds(line.getBounds(), { padding: [8, 8] });
+        _last5Maps.set(a.id, map);
+      }).catch(err => {
+        console.warn('[last5] polyline failed', a.id, err);
+        mapEl.classList.add('no-map');
+      });
+    });
+  }
+
   // Expor o trigger principal
   async function loadAndRender() {
     await load();
     renderReview();
   }
 
-  window.Activities = { load: loadAndRender, renderReview, renderVolumeTraining };
+  window.Activities = { load: loadAndRender, renderReview, renderVolumeTraining, renderLast5 };
 })();

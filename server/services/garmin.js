@@ -100,4 +100,34 @@ async function listDailyHealth(days = 30) {
   return res.items || [];
 }
 
-module.exports = { isConfigured, status, login, logout, listActivities, isBikeActivity, listWeighIns, listDailyHealth };
+async function listTrainingReadiness(days = 7) {
+  const res = await runCli(['training-readiness', '--days', String(days)], { timeoutMs: 60_000 });
+  return res.items || [];
+}
+
+async function listTrainingStatus(days = 1) {
+  const res = await runCli(['training-status', '--days', String(days)], { timeoutMs: 60_000 });
+  return res.items || [];
+}
+
+async function listPersonalRecords() {
+  const res = await runCli(['personal-records'], { timeoutMs: 60_000 });
+  return res.items || [];
+}
+
+async function listFitnessScores(days = 7) {
+  const res = await runCli(['hill-score', '--days', String(days)], { timeoutMs: 60_000 });
+  return res.items || [];
+}
+
+async function getActivityPolyline(activityId) {
+  const res = await runCli(['activity-polyline', String(activityId)], { timeoutMs: 60_000 });
+  return res.polyline || null;
+}
+
+module.exports = {
+  isConfigured, status, login, logout,
+  listActivities, isBikeActivity, listWeighIns, listDailyHealth,
+  listTrainingReadiness, listTrainingStatus, listPersonalRecords, listFitnessScores,
+  getActivityPolyline,
+};

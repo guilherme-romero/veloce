@@ -64,6 +64,7 @@
         `<div class="strava-stat"><div class="strava-stat-val">${totalAct}</div><div class="strava-stat-label">atividades importadas</div></div>` +
         `<div class="strava-stat"><div class="strava-stat-val" style="font-size:13px;">${esc(lastSync)}</div><div class="strava-stat-label">última sincronização</div></div>` +
       '</div>' +
+      '<div id="garmin-training-badge"></div>' +
       '<div class="strava-actions">' +
         '<button type="button" id="btn-garmin-sync" class="btn btn-primary">' +
           '<i class="fa-solid fa-rotate"></i> Sincronizar últimos 90 dias' +
@@ -75,6 +76,42 @@
 
     $('btn-garmin-sync')?.addEventListener('click', sync);
     $('btn-garmin-logout')?.addEventListener('click', doLogout);
+
+    // Carrega Training Status sob demanda (não bloqueia render)
+    loadTrainingStatus();
+  }
+
+  async function loadTrainingStatus() {
+    const badge = $('garmin-training-badge');
+    if (!badge) return;
+    try {
+      const items = await window.Api.get('/garmin/training-status?days=7');
+      if (!Array.isArray(items) || items.length === 0) return;
+      // Pega o item mais recente com status válido
+      const latest = items.find(i => i.status_label && i.status_label !== 'NO_STATUS');
+      if (!latest) return;
+
+      const STATUS_LABELS = {
+        PRODUCTIVE: { txt: 'Produtivo', icon: '↑', color: 'var(--green)' },
+        MAINTAINING: { txt: 'Mantendo', icon: '→', color: 'var(--teal)' },
+        RECOVERY: { txt: 'Recuperação', icon: '↓', color: 'var(--blue)' },
+        DETRAINING: { txt: 'Destreino', icon: '↓', color: 'var(--muted2)' },
+        PEAKING: { txt: 'Picando', icon: '↑↑', color: 'var(--amber)' },
+        OVERREACHING: { txt: 'Sobrecarga', icon: '⚠', color: 'var(--red)' },
+        UNPRODUCTIVE: { txt: 'Improdutivo', icon: '↓', color: 'var(--red)' },
+        STRAINED: { txt: 'Tensionado', icon: '⚠', color: 'var(--red)' },
+        NO_STATUS: { txt: 'Sem dados', icon: '', color: 'var(--muted2)' },
+      };
+      const info = STATUS_LABELS[latest.status_label] || { txt: latest.status_label, icon: '', color: 'var(--muted2)' };
+      const trendIcon = latest.fitness_trend > 0 ? ' ↑' : latest.fitness_trend < 0 ? ' ↓' : '';
+      badge.innerHTML =
+        `<div class="garmin-status-badge" style="border-color:${info.color}; color:${info.color}; background:${info.color}20;">` +
+          `<span class="garmin-status-label">Status:</span> ` +
+          `<strong>${info.txt}${trendIcon}</strong>` +
+        `</div>`;
+    } catch (e) {
+      console.warn('[garmin training-status]', e);
+    }
   }
 
   async function load() {
@@ -139,10 +176,11 @@
     const btn = $('btn-garmin-sync');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando…'; }
     try {
-      const [actRes, weiRes, healthRes] = await Promise.all([
+      const [actRes, weiRes, healthRes, extrasRes] = await Promise.all([
         window.Api.post('/garmin/sync', { days: 90 }),
         window.Api.post('/garmin/sync-weights', { days: 365 }).catch(e => ({ error: e })),
         window.Api.post('/garmin/sync-health', { days: 30 }).catch(e => ({ error: e })),
+        window.Api.post('/garmin/sync-extras', { days: 14 }).catch(e => ({ error: e })),
       ]);
       const parts = [
         `${actRes.imported} ativ.`,
@@ -150,6 +188,13 @@
       ];
       if (!weiRes.error && weiRes.imported) parts.push(`${weiRes.imported} pesagens`);
       if (!healthRes.error && healthRes.synced) parts.push(`${healthRes.synced} dias de saúde`);
+      if (!extrasRes.error) {
+        const extras = [];
+        if (extrasRes.readiness) extras.push(`${extrasRes.readiness} readiness`);
+        if (extrasRes.prs) extras.push(`${extrasRes.prs} PBs`);
+        if (extrasRes.scores) extras.push(`${extrasRes.scores} scores`);
+        if (extras.length) parts.push(extras.join(' + '));
+      }
       if (window.toast) window.toast(parts.join(' · '), 'success');
       try {
         if (window.Storage && Storage.loadAll) await Storage.loadAll();
