@@ -1621,7 +1621,9 @@ body.edit-mode .exercise-actions { display: flex; }
     flex-direction: column;
     gap: 4px;
     padding: 24px 16px;
-    z-index: 9998; /* acima de qualquer stacking context possível dentro do conteúdo */
+    z-index: 200; /* acima do conteúdo (#app, charts) e abaixo de modal (1000)/toast (1100).
+                     O #nav-links é movido para <body> em mobile por ensureDrawerPosition(),
+                     escapando o stacking context do <nav> (backdrop-filter). */
     overflow-y: auto;
   }
   body.nav-open .nav-links { display: flex; }
@@ -1866,7 +1868,7 @@ body.edit-mode .exercise-actions { display: flex; }
   position: fixed;
   inset: 64px 0 0 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 9997; /* logo abaixo do drawer (9998) */
+  z-index: 199; /* logo abaixo do drawer (200) — modais (1000) e toasts (1100) ficam acima */
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s;

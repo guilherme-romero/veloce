@@ -263,10 +263,10 @@ async function routes(fastify) {
   fastify.get('/api/garmin/activity/:id/polyline', async (req, reply) => {
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id)) return reply.code(400).send({ error: 'id invalido' });
-    const row = fastify.db.prepare('SELECT polyline FROM garmin_activities WHERE id_garmin = ?').get(id);
-    if (!row) return reply.code(404).send({ error: 'atividade nao encontrada' });
-    if (row.polyline) return { id, polyline: row.polyline, cached: true };
     try {
+      const row = fastify.db.prepare('SELECT polyline FROM garmin_activities WHERE id_garmin = ?').get(id);
+      if (!row) return reply.code(404).send({ error: 'atividade nao encontrada' });
+      if (row.polyline) return { id, polyline: row.polyline, cached: true };
       const polyline = await garmin.getActivityPolyline(id);
       if (polyline) {
         fastify.db.prepare('UPDATE garmin_activities SET polyline = ? WHERE id_garmin = ?').run(polyline, id);

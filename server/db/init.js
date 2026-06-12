@@ -19,6 +19,16 @@ db.pragma('foreign_keys = ON');
 const schemaSQL = fs.readFileSync(SCHEMA, 'utf8');
 db.exec(schemaSQL);
 
+// Migrações idempotentes para bancos existentes (ALTER TABLE não pode usar
+// IF NOT EXISTS em SQLite, então capturamos o erro de coluna duplicada).
+const migrations = [
+  'ALTER TABLE garmin_activities ADD COLUMN polyline TEXT',
+];
+for (const sql of migrations) {
+  try { db.exec(sql); }
+  catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
+}
+
 console.log(`[db] training.db pronto em ${DB_PATH}`);
 
 module.exports = db;

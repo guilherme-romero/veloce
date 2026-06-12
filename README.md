@@ -2,7 +2,7 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.11.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.11.6** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
 
 ---
 

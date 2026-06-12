@@ -414,6 +414,7 @@
   // Últimas 5 atividades (Fase 9.1)
   // ──────────────────────────────────────────────────────────────
   const _last5Maps = new Map(); // id → L.Map instance (para destruir antes de re-render)
+  let _last5Token = 0;          // incrementado a cada render — promises de renders antigos descartam
 
   function l5Km(v)    { return (v == null || !isFinite(v)) ? '—' : v.toFixed(1).replace('.', ',') + ' km'; }
   function l5Hm(s)    {
@@ -437,6 +438,9 @@
     const card = $('last5-card');
     const list = $('last5-list');
     if (!card || !list) return;
+
+    // Token deste render — promises em voo de renders antigos serão descartadas
+    const myToken = ++_last5Token;
 
     // Destrói mapas anteriores para evitar leak
     _last5Maps.forEach(m => { try { m.remove(); } catch (_) {} });
@@ -477,6 +481,8 @@
         ? `/garmin/activity/${a.id}/polyline`
         : `/strava/activity/${a.id}`;
       window.Api.get(endpoint).then(res => {
+        // Render mais novo já rodou ou nó saiu do DOM → descarta
+        if (myToken !== _last5Token || !mapEl.isConnected) return;
         const enc = res?.polyline;
         if (!enc) { mapEl.classList.add('no-map'); return; }
         const pts = decodePolyline(enc);
@@ -489,8 +495,9 @@
         const color = a.fonte === 'garmin' ? '#007cc3' : '#fc4c02';
         const line = L.polyline(pts, { color, weight: 3 }).addTo(map);
         map.fitBounds(line.getBounds(), { padding: [8, 8] });
-        _last5Maps.set(a.id, map);
+        _last5Maps.set(`${a.fonte}:${a.id}`, map);
       }).catch(err => {
+        if (myToken !== _last5Token) return;
         console.warn('[last5] polyline failed', a.id, err);
         mapEl.classList.add('no-map');
       });

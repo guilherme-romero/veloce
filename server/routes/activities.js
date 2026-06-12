@@ -26,6 +26,9 @@ function stravaRow(r) {
     fcMedia:      r.fc_media,
     fcMax:        r.fc_max,
     velMediaKmh:  r.velocidade_avg != null ? +(r.velocidade_avg * 3.6).toFixed(2) : null,
+    velMaxKmh:    r.velocidade_max != null ? +(r.velocidade_max * 3.6).toFixed(2) : null,
+    wattsAvg:     r.watts_avg,
+    cadenciaAvg:  r.cadencia_avg,
   };
 }
 function garminRow(r) {

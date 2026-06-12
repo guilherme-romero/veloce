@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS garmin_activities (
   velocidade_max  REAL,            -- m/s
   calorias        REAL,
   device_id       INTEGER,
+  polyline        TEXT,
   payload         TEXT,
   imported_at     TEXT DEFAULT CURRENT_TIMESTAMP
 );
