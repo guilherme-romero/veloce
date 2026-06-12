@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v1.11.4';
+const CACHE_VERSION = 'v1.11.5';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
@@ -103,6 +103,11 @@ self.addEventListener('fetch', (event) => {
 
   // /api/* NUNCA passa pelo cache — sempre vai direto pra rede (com cookies)
   if (url.pathname.startsWith('/api/')) return;
+
+  // Cross-origin (CDNs como cdnjs, unpkg, fontes Google): deixa o navegador
+  // buscar diretamente. Interceptar gera responses opacas que o navegador
+  // rejeita para fontes (.woff2, .ttf) — causando ícones quebrados.
+  if (url.origin !== self.location.origin) return;
 
   // Para HTML (navegação): network-first com fallback ao cache
   // (garante que sempre tenta pegar a versão mais nova primeiro)

@@ -1621,7 +1621,7 @@ body.edit-mode .exercise-actions { display: flex; }
     flex-direction: column;
     gap: 4px;
     padding: 24px 16px;
-    z-index: 110; /* acima do conteúdo da página (que pode criar stacking context) */
+    z-index: 9998; /* acima de qualquer stacking context possível dentro do conteúdo */
     overflow-y: auto;
   }
   body.nav-open .nav-links { display: flex; }
@@ -1866,7 +1866,7 @@ body.edit-mode .exercise-actions { display: flex; }
   position: fixed;
   inset: 64px 0 0 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 105; /* entre o conteúdo e o drawer (110) */
+  z-index: 9997; /* logo abaixo do drawer (9998) */
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s;
