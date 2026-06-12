@@ -633,7 +633,8 @@ async function fetchRidesWeather() {
     console.warn('[Rides] Weather:', err);
     strip.classList.remove('hidden');
     strip.innerHTML = '<div class="rws-loading" style="color:var(--muted2);">'
-      + '<i class="fa-solid fa-triangle-exclamation"></i> Previsão indisponível no momento.</div>';
+      + '<i class="fa-solid fa-triangle-exclamation"></i> Previsão indisponível — '
+      + (err && err.message ? err.message : String(err)) + '</div>';
   }
 }
 
