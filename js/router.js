@@ -149,6 +149,15 @@
     const burger = document.getElementById('nav-hamburger');
     if (burger) burger.addEventListener('click', toggleDrawer);
 
+    // IMPORTANTE: <nav> tem `backdrop-filter` que cria um stacking context
+    // que prende filhos position:fixed dentro dele (mesmo com z-index alto).
+    // Solução: mover .nav-links para ser filho direto do <body>, no nível
+    // root, escapando do stacking context do nav.
+    const navLinks = document.getElementById('nav-links');
+    if (navLinks && navLinks.parentElement !== document.body) {
+      document.body.appendChild(navLinks);
+    }
+
     // Backdrop: cria div fixo atrás do drawer e fecha ao clicar
     let backdrop = document.getElementById('nav-backdrop');
     if (!backdrop) {
