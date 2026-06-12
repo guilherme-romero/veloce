@@ -41,6 +41,10 @@ function initRides() {
   // Delegação de cliques no calendário e lista
   document.getElementById('rides-month-grid')?.addEventListener('click', handleMonthGridClick);
   document.getElementById('rides-list-grid') ?.addEventListener('click', handleListGridClick);
+
+  // Pré-carrega clima no boot (dados ficam em cache 30 min; a faixa só
+  // fica visível quando a seção é mostrada via loadWeather/showSection).
+  fetchRidesWeather();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -627,7 +631,9 @@ async function fetchRidesWeather() {
     renderWeatherStrip(strip, _weatherCache);
   } catch (err) {
     console.warn('[Rides] Weather:', err);
-    strip.classList.add('hidden'); // esconde silenciosamente
+    strip.classList.remove('hidden');
+    strip.innerHTML = '<div class="rws-loading" style="color:var(--muted2);">'
+      + '<i class="fa-solid fa-triangle-exclamation"></i> Previsão indisponível no momento.</div>';
   }
 }
 
@@ -639,8 +645,8 @@ function renderWeatherStrip(strip, daily) {
     const mon = MONTH_SHORT[d.getMonth()];
     const tMax  = Math.round(daily.temperature_2m_max[i]);
     const tMin  = Math.round(daily.temperature_2m_min[i]);
-    const chuva = daily.precipitation_probability_max[i];
-    const vento = daily.wind_speed_10m_max[i];
+    const chuva = daily.precipitation_probability_max[i] ?? 0;
+    const vento = daily.wind_speed_10m_max[i] ?? 0;
     const wmo   = daily.weathercode[i];
     const icon  = wmoIcon(wmo);
     const esf   = ridesEsforco(tMax, vento, chuva);
