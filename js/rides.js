@@ -569,8 +569,6 @@ function capitalize(s) {
    PREVISÃO DO TEMPO — São Paulo (Open-Meteo, 7 dias)
    Carrega uma vez por sessão; cache de 30 min.
 ═══════════════════════════════════════════════════════════════════════ */
-const SP_LAT = -23.5505;
-const SP_LON = -46.6333;
 let _weatherCache    = null;
 let _weatherCacheTs  = 0;
 const WEATHER_TTL_MS = 30 * 60 * 1000; // 30 min
@@ -617,24 +615,18 @@ async function fetchRidesWeather() {
   strip.innerHTML = '<div class="rws-loading"><i class="fa-solid fa-spinner fa-spin"></i> Consultando previsão…</div>';
 
   try {
-    const url = `https://api.open-meteo.com/v1/forecast` +
-      `?latitude=${SP_LAT}&longitude=${SP_LON}` +
-      `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max` +
-      `&timezone=America%2FSao_Paulo&forecast_days=7`;
+    // Proxy via backend — evita CORS/CSP do browser ao chamar Open-Meteo
+    const daily = await window.Api.get('/weather/forecast');
+    if (!daily || !daily.time) throw new Error('Resposta inválida');
 
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('API indisponível');
-    const json = await resp.json();
-
-    _weatherCache   = json.daily;
+    _weatherCache   = daily;
     _weatherCacheTs = Date.now();
     renderWeatherStrip(strip, _weatherCache);
   } catch (err) {
     console.warn('[Rides] Weather:', err);
     strip.classList.remove('hidden');
     strip.innerHTML = '<div class="rws-loading" style="color:var(--muted2);">'
-      + '<i class="fa-solid fa-triangle-exclamation"></i> Previsão indisponível — '
-      + (err && err.message ? err.message : String(err)) + '</div>';
+      + '<i class="fa-solid fa-triangle-exclamation"></i> Previsão indisponível no momento.</div>';
   }
 }
 
