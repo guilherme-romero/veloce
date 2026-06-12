@@ -145,18 +145,30 @@
   function closeDrawer() {
     if (document.body.classList.contains('nav-open')) toggleDrawer();
   }
+  // IMPORTANTE: <nav> tem `backdrop-filter` que cria um stacking context que
+  // prende filhos position:fixed dentro dele (mesmo com z-index alto).
+  // Solução: em MOBILE, mover .nav-links para body (escapa do contexto);
+  // em DESKTOP, devolver pro nav-inner para o flex layout funcionar.
+  function ensureDrawerPosition() {
+    const navLinks = document.getElementById('nav-links');
+    if (!navLinks) return;
+    const isMobile = window.innerWidth <= 700;
+    const navInner = document.querySelector('nav .nav-inner');
+    if (isMobile && navLinks.parentElement !== document.body) {
+      document.body.appendChild(navLinks);
+    } else if (!isMobile && navLinks.parentElement === document.body && navInner) {
+      // Reinsere antes do .nav-right para manter ordem: brand | links | right
+      const navRight = navInner.querySelector('.nav-right');
+      navInner.insertBefore(navLinks, navRight);
+    }
+  }
+
   function initDrawer() {
     const burger = document.getElementById('nav-hamburger');
     if (burger) burger.addEventListener('click', toggleDrawer);
 
-    // IMPORTANTE: <nav> tem `backdrop-filter` que cria um stacking context
-    // que prende filhos position:fixed dentro dele (mesmo com z-index alto).
-    // Solução: mover .nav-links para ser filho direto do <body>, no nível
-    // root, escapando do stacking context do nav.
-    const navLinks = document.getElementById('nav-links');
-    if (navLinks && navLinks.parentElement !== document.body) {
-      document.body.appendChild(navLinks);
-    }
+    // Posiciona o drawer corretamente baseado no tamanho da tela
+    ensureDrawerPosition();
 
     // Backdrop: cria div fixo atrás do drawer e fecha ao clicar
     let backdrop = document.getElementById('nav-backdrop');
@@ -168,9 +180,10 @@
       document.body.appendChild(backdrop);
     }
 
-    // Fecha ao redimensionar para desktop
+    // Resize: fecha drawer + reposiciona elemento se cruzou breakpoint
     window.addEventListener('resize', () => {
       if (window.innerWidth > 700) closeDrawer();
+      ensureDrawerPosition();
     });
 
     // Fecha com tecla ESC
