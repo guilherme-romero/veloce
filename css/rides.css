@@ -164,3 +164,79 @@
   .ride-rating-input { flex-wrap: wrap; }
   .ride-star { font-size: 20px; padding: 3px; }
 }
+
+/* ── Faixa de previsão do tempo 7 dias ───────────────────────────────── */
+.rides-weather-strip {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.rws-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.rws-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.rws-title i { color: var(--teal); margin-right: 4px; }
+.rws-updated { font-size: 11px; color: var(--muted2); }
+.rws-loading {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 8px 0;
+}
+.rws-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+.rws-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.rws-day:hover { background: var(--surface3); }
+.rws-today {
+  background: var(--teal-dim);
+  border: 1px solid var(--teal);
+}
+.rws-wd  { font-size: 10px; color: var(--muted2); text-transform: capitalize; }
+.rws-dm  { font-size: 12px; font-weight: 700; color: var(--text); }
+.rws-icon { font-size: 16px; color: var(--amber); margin: 2px 0; }
+.rws-tmax { font-size: 12px; font-weight: 600; color: var(--text); }
+.rws-tmin { font-size: 10px; color: var(--muted2); }
+.rws-rain {
+  font-size: 9px;
+  color: var(--muted2);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.rws-rain i { color: #5b9bd5; font-size: 8px; }
+.rws-esf  { font-size: 9px; font-weight: 600; margin-top: 1px; }
+
+@media (max-width: 600px) {
+  .rws-days { grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .rws-day  { padding: 4px 1px; }
+  .rws-wd   { display: none; }
+  .rws-dm   { font-size: 10px; }
+  .rws-icon { font-size: 13px; }
+  .rws-tmax { font-size: 10px; }
+  .rws-tmin { display: none; }
+  .rws-rain { font-size: 8px; }
+  .rws-esf  { display: none; }
+}

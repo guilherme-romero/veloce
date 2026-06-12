@@ -83,6 +83,11 @@
 
     // Rola para o topo da seção
     window.scrollTo({ top: 0, behavior: 'auto' });
+
+    // Callbacks de entrada por seção
+    if (route.section === 'rides' && window.Rides?.loadWeather) {
+      window.Rides.loadWeather();
+    }
   }
 
   function navigate(slugOrHashOrSection) {

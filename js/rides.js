@@ -561,9 +561,117 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   PREVISÃO DO TEMPO — São Paulo (Open-Meteo, 7 dias)
+   Carrega uma vez por sessão; cache de 30 min.
+═══════════════════════════════════════════════════════════════════════ */
+const SP_LAT = -23.5505;
+const SP_LON = -46.6333;
+let _weatherCache    = null;
+let _weatherCacheTs  = 0;
+const WEATHER_TTL_MS = 30 * 60 * 1000; // 30 min
+
+const WMO_ICONS = {
+  0:  'fa-sun',
+  1:  'fa-sun',
+  2:  'fa-cloud-sun',
+  3:  'fa-cloud',
+  45: 'fa-smog', 48: 'fa-smog',
+  51: 'fa-cloud-drizzle', 53: 'fa-cloud-drizzle', 55: 'fa-cloud-drizzle',
+  61: 'fa-cloud-rain', 63: 'fa-cloud-rain', 65: 'fa-cloud-showers-heavy',
+  71: 'fa-snowflake', 73: 'fa-snowflake', 75: 'fa-snowflake',
+  80: 'fa-cloud-rain', 81: 'fa-cloud-rain', 82: 'fa-cloud-showers-heavy',
+  95: 'fa-cloud-bolt', 96: 'fa-cloud-bolt', 99: 'fa-cloud-bolt',
+};
+
+function wmoIcon(code) {
+  return WMO_ICONS[code] || 'fa-cloud-sun';
+}
+
+function ridesEsforco(tMax, vento, chuva) {
+  if (tMax > 38 || chuva > 60 || vento > 40) return { label: 'Alto',       color: 'var(--red)'   };
+  if (tMax > 35 || (chuva > 30 && vento > 20)) return { label: 'Médio-Alto', color: '#f5923a'      };
+  if (tMax > 30 || vento > 25 || chuva > 20)   return { label: 'Médio',      color: 'var(--amber)' };
+  if (tMax > 25 || vento > 15)                  return { label: 'Baixo-Médio',color: 'var(--teal)'  };
+  return                                               { label: 'Baixo',      color: 'var(--green)' };
+}
+
+const WEEKDAY_PT = ['dom','seg','ter','qua','qui','sex','sáb'];
+const MONTH_SHORT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+async function fetchRidesWeather() {
+  const strip = document.getElementById('rides-weather-strip');
+  if (!strip) return;
+
+  // Cache válido
+  if (_weatherCache && (Date.now() - _weatherCacheTs) < WEATHER_TTL_MS) {
+    renderWeatherStrip(strip, _weatherCache);
+    return;
+  }
+
+  strip.classList.remove('hidden');
+  strip.innerHTML = '<div class="rws-loading"><i class="fa-solid fa-spinner fa-spin"></i> Consultando previsão…</div>';
+
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast` +
+      `?latitude=${SP_LAT}&longitude=${SP_LON}` +
+      `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max` +
+      `&timezone=America%2FSao_Paulo&forecast_days=7`;
+
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('API indisponível');
+    const json = await resp.json();
+
+    _weatherCache   = json.daily;
+    _weatherCacheTs = Date.now();
+    renderWeatherStrip(strip, _weatherCache);
+  } catch (err) {
+    console.warn('[Rides] Weather:', err);
+    strip.classList.add('hidden'); // esconde silenciosamente
+  }
+}
+
+function renderWeatherStrip(strip, daily) {
+  const days = daily.time.map((dateStr, i) => {
+    const d   = new Date(dateStr + 'T12:00:00');
+    const wd  = WEEKDAY_PT[d.getDay()];
+    const dm  = d.getDate();
+    const mon = MONTH_SHORT[d.getMonth()];
+    const tMax  = Math.round(daily.temperature_2m_max[i]);
+    const tMin  = Math.round(daily.temperature_2m_min[i]);
+    const chuva = daily.precipitation_probability_max[i];
+    const vento = daily.wind_speed_10m_max[i];
+    const wmo   = daily.weathercode[i];
+    const icon  = wmoIcon(wmo);
+    const esf   = ridesEsforco(tMax, vento, chuva);
+    const isToday = i === 0;
+    return { wd, dm, mon, tMax, tMin, chuva, icon, esf, isToday };
+  });
+
+  strip.classList.remove('hidden');
+  strip.innerHTML = `
+    <div class="rws-header">
+      <span class="rws-title"><i class="fa-solid fa-location-dot"></i> São Paulo</span>
+      <span class="rws-updated">previsão 7 dias</span>
+    </div>
+    <div class="rws-days">
+      ${days.map(d => `
+        <div class="rws-day${d.isToday ? ' rws-today' : ''}">
+          <div class="rws-wd">${d.wd}</div>
+          <div class="rws-dm">${d.dm}</div>
+          <i class="fa-solid ${d.icon} rws-icon"></i>
+          <div class="rws-tmax">${d.tMax}°</div>
+          <div class="rws-tmin">${d.tMin}°</div>
+          <div class="rws-rain"><i class="fa-solid fa-droplet"></i>${d.chuva}%</div>
+          <div class="rws-esf" style="color:${d.esf.color}">${d.esf.label}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
 /* expor */
 window.Rides = {
   init:          initRides,
   render:        renderRides,
   openRideModal: openRideModal,
+  loadWeather:   fetchRidesWeather,
 };

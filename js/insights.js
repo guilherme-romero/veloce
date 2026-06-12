@@ -553,70 +553,106 @@
     card.hidden = false;
 
     const esc = window.esc || (s => String(s || ''));
-    // Mapa de typeId → label legível (alguns comuns)
+
     const TYPE_LABELS = {
-      1: '1km mais rápido',
-      2: 'Maior distância',
-      3: 'Maior elevação',
-      4: 'Maior duração',
-      5: 'Velocidade máxima',
-      6: '5km mais rápido',
-      7: '10km mais rápido',
-      8: 'Meia-maratona mais rápida',
-      9: 'Maratona mais rápida',
+      1:  '1 km mais rápido',
+      2:  'Maior distância',
+      3:  'Maior elevação acumulada',
+      4:  'Maior duração',
+      5:  'Velocidade máxima',
+      6:  '5 km mais rápido',
+      7:  '10 km mais rápido',
+      8:  'Meia-maratona mais rápida',
+      9:  'Maratona mais rápida',
       10: 'Maior cadência média',
-      11: 'Maior subida em 1h',
-      12: 'Maior potência média (1h)',
+      11: 'Maior subida acumulada em 1h',
+      12: 'Maior potência média em 1h',
+      13: 'Melhor VO2max estimado',
+      14: 'Maior distância semanal',
+      15: 'Maior elevação semanal',
+      16: 'Maior carga de treino',
+    };
+
+    const ACTIVITY_TYPE_LABELS = {
+      cycling: 'Ciclismo', road_biking: 'Ciclismo estrada',
+      mountain_biking: 'MTB', gravel_cycling: 'Gravel',
+      running: 'Corrida', treadmill_running: 'Esteira',
+      trail_running: 'Trail', walking: 'Caminhada',
+      swimming: 'Natação', strength_training: 'Força',
     };
 
     const formatValue = (typeId, value) => {
       if (value == null) return '—';
-      // Distâncias (km)
-      if ([2, 3].includes(typeId)) return (value / 1000).toFixed(1).replace('.', ',') + ' km';
-      // Tempos em segundos
+      // Tempos em segundos: 1km, 5km, 10km, meia, maratona, duração
       if ([1, 4, 6, 7, 8, 9].includes(typeId)) {
-        const s = value;
-        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
-        return h > 0 ? `${h}h${String(m).padStart(2,'0')}m` : `${m}min ${String(sec).padStart(2,'0')}s`;
+        const h = Math.floor(value / 3600), m = Math.floor((value % 3600) / 60), s = Math.floor(value % 60);
+        return h > 0 ? `${h}h${String(m).padStart(2,'0')}m` : `${m}min ${String(s).padStart(2,'0')}s`;
       }
+      // Distância máxima (metros → km)
+      if (typeId === 2) return (value / 1000).toFixed(1).replace('.', ',') + ' km';
+      // Elevação acumulada (metros)
+      if (typeId === 3) return Math.round(value).toLocaleString('pt-BR') + ' m';
       // Velocidade m/s → km/h
       if (typeId === 5) return (value * 3.6).toFixed(1).replace('.', ',') + ' km/h';
+      // Cadência
+      if (typeId === 10) return Math.round(value) + ' rpm';
+      // Maior subida 1h (metros de elevação)
+      if (typeId === 11) return Math.round(value).toLocaleString('pt-BR') + ' m';
+      // Maior potência média 1h (watts)
+      if (typeId === 12) return Math.round(value).toLocaleString('pt-BR') + ' W';
+      // VO2max (Garmin armazena × 1000 internamente)
+      if (typeId === 13) return (value > 1000 ? value / 1000 : value).toFixed(1) + ' mL/kg/min';
+      // Maior distância semanal (metros → km)
+      if (typeId === 14) return (value / 1000).toFixed(1).replace('.', ',') + ' km';
+      // Maior elevação semanal (metros)
+      if (typeId === 15) return Math.round(value).toLocaleString('pt-BR') + ' m';
+      // Carga de treino (score)
+      if (typeId === 16) return Math.round(value) + ' pts';
       return value.toFixed(1).replace('.', ',');
     };
 
-    const top = items.slice(0, 5);
-    $('prs-count').textContent = items.length;
+    // Mostra todos os recordes com label conhecido
+    const visible = items.filter(p => TYPE_LABELS[p.type_id] != null);
+    $('prs-count').textContent = visible.length;
 
     const now = Date.now();
     const DAYS_30 = 30 * 86400_000;
-    $('prs-list').innerHTML = top.map(p => {
-      const label = TYPE_LABELS[p.type_id] || `Recorde ${p.type_id}`;
-      const val = formatValue(p.type_id, p.valor);
-      let dataStr = '—';
-      let isNew = false;
-      if (p.pr_date || p.activity_date) {
-        const iso = (p.pr_date || p.activity_date).split('T')[0];
-        try {
-          const d = new Date(iso + 'T12:00:00');
-          dataStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-          isNew = (now - d.getTime()) < DAYS_30;
-        } catch {}
-      }
+
+    const parseIsoDate = raw => {
+      if (!raw) return null;
+      // Suporta "YYYY-MM-DD HH:MM:SS" e "YYYY-MM-DDTHH:MM:SS"
+      const iso = raw.split(/[T ]/)[0];
+      return new Date(iso + 'T12:00:00');
+    };
+
+    $('prs-list').innerHTML = visible.map(p => {
+      const label = TYPE_LABELS[p.type_id];
+      const val   = formatValue(p.type_id, p.valor);
+      const d     = parseIsoDate(p.pr_date || p.activity_date);
+      const dataStr = d && isFinite(d)
+        ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '—';
+      const isNew = d && isFinite(d) && (now - d.getTime()) < DAYS_30;
       const newBadge = isNew ? '<span class="pr-new">Novo!</span>' : '';
+      const actBadge = p.activity_type
+        ? `<span class="pr-sport">${esc(ACTIVITY_TYPE_LABELS[p.activity_type] || p.activity_type)}</span>`
+        : '';
+      const meta = [p.activity_name, dataStr].filter(Boolean).join(' · ');
       return `
         <div class="pr-item">
           <div class="pr-info">
             <div class="pr-label">${esc(label)} ${newBadge}</div>
-            <div class="pr-meta">${esc(p.activity_name || '')} · ${esc(dataStr)}</div>
+            <div class="pr-meta">${esc(meta)} ${actBadge}</div>
           </div>
           <div class="pr-value">${esc(val)}</div>
         </div>`;
     }).join('');
 
-    $('prs-msg').textContent = items.some(p => {
-      const iso = (p.pr_date || p.activity_date || '').split('T')[0];
-      try { return (now - new Date(iso + 'T12:00:00').getTime()) < DAYS_30; } catch { return false; }
-    }) ? 'Você bateu um recorde nos últimos 30 dias!' : '';
+    const hasNew = visible.some(p => {
+      const d = parseIsoDate(p.pr_date || p.activity_date);
+      return d && isFinite(d) && (now - d.getTime()) < DAYS_30;
+    });
+    $('prs-msg').textContent = hasNew ? 'Você bateu um recorde nos últimos 30 dias!' : '';
     return true;
   }
 
@@ -655,7 +691,7 @@
       $('hill-fill').style.width = '0%';
     }
     $('hill-meta').textContent = hVal == null
-      ? 'Sem score ainda — Garmin precisa de mais rides com ganho de elevação.'
+      ? 'Sem score ainda — o Garmin calcula o Hill Score a partir de rides com ganho de elevação significativo. Sincronize atividades com subidas para acumular dados.'
       : 'Capacidade em subidas.';
 
     $('scores-class').textContent = CLASS_LABELS[eClass] || '—';
@@ -663,7 +699,7 @@
     $('scores-class').style.color = COLORS.teal;
 
     $('scores-msg').textContent = (hVal == null && eVal != null)
-      ? 'Endurance bem caracterizada. Para o Hill Score, faça rides com mais elevação acumulada.'
+      ? 'Endurance bem caracterizada. Para o Hill Score, sincronize rides com elevação acumulada no Garmin Connect.'
       : '';
     return true;
   }
