@@ -31,6 +31,8 @@
     { slug: 'home',            section: 'home',         navBtn: 'nav-home',         label: 'Início' },
     { slug: 'perfil',          section: 'profile',      navBtn: 'nav-profile',      label: 'Perfil' },
     { slug: 'zonas',           section: 'zones',        navBtn: 'nav-zones',        label: 'Zonas FC' },
+    { slug: 'bike',            section: 'bikes',        navBtn: 'nav-bikes',        label: 'Bike' },
+    { slug: 'bikes',           section: 'bikes',        navBtn: 'nav-bikes',        label: 'Bike' },
     { slug: 'fortalecimento',  section: 'home-workout', navBtn: 'nav-home-workout', label: 'Fortalecimento' },
     { slug: 'treinos',         section: 'plan',         navBtn: 'nav-plan',         label: 'Treinos' },
     { slug: 'passeios',        section: 'rides',        navBtn: 'nav-rides',        label: 'Passeios' },
@@ -87,6 +89,9 @@
     // Callbacks de entrada por seção
     if (route.section === 'rides' && window.Rides?.loadWeather) {
       window.Rides.loadWeather();
+    }
+    if (route.section === 'bikes' && window.Bikes?.load) {
+      window.Bikes.load();
     }
   }
 

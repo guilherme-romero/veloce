@@ -2,7 +2,7 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.11.6** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.12.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
 
 ---
 
@@ -19,6 +19,15 @@ Resumo executivo com sua meta de peso, km da semana, sequência de dias ativos e
 
 ### ❤️ Zonas FC
 Seis zonas (Z1–Z6) baseadas na sua idade. Cores consistentes em todo o app (gráficos, calendário, badges).
+
+### 🚲 Bike (garagem virtual)
+Cadastro de bicicletas com rastreamento automático de desgaste de componentes:
+- Modelo "bike ativa": uma bike acumula km de atividades Garmin/Strava a partir de uma data
+- Componentes (pneu, corrente, pastilhas, discos, cassete, cabo de freio) com vida útil em km
+- Alertas de substituição quando o desgaste atinge 80% e 100%
+- Ciclo de limpeza para corrente (a cada N km)
+- Histórico completo de manutenções e revisões completas
+- Inspiração: probikegarage.com
 
 ### 💪 Fortalecimento
 CRUD de exercícios em casa (core, pernas, mobilidade).

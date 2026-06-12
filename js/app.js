@@ -534,6 +534,9 @@ async function boot() {
   // 3. Rides — init ANTES de renderAll (registra addEventListener nos botões)
   await safe('Rides.init()', () => Rides && Rides.init && Rides.init());
 
+  // 3.5 Bikes — init listeners (load só quando navegar para a seção)
+  await safe('Bikes.init()', () => window.Bikes && window.Bikes.init && window.Bikes.init());
+
   // 4. TrainingLog.init
   await safe('TrainingLog.init()', () => TrainingLog && TrainingLog.init && TrainingLog.init());
 

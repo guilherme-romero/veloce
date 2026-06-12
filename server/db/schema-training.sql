@@ -259,3 +259,50 @@ CREATE TABLE IF NOT EXISTS activity_links (
 );
 CREATE INDEX IF NOT EXISTS idx_activity_links_strava ON activity_links(strava_id);
 CREATE INDEX IF NOT EXISTS idx_activity_links_garmin ON activity_links(garmin_id);
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- FASE 11.4 — Bicicletas, componentes e log de manutenção
+-- Modelo: "bike ativa" — km de atividades Garmin/Strava com data_inicio
+-- >= active_since da bike ativa são contabilizados para ela.
+-- ═══════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS bikes (
+  id            TEXT PRIMARY KEY,
+  nome          TEXT NOT NULL,
+  marca         TEXT,
+  modelo        TEXT,
+  tipo          TEXT,                 -- 'Fixa'|'Gravel'|'MTB'|'Speed'
+  peso_kg       REAL,
+  ano           INTEGER,
+  km_inicial    REAL DEFAULT 0,       -- km já rodados antes de usar o app
+  active_since  TEXT,                 -- YYYY-MM-DD; NULL = nunca ativa
+  active        INTEGER DEFAULT 0,    -- 1 = bike ativa atualmente
+  created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_bikes_active ON bikes(active);
+
+CREATE TABLE IF NOT EXISTS bike_components (
+  id                   TEXT PRIMARY KEY,
+  bike_id              TEXT NOT NULL REFERENCES bikes(id) ON DELETE CASCADE,
+  tipo                 TEXT NOT NULL,        -- ex: 'pneu_dianteiro', 'corrente', etc.
+  vida_util_km         REAL NOT NULL,
+  km_at_install        REAL DEFAULT 0,       -- km total da bike quando instalado
+  tem_limpeza          INTEGER DEFAULT 0,
+  intervalo_limpeza_km REAL,
+  km_at_last_clean     REAL DEFAULT 0,       -- km total da bike na última limpeza
+  created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_bike_components_bike ON bike_components(bike_id);
+
+CREATE TABLE IF NOT EXISTS bike_maintenance_log (
+  id           TEXT PRIMARY KEY,
+  bike_id      TEXT NOT NULL REFERENCES bikes(id) ON DELETE CASCADE,
+  component_id TEXT,                       -- NULL para revisão completa
+  tipo_evento  TEXT NOT NULL,              -- 'substituicao'|'limpeza'|'revisao_completa'
+  data         TEXT NOT NULL,              -- YYYY-MM-DD
+  km_bike      REAL,                       -- km total da bike no momento do evento
+  notas        TEXT,
+  created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_bike_log_bike ON bike_maintenance_log(bike_id);
+CREATE INDEX IF NOT EXISTS idx_bike_log_data ON bike_maintenance_log(data DESC);

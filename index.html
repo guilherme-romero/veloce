@@ -33,9 +33,10 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=1.11.7">
-  <link rel="stylesheet" href="css/rides.css?v=1.11.7">
-  <link rel="stylesheet" href="css/routes.css?v=1.11.7">
+  <link rel="stylesheet" href="css/style.css?v=1.12.0">
+  <link rel="stylesheet" href="css/rides.css?v=1.12.0">
+  <link rel="stylesheet" href="css/routes.css?v=1.12.0">
+  <link rel="stylesheet" href="css/bikes.css?v=1.12.0">
 </head>
 <body>
 
@@ -53,6 +54,7 @@
       <button id="nav-home"         class="nav-btn"        onclick="scrollToSection('home')">Início</button>
       <button id="nav-profile"      class="nav-btn"        onclick="scrollToSection('profile')">Perfil</button>
       <button id="nav-zones"        class="nav-btn"        onclick="scrollToSection('zones')">Zonas FC</button>
+      <button id="nav-bikes"        class="nav-btn"        onclick="scrollToSection('bikes')">Bike</button>
       <button id="nav-home-workout" class="nav-btn"        onclick="scrollToSection('home-workout')">Fortalecimento</button>
       <button id="nav-plan"         class="nav-btn"        onclick="scrollToSection('plan')">Treinos</button>
       <button id="nav-rides"        class="nav-btn"        onclick="scrollToSection('rides')">Passeios</button>
@@ -291,6 +293,30 @@
         <p class="zone-desc">Tiros curtos (&lt;2 min). Explosão máxima.</p>
       </div>
     </div>
+  </section>
+
+  <!-- ┌─ BIKE (Fase 11.4) ──────────────────────────────────────────┐ -->
+  <section id="bikes" class="scroll-mt-20">
+    <div class="section-head">
+      <div>
+        <div class="section-label">Equipamento</div>
+        <h2 class="section-title">Bike</h2>
+        <p class="section-sub">Cadastre suas bicicletas e acompanhe desgaste de componentes (pneu, corrente, freios) baseado nos km das atividades.</p>
+      </div>
+      <button id="btn-add-bike" class="btn btn-primary btn-sm" type="button">
+        <i class="fa-solid fa-plus"></i> Nova bicicleta
+      </button>
+    </div>
+
+    <div id="bikes-empty" class="card" style="text-align:center;padding:40px 20px;">
+      <i class="fa-solid fa-bicycle" style="font-size:48px;color:var(--muted2);margin-bottom:12px;"></i>
+      <p style="color:var(--muted);margin-bottom:16px;">Você ainda não cadastrou nenhuma bicicleta.</p>
+      <button id="btn-add-bike-empty" class="btn btn-primary btn-sm" type="button">
+        <i class="fa-solid fa-plus"></i> Adicionar minha primeira bike
+      </button>
+    </div>
+
+    <div id="bikes-list" class="bikes-list"></div>
   </section>
 
   <!-- ┌─ FORTALECIMENTO ────────────────────────────────────────────┐ -->
@@ -819,30 +845,31 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=1.11.7"></script>
-<script src="js/utils.js?v=1.11.7"></script>
-<script src="js/router.js?v=1.11.7"></script>
-<script src="js/defaults.js?v=1.11.7"></script>
-<script src="js/api.js?v=1.11.7"></script>
-<script src="js/storage.js?v=1.11.7"></script>
-<script src="js/profile.js?v=1.11.7"></script>
-<script src="js/charts.js?v=1.11.7"></script>
-<script src="js/modals.js?v=1.11.7"></script>
-<script src="js/workouts.js?v=1.11.7"></script>
-<script src="js/rides.js?v=1.11.7"></script>
-<script src="js/training-log.js?v=1.11.7"></script>
-<script src="js/home-workout.js?v=1.11.7"></script>
-<script src="js/backup.js?v=1.11.7"></script>
-<script src="js/gpx.js?v=1.11.7"></script>
-<script src="js/routes.js?v=1.11.7"></script>
-<script src="js/heatmap.js?v=1.11.7"></script>
-<script src="js/strava.js?v=1.11.7"></script>
-<script src="js/garmin.js?v=1.11.7"></script>
-<script src="js/activities.js?v=1.11.7"></script>
-<script src="js/insights.js?v=1.11.7"></script>
-<script src="js/home.js?v=1.11.7"></script>
-<script src="js/app.js?v=1.11.7"></script>
-<script src="js/pwa.js?v=1.11.7"></script>
+<script src="js/version.js?v=1.12.0"></script>
+<script src="js/utils.js?v=1.12.0"></script>
+<script src="js/router.js?v=1.12.0"></script>
+<script src="js/defaults.js?v=1.12.0"></script>
+<script src="js/api.js?v=1.12.0"></script>
+<script src="js/storage.js?v=1.12.0"></script>
+<script src="js/profile.js?v=1.12.0"></script>
+<script src="js/charts.js?v=1.12.0"></script>
+<script src="js/modals.js?v=1.12.0"></script>
+<script src="js/workouts.js?v=1.12.0"></script>
+<script src="js/rides.js?v=1.12.0"></script>
+<script src="js/bikes.js?v=1.12.0"></script>
+<script src="js/training-log.js?v=1.12.0"></script>
+<script src="js/home-workout.js?v=1.12.0"></script>
+<script src="js/backup.js?v=1.12.0"></script>
+<script src="js/gpx.js?v=1.12.0"></script>
+<script src="js/routes.js?v=1.12.0"></script>
+<script src="js/heatmap.js?v=1.12.0"></script>
+<script src="js/strava.js?v=1.12.0"></script>
+<script src="js/garmin.js?v=1.12.0"></script>
+<script src="js/activities.js?v=1.12.0"></script>
+<script src="js/insights.js?v=1.12.0"></script>
+<script src="js/home.js?v=1.12.0"></script>
+<script src="js/app.js?v=1.12.0"></script>
+<script src="js/pwa.js?v=1.12.0"></script>
 
 </body>
 </html>

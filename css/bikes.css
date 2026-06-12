@@ -1,0 +1,327 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   BIKES — estilos da garagem virtual (Fase 11.4)
+   Usa tokens definidos em style.css.
+═══════════════════════════════════════════════════════════════════════ */
+
+.bikes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bike-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.bike-card-active {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 1px var(--teal-dim) inset;
+}
+
+.bike-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.bike-title-block { flex: 1; min-width: 0; }
+.bike-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  background: var(--teal);
+  color: #fff;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.bike-active-badge i { font-size: 8px; }
+.bike-active-since {
+  font-size: 11px;
+  color: var(--muted2);
+  margin-left: 6px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.bike-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.bike-name i { color: var(--teal); }
+.bike-meta {
+  font-size: 13px;
+  color: var(--muted2);
+}
+.bike-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.bike-icon-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.bike-icon-btn:hover { background: var(--surface3); color: var(--text); }
+.bike-icon-btn.danger:hover { color: var(--red); }
+
+/* Km bar */
+.bike-km-block { margin-top: 16px; }
+.bike-km-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.bike-km-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.bike-km-bar {
+  height: 8px;
+  background: var(--surface3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bike-km-fill {
+  height: 100%;
+  background: var(--teal);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+/* Componentes */
+.bike-comp-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.bike-comp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.bike-comp-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.bike-comp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bike-comp-empty {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 16px 0;
+}
+.bike-comp-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 3px solid var(--green);
+}
+.bike-comp-item.warn { border-left-color: var(--amber); }
+.bike-comp-item.danger { border-left-color: var(--red); }
+
+.bike-comp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bike-comp-info { flex: 1; min-width: 200px; }
+.bike-comp-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bike-comp-icon { font-size: 12px; }
+.bike-comp-icon.green { color: var(--green); }
+.bike-comp-icon.amber { color: var(--amber); }
+.bike-comp-icon.red   { color: var(--red); }
+.bike-comp-stats {
+  font-size: 12px;
+  color: var(--muted2);
+  margin-top: 2px;
+}
+.bike-comp-status {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.bike-comp-status.green { color: var(--green); }
+.bike-comp-status.amber { color: var(--amber); }
+.bike-comp-status.red   { color: var(--red); }
+.bike-comp-progress {
+  height: 4px;
+  background: var(--surface3);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.bike-comp-progress-fill { height: 100%; transition: width 0.3s; }
+.bike-comp-progress-fill.green { background: var(--green); }
+.bike-comp-progress-fill.amber { background: var(--amber); }
+.bike-comp-progress-fill.red   { background: var(--red); }
+
+.bike-comp-clean {
+  font-size: 11px;
+  color: var(--muted2);
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+}
+.bike-comp-clean.warn { color: var(--amber); border-left-color: var(--amber); }
+
+.bike-comp-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.bike-comp-actions .btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+/* Botões de rodapé do card */
+.bike-card-footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+/* Form helpers para os modais */
+.bike-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .bike-form-row { grid-template-columns: 1fr; }
+}
+
+.bike-tipo-radio {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bike-tipo-radio label {
+  flex: 1;
+  min-width: 70px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bike-tipo-radio input[type="radio"] { display: none; }
+.bike-tipo-radio input[type="radio"]:checked + label {
+  background: var(--teal-dim);
+  border-color: var(--teal);
+  color: var(--teal);
+  font-weight: 600;
+}
+
+/* Histórico de manutenção */
+.bike-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.bike-log-item {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  padding: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.bike-log-date {
+  font-size: 11px;
+  color: var(--muted2);
+  font-weight: 600;
+}
+.bike-log-content { min-width: 0; }
+.bike-log-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bike-log-title i.evento-subst   { color: var(--amber); }
+.bike-log-title i.evento-limpeza { color: var(--teal); }
+.bike-log-title i.evento-revisao { color: var(--green); }
+.bike-log-km {
+  font-size: 11px;
+  color: var(--muted2);
+  margin-top: 2px;
+}
+.bike-log-notas {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-style: italic;
+}
+.bike-log-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 30px 0;
+}
+
+@media (max-width: 480px) {
+  .bike-header { flex-direction: column; }
+  .bike-actions { width: 100%; justify-content: flex-end; }
+  .bike-comp-row { flex-direction: column; align-items: flex-start; }
+  .bike-comp-actions { width: 100%; }
+  .bike-log-item { grid-template-columns: 1fr; }
+}

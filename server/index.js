@@ -30,6 +30,7 @@ fastify.register(require('./routes/gpx-routes'));
 fastify.register(require('./routes/strava'));
 fastify.register(require('./routes/garmin'));
 fastify.register(require('./routes/activities'));
+fastify.register(require('./routes/bikes'));
 
 // Health check (publico, util para o frontend checar se o backend esta up)
 fastify.get('/api/health', async () => ({ ok: true, version: require('./package.json').version }));
