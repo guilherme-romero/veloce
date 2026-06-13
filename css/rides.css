@@ -209,6 +209,7 @@
   border-radius: 6px;
   transition: background 0.15s;
 }
+.rws-day { cursor: pointer; }
 .rws-day:hover { background: var(--surface3); }
 .rws-today {
   background: var(--teal-dim);
@@ -227,7 +228,49 @@
   gap: 2px;
 }
 .rws-rain i { color: #5b9bd5; font-size: 8px; }
-.rws-esf  { font-size: 9px; font-weight: 600; margin-top: 1px; }
+.rws-uv   {
+  font-size: 9px;
+  color: var(--muted2);
+  font-weight: 600;
+}
+.rws-esf  { font-size: 9px; font-weight: 600; margin-top: 1px; text-align: center; line-height: 1.2; }
+
+/* Modal de detalhes do dia (Fase 12.3.2) */
+.rws-detail-alert {
+  padding: 10px 12px;
+  border-left: 3px solid var(--amber);
+  background: var(--surface2);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.rws-detail-alert i { margin-right: 6px; }
+.rws-detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rws-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.rws-detail-key {
+  color: var(--muted2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rws-detail-key i { width: 16px; text-align: center; color: var(--teal); }
+.rws-detail-val {
+  font-weight: 600;
+  color: var(--text);
+}
 
 @media (max-width: 600px) {
   .rws-days { grid-template-columns: repeat(7, 1fr); gap: 2px; }
@@ -238,5 +281,6 @@
   .rws-tmax { font-size: 10px; }
   .rws-tmin { display: none; }
   .rws-rain { font-size: 8px; }
-  .rws-esf  { display: none; }
+  .rws-uv   { display: none; }
+  .rws-esf  { font-size: 8px; }
 }

@@ -29,6 +29,21 @@ for (const sql of migrations) {
   catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
 }
 
-console.log(`[db] training.db pronto em ${DB_PATH}`);
+// PRAGMA integrity_check — aborta o boot se o banco estiver corrompido.
+const integrity = db.pragma('integrity_check', { simple: true });
+if (integrity !== 'ok') {
+  console.error(`[db] FATAL: integrity_check falhou — resposta: ${integrity}`);
+  process.exit(1);
+}
+
+// WAL checkpoint(TRUNCATE) no boot — força flush do WAL para o .db principal
+// e zera o arquivo .db-wal. Evita acúmulo do WAL entre reinícios.
+try {
+  db.pragma('wal_checkpoint(TRUNCATE)');
+} catch (e) {
+  console.warn('[db] wal_checkpoint falhou (não-fatal):', e.message);
+}
+
+console.log(`[db] training.db pronto em ${DB_PATH} (integrity=ok, wal flushed)`);
 
 module.exports = db;

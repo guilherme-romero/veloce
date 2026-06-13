@@ -2,7 +2,7 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.12.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.13.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
 
 ---
 
@@ -62,9 +62,11 @@ Análises derivadas dos dados de saúde e performance do seu relógio:
 - De-duplicação automática quando a mesma ride aparece nos dois
 - Edição manual sempre prevalece sobre o sync (regra "manual wins")
 
-### 💾 Backup
+### 💾 Backup e Relatórios
 - Exportar/importar JSON completo
 - Exportar pesagens em CSV
+- **Relatório completo em PDF** — capa, perfil, evolução de peso (gráfico), pesagens, atividades de 90 dias, insights e recordes
+- **Download da base completa em ZIP** — `training.db` + avatares (tokens não incluídos)
 - Imprimir / salvar como PDF
 
 ---
@@ -98,3 +100,11 @@ Todos os seus dados ficam num servidor próprio (LXC em Proxmox). Strava e Garmi
 ## 📜 Licença & Uso
 
 Projeto pessoal, não distribuído publicamente. Código-fonte em [github.com/guilherme1985/treino_bike](https://github.com/guilherme1985/treino_bike).
+
+---
+
+## ☕ Apoie o projeto
+
+Se este projeto te ajudou, considere me pagar um café!
+
+[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=☕&slug=guilhermeromero&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/guilhermeromero)

@@ -566,12 +566,12 @@ function capitalize(s) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   PREVISÃO DO TEMPO — São Paulo (Open-Meteo, 7 dias)
-   Carrega uma vez por sessão; cache de 30 min.
+   PREVISÃO DO TEMPO — São Paulo (Open-Meteo, 7 dias) — Fase 12.3
+   Cache de 1h; alertas específicos para ciclismo.
 ═══════════════════════════════════════════════════════════════════════ */
 let _weatherCache    = null;
 let _weatherCacheTs  = 0;
-const WEATHER_TTL_MS = 30 * 60 * 1000; // 30 min
+const WEATHER_TTL_MS = 60 * 60 * 1000; // 1 hora (dados diários mudam pouco após 06h)
 
 const WMO_ICONS = {
   0:  'fa-sun',
@@ -590,12 +590,27 @@ function wmoIcon(code) {
   return WMO_ICONS[code] || 'fa-cloud-sun';
 }
 
-function ridesEsforco(tMax, vento, chuva) {
-  if (tMax > 38 || chuva > 60 || vento > 40) return { label: 'Alto',       color: 'var(--red)'   };
-  if (tMax > 35 || (chuva > 30 && vento > 20)) return { label: 'Médio-Alto', color: '#f5923a'      };
-  if (tMax > 30 || vento > 25 || chuva > 20)   return { label: 'Médio',      color: 'var(--amber)' };
-  if (tMax > 25 || vento > 15)                  return { label: 'Baixo-Médio',color: 'var(--teal)'  };
-  return                                               { label: 'Baixo',      color: 'var(--green)' };
+// Avalia condições e devolve label + cor + alerta para ciclismo.
+function ridesEsforco(day) {
+  const tMax    = day.tMax;
+  const tSens   = day.tSens ?? day.tMax;
+  const vento   = day.vento;
+  const rajada  = day.rajada ?? day.vento;
+  const chuva   = day.chuva;
+  const chuvaMm = day.chuvaMm ?? 0;
+  const uv      = day.uv ?? 0;
+
+  // Alertas críticos (alta prioridade — sobrescrevem o esforço)
+  if (rajada > 50)   return { label: '⚠ Vento perigoso', color: 'var(--red)', alert: `Rajadas de ${Math.round(rajada)} km/h — pedalar não recomendado` };
+  if (chuvaMm > 10)  return { label: '🌧 Chuva forte',    color: 'var(--red)', alert: `${chuvaMm.toFixed(1)} mm de chuva previstos — considere adiar` };
+  if (tSens > 40)    return { label: '🌡 Calor extremo',  color: 'var(--red)', alert: `Sensação térmica ${Math.round(tSens)}°C — risco de golpe de calor` };
+
+  // Esforço regular
+  if (tMax > 38 || chuva > 60 || vento > 40) return { label: 'Alto',       color: 'var(--red)',   alert: uv >= 9 ? `UV ${Math.round(uv)} — protetor solar obrigatório` : '' };
+  if (tMax > 35 || (chuva > 30 && vento > 20)) return { label: 'Médio-Alto', color: '#f5923a',     alert: uv >= 8 ? `UV ${Math.round(uv)} — proteção solar necessária` : '' };
+  if (tMax > 30 || vento > 25 || chuva > 20)   return { label: 'Médio',      color: 'var(--amber)', alert: uv >= 8 ? `UV ${Math.round(uv)} — proteção solar necessária` : '' };
+  if (tMax > 25 || vento > 15)                  return { label: 'Baixo-Médio',color: 'var(--teal)',  alert: '' };
+  return                                               { label: '✅ Ideal',   color: 'var(--green)', alert: '' };
 }
 
 const WEEKDAY_PT = ['dom','seg','ter','qua','qui','sex','sáb'];
@@ -630,41 +645,114 @@ async function fetchRidesWeather() {
   }
 }
 
+function buildWeatherDay(daily, i) {
+  const dateStr = daily.time[i];
+  const d       = new Date(dateStr + 'T12:00:00');
+  return {
+    dateStr,
+    wd:      WEEKDAY_PT[d.getDay()],
+    dm:      d.getDate(),
+    mon:     MONTH_SHORT[d.getMonth()],
+    tMax:    Math.round(daily.temperature_2m_max[i]),
+    tMin:    Math.round(daily.temperature_2m_min[i]),
+    tSens:   daily.apparent_temperature_max?.[i] != null ? Math.round(daily.apparent_temperature_max[i]) : null,
+    tSensMin:daily.apparent_temperature_min?.[i] != null ? Math.round(daily.apparent_temperature_min[i]) : null,
+    chuva:   daily.precipitation_probability_max?.[i] ?? 0,
+    chuvaMm: daily.precipitation_sum?.[i] ?? 0,
+    vento:   daily.wind_speed_10m_max?.[i] ?? 0,
+    rajada:  daily.windgusts_10m_max?.[i] ?? null,
+    uv:      daily.uv_index_max?.[i] ?? null,
+    sunrise: daily.sunrise?.[i] || null,
+    sunset:  daily.sunset?.[i] || null,
+    wmo:     daily.weathercode[i],
+    icon:    wmoIcon(daily.weathercode[i]),
+    isToday: i === 0,
+  };
+}
+
 function renderWeatherStrip(strip, daily) {
-  const days = daily.time.map((dateStr, i) => {
-    const d   = new Date(dateStr + 'T12:00:00');
-    const wd  = WEEKDAY_PT[d.getDay()];
-    const dm  = d.getDate();
-    const mon = MONTH_SHORT[d.getMonth()];
-    const tMax  = Math.round(daily.temperature_2m_max[i]);
-    const tMin  = Math.round(daily.temperature_2m_min[i]);
-    const chuva = daily.precipitation_probability_max[i] ?? 0;
-    const vento = daily.wind_speed_10m_max[i] ?? 0;
-    const wmo   = daily.weathercode[i];
-    const icon  = wmoIcon(wmo);
-    const esf   = ridesEsforco(tMax, vento, chuva);
-    const isToday = i === 0;
-    return { wd, dm, mon, tMax, tMin, chuva, icon, esf, isToday };
+  const days = daily.time.map((_, i) => {
+    const day = buildWeatherDay(daily, i);
+    day.esf = ridesEsforco(day);
+    return day;
   });
+
+  const updatedAt = new Date(_weatherCacheTs)
+    .toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   strip.classList.remove('hidden');
   strip.innerHTML = `
     <div class="rws-header">
       <span class="rws-title"><i class="fa-solid fa-location-dot"></i> São Paulo</span>
-      <span class="rws-updated">previsão 7 dias</span>
+      <span class="rws-updated">previsão 7 dias · atualizado ${updatedAt}</span>
     </div>
     <div class="rws-days">
-      ${days.map(d => `
-        <div class="rws-day${d.isToday ? ' rws-today' : ''}">
+      ${days.map((d, i) => `
+        <div class="rws-day${d.isToday ? ' rws-today' : ''}" data-day="${i}">
           <div class="rws-wd">${d.wd}</div>
           <div class="rws-dm">${d.dm}</div>
           <i class="fa-solid ${d.icon} rws-icon"></i>
           <div class="rws-tmax">${d.tMax}°</div>
           <div class="rws-tmin">${d.tMin}°</div>
           <div class="rws-rain"><i class="fa-solid fa-droplet"></i>${d.chuva}%</div>
+          ${d.uv != null ? `<div class="rws-uv">UV ${Math.round(d.uv)}</div>` : ''}
           <div class="rws-esf" style="color:${d.esf.color}">${d.esf.label}</div>
         </div>`).join('')}
     </div>`;
+
+  // Detalhes ao clicar num dia
+  strip.querySelectorAll('.rws-day').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.day, 10);
+      openWeatherDetail(days[idx]);
+    });
+  });
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function openWeatherDetail(day) {
+  if (!window.Modals) return;
+  const escFn = window.esc || (s => String(s ?? ''));
+  const dateLabel = new Date(day.dateStr + 'T12:00:00').toLocaleDateString('pt-BR', {
+    weekday: 'long', day: '2-digit', month: 'long',
+  });
+  const row = (icon, label, value, color) => `
+    <div class="rws-detail-row">
+      <span class="rws-detail-key"><i class="fa-solid ${icon}"></i> ${escFn(label)}</span>
+      <span class="rws-detail-val" ${color ? `style="color:${color}"` : ''}>${escFn(value)}</span>
+    </div>`;
+
+  const alertBox = day.esf.alert
+    ? `<div class="rws-detail-alert" style="border-left-color:${day.esf.color};color:${day.esf.color};">
+         <i class="fa-solid fa-triangle-exclamation"></i> ${escFn(day.esf.alert)}
+       </div>`
+    : '';
+
+  Modals.open({
+    tag: 'Previsão detalhada',
+    title: dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1),
+    bodyHTML: `
+      ${alertBox}
+      <div class="rws-detail-grid">
+        ${row(day.icon, 'Condição', `${day.tMax}° / ${day.tMin}°`)}
+        ${day.tSens != null ? row('fa-temperature-half', 'Sensação térmica', `${day.tSens}°${day.tSensMin != null ? ` / ${day.tSensMin}°` : ''}`) : ''}
+        ${row('fa-droplet', 'Probabilidade de chuva', `${day.chuva}%`)}
+        ${row('fa-cloud-rain', 'Chuva acumulada', `${(day.chuvaMm || 0).toFixed(1)} mm`)}
+        ${row('fa-wind', 'Vento máximo', `${Math.round(day.vento)} km/h`)}
+        ${day.rajada != null ? row('fa-tornado', 'Rajadas', `${Math.round(day.rajada)} km/h`, day.rajada > 40 ? 'var(--red)' : '') : ''}
+        ${day.uv != null ? row('fa-sun', 'Índice UV', `${Math.round(day.uv)}`, day.uv >= 8 ? 'var(--amber)' : '') : ''}
+        ${row('fa-sun', 'Nascer do sol', fmtTime(day.sunrise))}
+        ${row('fa-moon', 'Pôr do sol', fmtTime(day.sunset))}
+        ${row('fa-gauge', 'Esforço estimado', day.esf.label, day.esf.color)}
+      </div>`,
+    actions: [
+      { label: 'Fechar', kind: 'ghost', onClick: () => Modals.close() },
+    ],
+  });
 }
 
 /* expor */

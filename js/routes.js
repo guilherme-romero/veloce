@@ -348,25 +348,19 @@ async function fetchWeather(lat, lon, dateISO) {
   el.innerHTML = '<p style="color:var(--muted);font-size:13px;"><i class="fa-solid fa-spinner fa-spin"></i> Consultando previsão…</p>';
 
   try {
-    const url = `https://api.open-meteo.com/v1/forecast` +
-      `?latitude=${lat}&longitude=${lon}` +
-      `&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max` +
-      `&timezone=America%2FSao_Paulo&forecast_days=7`;
-
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('API indisponível');
-    const json = await resp.json();
-
-    const idx = json.daily.time.indexOf(dateISO);
-    if (idx < 0) {
-      el.innerHTML = '<p style="color:var(--muted);font-size:13px;">Previsão disponível apenas para os próximos 7 dias.</p>';
+    // Proxy server-side (evita CORS/CSP do browser)
+    const day = await window.Api.get(
+      `/weather/point?lat=${lat}&lon=${lon}&date=${encodeURIComponent(dateISO)}`
+    );
+    if (!day || day.error) {
+      el.innerHTML = '<p style="color:var(--muted);font-size:13px;">Previsão indisponível para esta data.</p>';
       return;
     }
 
-    const tMax  = json.daily.temperature_2m_max[idx];
-    const tMin  = json.daily.temperature_2m_min[idx];
-    const chuva = json.daily.precipitation_probability_max[idx];
-    const vento = json.daily.wind_speed_10m_max[idx];
+    const tMax  = day.temperature_2m_max;
+    const tMin  = day.temperature_2m_min;
+    const chuva = day.precipitation_probability_max ?? 0;
+    const vento = day.wind_speed_10m_max ?? 0;
     const esforco = calcularEsforco(tMax, vento, chuva);
 
     const esforcoColor = {
