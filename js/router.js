@@ -147,14 +147,41 @@
     });
   }
 
-  // ── Mobile drawer (Fase 8.8 → BUG-001 fix: Popover API top layer) ──
-  // Solução definitiva: usa Popover API quando suportada (Chrome 114+,
-  // Safari 17+, Firefox 125+). O elemento vai pro top layer do browser,
-  // acima de QUALQUER stacking context — escapa de backdrop-filter,
-  // transforms, will-change e contain em qualquer ancestral. Fallback
-  // para a abordagem antiga (classe nav-open) em browsers sem suporte.
-  const _supportsPopover = typeof HTMLElement !== 'undefined'
-    && HTMLElement.prototype.hasOwnProperty('popover');
+  // ── Mobile drawer (Fase 8.8 → BUG-001 v2: detecção robusta + debug) ──
+  // Detecção robusta: testa se métodos showPopover/hidePopover existem
+  // como função NO ELEMENTO criado, não na prototype (que pode ter o
+  // método via accessor em alguma classe intermediária).
+  const _supportsPopover = (() => {
+    try {
+      const el = document.createElement('div');
+      return typeof el.showPopover === 'function'
+          && typeof el.hidePopover === 'function';
+    } catch { return false; }
+  })();
+
+  // Debug: ative com ?debug=drawer na URL. Mostra estado num overlay
+  // fixo no canto inferior esquerdo + log no console.
+  const _debug = /[?&]debug=drawer\b/.test(location.search);
+  const _dbg = (...args) => {
+    if (!_debug) return;
+    console.log('[drawer]', ...args);
+    _dbgOverlay(args.join(' '));
+  };
+  let _dbgEl = null;
+  function _dbgOverlay(line) {
+    if (!_debug) return;
+    if (!_dbgEl) {
+      _dbgEl = document.createElement('pre');
+      _dbgEl.id = 'drawer-debug';
+      _dbgEl.style.cssText = 'position:fixed;left:8px;bottom:8px;max-width:90vw;max-height:40vh;overflow:auto;background:rgba(0,0,0,0.85);color:#0f0;font:11px/1.3 monospace;padding:8px;z-index:2147483647;border:1px solid #0f0;border-radius:4px;margin:0;white-space:pre-wrap;pointer-events:auto;';
+      document.body && document.body.appendChild(_dbgEl);
+    }
+    const ts = new Date().toISOString().slice(11,19);
+    _dbgEl.textContent = `[${ts}] ${line}\n` + (_dbgEl.textContent || '').slice(0, 4000);
+  }
+  // Log inicial: contexto que importa
+  _dbg(`supportsPopover=${_supportsPopover}`,
+       `userAgent=${navigator.userAgent.slice(0,120)}`);
 
   function _isPopoverActive() {
     if (!_supportsPopover) return false;
@@ -171,16 +198,27 @@
 
   function openDrawer() {
     const navLinks = document.getElementById('nav-links');
+    let promoted = false;
     if (_supportsPopover && navLinks && navLinks.hasAttribute('popover')) {
-      try { navLinks.showPopover(); } catch (_) {}
+      try {
+        navLinks.showPopover();
+        promoted = navLinks.matches(':popover-open');
+      } catch (err) {
+        _dbg(`showPopover ERROR: ${err.name}: ${err.message}`);
+      }
     }
     document.body.classList.add('nav-open');
     _setBurgerIcon(true);
+    _dbg(`open: popover=${promoted}`,
+         `parent=${navLinks?.parentElement?.tagName}`,
+         `hasAttr=${navLinks?.hasAttribute('popover')}`);
   }
   function closeDrawer() {
     const navLinks = document.getElementById('nav-links');
     if (_supportsPopover && navLinks && navLinks.hasAttribute('popover')) {
-      try { navLinks.hidePopover(); } catch (_) {}
+      try { navLinks.hidePopover(); } catch (err) {
+        _dbg(`hidePopover ERROR: ${err.name}: ${err.message}`);
+      }
     }
     document.body.classList.remove('nav-open');
     _setBurgerIcon(false);
@@ -225,6 +263,13 @@
 
     // Posiciona o drawer corretamente baseado no tamanho da tela
     ensureDrawerPosition();
+
+    // Log estado inicial do drawer
+    const _initNav = document.getElementById('nav-links');
+    _dbg(`init: width=${window.innerWidth}`,
+         `parent=${_initNav?.parentElement?.tagName}`,
+         `hasAttr=${_initNav?.hasAttribute('popover')}`,
+         `attr=${_initNav?.getAttribute('popover')}`);
 
     // Sincroniza classe/ícone com light dismiss (clicar fora ou ESC)
     // do popover. Evento 'toggle' dispara em qualquer mudança de estado.
