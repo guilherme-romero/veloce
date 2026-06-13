@@ -1611,7 +1611,7 @@ body.edit-mode .exercise-actions { display: flex; }
 @media (max-width: 700px) {
   .nav-hamburger { display: inline-flex; }
 
-  /* Drawer fechado por padrão */
+  /* Drawer fechado por padrão (fallback p/ browsers sem Popover API) */
   .nav-links {
     display: none;
     position: fixed;
@@ -1625,12 +1625,24 @@ body.edit-mode .exercise-actions { display: flex; }
     flex-direction: column;
     gap: 4px;
     padding: 24px 16px;
-    z-index: 200; /* acima do conteúdo (#app, charts) e abaixo de modal (1000)/toast (1100).
-                     O #nav-links é movido para <body> em mobile por ensureDrawerPosition(),
-                     escapando o stacking context do <nav> (backdrop-filter). */
+    z-index: 200;
     overflow-y: auto;
+    /* Reset quando o popover está fechado (browser força display:none) */
+    margin: 0;
+    border: 0;
+    inset: 64px 0 0 0;
   }
   body.nav-open .nav-links { display: flex; }
+
+  /* Popover API: top layer força acima de QUALQUER stacking context.
+     Quando #nav-links tem popover="manual" e está aberto, o browser
+     renderiza-o no top layer (fora da árvore de stacking normal). */
+  .nav-links[popover]:popover-open {
+    display: flex;
+  }
+  .nav-links[popover]::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+  }
 
   .nav-links .nav-btn {
     width: 100%;
@@ -1890,4 +1902,8 @@ body.edit-mode .exercise-actions { display: flex; }
 }
 @media (max-width: 700px) {
   body.nav-open .nav-backdrop { opacity: 1; pointer-events: auto; }
+  /* Com Popover API, o ::backdrop nativo cobre tudo — escondemos o antigo */
+  body.nav-open:has(.nav-links[popover]:popover-open) .nav-backdrop {
+    opacity: 0; pointer-events: none;
+  }
 }

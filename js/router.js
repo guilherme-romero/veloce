@@ -147,31 +147,73 @@
     });
   }
 
-  // ── Mobile drawer (Fase 8.8) ────────────────────────────────────
-  function toggleDrawer() {
-    document.body.classList.toggle('nav-open');
+  // ── Mobile drawer (Fase 8.8 → BUG-001 fix: Popover API top layer) ──
+  // Solução definitiva: usa Popover API quando suportada (Chrome 114+,
+  // Safari 17+, Firefox 125+). O elemento vai pro top layer do browser,
+  // acima de QUALQUER stacking context — escapa de backdrop-filter,
+  // transforms, will-change e contain em qualquer ancestral. Fallback
+  // para a abordagem antiga (classe nav-open) em browsers sem suporte.
+  const _supportsPopover = typeof HTMLElement !== 'undefined'
+    && HTMLElement.prototype.hasOwnProperty('popover');
+
+  function _isPopoverActive() {
+    if (!_supportsPopover) return false;
+    const navLinks = document.getElementById('nav-links');
+    return !!(navLinks && navLinks.hasAttribute('popover') && navLinks.matches(':popover-open'));
+  }
+
+  function _setBurgerIcon(open) {
     const burger = document.getElementById('nav-hamburger');
-    if (burger) {
-      const icon = burger.querySelector('i');
-      if (icon) icon.className = document.body.classList.contains('nav-open') ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+    if (!burger) return;
+    const icon = burger.querySelector('i');
+    if (icon) icon.className = open ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+  }
+
+  function openDrawer() {
+    const navLinks = document.getElementById('nav-links');
+    if (_supportsPopover && navLinks && navLinks.hasAttribute('popover')) {
+      try { navLinks.showPopover(); } catch (_) {}
     }
+    document.body.classList.add('nav-open');
+    _setBurgerIcon(true);
   }
   function closeDrawer() {
-    if (document.body.classList.contains('nav-open')) toggleDrawer();
+    const navLinks = document.getElementById('nav-links');
+    if (_supportsPopover && navLinks && navLinks.hasAttribute('popover')) {
+      try { navLinks.hidePopover(); } catch (_) {}
+    }
+    document.body.classList.remove('nav-open');
+    _setBurgerIcon(false);
   }
-  // IMPORTANTE: <nav> tem `backdrop-filter` que cria um stacking context que
-  // prende filhos position:fixed dentro dele (mesmo com z-index alto).
-  // Solução: em MOBILE, mover .nav-links para body (escapa do contexto);
-  // em DESKTOP, devolver pro nav-inner para o flex layout funcionar.
+  function toggleDrawer() {
+    if (document.body.classList.contains('nav-open')) closeDrawer();
+    else openDrawer();
+  }
+
+  // Em mobile mantém popover="manual" ativo; em desktop remove o atributo
+  // para o layout flex normal do <nav> funcionar (popover força display:none).
   function ensureDrawerPosition() {
     const navLinks = document.getElementById('nav-links');
     if (!navLinks) return;
     const isMobile = window.innerWidth <= 700;
+    if (_supportsPopover) {
+      if (isMobile) {
+        if (!navLinks.hasAttribute('popover')) navLinks.setAttribute('popover', 'auto');
+      } else {
+        if (navLinks.hasAttribute('popover')) {
+          try { navLinks.hidePopover(); } catch (_) {}
+          navLinks.removeAttribute('popover');
+        }
+      }
+      return;
+    }
+    // Fallback (sem Popover API): move para body em mobile pra escapar do
+    // stacking context do <nav> (parcialmente eficaz em Android — motivo
+    // original do BUG-001).
     const navInner = document.querySelector('nav .nav-inner');
     if (isMobile && navLinks.parentElement !== document.body) {
       document.body.appendChild(navLinks);
     } else if (!isMobile && navLinks.parentElement === document.body && navInner) {
-      // Reinsere antes do .nav-right para manter ordem: brand | links | right
       const navRight = navInner.querySelector('.nav-right');
       navInner.insertBefore(navLinks, navRight);
     }
@@ -183,6 +225,17 @@
 
     // Posiciona o drawer corretamente baseado no tamanho da tela
     ensureDrawerPosition();
+
+    // Sincroniza classe/ícone com light dismiss (clicar fora ou ESC)
+    // do popover. Evento 'toggle' dispara em qualquer mudança de estado.
+    const navLinks = document.getElementById('nav-links');
+    if (navLinks && _supportsPopover) {
+      navLinks.addEventListener('toggle', (e) => {
+        const open = e.newState === 'open';
+        document.body.classList.toggle('nav-open', open);
+        _setBurgerIcon(open);
+      });
+    }
 
     // Backdrop: cria div fixo atrás do drawer e fecha ao clicar
     let backdrop = document.getElementById('nav-backdrop');
