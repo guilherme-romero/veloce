@@ -69,8 +69,12 @@ async function routes(fastify) {
   // ── GET /api/garmin/status ───────────────────────────────────────
   fastify.get('/api/garmin/status', async () => {
     const st = await garmin.status();
-    const meta = fastify.db.prepare('SELECT last_sync, last_count FROM garmin_sync_meta WHERE id = 1').get();
-    if (meta) { st.lastSyncAt = meta.last_sync; st.lastSyncCount = meta.last_count; }
+    const meta = fastify.db.prepare('SELECT last_sync, last_count, last_total_count FROM garmin_sync_meta WHERE id = 1').get();
+    if (meta) {
+      st.lastSyncAt = meta.last_sync;
+      st.lastSyncCount = meta.last_count;       // atividades de bike importadas
+      st.lastSyncTotal = meta.last_total_count; // total retornado pelo Garmin
+    }
     const total = fastify.db.prepare('SELECT COUNT(*) AS n FROM garmin_activities').get();
     st.totalActivities = total?.n || 0;
     return st;
@@ -145,9 +149,12 @@ async function routes(fastify) {
 
       const nowIso = new Date().toISOString();
       fastify.db.prepare(`
-        INSERT INTO garmin_sync_meta (id, last_sync, last_count) VALUES (1, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET last_sync = excluded.last_sync, last_count = excluded.last_count
-      `).run(nowIso, bikeActs.length);
+        INSERT INTO garmin_sync_meta (id, last_sync, last_count, last_total_count) VALUES (1, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          last_sync = excluded.last_sync,
+          last_count = excluded.last_count,
+          last_total_count = excluded.last_total_count
+      `).run(nowIso, bikeActs.length, acts.length);
 
       const matchRes = runMatching(fastify.db);
 

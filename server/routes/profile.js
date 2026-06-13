@@ -103,9 +103,13 @@ async function routes(fastify) {
     if (buf.length > MAX_BYTES) {
       return reply.code(413).send({ error: `arquivo maior que 3MB (${buf.length} bytes)` });
     }
-    // Valida cabecalho (rejeita arquivo nao-imagem disfarcado), sem checar dimensoes
+    // Valida cabecalho e dimensoes (evita decompression bomb)
     const dims = mime === 'image/png' ? pngDims(buf) : jpegDims(buf);
     if (!dims) return reply.code(400).send({ error: 'cabecalho de imagem invalido' });
+    const MAX_DIM = 4096;
+    if (dims.w <= 0 || dims.h <= 0 || dims.w > MAX_DIM || dims.h > MAX_DIM) {
+      return reply.code(400).send({ error: `dimensoes invalidas (${dims.w}x${dims.h}, max ${MAX_DIM}x${MAX_DIM})` });
+    }
     clearAvatars();
     const dest = mime === 'image/png' ? AVATAR_PNG : AVATAR_JPG;
     fs.writeFileSync(dest, buf);

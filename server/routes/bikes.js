@@ -58,18 +58,27 @@ function rowToLog(l) {
    Cálculo central — km total acumulado pela bike
    km_inicial + soma de distâncias Garmin + Strava desde active_since
 ─────────────────────────────────────────────────────────────────────── */
+// Tipos excluídos do acumulado de km da bike: e-bike e indoor/virtual
+// contam para fitness mas não desgastam a bike física.
+const EXCLUDED_STRAVA_TYPES = "('VirtualRide','EBikeRide')";
+const EXCLUDED_GARMIN_TYPES = "('virtual_ride','indoor_cycling','e_bike_fitness')";
+
 function calcBikeKm(db, bike) {
   const base = +(bike.km_inicial || 0);
   if (!bike.active_since) return +base.toFixed(1);
   const garmin = db.prepare(
     `SELECT COALESCE(SUM(distancia_m), 0) AS t
-     FROM garmin_activities WHERE data_inicio >= ?`
+     FROM garmin_activities
+     WHERE data_inicio >= ?
+       AND (tipo IS NULL OR tipo NOT IN ${EXCLUDED_GARMIN_TYPES})`
   ).get(bike.active_since).t / 1000;
   const strava = db.prepare(
     `SELECT COALESCE(SUM(distancia_m), 0) AS t
      FROM strava_activities s
      LEFT JOIN activity_links l ON l.strava_id = s.id_strava
-     WHERE s.data_inicio >= ? AND l.strava_id IS NULL`
+     WHERE s.data_inicio >= ?
+       AND l.strava_id IS NULL
+       AND (s.tipo IS NULL OR s.tipo NOT IN ${EXCLUDED_STRAVA_TYPES})`
   ).get(bike.active_since).t / 1000;
   return +(base + garmin + strava).toFixed(1);
 }
@@ -164,9 +173,17 @@ async function routes(fastify) {
     const cur = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
     if (!cur) return reply.code(404).send({ error: 'bike nao encontrada' });
 
-    const activeSince = (req.body && req.body.activeSince)
-      ? String(req.body.activeSince).slice(0, 10)
-      : (cur.active_since || todayISO());
+    // Valida formato ISO antes de salvar (BUG-013)
+    let activeSince;
+    if (req.body && req.body.activeSince) {
+      const s = String(req.body.activeSince).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        return reply.code(400).send({ error: 'activeSince deve estar em YYYY-MM-DD' });
+      }
+      activeSince = s;
+    } else {
+      activeSince = cur.active_since || todayISO();
+    }
 
     const tx = fastify.db.transaction(() => {
       fastify.db.prepare('UPDATE bikes SET active = 0').run();

@@ -5,18 +5,45 @@
    proprio dono do app — nao precisa de OAuth porque so existe 1 usuario).
 ═══════════════════════════════════════════════════════════════════════ */
 const config = require('../config');
+const path = require('path');
+const fs = require('fs');
 
 const STRAVA_OAUTH_URL = 'https://www.strava.com/oauth/token';
 const STRAVA_API_BASE  = 'https://www.strava.com/api/v3';
 
+// Persistência do refresh_token rotacionado (BUG-012). O Strava
+// eventualmente devolve um novo refresh_token e invalida o antigo —
+// salvamos aqui para que o próximo refresh já use o novo, sem exigir
+// edição manual do .env.
+const TOKEN_FILE = path.resolve(__dirname, '..', '..', 'data', 'strava_token.json');
+
+function readPersistedRefresh() {
+  try {
+    const raw = fs.readFileSync(TOKEN_FILE, 'utf8');
+    const obj = JSON.parse(raw);
+    return obj?.refresh_token || null;
+  } catch { return null; }
+}
+function writePersistedRefresh(token) {
+  try {
+    fs.writeFileSync(TOKEN_FILE, JSON.stringify({
+      refresh_token: token,
+      rotatedAt: new Date().toISOString(),
+    }, null, 2), { mode: 0o600 });
+  } catch (e) {
+    console.warn('[strava] falha persistindo refresh_token:', e.message);
+  }
+}
+
 // Cache em memoria
-let _accessToken = null;
-let _expiresAt   = 0;        // unix seconds
-let _athlete     = null;     // { id, firstname, lastname, ... } populado no primeiro refresh
-let _lastSync    = null;     // ISO string da ultima chamada bem-sucedida a API Strava
+let _accessToken  = null;
+let _expiresAt    = 0;        // unix seconds
+let _athlete      = null;     // populado no primeiro refresh
+let _lastSync     = null;     // ISO string da ultima chamada bem-sucedida
+let _refreshToken = readPersistedRefresh() || config.STRAVA_REFRESH_TOKEN;
 
 function isConfigured() {
-  return !!(config.STRAVA_CLIENT_ID && config.STRAVA_CLIENT_SECRET && config.STRAVA_REFRESH_TOKEN);
+  return !!(config.STRAVA_CLIENT_ID && config.STRAVA_CLIENT_SECRET && _refreshToken);
 }
 
 async function refreshAccessToken() {
@@ -26,7 +53,7 @@ async function refreshAccessToken() {
     client_id:     config.STRAVA_CLIENT_ID,
     client_secret: config.STRAVA_CLIENT_SECRET,
     grant_type:    'refresh_token',
-    refresh_token: config.STRAVA_REFRESH_TOKEN,
+    refresh_token: _refreshToken,
   });
 
   const resp = await fetch(STRAVA_OAUTH_URL, {
@@ -43,12 +70,12 @@ async function refreshAccessToken() {
   const data = await resp.json();
   _accessToken = data.access_token;
   _expiresAt   = data.expires_at; // unix seconds
-  // Se o Strava devolver um novo refresh_token, fica registrado em log para
-  // o usuario atualizar o .env. Tokens raramente rotacionam, mas pode acontecer.
-  if (data.refresh_token && data.refresh_token !== config.STRAVA_REFRESH_TOKEN) {
-    const t = data.refresh_token;
-    const masked = t.slice(0, 6) + '****' + t.slice(-4);
-    console.warn('[strava] Novo refresh_token recebido — atualize STRAVA_REFRESH_TOKEN no .env:', masked);
+  // Rotação: persiste o novo refresh_token e passa a usá-lo na próxima chamada
+  // (BUG-012). Log apenas os últimos 4 caracteres mascarados (BUG-017).
+  if (data.refresh_token && data.refresh_token !== _refreshToken) {
+    _refreshToken = data.refresh_token;
+    writePersistedRefresh(_refreshToken);
+    console.warn('[strava] refresh_token rotacionado e persistido (****' + _refreshToken.slice(-4) + ')');
   }
   return _accessToken;
 }

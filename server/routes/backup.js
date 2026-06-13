@@ -25,7 +25,9 @@ function ensureBackupsDir() {
   if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
 }
 
-// Lista snapshots ordenados do mais novo para o mais antigo
+// Lista snapshots ordenados do mais novo para o mais antigo.
+// Ordem primária por nome (que começa com YYYY-MM-DD — estável e robusto
+// contra cliques no mesmo segundo); mtime apenas como desempate.
 function listSnapshots() {
   ensureBackupsDir();
   return fs.readdirSync(BACKUPS_DIR)
@@ -35,7 +37,10 @@ function listSnapshots() {
       const st = fs.statSync(full);
       return { name: n, size: st.size, mtime: st.mtime.toISOString() };
     })
-    .sort((a, b) => b.mtime.localeCompare(a.mtime));
+    .sort((a, b) => {
+      const byName = b.name.localeCompare(a.name);
+      return byName !== 0 ? byName : b.mtime.localeCompare(a.mtime);
+    });
 }
 
 // Gera um ZIP no caminho informado (usado por snapshot CLI e endpoint POST)
@@ -66,11 +71,14 @@ function buildZipToFile(destPath, fastify) {
   });
 }
 
-// Apaga snapshots além dos mais recentes (mantém RETENTION)
+// Apaga snapshots além dos mais recentes (mantém RETENTION).
+// Guard: nunca apaga o snapshot do dia atual, mesmo se algum sort
+// embaralhar a ordem (BUG-010).
 function pruneSnapshots() {
   const list = listSnapshots();
   if (list.length <= RETENTION) return [];
-  const toDelete = list.slice(RETENTION);
+  const todaySnap = `treino-bike-data-${todayISO()}.zip`;
+  const toDelete = list.slice(RETENTION).filter(f => f.name !== todaySnap);
   for (const f of toDelete) {
     try { fs.unlinkSync(path.join(BACKUPS_DIR, f.name)); }
     catch (e) { console.warn('[snapshot/prune]', f.name, e); }

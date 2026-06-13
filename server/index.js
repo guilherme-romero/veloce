@@ -17,6 +17,8 @@ fastify.register(require('@fastify/cookie'), {
 const db = require('./db/init');
 fastify.decorate('db', db);
 
+const { requireAuth } = require('./middleware/auth');
+
 // Rotas
 fastify.register(require('./routes/auth'));
 fastify.register(require('./routes/profile'));
@@ -61,10 +63,15 @@ function _dirSize(dir) {
   } catch { return null; }
 }
 function _diskFree(dir) {
-  // statvfs não está exposto direto no Node; usa df -k para o filesystem do dir
+  // statvfs não está exposto direto no Node; usa df -k para o filesystem do dir.
+  // execFileSync (sem shell) + timeout previne /api/health de travar quando
+  // FS está bloqueado (BUG-020) e evita qualquer risco de injeção.
   try {
-    const { execSync } = require('child_process');
-    const out = execSync(`df -k --output=avail "${dir}"`, { encoding: 'utf8' });
+    const { execFileSync } = require('child_process');
+    const out = execFileSync('df', ['-k', '--output=avail', dir], {
+      encoding: 'utf8',
+      timeout: 1000,
+    });
     const lines = out.trim().split('\n');
     const kb = parseInt(lines[lines.length - 1].trim(), 10);
     return isNaN(kb) ? null : kb * 1024;
@@ -74,7 +81,7 @@ function _safeCount(sql) {
   try { return fastify.db.prepare(sql).get().c; } catch { return null; }
 }
 
-fastify.get('/api/health', async () => {
+fastify.get('/api/health', { preHandler: requireAuth }, async () => {
   const version = require('./package.json').version;
   const dbStat = _safeStat(HEALTH_DB_FILE);
 

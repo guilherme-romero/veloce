@@ -58,8 +58,12 @@ def dump_session(client):
         backend.dump(str(SESSION_DIR))
 
 
-def authenticate(client):
-    """Restaura sessao salva ou faz login novo. Retorna True/False."""
+def authenticate(client, mfa_code=None):
+    """Restaura sessao salva ou faz login novo. Retorna True/False.
+
+    Fluxo MFA do garminconnect 0.3.x: client.login() retorna
+    (client_state, None) quando o backend exige MFA — nesse caso,
+    chamamos resume_login(client_state, mfa_code) para finalizar."""
     if has_session():
         try:
             client.login(tokenstore=str(SESSION_DIR))
@@ -67,9 +71,17 @@ def authenticate(client):
         except Exception:
             pass  # sessao invalida -> tenta login limpo
     try:
-        client.login()
+        result = client.login()
+        # result == (client_state, None) -> precisa MFA
+        needs_mfa = isinstance(result, tuple) and result[0] is not None
+        if needs_mfa:
+            if not mfa_code:
+                die("MFA_REQUIRED: passe --mfa <codigo> para finalizar o login")
+            client.resume_login(result[0], str(mfa_code))
         dump_session(client)
         return True
+    except SystemExit:
+        raise
     except Exception as e:
         die(f"AUTH_ERROR: {e}")
 
@@ -93,7 +105,7 @@ def cmd_status(args):
 
 def cmd_login(args):
     client, email = make_client()
-    authenticate(client)
+    authenticate(client, mfa_code=getattr(args, "mfa", None))
     try:
         full = client.get_full_name()
     except Exception:

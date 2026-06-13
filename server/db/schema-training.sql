@@ -12,6 +12,15 @@ CREATE TABLE IF NOT EXISTS user_profile (
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ── Estado de auth (singleton) ────────────────────────────────────────
+-- last_logout_at: timestamp UNIX (segundos). Tokens JWT com iat <= este
+-- valor são rejeitados pelo requireAuth (invalida sessões após logout).
+CREATE TABLE IF NOT EXISTS auth_state (
+  id              INTEGER PRIMARY KEY CHECK (id = 1),
+  last_logout_at  INTEGER DEFAULT 0
+);
+INSERT OR IGNORE INTO auth_state (id, last_logout_at) VALUES (1, 0);
+
 -- ── Pesagens ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS weights (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,

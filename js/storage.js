@@ -109,33 +109,30 @@ const Storage = {
   /* ── Load global no boot ───────────────────────────────────────────── */
   loadAll: async () => {
     const Api = window.Api;
+    // Coleta falhas não-401 para que o boot possa avisar o usuário em vez
+    // de seguir silenciosamente para um estado vazio (BUG-015). 401 é
+    // tratado pelo wrapper Api (redireciona pro login).
+    const failures = [];
+    const wrap = (label, p) => p.catch(e => {
+      console.warn(`[loadAll/${label}]`, e);
+      if (e?.status !== 401) failures.push({ label, message: e?.message || String(e) });
+    });
+
     const tasks = [
-      Api.get('/profile').then(r => {
+      wrap('profile', Api.get('/profile').then(r => {
         _userCache = (r && Object.keys(r).length) ? { ...DEFAULTS.user, ...r } : { ...DEFAULTS.user };
-      }).catch(e => console.warn('[loadAll/profile]', e)),
-
-      Api.get('/modes').then(r => { _modesCache = Array.isArray(r) ? r : []; })
-        .catch(e => console.warn('[loadAll/modes]', e)),
-
-      Api.get('/workouts').then(r => { _workoutsCache = (r && typeof r === 'object') ? r : {}; })
-        .catch(e => console.warn('[loadAll/workouts]', e)),
-
-      Api.get('/weights').then(r => { _weightsCache = Array.isArray(r) ? r : []; })
-        .catch(e => console.warn('[loadAll/weights]', e)),
-
-      Api.get('/rides').then(r => { _ridesCache = Array.isArray(r) ? r.map(normalizeRide).filter(Boolean) : []; })
-        .catch(e => console.warn('[loadAll/rides]', e)),
-
-      Api.get('/training-log').then(r => { _trainingLogCache = Array.isArray(r) ? r : []; })
-        .catch(e => console.warn('[loadAll/training-log]', e)),
-
-      Api.get('/home-exercises').then(r => { _homeExercisesCache = Array.isArray(r) ? r : []; })
-        .catch(e => console.warn('[loadAll/home-exercises]', e)),
-
-      Api.get('/routes').then(r => { _routesCache = Array.isArray(r) ? r : []; })
-        .catch(e => console.warn('[loadAll/routes]', e)),
+      })),
+      wrap('modes', Api.get('/modes').then(r => { _modesCache = Array.isArray(r) ? r : []; })),
+      wrap('workouts', Api.get('/workouts').then(r => { _workoutsCache = (r && typeof r === 'object') ? r : {}; })),
+      wrap('weights', Api.get('/weights').then(r => { _weightsCache = Array.isArray(r) ? r : []; })),
+      wrap('rides', Api.get('/rides').then(r => { _ridesCache = Array.isArray(r) ? r.map(normalizeRide).filter(Boolean) : []; })),
+      wrap('training-log', Api.get('/training-log').then(r => { _trainingLogCache = Array.isArray(r) ? r : []; })),
+      wrap('home-exercises', Api.get('/home-exercises').then(r => { _homeExercisesCache = Array.isArray(r) ? r : []; })),
+      wrap('routes', Api.get('/routes').then(r => { _routesCache = Array.isArray(r) ? r : []; })),
     ];
     await Promise.all(tasks);
+    window.LOAD_ERRORS = failures;
+    return failures;
   },
 
   // Compat: alguns lugares chamavam loadWeights especificamente

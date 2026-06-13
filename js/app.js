@@ -525,6 +525,20 @@ async function boot() {
   // 1. Carrega todas as entidades do backend para os caches em memoria
   await safe('Storage.loadAll()', () => Storage.loadAll());
 
+  // 1.1 Sinaliza falhas de carga (BUG-015) — evita o usuário pensar que
+  // o banco sumiu e tentar recadastrar dados.
+  if (Array.isArray(window.LOAD_ERRORS) && window.LOAD_ERRORS.length) {
+    const labels = window.LOAD_ERRORS.map(f => f.label).join(', ');
+    console.error('[boot] Falhas ao carregar dados:', window.LOAD_ERRORS);
+    try {
+      if (window.Modals && typeof Modals.toast === 'function') {
+        Modals.toast(`Falha ao carregar: ${labels}. Recarregue a página.`, 'error');
+      } else {
+        alert(`Falha ao carregar dados: ${labels}\n\nRecarregue a página antes de modificar qualquer informação.`);
+      }
+    } catch (_) {}
+  }
+
   // 1.5. Migracao legada (1a execucao): se backend vazio, le dados_usuario.txt
   await safe('Migração legada', () => tbMigrate());
 

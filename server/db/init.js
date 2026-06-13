@@ -23,6 +23,8 @@ db.exec(schemaSQL);
 // IF NOT EXISTS em SQLite, então capturamos o erro de coluna duplicada).
 const migrations = [
   'ALTER TABLE garmin_activities ADD COLUMN polyline TEXT',
+  // BUG-016: separa contagem total vs bike no meta de sync
+  'ALTER TABLE garmin_sync_meta ADD COLUMN last_total_count INTEGER',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }
@@ -30,9 +32,13 @@ for (const sql of migrations) {
 }
 
 // PRAGMA integrity_check — aborta o boot se o banco estiver corrompido.
-const integrity = db.pragma('integrity_check', { simple: true });
-if (integrity !== 'ok') {
-  console.error(`[db] FATAL: integrity_check falhou — resposta: ${integrity}`);
+// simple:false retorna array de linhas; banco íntegro = 1 linha "ok".
+const integrityRows = db.pragma('integrity_check', { simple: false });
+const integrityOk = Array.isArray(integrityRows)
+  && integrityRows.length === 1
+  && integrityRows[0]?.integrity_check === 'ok';
+if (!integrityOk) {
+  console.error('[db] FATAL: integrity_check falhou — resposta:', integrityRows);
   process.exit(1);
 }
 

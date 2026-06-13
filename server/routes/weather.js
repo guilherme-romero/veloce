@@ -30,14 +30,19 @@ function buildUrl({ lat, lon, days = 7 }) {
     `&timezone=America%2FSao_Paulo&forecast_days=${days}`;
 }
 
-async function fetchOpenMeteo(url, reply, log) {
+// Lança em caso de falha — o caller decide o status. Evita o antipadrão
+// de escrever no reply dentro de um helper (BUG-011).
+async function fetchOpenMeteo(url) {
   const resp = await fetch(url);
   if (!resp.ok) {
-    log.warn({ status: resp.status }, 'open-meteo respondeu não-ok');
-    return reply.code(502).send({ error: 'Previsão indisponível' });
+    const err = new Error(`open-meteo respondeu ${resp.status}`);
+    err.upstreamStatus = resp.status;
+    throw err;
   }
   return await resp.json();
 }
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
@@ -45,8 +50,7 @@ async function routes(fastify) {
   // ── GET /api/weather/forecast — São Paulo (Passeios) ──────────────────
   fastify.get('/api/weather/forecast', async (req, reply) => {
     try {
-      const json = await fetchOpenMeteo(buildUrl({ lat: SP_LAT, lon: SP_LON }), reply, req.log);
-      if (reply.sent) return;
+      const json = await fetchOpenMeteo(buildUrl({ lat: SP_LAT, lon: SP_LON }));
       return json.daily;
     } catch (err) {
       req.log.warn({ err }, 'weather proxy falhou');
@@ -65,15 +69,17 @@ async function routes(fastify) {
     if (Math.abs(lat) > 90 || Math.abs(lon) > 180) {
       return reply.code(400).send({ error: 'lat/lon fora do intervalo' });
     }
+    // Valida formato da data antes de bater no upstream (BUG-018)
+    const rawDate = req.query?.date ? String(req.query.date).slice(0, 10) : null;
+    if (rawDate && !ISO_DATE_RE.test(rawDate)) {
+      return reply.code(400).send({ error: 'date deve estar em YYYY-MM-DD' });
+    }
     try {
-      const json = await fetchOpenMeteo(buildUrl({ lat, lon }), reply, req.log);
-      if (reply.sent) return;
+      const json = await fetchOpenMeteo(buildUrl({ lat, lon }));
       const daily = json.daily;
 
-      // Se uma data específica foi pedida, retorna apenas aquele dia
-      const dateISO = req.query?.date ? String(req.query.date).slice(0, 10) : null;
-      if (dateISO) {
-        const idx = daily.time.indexOf(dateISO);
+      if (rawDate) {
+        const idx = daily.time.indexOf(rawDate);
         if (idx < 0) {
           return reply.code(404).send({ error: 'Data fora do range de 7 dias' });
         }
