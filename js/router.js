@@ -228,12 +228,22 @@
     else openDrawer();
   }
 
-  // Em mobile mantém popover="manual" ativo; em desktop remove o atributo
+  // Em mobile mantém popover="auto" ativo; em desktop remove o atributo
   // para o layout flex normal do <nav> funcionar (popover força display:none).
+  // Detecta "mobile" pela visibilidade real do hamburger no CSS — fonte
+  // única de verdade. Antes usávamos window.innerWidth <= 700, mas há
+  // devices onde innerWidth pode reportar 767 enquanto o CSS mobile está
+  // ativo (DPR, viewport-fit=cover, PWA standalone).
+  function _isMobileNav() {
+    const burger = document.getElementById('nav-hamburger');
+    if (!burger) return window.innerWidth <= 700; // fallback
+    return getComputedStyle(burger).display !== 'none';
+  }
   function ensureDrawerPosition() {
     const navLinks = document.getElementById('nav-links');
     if (!navLinks) return;
-    const isMobile = window.innerWidth <= 700;
+    const isMobile = _isMobileNav();
+    _dbg(`ensureDrawerPosition: mobile=${isMobile} (width=${window.innerWidth})`);
     if (_supportsPopover) {
       if (isMobile) {
         if (!navLinks.hasAttribute('popover')) navLinks.setAttribute('popover', 'auto');
@@ -294,7 +304,7 @@
 
     // Resize: fecha drawer + reposiciona elemento se cruzou breakpoint
     window.addEventListener('resize', () => {
-      if (window.innerWidth > 700) closeDrawer();
+      if (!_isMobileNav()) closeDrawer();
       ensureDrawerPosition();
     });
 
