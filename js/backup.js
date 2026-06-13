@@ -1,6 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   BACKUP — exportar / importar todos os dados como JSON
+   BACKUP — exportar / importar todos os dados como JSON / PDF / ZIP
+   Fase 13.x: snapshots automáticos, status, PDF filtrado, seção Bike,
+              gráficos extras, resumo Strava/Garmin no JSON.
 ═══════════════════════════════════════════════════════════════════════ */
+
+let _selectedPdfWindow = null;  // null = tudo; ou 30 / 90
 
 function openBackupModal() {
   Modals.open({
@@ -24,10 +28,15 @@ function openBackupModal() {
       </div>
 
       <div style="border-top:1px solid var(--border);margin:14px 0 8px;"></div>
-      <div class="field-label" style="margin-bottom:8px;">Relatórios</div>
+      <div class="field-label" style="margin-bottom:8px;">Relatório PDF</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" type="button" data-pdf-window="30" style="flex:1;min-width:80px;">30 dias</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-pdf-window="90" style="flex:1;min-width:80px;">90 dias</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-pdf-window="" style="flex:1;min-width:80px;">Tudo</button>
+      </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
         <button class="btn btn-primary" type="button" data-export-pdf>
-          <i class="fa-solid fa-file-pdf"></i> Relatório completo (.pdf)
+          <i class="fa-solid fa-file-pdf"></i> Gerar relatório (.pdf)
         </button>
         <button class="btn btn-ghost" type="button" data-export-csv>
           <i class="fa-solid fa-file-csv"></i> Exportar pesagens (.csv)
@@ -48,6 +57,17 @@ function openBackupModal() {
       </p>
 
       <div style="border-top:1px solid var(--border);margin:14px 0 8px;"></div>
+      <div class="field-label" style="margin-bottom:8px;">Snapshots automáticos</div>
+      <div id="snapshots-card" style="font-size:12px;color:var(--muted2);">Carregando…</div>
+      <button class="btn btn-ghost btn-sm" type="button" data-snapshot-now style="width:100%;margin-top:8px;">
+        <i class="fa-solid fa-camera"></i> Criar snapshot agora
+      </button>
+
+      <div style="border-top:1px solid var(--border);margin:14px 0 8px;"></div>
+      <div class="field-label" style="margin-bottom:8px;">Status da instalação</div>
+      <div id="status-card" style="font-size:12px;color:var(--muted2);">Carregando…</div>
+
+      <div style="border-top:1px solid var(--border);margin:14px 0 8px;"></div>
       <button class="btn btn-danger" type="button" data-reset>
         <i class="fa-solid fa-triangle-exclamation"></i> Apagar todos os dados
       </button>
@@ -64,27 +84,115 @@ function openBackupModal() {
       modal.querySelector('#backup-file').onchange = (e) => importData(e.target.files[0]);
       modal.querySelector('[data-reset]').onclick = confirmReset;
       modal.querySelector('[data-export-csv]').onclick = exportWeightsCSV;
-      modal.querySelector('[data-export-pdf]').onclick = exportRelatorioPDF;
+      modal.querySelector('[data-export-pdf]').onclick = () => exportRelatorioPDF(_selectedPdfWindow);
       modal.querySelector('[data-export-zip]').onclick = exportDataZip;
       modal.querySelector('[data-print]').onclick = () => { Modals.close(); setTimeout(() => window.print(), 300); };
+
+      // Botões de período do PDF (toggle visual)
+      const periodBtns = modal.querySelectorAll('[data-pdf-window]');
+      const selectPeriod = (val) => {
+        _selectedPdfWindow = val === '' ? null : parseInt(val, 10);
+        periodBtns.forEach(b => {
+          const active = b.getAttribute('data-pdf-window') === val;
+          b.classList.toggle('btn-primary', active);
+          b.classList.toggle('btn-ghost', !active);
+        });
+      };
+      periodBtns.forEach(b => b.onclick = () => selectPeriod(b.getAttribute('data-pdf-window')));
+      selectPeriod('');  // padrão: tudo
+
+      // Snapshot manual
+      modal.querySelector('[data-snapshot-now]').onclick = () => createSnapshotNow(modal);
+
+      // Carregar cards (assíncrono, não bloqueia abertura do modal)
+      loadSnapshotsCard(modal);
+      loadStatusCard(modal);
     },
   });
+}
+
+// ── Snapshots ────────────────────────────────────────────────────────────
+async function loadSnapshotsCard(modal) {
+  const el = modal.querySelector('#snapshots-card');
+  try {
+    const r = await window.Api.get('/backup/list');
+    const items = (r?.items || []);
+    if (!items.length) {
+      el.innerHTML = `<em>Nenhum snapshot ainda. Crie um manualmente abaixo ou aguarde o disparo automático semanal.</em>`;
+      return;
+    }
+    const human = (b) => b > 1e6 ? (b/1e6).toFixed(1)+' MB' : (b/1e3).toFixed(0)+' KB';
+    el.innerHTML = items.slice(0, 8).map(it => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+        <span><i class="fa-solid fa-file-zipper"></i> ${esc(it.name)}</span>
+        <span style="display:flex;gap:8px;align-items:center;">
+          <span style="color:var(--muted2);">${human(it.size)}</span>
+          <a href="/api/backup/file/${encodeURIComponent(it.name)}" download style="color:var(--teal);"><i class="fa-solid fa-download"></i></a>
+        </span>
+      </div>
+    `).join('');
+  } catch (e) {
+    el.innerHTML = `<em style="color:var(--red);">Falha ao listar: ${esc(e.message || e)}</em>`;
+  }
+}
+
+async function createSnapshotNow(modal) {
+  toast('Criando snapshot…');
+  try {
+    const r = await window.Api.post('/backup/snapshot', {});
+    if (r?.ok) {
+      toast('Snapshot criado: ' + r.file);
+      loadSnapshotsCard(modal);
+      loadStatusCard(modal);
+    } else {
+      toast('Falha ao criar snapshot: ' + (r?.error || 'desconhecido'), { kind: 'error' });
+    }
+  } catch (e) {
+    toast('Falha ao criar snapshot: ' + (e.message || e), { kind: 'error' });
+  }
+}
+
+// ── Status (/api/health ampliado) ────────────────────────────────────────
+async function loadStatusCard(modal) {
+  const el = modal.querySelector('#status-card');
+  try {
+    const h = await window.Api.get('/health');
+    const human = (b) => b == null ? '—' : (b > 1e9 ? (b/1e9).toFixed(2)+' GB' : b > 1e6 ? (b/1e6).toFixed(1)+' MB' : (b/1e3).toFixed(0)+' KB');
+    const fmtDate = (s) => s ? new Date(s).toLocaleString('pt-BR') : '—';
+    const c = h.counts || {};
+    const backupTxt = h.backup
+      ? `${fmtDate(h.backup.mtime)} (há ${h.backup.ageDays}d · ${h.backup.count} no total)`
+      : 'Nunca';
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+        <div><b>Versão:</b> ${esc(h.version || '—')}</div>
+        <div><b>Banco:</b> ${human(h.db?.size)}</div>
+        <div><b>Pesagens:</b> ${c.weights ?? '—'}</div>
+        <div><b>Atividades:</b> ${(c.stravaActs ?? 0) + (c.garminActs ?? 0)}</div>
+        <div><b>Bikes:</b> ${c.bikes ?? '—'}</div>
+        <div><b>Rotas:</b> ${c.routes ?? '—'}</div>
+      </div>
+      <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">
+        <div><b>Último sync Garmin:</b> ${fmtDate(h.sync?.garminLast)}</div>
+        <div><b>Último sync Strava:</b> ${fmtDate(h.sync?.stravaLast)}</div>
+        <div><b>Último snapshot:</b> ${backupTxt}</div>
+        <div><b>Espaço livre:</b> ${human(h.disk?.freeBytes)}</div>
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<em style="color:var(--red);">Falha ao carregar status: ${esc(e.message || e)}</em>`;
+  }
 }
 
 // ── Download da base de dados completa em ZIP ────────────────────────────
 async function exportDataZip() {
   toast('Preparando ZIP da base de dados…');
   try {
-    // Fetch com credentials para enviar cookie de auth; precisamos do Blob
-    // para forçar o save com o filename certo (do Content-Disposition).
     const resp = await fetch('/api/backup/data-zip', { credentials: 'same-origin' });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-    // Extrai o filename do Content-Disposition se disponível
     const cd = resp.headers.get('Content-Disposition') || '';
     const match = cd.match(/filename="?([^"]+)"?/i);
     const filename = match ? match[1] : `treino-bike-data-${new Date().toISOString().slice(0, 10)}.zip`;
-
     const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -101,14 +209,14 @@ async function exportDataZip() {
 }
 
 // ── Relatório PDF (jsPDF) ────────────────────────────────────────────────
-async function exportRelatorioPDF() {
+async function exportRelatorioPDF(daysWindow) {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     toast('Biblioteca PDF não carregada. Recarregue a página.', { kind: 'error' });
     return;
   }
   toast('Gerando relatório PDF…');
   try {
-    await buildRelatorioPDF();
+    await buildRelatorioPDF(daysWindow);
     toast('Relatório PDF gerado');
   } catch (err) {
     console.error('[Backup] PDF', err);
@@ -116,9 +224,9 @@ async function exportRelatorioPDF() {
   }
 }
 
-async function buildRelatorioPDF() {
+async function buildRelatorioPDF(daysWindow) {
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: 'pt', format: 'a4' }); // 595 × 842 pt
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
   const W   = pdf.internal.pageSize.getWidth();
   const H   = pdf.internal.pageSize.getHeight();
   const PAD = 40;
@@ -131,15 +239,11 @@ async function buildRelatorioPDF() {
   });
   const versao = window.APP_VERSION || '';
 
+  // Cutoff de período (em ISO date)
+  const cutoffISO = daysWindow ? new Date(Date.now() - daysWindow * 86400000).toISOString().slice(0, 10) : null;
+  const periodoTxt = daysWindow ? `Últimos ${daysWindow} dias` : 'Período completo';
+
   // Helpers
-  const setTitle = (text, size = 16) => {
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(size);
-    pdf.setTextColor(20, 217, 184); // teal
-    pdf.text(text, PAD, y);
-    y += size + 8;
-    pdf.setTextColor(40);
-  };
   const setSection = (text) => {
     if (y > H - 100) { pdf.addPage(); y = PAD; }
     y += 6;
@@ -165,6 +269,21 @@ async function buildRelatorioPDF() {
     y += 14;
   };
   const ensureSpace = (h) => { if (y + h > H - PAD) { pdf.addPage(); y = PAD; } };
+  const captureCanvas = (id, sectionTitle) => {
+    const canvas = document.getElementById(id);
+    if (!canvas || !canvas.width || canvas.width < 10) return false;
+    try {
+      setSection(sectionTitle);
+      const imgData = canvas.toDataURL('image/png');
+      const ratio = canvas.height / canvas.width;
+      const imgW = W - 2 * PAD;
+      const imgH = Math.min(imgW * ratio, 300);
+      ensureSpace(imgH + 8);
+      pdf.addImage(imgData, 'PNG', PAD, y, imgW, imgH);
+      y += imgH + 8;
+      return true;
+    } catch (e) { console.warn('[PDF] canvas', id, e); return false; }
+  };
 
   // ─── CAPA ─────────────────────────────────────────────────────────────
   pdf.setFillColor(20, 217, 184);
@@ -185,42 +304,31 @@ async function buildRelatorioPDF() {
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(11);
   pdf.text(todayLong, PAD, y); y += 16;
+  pdf.text(`Período: ${periodoTxt}`, PAD, y); y += 16;
   if (versao) { pdf.text(`Versão do app: ${versao}`, PAD, y); y += 24; }
 
   // ─── PERFIL RESUMIDO ─────────────────────────────────────────────────
   setSection('Perfil');
-  const weights = Storage.getWeights ? Storage.getWeights() : [];
-  const lastWeight = weights.length ? weights[weights.length - 1] : null;
+  const allWeights = Storage.getWeights ? Storage.getWeights() : [];
+  const weights = cutoffISO ? allWeights.filter(w => (w.data || '') >= cutoffISO) : allWeights;
+  const lastWeight = allWeights.length ? allWeights[allWeights.length - 1] : null;
   const altura = u.altura || 0;
   const imc = (lastWeight && altura) ? (lastWeight.peso / Math.pow(altura / 100, 2)).toFixed(1) : '—';
   writeLine('Peso atual:',     lastWeight ? `${lastWeight.peso.toFixed(1)} kg` : '—');
   writeLine('Meta de peso:',   u.pesoMeta ? `${u.pesoMeta} kg` : '—');
   writeLine('Altura:',         altura ? `${altura} cm` : '—');
   writeLine('IMC:',            imc);
-  writeLine('Total de pesagens:', weights.length);
-  writeLine('Total de passeios:', (Storage.getRides ? Storage.getRides().length : 0));
+  writeLine('Pesagens no período:', weights.length);
+  const allRides = Storage.getRides ? Storage.getRides() : [];
+  const ridesPeriodo = cutoffISO ? allRides.filter(r => (r.data || '') >= cutoffISO) : allRides;
+  writeLine('Passeios no período:', ridesPeriodo.length);
 
-  // ─── GRÁFICO DE PESO (captura canvas) ────────────────────────────────
-  const weightCanvas = document.getElementById('weight-chart');
-  if (weightCanvas && weightCanvas.width > 0 && weights.length > 0) {
-    setSection('Evolução de peso');
-    try {
-      const imgData = weightCanvas.toDataURL('image/png');
-      const ratio = weightCanvas.height / weightCanvas.width;
-      const imgW = W - 2 * PAD;
-      const imgH = imgW * ratio;
-      ensureSpace(imgH + 8);
-      pdf.addImage(imgData, 'PNG', PAD, y, imgW, imgH);
-      y += imgH + 8;
-    } catch (e) {
-      pdf.setFontSize(10);
-      pdf.text('Gráfico não disponível.', PAD, y); y += 14;
-    }
-  }
+  // ─── GRÁFICO DE PESO ─────────────────────────────────────────────────
+  captureCanvas('weightChart', 'Evolução de peso');
 
-  // ─── ÚLTIMAS PESAGENS (tabela) ───────────────────────────────────────
+  // ─── ÚLTIMAS PESAGENS ────────────────────────────────────────────────
   if (weights.length > 0) {
-    setSection('Últimas pesagens');
+    setSection('Pesagens');
     const top = weights.slice(-20).reverse();
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(10);
@@ -238,12 +346,13 @@ async function buildRelatorioPDF() {
     }
   }
 
-  // ─── ATIVIDADES RECENTES ─────────────────────────────────────────────
+  // ─── ATIVIDADES NO PERÍODO ───────────────────────────────────────────
   try {
-    const acts = await window.Api.get('/activities/unified?days=90');
-    const items = (acts?.items || acts || []).slice(0, 20);
+    const days = daysWindow || 365 * 5;  // tudo ≈ 5 anos
+    const acts = await window.Api.get(`/activities/unified?days=${days}`);
+    const items = (acts?.items || acts || []).slice(0, daysWindow ? 50 : 30);
     if (items.length > 0) {
-      setSection('Histórico de atividades (90 dias)');
+      setSection(`Histórico de atividades (${periodoTxt.toLowerCase()})`);
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'bold');
       pdf.text('Data',       PAD, y);
@@ -268,6 +377,11 @@ async function buildRelatorioPDF() {
       }
     }
   } catch (e) { console.warn('[PDF] atividades', e); }
+
+  // ─── GRÁFICOS ADICIONAIS (Fase 13.2.1) ───────────────────────────────
+  captureCanvas('volumeChart',  'Volume mensal');
+  captureCanvas('weeklyKmChart','Km semanais');
+  captureCanvas('hrvLoadChart', 'HRV × Carga');
 
   // ─── INSIGHTS RESUMIDOS ──────────────────────────────────────────────
   setSection('Insights');
@@ -303,7 +417,81 @@ async function buildRelatorioPDF() {
     }
   } catch (e) { console.warn('[PDF] PRs', e); }
 
-  // ─── RODAPÉ EM CADA PÁGINA ───────────────────────────────────────────
+  // ─── SEÇÃO BIKE (Fase 13.1.5) ────────────────────────────────────────
+  try {
+    const bikes = await window.Api.get('/bikes');
+    if (Array.isArray(bikes) && bikes.length > 0) {
+      pdf.addPage(); y = PAD;
+      setSection('Bicicletas');
+      const cutoffMaint = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+      for (const bike of bikes) {
+        if (y > H - 120) { pdf.addPage(); y = PAD; }
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text(bike.nome || 'Bike', PAD, y); y += 14;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        if (bike.tipo) { pdf.text(`Tipo: ${bike.tipo}`, PAD, y); y += 12; }
+        if (bike.kmAcumuladoTotal != null) {
+          pdf.text(`Km acumulados: ${Number(bike.kmAcumuladoTotal).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`, PAD, y);
+          y += 12;
+        }
+
+        // Componentes — tenta carregar do endpoint específico
+        try {
+          const detalhe = await window.Api.get(`/bikes/${encodeURIComponent(bike.id)}`);
+          const comps = detalhe?.componentes || detalhe?.components || [];
+          if (Array.isArray(comps) && comps.length > 0) {
+            y += 4;
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Componentes', PAD, y); y += 13;
+            pdf.setFont('helvetica', 'normal');
+            for (const c of comps) {
+              if (y > H - 40) { pdf.addPage(); y = PAD; }
+              const km = c.kmAtual != null ? Math.round(c.kmAtual) : 0;
+              const max = c.vidaUtilKm != null ? c.vidaUtilKm : null;
+              const pct = max ? Math.min(100, Math.round((km / max) * 100)) : null;
+              const nome = (c.nome || c.tipo || 'Componente').slice(0, 30);
+              pdf.text(nome, PAD, y);
+              pdf.text(`${km} km${max ? ' / ' + max + ' km' : ''}`, PAD + 200, y);
+              if (pct != null) {
+                // Barra de uso
+                const barX = PAD + 340;
+                const barW = 140;
+                pdf.setDrawColor(180); pdf.setFillColor(230);
+                pdf.rect(barX, y - 8, barW, 8, 'FD');
+                if (pct >= 100)      pdf.setFillColor(220, 60, 60);
+                else if (pct >= 80)  pdf.setFillColor(230, 160, 50);
+                else                 pdf.setFillColor(20, 217, 184);
+                pdf.rect(barX, y - 8, Math.max(1, barW * pct / 100), 8, 'F');
+                pdf.setTextColor(40);
+                pdf.text(`${pct}%`, barX + barW + 8, y);
+              }
+              y += 14;
+            }
+          }
+
+          const logs = detalhe?.manutencoes || detalhe?.maintenance || [];
+          const ultimos = (Array.isArray(logs) ? logs : []).filter(m => (m.data || '') >= cutoffMaint).slice(0, 10);
+          if (ultimos.length) {
+            y += 4;
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Manutenções (últimos 12 meses)', PAD, y); y += 13;
+            pdf.setFont('helvetica', 'normal');
+            for (const m of ultimos) {
+              if (y > H - 40) { pdf.addPage(); y = PAD; }
+              pdf.text(m.data || '—', PAD, y);
+              pdf.text((m.descricao || m.tipo || '').slice(0, 60), PAD + 90, y);
+              y += 12;
+            }
+          }
+        } catch (e) { console.warn('[PDF] bike detalhe', bike.id, e); }
+        y += 10;
+      }
+    }
+  } catch (e) { console.warn('[PDF] bikes', e); }
+
+  // ─── RODAPÉ ──────────────────────────────────────────────────────────
   const total = pdf.internal.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     pdf.setPage(i);
@@ -313,23 +501,29 @@ async function buildRelatorioPDF() {
     pdf.text(`Página ${i} de ${total}`, W - PAD - 60, H - 20);
   }
 
-  pdf.save(`treino-bike-relatorio-${new Date().toISOString().slice(0, 10)}.pdf`);
+  const suffix = daysWindow ? `-${daysWindow}d` : '-tudo';
+  pdf.save(`treino-bike-relatorio${suffix}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 function exportData() {
   try {
-    const json = Storage.exportJSON();
-    const today = tbToday();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `treino-bike-backup-${today}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    toast('Backup exportado');
+    // exportJSON agora pode ser async (puxa resumo Strava/Garmin)
+    Promise.resolve(Storage.exportJSON()).then(json => {
+      const today = tbToday();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `treino-bike-backup-${today}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast('Backup exportado');
+    }).catch(e => {
+      console.error(e);
+      toast('Falha ao exportar', { kind: 'error' });
+    });
   } catch (e) {
     console.error(e);
     toast('Falha ao exportar', { kind: 'error' });
@@ -343,13 +537,10 @@ function importData(file) {
     try {
       const json = e.target.result;
       const parsed = JSON.parse(json);
-
-      // Validação estrutural profunda
       if (!parsed.user && !parsed.modes && !parsed.workouts) {
         throw new Error('Estrutura inválida: sem dados reconhecidos');
       }
       validateBackupStructure(parsed);
-
       await Storage.importJSON(json);
       Modals.close();
       toast('Backup importado · recarregando…');

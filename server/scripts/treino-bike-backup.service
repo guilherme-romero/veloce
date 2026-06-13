@@ -1,0 +1,11 @@
+[Unit]
+Description=Treino Bike — snapshot semanal da base de dados
+After=network.target
+
+[Service]
+Type=oneshot
+User=prod
+WorkingDirectory=/home/prod/env/prod/treino_bike
+ExecStart=/usr/bin/node /home/prod/env/prod/treino_bike/server/scripts/snapshot.js
+StandardOutput=journal
+StandardError=journal

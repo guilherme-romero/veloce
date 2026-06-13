@@ -394,18 +394,41 @@ const Storage = {
     _routesCache = [];
   },
 
-  exportJSON: () => JSON.stringify({
-    version:       SCHEMA_VERSION,
-    exportedAt:    new Date().toISOString(),
-    user:          Storage.getUser(),
-    modes:         Storage.getModes(),
-    workouts:      Storage.getWorkouts(),
-    weights:       Storage.getWeights(),
-    rides:         Storage.getRides(),
-    trainingLog:   Storage.getTrainingLog(),
-    homeExercises: Storage.getHomeExercises(),
-    routes:        Storage.getRoutes(),
-  }, null, 2),
+  // Versão async — busca resumo de atividades Strava/Garmin (campos
+  // selecionados, não payload bruto). Fase 13.2.2.
+  exportJSON: async () => {
+    let activitiesSummary = [];
+    try {
+      const r = await window.Api.get('/activities/unified?days=1825');  // ≈ 5 anos
+      const items = (r?.items || []);
+      activitiesSummary = items.map(a => ({
+        data:        a.data,
+        fonte:       a.fonte,
+        nome:        a.nome,
+        distanciaKm: a.distanciaKm,
+        tempoMovS:   a.tempoMovS,
+        elevacaoM:   a.elevacaoM,
+        fcMedia:     a.fcMedia,
+        kcal:        a.kcal,
+        cadenciaMedia: a.cadenciaMedia,
+        potenciaMedia: a.potenciaMedia,
+      }));
+    } catch (e) { console.warn('[exportJSON] activities', e); }
+
+    return JSON.stringify({
+      version:       SCHEMA_VERSION,
+      exportedAt:    new Date().toISOString(),
+      user:          Storage.getUser(),
+      modes:         Storage.getModes(),
+      workouts:      Storage.getWorkouts(),
+      weights:       Storage.getWeights(),
+      rides:         Storage.getRides(),
+      trainingLog:   Storage.getTrainingLog(),
+      homeExercises: Storage.getHomeExercises(),
+      routes:        Storage.getRoutes(),
+      activitiesSummary,
+    }, null, 2);
+  },
 
   importJSON: async (jsonStr) => {
     const data = JSON.parse(jsonStr);

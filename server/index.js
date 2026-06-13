@@ -34,8 +34,107 @@ fastify.register(require('./routes/bikes'));
 fastify.register(require('./routes/weather'));
 fastify.register(require('./routes/backup'));
 
-// Health check (publico, util para o frontend checar se o backend esta up)
-fastify.get('/api/health', async () => ({ ok: true, version: require('./package.json').version }));
+// Health check ampliado (Fase 13.3.1)
+const path = require('path');
+const fs   = require('fs');
+const HEALTH_DATA_DIR    = path.resolve(__dirname, '..', 'data');
+const HEALTH_DB_FILE     = path.join(HEALTH_DATA_DIR, 'training.db');
+const HEALTH_BACKUPS_DIR = path.join(HEALTH_DATA_DIR, 'backups');
+
+function _safeStat(p) {
+  try { return fs.statSync(p); } catch { return null; }
+}
+function _dirSize(dir) {
+  try {
+    let total = 0;
+    const stack = [dir];
+    while (stack.length) {
+      const cur = stack.pop();
+      const entries = fs.readdirSync(cur, { withFileTypes: true });
+      for (const e of entries) {
+        const full = path.join(cur, e.name);
+        if (e.isDirectory()) stack.push(full);
+        else { const st = _safeStat(full); if (st) total += st.size; }
+      }
+    }
+    return total;
+  } catch { return null; }
+}
+function _diskFree(dir) {
+  // statvfs não está exposto direto no Node; usa df -k para o filesystem do dir
+  try {
+    const { execSync } = require('child_process');
+    const out = execSync(`df -k --output=avail "${dir}"`, { encoding: 'utf8' });
+    const lines = out.trim().split('\n');
+    const kb = parseInt(lines[lines.length - 1].trim(), 10);
+    return isNaN(kb) ? null : kb * 1024;
+  } catch { return null; }
+}
+function _safeCount(sql) {
+  try { return fastify.db.prepare(sql).get().c; } catch { return null; }
+}
+
+fastify.get('/api/health', async () => {
+  const version = require('./package.json').version;
+  const dbStat = _safeStat(HEALTH_DB_FILE);
+
+  // Contagens das tabelas principais
+  const counts = {
+    weights:        _safeCount('SELECT COUNT(*) AS c FROM weights'),
+    rides:          _safeCount('SELECT COUNT(*) AS c FROM rides'),
+    trainingLog:    _safeCount('SELECT COUNT(*) AS c FROM training_log'),
+    routes:         _safeCount('SELECT COUNT(*) AS c FROM routes'),
+    bikes:          _safeCount('SELECT COUNT(*) AS c FROM bikes'),
+    stravaActs:     _safeCount('SELECT COUNT(*) AS c FROM strava_activities'),
+    garminActs:     _safeCount('SELECT COUNT(*) AS c FROM garmin_activities'),
+  };
+
+  // Último sync Garmin/Strava (lê meta tables, tolera ausência)
+  let lastGarminSync = null, lastStravaSync = null;
+  try {
+    const r = fastify.db.prepare('SELECT last_sync AS m FROM garmin_sync_meta WHERE id=1').get();
+    lastGarminSync = r?.m || null;
+  } catch {}
+  try {
+    const r = fastify.db.prepare('SELECT last_sync AS m FROM strava_sync_meta WHERE id=1').get();
+    lastStravaSync = r?.m || null;
+  } catch {}
+
+  // Último snapshot
+  let lastBackup = null;
+  try {
+    if (fs.existsSync(HEALTH_BACKUPS_DIR)) {
+      const files = fs.readdirSync(HEALTH_BACKUPS_DIR)
+        .filter(n => n.startsWith('treino-bike-data-') && n.endsWith('.zip'))
+        .map(n => ({ name: n, mtime: fs.statSync(path.join(HEALTH_BACKUPS_DIR, n)).mtime }))
+        .sort((a, b) => b.mtime - a.mtime);
+      if (files.length) {
+        const f = files[0];
+        const ageDays = Math.floor((Date.now() - f.mtime.getTime()) / 86400000);
+        lastBackup = { name: f.name, mtime: f.mtime.toISOString(), ageDays, count: files.length };
+      }
+    }
+  } catch {}
+
+  return {
+    ok: true,
+    version,
+    db: {
+      size: dbStat ? dbStat.size : null,
+      mtime: dbStat ? dbStat.mtime.toISOString() : null,
+    },
+    counts,
+    sync: {
+      garminLast: lastGarminSync,
+      stravaLast: lastStravaSync,
+    },
+    backup: lastBackup,
+    disk: {
+      dataDirSize: _dirSize(HEALTH_DATA_DIR),
+      freeBytes: _diskFree(HEALTH_DATA_DIR),
+    },
+  };
+});
 
 // 404 generico para /api/*
 fastify.setNotFoundHandler((req, reply) => {

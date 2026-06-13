@@ -19,6 +19,9 @@ data/avatars/
 data/garmin_session/
 dados_garmin.txt
 
+# Snapshots automaticos (mantemos a pasta via .gitkeep)
+data/backups/*.zip
+
 # Logs
 *.log
 npm-debug.log*
