@@ -24,9 +24,6 @@ async function routes(fastify) {
     catch (e) { req.log.warn({ err: e }, 'wal_checkpoint pre-zip falhou'); }
 
     const filename = `treino-bike-data-${todayISO()}.zip`;
-    reply.header('Content-Type', 'application/zip');
-    reply.header('Content-Disposition', `attachment; filename="${filename}"`);
-
     const archive = archiver('zip', { zlib: { level: 9 } });
 
     archive.on('warning', (err) => {
@@ -34,21 +31,16 @@ async function routes(fastify) {
     });
     archive.on('error', (err) => {
       req.log.error({ err }, 'archiver error');
-      reply.raw.destroy(err);
     });
-
-    archive.pipe(reply.raw);
 
     // training.db (sempre incluído)
     if (fs.existsSync(DB_FILE)) {
       archive.file(DB_FILE, { name: 'training.db' });
     }
-
     // avatars/ (se existir)
     if (fs.existsSync(AVATARS_DIR)) {
       archive.directory(AVATARS_DIR, 'avatars');
     }
-
     // METADATA legível
     archive.append(JSON.stringify({
       app: 'treino-bike',
@@ -58,8 +50,16 @@ async function routes(fastify) {
       excluded: ['garmin_session/ (tokens sensiveis)'],
     }, null, 2), { name: 'METADATA.json' });
 
-    await archive.finalize();
-    return reply;
+    // Inicia a finalização — archiver é um stream Readable
+    archive.finalize();
+
+    // reply.send(stream) garante que os headers (incluindo Content-Type
+    // e Content-Disposition) vão antes do corpo. Piping direto em reply.raw
+    // bypassa o Fastify e o browser não recebe os headers corretos.
+    return reply
+      .type('application/zip')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .send(archive);
   });
 }
 

@@ -72,15 +72,32 @@ function openBackupModal() {
 }
 
 // ── Download da base de dados completa em ZIP ────────────────────────────
-function exportDataZip() {
+async function exportDataZip() {
   toast('Preparando ZIP da base de dados…');
-  // Triggera download via link direto — o navegador segue o redirect com cookies
-  const a = document.createElement('a');
-  a.href = '/api/backup/data-zip';
-  a.download = '';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => a.remove(), 1000);
+  try {
+    // Fetch com credentials para enviar cookie de auth; precisamos do Blob
+    // para forçar o save com o filename certo (do Content-Disposition).
+    const resp = await fetch('/api/backup/data-zip', { credentials: 'same-origin' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    // Extrai o filename do Content-Disposition se disponível
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/i);
+    const filename = match ? match[1] : `treino-bike-data-${new Date().toISOString().slice(0, 10)}.zip`;
+
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+    toast('ZIP baixado');
+  } catch (e) {
+    console.error('[Backup] ZIP', e);
+    toast('Falha ao baixar ZIP: ' + (e.message || e), { kind: 'error' });
+  }
 }
 
 // ── Relatório PDF (jsPDF) ────────────────────────────────────────────────
