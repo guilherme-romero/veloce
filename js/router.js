@@ -93,6 +93,10 @@
     if (route.section === 'bikes' && window.Bikes?.load) {
       window.Bikes.load();
     }
+    if (route.section === 'activities' && window.Activities?.refreshMaps) {
+      // Leaflet criado em seção display:none renderiza com 0x0; refresh ao entrar.
+      setTimeout(() => window.Activities.refreshMaps(), 60);
+    }
   }
 
   function navigate(slugOrHashOrSection) {

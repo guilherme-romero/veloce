@@ -504,11 +504,19 @@
     });
   }
 
+  // Re-renderiza tiles dos mapas Leaflet (necessário quando os containers
+  // foram criados em uma seção display:none — o Leaflet inicia com 0x0 e
+  // os tiles só aparecem após invalidateSize() depois que a seção fica visível).
+  function refreshMaps() {
+    try { if (_map) _map.invalidateSize(); } catch (_) {}
+    _last5Maps.forEach(m => { try { m.invalidateSize(); } catch (_) {} });
+  }
+
   // Expor o trigger principal
   async function loadAndRender() {
     await load();
     renderReview();
   }
 
-  window.Activities = { load: loadAndRender, renderReview, renderVolumeTraining, renderLast5 };
+  window.Activities = { load: loadAndRender, renderReview, renderVolumeTraining, renderLast5, refreshMaps };
 })();
