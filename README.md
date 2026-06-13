@@ -2,7 +2,7 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.13.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.14.9** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
 
 ---
 
@@ -63,11 +63,21 @@ Análises derivadas dos dados de saúde e performance do seu relógio:
 - Edição manual sempre prevalece sobre o sync (regra "manual wins")
 
 ### 💾 Backup e Relatórios
+- **Backup automático semanal** — snapshot do banco em `data/backups/` (retenção: últimos 8)
+- Lista de snapshots disponíveis para download direto no app
 - Exportar/importar JSON completo
 - Exportar pesagens em CSV
-- **Relatório completo em PDF** — capa, perfil, evolução de peso (gráfico), pesagens, atividades de 90 dias, insights e recordes
+- **Relatório completo em PDF** com filtro de período (30 dias / 90 dias / tudo)
+  - Capa, perfil, evolução de peso (gráfico), pesagens, atividades, insights, recordes
+  - Seção de Bike: km total por bike, vida útil de componentes, histórico de manutenções
 - **Download da base completa em ZIP** — `training.db` + avatares (tokens não incluídos)
 - Imprimir / salvar como PDF
+
+### 🌤️ Previsão do tempo (Passeios + Rotas)
+- Faixa de 7 dias com ícone WMO, máx/mín, % chuva, UV e indicador de esforço para ciclismo
+- Modal detalhado por dia: sensação térmica, rajadas, mm de chuva, nascer/pôr do sol
+- Alertas específicos: vento perigoso, calor extremo, chuva forte, UV alto
+- Proxy server-side (sem problema de CORS no PWA)
 
 ---
 
@@ -82,7 +92,7 @@ Análises derivadas dos dados de saúde e performance do seu relógio:
 ## 🛠 Tecnologia (resumo)
 
 - **Frontend:** HTML5, CSS puro e JavaScript vanilla (sem framework)
-- **Backend:** Node.js (Fastify) + SQLite + autenticação JWT
+- **Backend:** Node.js (Fastify) + SQLite + autenticação JWT (cookie httpOnly)
 - **Garmin:** wrapper Python (`garminconnect`) chamado pelo Node
 - **Strava:** OAuth simplificado single-user
 - **Gráficos:** Chart.js · **Mapas:** Leaflet · **Clima:** Open-Meteo
