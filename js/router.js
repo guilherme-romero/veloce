@@ -12,8 +12,8 @@
      #/                ou (vazio) → primeira seção configurada como default
      #/perfil          → profile (inclui zonas FC agrupado dentro)
      #/zonas           → profile (alias retrocompatível)
-     #/fortalecimento  → home-workout
-     #/treinos         → plan
+     #/fortalecimento  → plan (alias retrocompatível)
+     #/treinos         → plan (inclui Fortalecimento em casa agrupado dentro)
      #/passeios        → rides
      #/rotas           → routes
      #/atividades      → activities
@@ -33,7 +33,7 @@
     { slug: 'zonas',           section: 'profile',      navBtn: 'nav-profile',      label: 'Perfil' },
     { slug: 'bike',            section: 'bikes',        navBtn: 'nav-bikes',        label: 'Bike' },
     { slug: 'bikes',           section: 'bikes',        navBtn: 'nav-bikes',        label: 'Bike' },
-    { slug: 'fortalecimento',  section: 'home-workout', navBtn: 'nav-home-workout', label: 'Fortalecimento' },
+    { slug: 'fortalecimento',  section: 'plan',         navBtn: 'nav-plan',         label: 'Treinos' },
     { slug: 'treinos',         section: 'plan',         navBtn: 'nav-plan',         label: 'Treinos' },
     { slug: 'passeios',        section: 'rides',        navBtn: 'nav-rides',        label: 'Passeios' },
     { slug: 'rotas',           section: 'routes',       navBtn: 'nav-routes',       label: 'Rotas' },
