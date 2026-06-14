@@ -2,7 +2,7 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.14.9** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.15.1** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
 
 ---
 
@@ -11,14 +11,11 @@ App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de s
 ### 🏠 Início
 Resumo executivo com sua meta de peso, km da semana, sequência de dias ativos e índice de fadiga. Atalhos rápidos para registrar pesagem, marcar treino ou sincronizar com a Garmin.
 
-### 👤 Perfil & Objetivos
-- Idade, IMC, FC máxima e zonas de FC calculadas automaticamente
-- Projeção de peso em 12 semanas
-- Análise de tendência: taxa de perda semanal e previsão de quando atingirá a meta
+### 👤 Perfil
+Agrupa dados do atleta e fisiologia em uma única aba:
+- **Atleta** — idade, IMC, FC máxima, peso, bike ativa, projeção de peso em 12 semanas e análise de tendência (taxa de perda semanal e previsão da meta)
+- **Fisiologia** — seis zonas de FC (Z1–Z6) calculadas a partir da idade, com cores consistentes em todo o app (gráficos, calendário, badges)
 - Foto de perfil personalizada
-
-### ❤️ Zonas FC
-Seis zonas (Z1–Z6) baseadas na sua idade. Cores consistentes em todo o app (gráficos, calendário, badges).
 
 ### 🚲 Bike (garagem virtual)
 Cadastro de bicicletas com rastreamento automático de desgaste de componentes:
@@ -29,11 +26,12 @@ Cadastro de bicicletas com rastreamento automático de desgaste de componentes:
 - Histórico completo de manutenções e revisões completas
 - Inspiração: probikegarage.com
 
-### 💪 Fortalecimento
-CRUD de exercícios em casa (core, pernas, mobilidade).
+### 🚴 Treinos
+Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
+- **Em casa** — CRUD de exercícios de fortalecimento (core, pernas, mobilidade)
+- **Semana padrão** — agenda semanal personalizável com modos de treino dinâmicos
 
-### 🚴 Treinos & Passeios
-- Agenda semanal personalizável com modos de treino dinâmicos
+### 🗓️ Passeios & Rotas
 - Calendário mensal de passeios planejados
 - Análise de rotas a partir de arquivos GPX (mapa, perfil de elevação, calculadora de tempo, previsão de clima)
 
