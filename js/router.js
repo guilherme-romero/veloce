@@ -10,8 +10,8 @@
 
    Rotas suportadas (ID da seção ↔ slug do hash):
      #/                ou (vazio) → primeira seção configurada como default
-     #/perfil          → profile
-     #/zonas           → zones
+     #/perfil          → profile (inclui zonas FC agrupado dentro)
+     #/zonas           → profile (alias retrocompatível)
      #/fortalecimento  → home-workout
      #/treinos         → plan
      #/passeios        → rides
@@ -30,7 +30,7 @@
     { slug: 'inicio',          section: 'home',         navBtn: 'nav-home',         label: 'Início' },
     { slug: 'home',            section: 'home',         navBtn: 'nav-home',         label: 'Início' },
     { slug: 'perfil',          section: 'profile',      navBtn: 'nav-profile',      label: 'Perfil' },
-    { slug: 'zonas',           section: 'zones',        navBtn: 'nav-zones',        label: 'Zonas FC' },
+    { slug: 'zonas',           section: 'profile',      navBtn: 'nav-profile',      label: 'Perfil' },
     { slug: 'bike',            section: 'bikes',        navBtn: 'nav-bikes',        label: 'Bike' },
     { slug: 'bikes',           section: 'bikes',        navBtn: 'nav-bikes',        label: 'Bike' },
     { slug: 'fortalecimento',  section: 'home-workout', navBtn: 'nav-home-workout', label: 'Fortalecimento' },
