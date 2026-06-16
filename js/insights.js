@@ -42,18 +42,25 @@
   }
 
   // TRIMP simplificado de Banister (Edwards): tempo (min) × fator de intensidade²
+  // Quando fcMedia não está disponível usa 0,70 (≈ Zona 2) como estimativa conservadora.
+  const INTENSITY_FALLBACK = 0.70;
+
   function trimpDeAtividade(act, fcMax) {
-    if (!act || !fcMax || !act.tempoMovS || !act.fcMedia) return 0;
-    const tempoMin = act.tempoMovS / 60;
-    const intensity = Math.min(act.fcMedia / fcMax, 1.10); // clamp para evitar outliers
+    if (!act || !fcMax || !act.tempoMovS) return 0;
+    const tempoMin  = act.tempoMovS / 60;
+    const intensity = act.fcMedia
+      ? Math.min(act.fcMedia / fcMax, 1.10)
+      : INTENSITY_FALLBACK;
     return tempoMin * intensity * intensity;
   }
 
   // TSS normalizado (1h em Z4 ≈ 100). Usa TRIMP como base.
   function tssDeAtividade(act, fcMax) {
-    if (!act || !fcMax || !act.tempoMovS || !act.fcMedia) return 0;
-    const tempoH = act.tempoMovS / 3600;
-    const intensity = Math.min(act.fcMedia / fcMax, 1.10);
+    if (!act || !fcMax || !act.tempoMovS) return 0;
+    const tempoH    = act.tempoMovS / 3600;
+    const intensity = act.fcMedia
+      ? Math.min(act.fcMedia / fcMax, 1.10)
+      : INTENSITY_FALLBACK;
     // Aproximação: TSS = tempo_h × intensity² × 100 (calibrado para 1h em ~88% FCM ≈ 80 TSS)
     return tempoH * intensity * intensity * 100;
   }
@@ -193,9 +200,10 @@
       const isoFim = fim.toISOString().slice(0, 10);
 
       const acts = activities.filter(a => a.data >= isoIni && a.data < isoFim);
-      let trimpTotal = 0, pesoMed = null, pesoSum = 0, pesoN = 0;
+      let trimpTotal = 0, pesoMed = null, pesoSum = 0, pesoN = 0, semFC = false;
       acts.forEach(a => {
         trimpTotal += trimpDeAtividade(a, fcMax);
+        if (!a.fcMedia) semFC = true; // ao menos uma atividade sem FC → estimado
         const p = pesoDoDia(a.data);
         if (p) { pesoSum += p; pesoN++; }
       });
@@ -206,6 +214,7 @@
         label: inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', ''),
         trimpKg: +trimpKg.toFixed(2),
         trimpTotal,
+        estimado: acts.length > 0 && semFC, // sem FC real → barra estimada
       });
     }
 
@@ -236,15 +245,26 @@
         labels: semanas.map(s => s.label),
         datasets: [{
           data: semanas.map(s => s.trimpKg),
-          backgroundColor: 'rgba(20,217,184,0.45)',
-          borderColor: COLORS.teal,
+          // Barra com tracejado (opacity menor) quando intensidade é estimada (sem FC)
+          backgroundColor: semanas.map(s => s.estimado ? 'rgba(20,217,184,0.20)' : 'rgba(20,217,184,0.45)'),
+          borderColor: semanas.map(s => s.estimado ? COLORS.muted2 : COLORS.teal),
           borderWidth: 1,
+          borderDash: [],
           borderRadius: 3,
         }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y.toFixed(2)} TRIMP/kg` } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            label: c => {
+              const s = semanas[c.dataIndex];
+              const base = `${c.parsed.y.toFixed(2)} TRIMP/kg`;
+              return s.estimado ? base + ' (estimado — sem FC)' : base;
+            }
+          }},
+        },
         scales: {
           y: { beginAtZero: true, ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
           x: { ticks: { color: COLORS.muted2 }, grid: { display: false } },
