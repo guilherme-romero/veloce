@@ -215,25 +215,25 @@
   background: var(--teal-dim);
   border: 1px solid var(--teal);
 }
-.rws-wd  { font-size: 10px; color: var(--muted2); text-transform: capitalize; }
-.rws-dm  { font-size: 12px; font-weight: 700; color: var(--text); }
-.rws-icon { font-size: 16px; color: var(--amber); margin: 2px 0; }
-.rws-tmax { font-size: 12px; font-weight: 600; color: var(--text); }
-.rws-tmin { font-size: 10px; color: var(--muted2); }
+.rws-wd  { font-size: 12px; color: var(--muted2); text-transform: capitalize; }
+.rws-dm  { font-size: 14px; font-weight: 700; color: var(--text); }
+.rws-icon { font-size: 18px; color: var(--amber); margin: 2px 0; }
+.rws-tmax { font-size: 14px; font-weight: 600; color: var(--text); }
+.rws-tmin { font-size: 12px; color: var(--muted2); }
 .rws-rain {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted2);
   display: flex;
   align-items: center;
   gap: 2px;
 }
-.rws-rain i { color: #5b9bd5; font-size: 8px; }
+.rws-rain i { color: #5b9bd5; font-size: 10px; }
 .rws-uv   {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted2);
   font-weight: 600;
 }
-.rws-esf  { font-size: 9px; font-weight: 600; margin-top: 1px; text-align: center; line-height: 1.2; }
+.rws-esf  { font-size: 11px; font-weight: 600; margin-top: 1px; text-align: center; line-height: 1.2; }
 
 /* Modal de detalhes do dia (Fase 12.3.2) */
 .rws-detail-alert {

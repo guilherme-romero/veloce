@@ -152,10 +152,13 @@ fastify.setNotFoundHandler((req, reply) => {
   }
 });
 
+const scheduler = require('./scheduler');
+
 const start = async () => {
   try {
     await fastify.listen({ port: config.PORT, host: config.HOST });
     fastify.log.info(`Treino Bike API rodando em http://${config.HOST}:${config.PORT}`);
+    scheduler.setup(db, fastify.log);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

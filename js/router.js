@@ -97,6 +97,9 @@
       // Leaflet criado em seção display:none renderiza com 0x0; refresh ao entrar.
       setTimeout(() => window.Activities.refreshMaps(), 60);
     }
+    if (route.section === 'insights' && window.Insights?.load) {
+      window.Insights.load();
+    }
   }
 
   function navigate(slugOrHashOrSection) {

@@ -207,6 +207,23 @@ async function routes(fastify) {
       });
       trx(weighins);
 
+      // Atualiza pesoAtual no perfil com o registro mais recente importado do Garmin
+      const latestGarmin = fastify.db
+        .prepare("SELECT peso FROM weights WHERE fonte='garmin' ORDER BY data DESC LIMIT 1")
+        .get();
+      if (latestGarmin) {
+        const profileRow = fastify.db.prepare('SELECT payload FROM user_profile WHERE id=1').get();
+        if (profileRow) {
+          try {
+            const p = JSON.parse(profileRow.payload || '{}');
+            p.pesoAtual = latestGarmin.peso;
+            fastify.db
+              .prepare('UPDATE user_profile SET payload=?, updated_at=CURRENT_TIMESTAMP WHERE id=1')
+              .run(JSON.stringify(p));
+          } catch (_) {}
+        }
+      }
+
       return { ok: true, days, totalRetornadas: weighins.length, imported, updated, skipped };
     } catch (err) {
       req.log.error({ err }, 'garmin sync-weights falhou');

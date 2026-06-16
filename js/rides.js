@@ -579,7 +579,7 @@ const WMO_ICONS = {
   2:  'fa-cloud-sun',
   3:  'fa-cloud',
   45: 'fa-smog', 48: 'fa-smog',
-  51: 'fa-cloud-drizzle', 53: 'fa-cloud-drizzle', 55: 'fa-cloud-drizzle',
+  51: 'fa-cloud-sun-rain', 53: 'fa-cloud-sun-rain', 55: 'fa-cloud-sun-rain',
   61: 'fa-cloud-rain', 63: 'fa-cloud-rain', 65: 'fa-cloud-showers-heavy',
   71: 'fa-snowflake', 73: 'fa-snowflake', 75: 'fa-snowflake',
   80: 'fa-cloud-rain', 81: 'fa-cloud-rain', 82: 'fa-cloud-showers-heavy',

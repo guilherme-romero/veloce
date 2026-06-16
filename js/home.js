@@ -6,9 +6,31 @@
 
   function fmtKm(v)   { return (v == null || !isFinite(v)) ? '—' : v.toFixed(0); }
   function fmtKg(v)   { return (v == null || !isFinite(v)) ? '—' : v.toFixed(1).replace('.', ','); }
+  function parseLocalDT(iso) {
+    if (!iso) return null;
+    // Garmin: "YYYY-MM-DD HH:MM:SS" (espaço) → normaliza para ISO
+    // Strava:  "YYYY-MM-DDTHH:MM:SSZ" (Z é na verdade hora local) → tira Z
+    const s = iso.replace(' ', 'T').replace(/Z$/, '');
+    const d = new Date(s.includes('T') ? s : s + 'T12:00:00');
+    return isNaN(d) ? null : d;
+  }
+
   function fmtDate(iso) {
-    try { return new Date(iso + (iso.includes('T') ? '' : 'T12:00:00')).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }); }
-    catch { return iso; }
+    try {
+      const d = parseLocalDT(iso);
+      if (!d) return iso;
+      return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+    } catch { return iso; }
+  }
+
+  function fmtDateHora(iso) {
+    try {
+      const d = parseLocalDT(iso);
+      if (!d) return fmtDate(iso);
+      const data = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+      const hora = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+      return `${data} às ${hora}`;
+    } catch { return fmtDate(iso); }
   }
 
   function greeting() {
@@ -72,7 +94,7 @@
             <div class="home-recent-icon"><i class="fa-solid fa-bicycle"></i></div>
             <div class="home-recent-info">
               <div class="home-recent-title">${esc(a.nome || 'Atividade')} ${fonte}</div>
-              <div class="home-recent-meta">${esc(fmtDate(a.inicio || a.data))} · ${km}${tempo ? ' · ' + tempo : ''}</div>
+              <div class="home-recent-meta">${esc(fmtDateHora(a.inicio || a.data))} · ${km}${tempo ? ' · ' + tempo : ''}</div>
             </div>
           </div>`;
       }).join('');

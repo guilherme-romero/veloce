@@ -23,11 +23,25 @@ const DAILY_FIELDS = [
   'sunset',
 ].join(',');
 
-function buildUrl({ lat, lon, days = 7 }) {
-  return `https://api.open-meteo.com/v1/forecast` +
+// Campos horários para modal de rota (4 h após saída)
+const HOURLY_FIELDS = [
+  'temperature_2m',
+  'apparent_temperature',
+  'precipitation_probability',
+  'precipitation',
+  'weathercode',
+  'wind_speed_10m',
+  'windgusts_10m',
+  'uv_index',
+].join(',');
+
+function buildUrl({ lat, lon, days = 7, includeHourly = false }) {
+  let url = `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${lat}&longitude=${lon}` +
     `&daily=${DAILY_FIELDS}` +
     `&timezone=America%2FSao_Paulo&forecast_days=${days}`;
+  if (includeHourly) url += `&hourly=${HOURLY_FIELDS}`;
+  return url;
 }
 
 // Lança em caso de falha — o caller decide o status. Evita o antipadrão
@@ -75,7 +89,7 @@ async function routes(fastify) {
       return reply.code(400).send({ error: 'date deve estar em YYYY-MM-DD' });
     }
     try {
-      const json = await fetchOpenMeteo(buildUrl({ lat, lon }));
+      const json = await fetchOpenMeteo(buildUrl({ lat, lon, includeHourly: !!rawDate }));
       const daily = json.daily;
 
       if (rawDate) {
@@ -86,6 +100,24 @@ async function routes(fastify) {
         const day = {};
         for (const key of Object.keys(daily)) {
           day[key] = daily[key][idx];
+        }
+        // Agrega dados horários do dia solicitado
+        if (json.hourly && json.hourly.time) {
+          const prefix = rawDate + 'T';
+          const hourly = {};
+          for (const key of Object.keys(json.hourly)) {
+            if (key === 'time') continue;
+            hourly[key] = [];
+          }
+          const hours = [];
+          json.hourly.time.forEach((t, i) => {
+            if (!t.startsWith(prefix)) return;
+            hours.push(t.slice(11, 16)); // "HH:MM"
+            for (const key of Object.keys(hourly)) {
+              hourly[key].push(json.hourly[key][i]);
+            }
+          });
+          day.hourly = { time: hours, ...hourly };
         }
         return day;
       }

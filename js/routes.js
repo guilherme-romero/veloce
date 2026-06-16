@@ -340,7 +340,33 @@ function calcularTempo() {
   }
 }
 
-/* ── Previsão do tempo (Open-Meteo) ─────────────────────────────────── */
+/* ── Previsão do tempo (Open-Meteo) — modal expandido ───────────────── */
+const WMO_ICON_ROUTE = {
+  0:'fa-sun', 1:'fa-sun', 2:'fa-cloud-sun', 3:'fa-cloud',
+  45:'fa-smog', 48:'fa-smog',
+  51:'fa-cloud-sun-rain', 53:'fa-cloud-sun-rain', 55:'fa-cloud-sun-rain',
+  61:'fa-cloud-rain', 63:'fa-cloud-rain', 65:'fa-cloud-showers-heavy',
+  71:'fa-snowflake', 73:'fa-snowflake', 75:'fa-snowflake',
+  80:'fa-cloud-rain', 81:'fa-cloud-rain', 82:'fa-cloud-showers-heavy',
+  95:'fa-cloud-bolt', 96:'fa-cloud-bolt', 99:'fa-cloud-bolt',
+};
+function wmoIconRoute(code) { return WMO_ICON_ROUTE[code] || 'fa-cloud-sun'; }
+
+function calcularEsforco(tMax, vento, chuva) {
+  if (tMax > 38 || chuva > 60 || vento > 40) return { label: 'Alto',        color: 'var(--red)' };
+  if (tMax > 35 || (chuva > 30 && vento > 20)) return { label: 'Médio-Alto', color: '#f5923a' };
+  if (tMax > 30 || vento > 25 || chuva > 20) return { label: 'Médio',       color: 'var(--amber)' };
+  if (tMax > 25 || vento > 15) return            { label: 'Baixo-Médio',    color: 'var(--teal)' };
+  return                                          { label: 'Baixo',          color: 'var(--green)' };
+}
+
+function weatherIcon(tMax, chuva) {
+  if (chuva > 50) return 'fa-cloud-rain';
+  if (chuva > 20) return 'fa-cloud-sun-rain';
+  if (tMax > 30)  return 'fa-sun';
+  return 'fa-cloud-sun';
+}
+
 async function fetchWeather(lat, lon, dateISO) {
   const el = document.getElementById('routes-weather');
   if (!el) return;
@@ -348,7 +374,6 @@ async function fetchWeather(lat, lon, dateISO) {
   el.innerHTML = '<p style="color:var(--muted);font-size:13px;"><i class="fa-solid fa-spinner fa-spin"></i> Consultando previsão…</p>';
 
   try {
-    // Proxy server-side (evita CORS/CSP do browser)
     const day = await window.Api.get(
       `/weather/point?lat=${lat}&lon=${lon}&date=${encodeURIComponent(dateISO)}`
     );
@@ -357,53 +382,103 @@ async function fetchWeather(lat, lon, dateISO) {
       return;
     }
 
-    const tMax  = day.temperature_2m_max;
-    const tMin  = day.temperature_2m_min;
-    const chuva = day.precipitation_probability_max ?? 0;
-    const vento = day.wind_speed_10m_max ?? 0;
-    const esforco = calcularEsforco(tMax, vento, chuva);
+    const tMax   = day.temperature_2m_max   ?? 0;
+    const tMin   = day.temperature_2m_min   ?? 0;
+    const tSens  = day.apparent_temperature_max ?? null;
+    const chuva  = day.precipitation_probability_max ?? 0;
+    const chuvaM = day.precipitation_sum    ?? 0;
+    const vento  = day.wind_speed_10m_max   ?? 0;
+    const rajada = day.windgusts_10m_max    ?? null;
+    const uv     = day.uv_index_max         ?? null;
+    const sunrise = day.sunrise             || null;
+    const sunset  = day.sunset              || null;
+    const wmo    = day.weathercode;
+    const esf    = calcularEsforco(tMax, vento, chuva);
 
-    const esforcoColor = {
-      'Baixo': 'var(--green)', 'Baixo-Médio': 'var(--teal)',
-      'Médio': 'var(--amber)', 'Médio-Alto': '#f5923a', 'Alto': 'var(--red)',
-    }[esforco] || 'var(--text)';
+    const escFn = window.esc || (s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
+
+    const fmtTime = (iso) => {
+      if (!iso) return '—';
+      try { return new Date(String(iso).replace(' ','T').replace(/Z$/,'')).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }); }
+      catch { return '—'; }
+    };
+
+    // Bloco horário — 4 horas a partir do horário de saída configurado
+    let hourlyHTML = '';
+    if (day.hourly && day.hourly.time && day.hourly.time.length) {
+      // Horário de saída só pode conter dígitos e ':', nunca vai para innerHTML diretamente
+      const saidaRaw = document.getElementById('calc-horario')?.value || '07:00';
+      const saida = /^\d{2}:\d{2}$/.test(saidaRaw) ? saidaRaw : '07:00';
+      const [sh, sm] = saida.split(':').map(Number);
+      const startMin = sh * 60 + (sm || 0);
+      const slots = day.hourly.time
+        .map((t, i) => {
+          // Valida formato HH:MM para não deixar string da API entrar como-está no HTML
+          const safe = /^\d{2}:\d{2}$/.test(String(t)) ? String(t) : '';
+          const [hh, mm] = safe.split(':').map(Number);
+          return { t: safe, i, totalMin: isNaN(hh) ? -1 : hh * 60 + mm };
+        })
+        .filter(s => s.t && s.totalMin >= startMin && s.totalMin <= startMin + 240);
+
+      if (slots.length) {
+        const h = day.hourly;
+        hourlyHTML = `
+          <div class="route-weather-hour-title">
+            <i class="fa-solid fa-clock" style="color:var(--teal)"></i>
+            Previsão hora a hora (saída ${saida})
+          </div>
+          <div class="route-weather-hours">
+            ${slots.map(({ t, i }) => {
+              const icon = wmoIconRoute(h.weathercode?.[i]);   // lookup → hardcoded string
+              const tc   = h.temperature_2m?.[i];
+              const pp   = Math.round(h.precipitation_probability?.[i] ?? 0);
+              const ws   = Math.round(h.wind_speed_10m?.[i] ?? 0);
+              return `
+                <div class="route-weather-slot">
+                  <div class="rwh-time">${t}</div>
+                  <i class="fa-solid ${icon} rwh-icon"></i>
+                  <div class="rwh-temp">${tc != null ? Math.round(tc) + '°' : '—'}</div>
+                  <div class="rwh-rain" style="color:#5b9bd5"><i class="fa-solid fa-droplet"></i>${pp}%</div>
+                  <div class="rwh-wind" style="color:var(--muted2)"><i class="fa-solid fa-wind"></i>${ws}</div>
+                </div>`;
+            }).join('')}
+          </div>`;
+      }
+    }
+
+    // Todos os valores numéricos são seguros; strings da API passam por escFn
+    const row = (icon, label, value, color) => `
+      <div class="weather-detail-row">
+        <span class="weather-detail-key"><i class="fa-solid ${icon}"></i> ${label}</span>
+        <span class="weather-detail-val"${color ? ` style="color:${color}"` : ''}>${escFn(value)}</span>
+      </div>`;
 
     el.innerHTML = `
-      <div class="weather-row">
-        <span class="weather-icon"><i class="fa-solid ${weatherIcon(tMax, chuva)}"></i></span>
-        <div class="weather-data">
-          <div class="weather-temp">${tMax.toFixed(0)}°C
-            <span style="color:var(--muted);font-size:12px;">/ ${tMin.toFixed(0)}°C mín</span>
-          </div>
-          <div class="weather-meta">
-            <span><i class="fa-solid fa-wind"></i> ${vento.toFixed(0)} km/h</span>
-            <span><i class="fa-solid fa-droplet"></i> ${chuva}% chuva</span>
-          </div>
-          <div class="weather-esforco" style="color:${esforcoColor}">
-            <i class="fa-solid fa-gauge"></i> Esforço estimado: <strong>${esforco}</strong>
+      <div class="route-weather-header">
+        <span class="weather-icon-lg"><i class="fa-solid ${wmoIconRoute(wmo)}"></i></span>
+        <div>
+          <div class="weather-temp-lg">${Math.round(tMax)}°C <span class="weather-temp-min">/ ${Math.round(tMin)}°C mín</span></div>
+          <div class="weather-esforco-badge" style="color:${esf.color}">
+            <i class="fa-solid fa-gauge"></i> Esforço: <strong>${esf.label}</strong>
           </div>
         </div>
       </div>
+      <div class="route-weather-grid">
+        ${tSens != null ? row('fa-temperature-half', 'Sensação térmica', `${Math.round(tSens)}°C`) : ''}
+        ${row('fa-droplet', 'Prob. de chuva', `${chuva}%`, chuva > 50 ? 'var(--red)' : chuva > 20 ? 'var(--amber)' : '')}
+        ${row('fa-cloud-rain', 'Chuva acumulada', `${chuvaM.toFixed(1)} mm`, chuvaM > 5 ? 'var(--red)' : '')}
+        ${row('fa-wind', 'Vento', `${Math.round(vento)} km/h`)}
+        ${rajada != null ? row('fa-tornado', 'Rajadas', `${Math.round(rajada)} km/h`, rajada > 40 ? 'var(--red)' : rajada > 25 ? 'var(--amber)' : '') : ''}
+        ${uv != null ? row('fa-sun', 'Índice UV', `${Math.round(uv)}`, uv >= 8 ? 'var(--amber)' : '') : ''}
+        ${sunrise ? row('fa-sun', 'Nascer do sol', fmtTime(sunrise)) : ''}
+        ${sunset  ? row('fa-moon', 'Pôr do sol',   fmtTime(sunset))  : ''}
+      </div>
+      ${hourlyHTML}
     `;
   } catch (err) {
     console.warn('[Routes] Weather:', err);
     el.innerHTML = '<p style="color:var(--muted);font-size:13px;">Não foi possível consultar a previsão.</p>';
   }
-}
-
-function calcularEsforco(tMax, vento, chuva) {
-  if (tMax > 38 || chuva > 60 || vento > 40) return 'Alto';
-  if (tMax > 35 || (chuva > 30 && vento > 20)) return 'Médio-Alto';
-  if (tMax > 30 || vento > 25 || chuva > 20) return 'Médio';
-  if (tMax > 25 || vento > 15) return 'Baixo-Médio';
-  return 'Baixo';
-}
-
-function weatherIcon(tMax, chuva) {
-  if (chuva > 50) return 'fa-cloud-rain';
-  if (chuva > 20) return 'fa-cloud-sun-rain';
-  if (tMax > 30)  return 'fa-sun';
-  return 'fa-cloud-sun';
 }
 
 /* ── Planejar passeio (integração com calendário de Objetivos) ────────── */

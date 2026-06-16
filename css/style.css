@@ -1042,8 +1042,8 @@ body.edit-mode #btn-edit-profile-2 { display: flex; }
   overflow: hidden;
   max-width: 100%;
 }
-.tl-badge i { font-size: 8px; flex-shrink: 0; }
-.tl-badge-metric { font-size: 8px; font-weight: 600; opacity: 0.92; overflow: hidden; text-overflow: ellipsis; }
+.tl-badge i { font-size: 10px; flex-shrink: 0; }
+.tl-badge-metric { font-size: 10px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; }
 .tl-badge[data-tipo="bike"]        { background: var(--teal); }
 .tl-badge[data-tipo="fisico"]      { background: var(--amber); }
 .tl-badge[data-tipo="alongamento"] { background: var(--blue); }

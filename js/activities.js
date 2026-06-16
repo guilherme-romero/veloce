@@ -413,7 +413,7 @@
   // ──────────────────────────────────────────────────────────────
   // Últimas 5 atividades (Fase 9.1)
   // ──────────────────────────────────────────────────────────────
-  const _last5Maps = new Map(); // id → L.Map instance (para destruir antes de re-render)
+  const _last5Maps = new Map(); // id → { map: L.Map, bounds: L.LatLngBounds } (para destruir/refitBounds)
   let _last5Token = 0;          // incrementado a cada render — promises de renders antigos descartam
 
   function l5Km(v)    { return (v == null || !isFinite(v)) ? '—' : v.toFixed(1).replace('.', ',') + ' km'; }
@@ -443,7 +443,7 @@
     const myToken = ++_last5Token;
 
     // Destrói mapas anteriores para evitar leak
-    _last5Maps.forEach(m => { try { m.remove(); } catch (_) {} });
+    _last5Maps.forEach(({ map }) => { try { map.remove(); } catch (_) {} });
     _last5Maps.clear();
 
     const top5 = (acts || []).slice(0, 5);
@@ -494,8 +494,9 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
         const color = a.fonte === 'garmin' ? '#007cc3' : '#fc4c02';
         const line = L.polyline(pts, { color, weight: 3 }).addTo(map);
-        map.fitBounds(line.getBounds(), { padding: [8, 8] });
-        _last5Maps.set(`${a.fonte}:${a.id}`, map);
+        const bounds = line.getBounds();
+        map.fitBounds(bounds, { padding: [8, 8] });
+        _last5Maps.set(`${a.fonte}:${a.id}`, { map, bounds });
       }).catch(err => {
         if (myToken !== _last5Token) return;
         console.warn('[last5] polyline failed', a.id, err);
@@ -509,7 +510,12 @@
   // os tiles só aparecem após invalidateSize() depois que a seção fica visível).
   function refreshMaps() {
     try { if (_map) _map.invalidateSize(); } catch (_) {}
-    _last5Maps.forEach(m => { try { m.invalidateSize(); } catch (_) {} });
+    _last5Maps.forEach(({ map, bounds }) => {
+      try {
+        map.invalidateSize();
+        if (bounds) map.fitBounds(bounds, { padding: [8, 8] });
+      } catch (_) {}
+    });
   }
 
   // Expor o trigger principal
