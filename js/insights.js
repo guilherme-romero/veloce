@@ -601,9 +601,23 @@
       swimming: 'Natação', strength_training: 'Força',
     };
 
-    const formatValue = (typeId, value) => {
+    const CYCLING_TYPES = new Set(['cycling', 'road_biking', 'mountain_biking', 'gravel_cycling']);
+
+    // Garmin reutiliza type_ids de corrida em atividades de ciclismo com semântica diferente.
+    // Confirmado cruzando os valores do DB com as colunas distancia_m / elevacao_m das atividades:
+    //   type 8 (cycling)     → distancia_m  → exibir como km
+    //   type 9 (road_biking) → elevacao_m   → exibir como metros
+    //   type 12              → armazenado em centiwatts (÷100 para W)
+    const formatValue = (typeId, value, actType) => {
       if (value == null) return '—';
-      // Tempos em segundos: 1km, 5km, 10km, meia, maratona, duração
+      const isCycling = CYCLING_TYPES.has(actType);
+
+      // type 8 para ciclismo = distância máxima do pedal (metros → km)
+      if (typeId === 8 && isCycling) return (value / 1000).toFixed(1).replace('.', ',') + ' km';
+      // type 9 para ciclismo = maior ganho de elevação (metros)
+      if (typeId === 9 && isCycling) return Math.round(value).toLocaleString('pt-BR') + ' m';
+
+      // Tempos em segundos: 1km, 5km, 10km, meia, maratona, duração (apenas para corrida)
       if ([1, 4, 6, 7, 8, 9].includes(typeId)) {
         const h = Math.floor(value / 3600), m = Math.floor((value % 3600) / 60), s = Math.floor(value % 60);
         return h > 0 ? `${h}h${String(m).padStart(2,'0')}m` : `${m}min ${String(s).padStart(2,'0')}s`;
@@ -616,10 +630,10 @@
       if (typeId === 5) return (value * 3.6).toFixed(1).replace('.', ',') + ' km/h';
       // Cadência
       if (typeId === 10) return Math.round(value) + ' rpm';
-      // Maior subida 1h (metros de elevação)
+      // Maior subida acumulada em 1h (metros)
       if (typeId === 11) return Math.round(value).toLocaleString('pt-BR') + ' m';
-      // Maior potência média 1h (watts)
-      if (typeId === 12) return Math.round(value).toLocaleString('pt-BR') + ' W';
+      // Maior potência média em 1h — Garmin armazena em centiwatts (÷100 para W)
+      if (typeId === 12) return (value > 1000 ? Math.round(value / 100) : Math.round(value)).toLocaleString('pt-BR') + ' W';
       // VO2max (Garmin armazena × 1000 internamente)
       if (typeId === 13) return (value > 1000 ? value / 1000 : value).toFixed(1) + ' mL/kg/min';
       // Maior distância semanal (metros → km)
@@ -629,6 +643,12 @@
       // Carga de treino (score)
       if (typeId === 16) return Math.round(value) + ' pts';
       return value.toFixed(1).replace('.', ',');
+    };
+
+    // Labels alternativos para type_ids cujo significado muda em ciclismo
+    const CYCLING_LABEL_OVERRIDE = {
+      8: 'Maior distância (ciclismo)',
+      9: 'Maior elevação num pedal',
     };
 
     // Mostra todos os recordes com label conhecido
@@ -646,8 +666,9 @@
     };
 
     $('prs-list').innerHTML = visible.map(p => {
-      const label = TYPE_LABELS[p.type_id];
-      const val   = formatValue(p.type_id, p.valor);
+      const isCyc = CYCLING_TYPES.has(p.activity_type);
+      const label = (isCyc && CYCLING_LABEL_OVERRIDE[p.type_id]) || TYPE_LABELS[p.type_id];
+      const val   = formatValue(p.type_id, p.valor, p.activity_type);
       const d     = parseIsoDate(p.pr_date || p.activity_date);
       const dataStr = d && isFinite(d)
         ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
