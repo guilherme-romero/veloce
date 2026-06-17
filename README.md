@@ -9,7 +9,7 @@ App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de s
 ## ✨ O que o app faz
 
 ### 🏠 Início
-Resumo executivo com sua meta de peso, km da semana, sequência de dias ativos e índice de fadiga. Atalhos rápidos para registrar pesagem, marcar treino ou sincronizar com a Garmin.
+Resumo com sua meta de peso, km da semana, sequência de dias ativos e índice de fadiga. Atalhos rápidos para registrar pesagem, marcar treino ou sincronizar com a Garmin.
 
 ### 👤 Perfil
 Agrupa dados do atleta e fisiologia em uma única aba:
@@ -26,7 +26,6 @@ Cadastro de bicicletas com rastreamento automático de desgaste de componentes:
 - Alertas de substituição quando o desgaste atinge 80% e 100%
 - Ciclo de limpeza para corrente (a cada N km)
 - Histórico completo de manutenções e revisões completas
-- Inspiração: probikegarage.com
 
 ### 🚴 Treinos
 Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
