@@ -14,6 +14,8 @@ data/*.db-shm
 
 # Avatares (dados pessoais)
 data/avatars/
+bike_garage/
+docs/
 
 # Sessao SSO do Garmin (tokens)
 data/garmin_session/
