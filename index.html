@@ -36,10 +36,10 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=1.16.2">
-  <link rel="stylesheet" href="css/rides.css?v=1.16.2">
-  <link rel="stylesheet" href="css/routes.css?v=1.16.2">
-  <link rel="stylesheet" href="css/bikes.css?v=1.16.2">
+  <link rel="stylesheet" href="css/style.css?v=1.16.3">
+  <link rel="stylesheet" href="css/rides.css?v=1.16.3">
+  <link rel="stylesheet" href="css/routes.css?v=1.16.3">
+  <link rel="stylesheet" href="css/bikes.css?v=1.16.3">
 </head>
 <body>
 
@@ -709,7 +709,10 @@
       <!-- 7.1 Índice de Fadiga -->
       <div class="card insight-card insight-fadiga">
         <div class="insight-head">
-          <div class="card-label">Índice de Fadiga</div>
+          <div class="insight-head-left">
+            <div class="card-label">Índice de Fadiga</div>
+            <button class="insight-info-btn" data-info="Combina Body Battery (energia disponível), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio do dia. Escala 0–100: acima de 70 = boa condição; abaixo de 40 = recomenda-se recuperação."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
           <span class="insight-badge" id="fadiga-status">—</span>
         </div>
         <div class="insight-gauge">
@@ -727,7 +730,10 @@
       <!-- 7.4 TSS / ATL / CTL / TSB -->
       <div class="card insight-card insight-tss">
         <div class="insight-head">
-          <div class="card-label">Carga de Treino (TSB)</div>
+          <div class="insight-head-left">
+            <div class="card-label">Carga de Treino (TSB)</div>
+            <button class="insight-info-btn" data-info="TSB = CTL − ATL. CTL (Fitness) é a carga crônica dos últimos 42 dias; ATL (Fadiga) é a carga aguda dos últimos 7 dias. TSB positivo = descansado; negativo = fatigado. Zona ideal para performance: entre −10 e +5."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
           <span class="insight-badge" id="tss-status">—</span>
         </div>
         <div class="insight-tsb-display">
@@ -744,7 +750,10 @@
       <!-- 7.3 Intensidade/kg semanal -->
       <div class="card insight-card insight-trimp" style="grid-column: span 2;">
         <div class="insight-head">
-          <div class="card-label">Intensidade/kg — últimas 12 semanas</div>
+          <div class="insight-head-left">
+            <div class="card-label">Intensidade/kg — últimas 12 semanas</div>
+            <button class="insight-info-btn" data-info="TRIMP (Training Impulse) normalizado pelo peso corporal. Mede a carga de treino semanal considerando duração e intensidade (FC). Permite comparar esforço entre semanas independentemente de variações de peso. Barras vermelhas = semanas com dados de FC; laranja = estimativa por duração (sem FC registrada)."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
           <span class="insight-badge" id="trimp-trend">—</span>
         </div>
         <div class="chart-wrap" style="height:160px;"><canvas id="trimpChart"></canvas></div>
@@ -754,7 +763,10 @@
       <!-- 7.2 Sono x Desempenho -->
       <div class="card insight-card">
         <div class="insight-head">
-          <div class="card-label">Sono profundo × FC média</div>
+          <div class="insight-head-left">
+            <div class="card-label">Sono profundo × FC média</div>
+            <button class="insight-info-btn" data-info="Correlação entre horas de sono profundo (noite anterior) e FC média nos treinos do dia seguinte. FC mais baixa após sono adequado indica melhor recuperação e eficiência cardiovascular. Útil para identificar se a qualidade do sono afeta seu desempenho."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
         </div>
         <div class="chart-wrap" style="height:200px;"><canvas id="sleepPerfChart"></canvas></div>
         <div class="insight-msg" id="sleep-msg"></div>
@@ -763,7 +775,10 @@
       <!-- 7.5 Custo metabólico -->
       <div class="card insight-card">
         <div class="insight-head">
-          <div class="card-label">Custo metabólico (kcal/km)</div>
+          <div class="insight-head-left">
+            <div class="card-label">Custo metabólico (kcal/km)</div>
+            <button class="insight-info-btn" data-info="Eficiência energética: kcal gastas por km percorrido. Quanto menor, mais eficiente. Valores altos podem indicar terreno difícil (muito desnível), fadiga acumulada ou menor condicionamento aeróbico. Compare a tendência ao longo das semanas para medir evolução."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
           <span class="insight-badge" id="custo-trend">—</span>
         </div>
         <div class="chart-wrap" style="height:200px;"><canvas id="custoChart"></canvas></div>
@@ -773,7 +788,10 @@
       <!-- 7.6 HRV × Carga -->
       <div class="card insight-card" style="grid-column: span 2;">
         <div class="insight-head">
-          <div class="card-label">HRV noturno × Carga de treino</div>
+          <div class="insight-head-left">
+            <div class="card-label">HRV noturno × Carga de treino</div>
+            <button class="insight-info-btn" data-info="Correlação entre a variabilidade cardíaca (HRV) noturna e a carga de treino do dia. HRV elevado após treino pesado indica boa capacidade de recuperação. HRV persistentemente baixo mesmo sem treino pesado pode sinalizar estresse, doença ou acúmulo de fadiga."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
         </div>
         <div class="chart-wrap" style="height:200px;"><canvas id="hrvLoadChart"></canvas></div>
         <div class="insight-msg" id="hrv-load-msg"></div>
@@ -784,7 +802,10 @@
       <!-- Training Readiness -->
       <div class="card insight-card insight-readiness" id="card-readiness" hidden>
         <div class="insight-head">
-          <div class="card-label">Training Readiness (Garmin)</div>
+          <div class="insight-head-left">
+            <div class="card-label">Training Readiness (Garmin)</div>
+            <button class="insight-info-btn" data-info="Score oficial Garmin (0–100) que combina qualidade do sono, HRV, recuperação muscular e histórico de treino. HIGH (>65): pronto para sessão intensa. MODERATE (35–65): treino normal ok. LOW (<35): priorize recuperação. Tempo de recuperação = horas restantes estimadas pelo relógio."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
           <span class="insight-badge" id="readiness-level">—</span>
         </div>
         <div class="insight-gauge">
@@ -803,7 +824,10 @@
       <!-- Personal Records -->
       <div class="card insight-card insight-prs" id="card-prs" hidden>
         <div class="insight-head">
-          <div class="card-label">Recordes pessoais (Garmin)</div>
+          <div class="insight-head-left">
+            <div class="card-label">Recordes pessoais (Garmin)</div>
+            <button class="insight-info-btn" data-info="PBs registrados pelo relógio Garmin por tipo de esporte. Badge "Novo!" indica conquistas das últimas 2 semanas. Inclui maior distância, elevação acumulada, potência máxima e tempos por distância (1 km, 5 km, etc.). Ciclismo: distância em km, elevação em m, potência em W."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
           <span class="insight-badge" id="prs-count">—</span>
         </div>
         <div id="prs-list" class="prs-list"></div>
@@ -813,7 +837,10 @@
       <!-- Hill + Endurance Score -->
       <div class="card insight-card insight-scores" id="card-scores" style="grid-column: span 2;" hidden>
         <div class="insight-head">
-          <div class="card-label">Hill Score + Endurance Score (Garmin)</div>
+          <div class="insight-head-left">
+            <div class="card-label">Hill Score + Endurance Score (Garmin)</div>
+            <button class="insight-info-btn" data-info="Scores Garmin calculados a partir do histórico de treinos. Endurance Score mede resistência aeróbica geral (volume e intensidade ao longo do tempo). Hill Score mede capacidade em subidas (potência relativa em percursos com desnível). Ambos crescem gradualmente com treino consistente."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
           <span class="insight-badge" id="scores-class">—</span>
         </div>
         <div class="scores-grid">
@@ -837,6 +864,9 @@
 
 </main>
 
+<!-- Popover de informação dos cards de Insights -->
+<div id="insight-popover" class="insight-info-popover" hidden></div>
+
 <!-- ═══════════════════ FOOTER ════════════════════════════════════════ -->
 <footer class="app-footer">
   <span>Treino Bike</span>
@@ -850,31 +880,31 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=1.16.2"></script>
-<script src="js/utils.js?v=1.16.2"></script>
-<script src="js/router.js?v=1.16.2"></script>
-<script src="js/defaults.js?v=1.16.2"></script>
-<script src="js/api.js?v=1.16.2"></script>
-<script src="js/storage.js?v=1.16.2"></script>
-<script src="js/profile.js?v=1.16.2"></script>
-<script src="js/charts.js?v=1.16.2"></script>
-<script src="js/modals.js?v=1.16.2"></script>
-<script src="js/workouts.js?v=1.16.2"></script>
-<script src="js/rides.js?v=1.16.2"></script>
-<script src="js/bikes.js?v=1.16.2"></script>
-<script src="js/training-log.js?v=1.16.2"></script>
-<script src="js/home-workout.js?v=1.16.2"></script>
-<script src="js/backup.js?v=1.16.2"></script>
-<script src="js/gpx.js?v=1.16.2"></script>
-<script src="js/routes.js?v=1.16.2"></script>
-<script src="js/heatmap.js?v=1.16.2"></script>
-<script src="js/strava.js?v=1.16.2"></script>
-<script src="js/garmin.js?v=1.16.2"></script>
-<script src="js/activities.js?v=1.16.2"></script>
-<script src="js/insights.js?v=1.16.2"></script>
-<script src="js/home.js?v=1.16.2"></script>
-<script src="js/app.js?v=1.16.2"></script>
-<script src="js/pwa.js?v=1.16.2"></script>
+<script src="js/version.js?v=1.16.3"></script>
+<script src="js/utils.js?v=1.16.3"></script>
+<script src="js/router.js?v=1.16.3"></script>
+<script src="js/defaults.js?v=1.16.3"></script>
+<script src="js/api.js?v=1.16.3"></script>
+<script src="js/storage.js?v=1.16.3"></script>
+<script src="js/profile.js?v=1.16.3"></script>
+<script src="js/charts.js?v=1.16.3"></script>
+<script src="js/modals.js?v=1.16.3"></script>
+<script src="js/workouts.js?v=1.16.3"></script>
+<script src="js/rides.js?v=1.16.3"></script>
+<script src="js/bikes.js?v=1.16.3"></script>
+<script src="js/training-log.js?v=1.16.3"></script>
+<script src="js/home-workout.js?v=1.16.3"></script>
+<script src="js/backup.js?v=1.16.3"></script>
+<script src="js/gpx.js?v=1.16.3"></script>
+<script src="js/routes.js?v=1.16.3"></script>
+<script src="js/heatmap.js?v=1.16.3"></script>
+<script src="js/strava.js?v=1.16.3"></script>
+<script src="js/garmin.js?v=1.16.3"></script>
+<script src="js/activities.js?v=1.16.3"></script>
+<script src="js/insights.js?v=1.16.3"></script>
+<script src="js/home.js?v=1.16.3"></script>
+<script src="js/app.js?v=1.16.3"></script>
+<script src="js/pwa.js?v=1.16.3"></script>
 
 </body>
 </html>

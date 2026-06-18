@@ -516,14 +516,20 @@
 
     const score = latest.score ?? null;
     const level = latest.level || '—';
-    let color, msg;
-    if (level === 'HIGH')      { color = COLORS.green;  msg = 'Garmin diz: pronto para sessão intensa hoje.'; }
-    else if (level === 'MODERATE') { color = COLORS.amber; msg = 'Recuperação moderada — treino normal ok.'; }
-    else if (level === 'LOW')  { color = COLORS.red;    msg = 'Baixa prontidão — priorize recuperação hoje.'; }
-    else                       { color = COLORS.muted2; msg = ''; }
+    // Garmin retorna níveis: POOR < LOW < MODERATE < HIGH < (VERY_HIGH/PRIME)
+    const READINESS_INFO = {
+      VERY_HIGH: { label: 'Máxima',     color: COLORS.green, msg: 'Prontidão máxima — ótimo dia para sua sessão mais forte.' },
+      PRIME:     { label: 'Máxima',     color: COLORS.green, msg: 'Prontidão máxima — ótimo dia para sua sessão mais forte.' },
+      HIGH:      { label: 'Alta',       color: COLORS.green, msg: 'Garmin diz: pronto para sessão intensa hoje.' },
+      MODERATE:  { label: 'Moderada',   color: COLORS.amber, msg: 'Recuperação moderada — treino normal ok.' },
+      LOW:       { label: 'Baixa',      color: COLORS.red,   msg: 'Baixa prontidão — priorize recuperação hoje.' },
+      POOR:      { label: 'Muito baixa',color: COLORS.red,   msg: 'Prontidão muito baixa — dia de descanso, evite treino intenso.' },
+    };
+    const info = READINESS_INFO[level] || { label: level, color: COLORS.muted2, msg: '' };
+    const color = info.color, msg = info.msg;
 
     $('readiness-score').textContent = score ?? '—';
-    $('readiness-level').textContent = level;
+    $('readiness-level').textContent = info.label;
     $('readiness-level').style.background = color + '20';
     $('readiness-level').style.color = color;
     if (score != null) {
@@ -531,7 +537,7 @@
       $('readiness-fill').style.background = color;
     }
     $('readiness-sleep').textContent = latest.sleep_score != null ? `${latest.sleep_score}` : '—';
-    $('readiness-recovery').textContent = latest.recovery_time_h != null ? `${latest.recovery_time_h}h` : '—';
+    $('readiness-recovery').textContent = latest.recovery_time_h != null ? `${Math.round(latest.recovery_time_h / 60)}h` : '—';
     $('readiness-hrv').textContent = latest.hrv_weekly_avg != null ? `${latest.hrv_weekly_avg} ms` : '—';
     $('readiness-msg').textContent = msg;
 
@@ -795,6 +801,45 @@
       content.hidden = true;
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Popover de informação dos cards de Insights
+  // ═══════════════════════════════════════════════════════════════
+  function initInfoPopovers() {
+    const popover = document.getElementById('insight-popover');
+    if (!popover) return;
+    let activeBtn = null;
+
+    function hide() {
+      popover.hidden = true;
+      activeBtn = null;
+    }
+
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest('.insight-info-btn');
+      if (!btn) { hide(); return; }
+      e.stopPropagation();
+      if (activeBtn === btn) { hide(); return; }
+
+      activeBtn = btn;
+      popover.textContent = btn.dataset.info || '';
+      popover.hidden = false;
+
+      // Posiciona abaixo do botão, limitado à janela
+      const rect = btn.getBoundingClientRect();
+      const pw = Math.min(300, window.innerWidth - 24);
+      popover.style.maxWidth = pw + 'px';
+      let left = rect.left;
+      if (left + pw > window.innerWidth - 12) left = window.innerWidth - pw - 12;
+      if (left < 12) left = 12;
+      let top = rect.bottom + 8;
+      if (top + 120 > window.innerHeight) top = rect.top - 8 - popover.offsetHeight;
+      popover.style.left = left + 'px';
+      popover.style.top = top + 'px';
+    }, true);
+  }
+
+  initInfoPopovers();
 
   window.Insights = { load };
 })();
