@@ -54,6 +54,40 @@ function rowToLog(l) {
   };
 }
 
+// Intervalo de serviço recorrente. `kmBike` é o km atual da bike; calcula
+// o restante (km ou dias) até o próximo serviço e a % decorrida.
+function rowToInterval(r, kmBike) {
+  const base       = r.base === 'dias' ? 'dias' : 'km';
+  const intervalo  = +r.intervalo || 0;
+  let decorrido;
+  if (base === 'km') {
+    decorrido = Math.max(0, +(kmBike - (r.km_at_last || 0)).toFixed(1));
+  } else {
+    const ref = r.data_last || (r.created_at ? String(r.created_at).slice(0, 10) : null);
+    if (ref) {
+      const ms = Date.now() - new Date(ref + 'T12:00:00').getTime();
+      decorrido = Math.max(0, Math.floor(ms / 86400000));
+    } else {
+      decorrido = 0;
+    }
+  }
+  const restante = +(intervalo - decorrido).toFixed(base === 'km' ? 1 : 0);
+  const pct      = intervalo > 0 ? Math.round((decorrido / intervalo) * 100) : 0;
+  return {
+    id:         r.id,
+    componentId: r.component_id,
+    nome:       r.nome,
+    base,
+    intervalo,
+    kmAtLast:   r.km_at_last ?? 0,
+    dataLast:   r.data_last || null,
+    decorrido,
+    restante,
+    pct,
+    createdAt:  r.created_at,
+  };
+}
+
 /* ──────────────────────────────────────────────────────────────────────
    Cálculo central — km total acumulado pela bike
    km_inicial + soma de distâncias Garmin + Strava desde active_since
@@ -63,24 +97,43 @@ function rowToLog(l) {
 const EXCLUDED_STRAVA_TYPES = "('VirtualRide','EBikeRide')";
 const EXCLUDED_GARMIN_TYPES = "('virtual_ride','indoor_cycling','e_bike_fitness')";
 
-function calcBikeKm(db, bike) {
+// Agrega km + tempo em movimento + ganho de elevação + nº de atividades
+// que a bike acumulou desde active_since (Garmin tem prioridade; Strava só
+// entra quando não há link de dedup). Retorna objeto de stats.
+function calcBikeStats(db, bike) {
   const base = +(bike.km_inicial || 0);
-  if (!bike.active_since) return +base.toFixed(1);
+  const out = { kmTotal: +base.toFixed(1), tempoMovS: 0, elevM: 0, atividades: 0 };
+  if (!bike.active_since) return out;
   const garmin = db.prepare(
-    `SELECT COALESCE(SUM(distancia_m), 0) AS t
+    `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
+            COALESCE(SUM(tempo_mov_s), 0) AS tempo,
+            COALESCE(SUM(elevacao_m),  0) AS elev,
+            COUNT(*) AS n
      FROM garmin_activities
      WHERE data_inicio >= ?
        AND (tipo IS NULL OR tipo NOT IN ${EXCLUDED_GARMIN_TYPES})`
-  ).get(bike.active_since).t / 1000;
+  ).get(bike.active_since);
   const strava = db.prepare(
-    `SELECT COALESCE(SUM(distancia_m), 0) AS t
+    `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
+            COALESCE(SUM(tempo_mov_s), 0) AS tempo,
+            COALESCE(SUM(elevacao_m),  0) AS elev,
+            COUNT(*) AS n
      FROM strava_activities s
      LEFT JOIN activity_links l ON l.strava_id = s.id_strava
      WHERE s.data_inicio >= ?
        AND l.strava_id IS NULL
        AND (s.tipo IS NULL OR s.tipo NOT IN ${EXCLUDED_STRAVA_TYPES})`
-  ).get(bike.active_since).t / 1000;
-  return +(base + garmin + strava).toFixed(1);
+  ).get(bike.active_since);
+  out.kmTotal   = +(base + (garmin.dist + strava.dist) / 1000).toFixed(1);
+  out.tempoMovS = (garmin.tempo || 0) + (strava.tempo || 0);
+  out.elevM     = Math.round((garmin.elev || 0) + (strava.elev || 0));
+  out.atividades = (garmin.n || 0) + (strava.n || 0);
+  return out;
+}
+
+// Mantém compat: apenas o km (usado em pontos que só precisam disso)
+function calcBikeKm(db, bike) {
+  return calcBikeStats(db, bike).kmTotal;
 }
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -125,7 +178,7 @@ async function routes(fastify) {
   // ── Listar todas as bikes (com km calculado) ────────────────────────
   fastify.get('/api/bikes', async () => {
     const bikes = fastify.db.prepare('SELECT * FROM bikes ORDER BY active DESC, nome ASC').all();
-    return bikes.map(b => ({ ...rowToBike(b), kmTotal: calcBikeKm(fastify.db, b) }));
+    return bikes.map(b => ({ ...rowToBike(b), ...calcBikeStats(fastify.db, b) }));
   });
 
   // ── Criar bike ───────────────────────────────────────────────────────
@@ -142,7 +195,7 @@ async function routes(fastify) {
       return reply.code(409).send({ error: 'bike ja existe' });
     }
     const row = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(body.id);
-    return reply.code(201).send({ ...rowToBike(row), kmTotal: calcBikeKm(fastify.db, row) });
+    return reply.code(201).send({ ...rowToBike(row), ...calcBikeStats(fastify.db, row) });
   });
 
   // ── Editar bike ──────────────────────────────────────────────────────
@@ -157,7 +210,7 @@ async function routes(fastify) {
       km_inicial = ?, active_since = ? WHERE id = ?`)
       .run(n.nome, n.marca, n.modelo, n.tipo, n.pesoKg, n.ano, n.kmInicial, n.activeSince, id);
     const row = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
-    return { ...rowToBike(row), kmTotal: calcBikeKm(fastify.db, row) };
+    return { ...rowToBike(row), ...calcBikeStats(fastify.db, row) };
   });
 
   // ── Deletar bike (cascade em componentes e log) ──────────────────────
@@ -192,7 +245,7 @@ async function routes(fastify) {
     });
     tx();
     const row = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
-    return { ...rowToBike(row), kmTotal: calcBikeKm(fastify.db, row) };
+    return { ...rowToBike(row), ...calcBikeStats(fastify.db, row) };
   });
 
   // ── Listar componentes da bike ───────────────────────────────────────
@@ -204,12 +257,16 @@ async function routes(fastify) {
     const comps = fastify.db.prepare(
       'SELECT * FROM bike_components WHERE bike_id = ? ORDER BY created_at ASC'
     ).all(id);
+    const intervalStmt = fastify.db.prepare(
+      'SELECT * FROM bike_service_intervals WHERE component_id = ? ORDER BY created_at ASC'
+    );
     return comps.map(c => {
       const dto = rowToComponent(c);
       dto.kmDesgastado = +(kmBike - dto.kmAtInstall).toFixed(1);
       dto.kmDesdeUltimaLimpeza = dto.temLimpeza
         ? +(kmBike - dto.kmAtLastClean).toFixed(1)
         : null;
+      dto.intervals = intervalStmt.all(c.id).map(r => rowToInterval(r, kmBike));
       return dto;
     });
   });
@@ -315,6 +372,82 @@ async function routes(fastify) {
     });
     tx();
     return { ok: true, kmBike };
+  });
+
+  // ── Intervalos de serviço recorrentes ───────────────────────────────
+  // Criar intervalo num componente
+  fastify.post('/api/bikes/:id/components/:cid/intervals', async (req, reply) => {
+    const { id, cid } = req.params;
+    const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
+    if (!bike) return reply.code(404).send({ error: 'bike nao encontrada' });
+    const comp = fastify.db.prepare('SELECT * FROM bike_components WHERE id = ?').get(cid);
+    if (!comp) return reply.code(404).send({ error: 'componente nao encontrado' });
+    const body = req.body || {};
+    const nome = String(body.nome || '').trim();
+    const base = body.base === 'dias' ? 'dias' : 'km';
+    const intervalo = parseFloat(body.intervalo);
+    if (!nome) return reply.code(400).send({ error: 'nome obrigatorio' });
+    if (!isFinite(intervalo) || intervalo <= 0) return reply.code(400).send({ error: 'intervalo > 0 obrigatorio' });
+
+    const kmBike = calcBikeKm(fastify.db, bike);
+    const intId  = `bsi_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const dataLast = base === 'dias' ? todayISO() : null;
+    fastify.db.prepare(`INSERT INTO bike_service_intervals
+      (id, component_id, nome, base, intervalo, km_at_last, data_last)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(intId, cid, nome, base, intervalo, kmBike, dataLast);
+    const row = fastify.db.prepare('SELECT * FROM bike_service_intervals WHERE id = ?').get(intId);
+    return reply.code(201).send(rowToInterval(row, kmBike));
+  });
+
+  // Editar intervalo
+  fastify.put('/api/bikes/:id/components/:cid/intervals/:iid', async (req, reply) => {
+    const { id, iid } = req.params;
+    const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
+    const cur  = fastify.db.prepare('SELECT * FROM bike_service_intervals WHERE id = ?').get(iid);
+    if (!cur) return reply.code(404).send({ error: 'intervalo nao encontrado' });
+    const body = req.body || {};
+    const nome = body.nome != null ? String(body.nome).trim() : cur.nome;
+    const base = body.base ? (body.base === 'dias' ? 'dias' : 'km') : cur.base;
+    const intervalo = isFinite(parseFloat(body.intervalo)) ? parseFloat(body.intervalo) : cur.intervalo;
+    if (!nome) return reply.code(400).send({ error: 'nome obrigatorio' });
+    if (intervalo <= 0) return reply.code(400).send({ error: 'intervalo > 0 obrigatorio' });
+    fastify.db.prepare('UPDATE bike_service_intervals SET nome = ?, base = ?, intervalo = ? WHERE id = ?')
+      .run(nome, base, intervalo, iid);
+    const kmBike = calcBikeKm(fastify.db, bike);
+    return rowToInterval(fastify.db.prepare('SELECT * FROM bike_service_intervals WHERE id = ?').get(iid), kmBike);
+  });
+
+  // Deletar intervalo
+  fastify.delete('/api/bikes/:id/components/:cid/intervals/:iid', async (req, reply) => {
+    const info = fastify.db.prepare('DELETE FROM bike_service_intervals WHERE id = ?').run(req.params.iid);
+    if (info.changes === 0) return reply.code(404).send({ error: 'intervalo nao encontrado' });
+    return { ok: true };
+  });
+
+  // Registrar serviço — reseta o contador (km_at_last + data_last) e loga
+  fastify.post('/api/bikes/:id/components/:cid/intervals/:iid/register', async (req, reply) => {
+    const { id, cid, iid } = req.params;
+    const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
+    if (!bike) return reply.code(404).send({ error: 'bike nao encontrada' });
+    const interval = fastify.db.prepare('SELECT * FROM bike_service_intervals WHERE id = ?').get(iid);
+    if (!interval) return reply.code(404).send({ error: 'intervalo nao encontrado' });
+
+    const kmBike = calcBikeKm(fastify.db, bike);
+    const data   = (req.body && req.body.data) ? String(req.body.data).slice(0, 10) : todayISO();
+    const notas  = String((req.body && req.body.notas) || `Serviço: ${interval.nome}`);
+    const logId  = `bml_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    const tx = fastify.db.transaction(() => {
+      fastify.db.prepare('UPDATE bike_service_intervals SET km_at_last = ?, data_last = ? WHERE id = ?')
+        .run(kmBike, data, iid);
+      fastify.db.prepare(`INSERT INTO bike_maintenance_log
+        (id, bike_id, component_id, tipo_evento, data, km_bike, notas)
+        VALUES (?, ?, ?, 'limpeza', ?, ?, ?)`)
+        .run(logId, id, cid, data, kmBike, notas);
+    });
+    tx();
+    return rowToInterval(fastify.db.prepare('SELECT * FROM bike_service_intervals WHERE id = ?').get(iid), kmBike);
   });
 
   // ── Revisão completa — zera contadores de limpeza, mantém desgaste ───

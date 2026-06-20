@@ -403,49 +403,6 @@ async function fetchWeather(lat, lon, dateISO) {
       catch { return '—'; }
     };
 
-    // Bloco horário — 4 horas a partir do horário de saída configurado
-    let hourlyHTML = '';
-    if (day.hourly && day.hourly.time && day.hourly.time.length) {
-      // Horário de saída só pode conter dígitos e ':', nunca vai para innerHTML diretamente
-      const saidaRaw = document.getElementById('calc-horario')?.value || '07:00';
-      const saida = /^\d{2}:\d{2}$/.test(saidaRaw) ? saidaRaw : '07:00';
-      const [sh, sm] = saida.split(':').map(Number);
-      const startMin = sh * 60 + (sm || 0);
-      const slots = day.hourly.time
-        .map((t, i) => {
-          // Valida formato HH:MM para não deixar string da API entrar como-está no HTML
-          const safe = /^\d{2}:\d{2}$/.test(String(t)) ? String(t) : '';
-          const [hh, mm] = safe.split(':').map(Number);
-          return { t: safe, i, totalMin: isNaN(hh) ? -1 : hh * 60 + mm };
-        })
-        .filter(s => s.t && s.totalMin >= startMin && s.totalMin <= startMin + 240);
-
-      if (slots.length) {
-        const h = day.hourly;
-        hourlyHTML = `
-          <div class="route-weather-hour-title">
-            <i class="fa-solid fa-clock" style="color:var(--teal)"></i>
-            Previsão hora a hora (saída ${saida})
-          </div>
-          <div class="route-weather-hours">
-            ${slots.map(({ t, i }) => {
-              const icon = wmoIconRoute(h.weathercode?.[i]);   // lookup → hardcoded string
-              const tc   = h.temperature_2m?.[i];
-              const pp   = Math.round(h.precipitation_probability?.[i] ?? 0);
-              const ws   = Math.round(h.wind_speed_10m?.[i] ?? 0);
-              return `
-                <div class="route-weather-slot">
-                  <div class="rwh-time">${t}</div>
-                  <i class="fa-solid ${icon} rwh-icon"></i>
-                  <div class="rwh-temp">${tc != null ? Math.round(tc) + '°' : '—'}</div>
-                  <div class="rwh-rain" style="color:#5b9bd5"><i class="fa-solid fa-droplet"></i>${pp}%</div>
-                  <div class="rwh-wind" style="color:var(--muted2)"><i class="fa-solid fa-wind"></i>${ws}</div>
-                </div>`;
-            }).join('')}
-          </div>`;
-      }
-    }
-
     // Todos os valores numéricos são seguros; strings da API passam por escFn
     const row = (icon, label, value, color) => `
       <div class="weather-detail-row">
@@ -473,7 +430,6 @@ async function fetchWeather(lat, lon, dateISO) {
         ${sunrise ? row('fa-sun', 'Nascer do sol', fmtTime(sunrise)) : ''}
         ${sunset  ? row('fa-moon', 'Pôr do sol',   fmtTime(sunset))  : ''}
       </div>
-      ${hourlyHTML}
     `;
   } catch (err) {
     console.warn('[Routes] Weather:', err);

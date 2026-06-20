@@ -315,3 +315,18 @@ CREATE TABLE IF NOT EXISTS bike_maintenance_log (
 );
 CREATE INDEX IF NOT EXISTS idx_bike_log_bike ON bike_maintenance_log(bike_id);
 CREATE INDEX IF NOT EXISTS idx_bike_log_data ON bike_maintenance_log(data DESC);
+
+-- Intervalos de serviço recorrentes por componente (Fase 11.5).
+-- Cada intervalo é por km OU por dias, com contagem regressiva até o
+-- próximo serviço. Ex.: "Calibragem a cada 7 dias", "Trocar pneu a cada 3000 km".
+CREATE TABLE IF NOT EXISTS bike_service_intervals (
+  id            TEXT PRIMARY KEY,
+  component_id  TEXT NOT NULL REFERENCES bike_components(id) ON DELETE CASCADE,
+  nome          TEXT NOT NULL,          -- ex.: 'Calibragem', 'Trocar pneu'
+  base          TEXT NOT NULL DEFAULT 'km', -- 'km' | 'dias'
+  intervalo     REAL NOT NULL,          -- km ou dias entre serviços
+  km_at_last    REAL DEFAULT 0,         -- km total da bike no último serviço
+  data_last     TEXT,                   -- YYYY-MM-DD do último serviço
+  created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_bike_interval_comp ON bike_service_intervals(component_id);

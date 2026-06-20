@@ -31,6 +31,7 @@
 
   let _bikes = [];
   let _componentsByBike = new Map();   // bikeId → array<component>
+  let _filterByBike = new Map();       // bikeId → 'todos' | 'atencao'
 
   /* ──────────────────────────────────────────────────────────────────
      Helpers
@@ -46,6 +47,18 @@
   function fmtKm(v) {
     if (v == null || !isFinite(v)) return '—';
     return v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' km';
+  }
+
+  function fmtTempo(s) {
+    if (s == null || !isFinite(s) || s <= 0) return '—';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m}min`;
+  }
+
+  function fmtElev(m) {
+    if (m == null || !isFinite(m)) return '—';
+    return Math.round(m).toLocaleString('pt-BR') + ' m';
   }
 
   function fmtDate(iso) {
@@ -65,6 +78,19 @@
     if (pct >= 100) return 'red';
     if (pct >= 80)  return 'amber';
     return 'green';
+  }
+
+  // Componente "precisa de atenção": desgaste >= 80%, limpeza vencendo,
+  // ou algum intervalo de serviço com >= 80% decorrido.
+  function compNeedsAttention(c) {
+    const wearPct = c.vidaUtilKm > 0 ? (c.kmDesgastado / c.vidaUtilKm) * 100 : 0;
+    if (wearPct >= 80) return true;
+    if (c.temLimpeza && c.intervaloLimpezaKm > 0) {
+      const cleanPct = ((c.kmDesdeUltimaLimpeza ?? 0) / c.intervaloLimpezaKm) * 100;
+      if (cleanPct >= 80) return true;
+    }
+    if ((c.intervals || []).some(iv => iv.pct >= 80)) return true;
+    return false;
   }
 
   /* ──────────────────────────────────────────────────────────────────
@@ -123,9 +149,27 @@
     const tipoBlock = [b.tipo, b.pesoKg ? `${b.pesoKg} kg` : null, b.ano ? `${b.ano} (${yearsAgo(b.ano)})` : null]
       .filter(Boolean).join(' · ');
 
+    const filter = _filterByBike.get(b.id) || 'todos';
+    const atencaoCount = comps.filter(compNeedsAttention).length;
+    const visibleComps = filter === 'atencao' ? comps.filter(compNeedsAttention) : comps;
+
+    const filterChips = comps.length === 0 ? '' : `
+      <div class="bike-comp-filters">
+        <button class="bike-filter-chip ${filter === 'todos' ? 'is-active' : ''}"
+                data-act="filter-comp" data-bike="${escAttr(b.id)}" data-filter="todos">
+          Todos (${comps.length})
+        </button>
+        <button class="bike-filter-chip ${filter === 'atencao' ? 'is-active' : ''} ${atencaoCount ? 'has-attention' : ''}"
+                data-act="filter-comp" data-bike="${escAttr(b.id)}" data-filter="atencao">
+          <i class="fa-solid fa-triangle-exclamation"></i> Atenção (${atencaoCount})
+        </button>
+      </div>`;
+
     const compHTML = comps.length === 0
       ? '<div class="bike-comp-empty">Nenhum componente cadastrado.</div>'
-      : comps.map(c => renderComponent(c)).join('');
+      : visibleComps.length === 0
+        ? '<div class="bike-comp-empty">Nenhum componente precisando de atenção. 🎉</div>'
+        : visibleComps.map(c => renderComponent(c)).join('');
 
     const activateBtn = isActive
       ? ''
@@ -154,13 +198,21 @@
           </div>
         </div>
 
-        <div class="bike-km-block">
-          <div class="bike-km-label">
-            <span>Km acumulados</span>
-            <span class="bike-km-value">${esc(fmtKm(kmTotal))}</span>
+        <div class="bike-stats-block">
+          <div class="bike-stat">
+            <i class="fa-solid fa-route bike-stat-icon"></i>
+            <span class="bike-stat-value">${esc(fmtKm(kmTotal))}</span>
+            <span class="bike-stat-label">acumulados</span>
           </div>
-          <div class="bike-km-bar">
-            <div class="bike-km-fill" style="width:100%"></div>
+          <div class="bike-stat">
+            <i class="fa-solid fa-clock bike-stat-icon"></i>
+            <span class="bike-stat-value">${esc(fmtTempo(b.tempoMovS))}</span>
+            <span class="bike-stat-label">em movimento</span>
+          </div>
+          <div class="bike-stat">
+            <i class="fa-solid fa-mountain bike-stat-icon"></i>
+            <span class="bike-stat-value">${esc(fmtElev(b.elevM))}</span>
+            <span class="bike-stat-label">elevação</span>
           </div>
         </div>
 
@@ -171,6 +223,7 @@
               <i class="fa-solid fa-plus"></i> Adicionar
             </button>
           </div>
+          ${filterChips}
           <div class="bike-comp-list">${compHTML}</div>
         </div>
 
@@ -214,6 +267,7 @@
               <div class="bike-comp-progress-fill ${sev}" style="width:${Math.min(100, pct)}%"></div>
             </div>
             ${cleanBlock}
+            ${renderIntervalsBlock(c)}
           </div>
           <div class="bike-comp-actions">
             ${c.temLimpeza ? `
@@ -228,6 +282,58 @@
             </button>
           </div>
         </div>
+      </div>`;
+  }
+
+  function fmtIntervalRestante(iv) {
+    if (iv.restante <= 0) return '⚠ Serviço devido';
+    if (iv.base === 'km') {
+      return `faltam ${iv.restante.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} km`;
+    }
+    const d = Math.round(iv.restante);
+    return `faltam ${d} ${d === 1 ? 'dia' : 'dias'}`;
+  }
+
+  function renderIntervalRow(iv) {
+    const sev = severityFor(iv.pct);
+    const baseLabel = iv.base === 'km'
+      ? `a cada ${iv.intervalo.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} km`
+      : `a cada ${Math.round(iv.intervalo)} ${Math.round(iv.intervalo) === 1 ? 'dia' : 'dias'}`;
+    return `
+      <div class="bike-interval ${sev}">
+        <div class="bike-interval-main">
+          <div class="bike-interval-top">
+            <span class="bike-interval-name">${esc(iv.nome)}</span>
+            <span class="bike-interval-restante ${sev}">${esc(fmtIntervalRestante(iv))}</span>
+          </div>
+          <div class="bike-interval-bar">
+            <div class="bike-interval-fill ${sev}" style="width:${Math.min(100, iv.pct)}%"></div>
+          </div>
+          <div class="bike-interval-sub">${esc(baseLabel)}</div>
+        </div>
+        <div class="bike-interval-actions">
+          <button class="bike-icon-btn" data-act="reg-interval" data-bike="${escAttr(iv._bikeId)}" data-comp="${escAttr(iv.componentId)}" data-int="${escAttr(iv.id)}" title="Registrar serviço">
+            <i class="fa-solid fa-check"></i>
+          </button>
+          <button class="bike-icon-btn" data-act="edit-interval" data-bike="${escAttr(iv._bikeId)}" data-comp="${escAttr(iv.componentId)}" data-int="${escAttr(iv.id)}" title="Editar">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="bike-icon-btn danger" data-act="del-interval" data-bike="${escAttr(iv._bikeId)}" data-comp="${escAttr(iv.componentId)}" data-int="${escAttr(iv.id)}" title="Remover">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function renderIntervalsBlock(c) {
+    const ivs = (c.intervals || []).map(iv => ({ ...iv, _bikeId: c.bikeId }));
+    const rows = ivs.map(renderIntervalRow).join('');
+    return `
+      <div class="bike-intervals">
+        ${rows}
+        <button class="bike-interval-add" data-act="add-interval" data-bike="${escAttr(c.bikeId)}" data-comp="${escAttr(c.id)}">
+          <i class="fa-solid fa-plus"></i> Adicionar serviço
+        </button>
       </div>`;
   }
 
@@ -261,6 +367,7 @@
       const act    = btn.dataset.act;
       const bikeId = btn.dataset.bike;
       const compId = btn.dataset.comp;
+      const intId  = btn.dataset.int;
       const bike   = _bikes.find(b => b.id === bikeId);
       if (!bike) return;
 
@@ -274,6 +381,13 @@
         case 'substituir':    return openSubstituirModal(bike, compId);
         case 'revisao':       return openRevisaoModal(bike);
         case 'log':           return openLogModal(bike);
+        case 'add-interval':  return openIntervalModal(bike, compId, null);
+        case 'edit-interval': return openIntervalModal(bike, compId, findInterval(bike, compId, intId));
+        case 'del-interval':  return confirmDeleteInterval(bike, compId, intId);
+        case 'reg-interval':  return registerInterval(bike, compId, intId);
+        case 'filter-comp':
+          _filterByBike.set(bikeId, btn.dataset.filter || 'todos');
+          return render();
       }
     });
   }
@@ -657,6 +771,127 @@
             await window.Api.post(`/bikes/${bike.id}/components/${compId}/substituir`,
               { data, notas, vidaUtilKm });
             toast('Substituição registrada');
+            Modals.close();
+            await load();
+          } catch (e) { toast('Erro ao registrar', { kind: 'error' }); }
+        }},
+      ],
+    });
+  }
+
+  /* ──────────────────────────────────────────────────────────────────
+     Intervalos de serviço recorrentes
+  ─────────────────────────────────────────────────────────────────── */
+  function findInterval(bike, compId, intId) {
+    const comp = (_componentsByBike.get(bike.id) || []).find(c => c.id === compId);
+    return comp ? (comp.intervals || []).find(iv => iv.id === intId) : null;
+  }
+
+  function openIntervalModal(bike, compId, interval) {
+    const comp = (_componentsByBike.get(bike.id) || []).find(c => c.id === compId);
+    if (!comp) return;
+    const isEdit = !!interval;
+    const iv = interval || { nome: '', base: 'km', intervalo: '' };
+    Modals.open({
+      tag: isEdit ? 'Editar serviço' : 'Novo serviço recorrente',
+      title: esc(TYPE_LABEL[comp.tipo] || comp.tipo),
+      bodyHTML: `
+        <div class="field">
+          <label class="field-label" for="iv-nome">Nome do serviço *</label>
+          <input id="iv-nome" class="field-input" type="text" value="${escAttr(iv.nome)}"
+                 placeholder="Ex.: Calibragem, Trocar pneu, Lubrificar corrente" />
+        </div>
+        <div class="field">
+          <label class="field-label">Base do intervalo</label>
+          <div class="bike-tipo-radio">
+            <input type="radio" name="iv-base" id="iv-base-km" value="km" ${iv.base !== 'dias' ? 'checked' : ''}>
+            <label for="iv-base-km">Por km</label>
+            <input type="radio" name="iv-base" id="iv-base-dias" value="dias" ${iv.base === 'dias' ? 'checked' : ''}>
+            <label for="iv-base-dias">Por dias</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="iv-intervalo">Intervalo *</label>
+          <input id="iv-intervalo" class="field-input" type="number" min="1" step="1"
+                 value="${escAttr(iv.intervalo)}" placeholder="Ex.: 3000 (km) ou 7 (dias)" />
+          <small style="display:block;font-size:11px;color:var(--muted2);margin-top:4px;">
+            A contagem regressiva reinicia toda vez que você registrar o serviço.
+          </small>
+        </div>`,
+      actions: [
+        { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
+        { label: isEdit ? 'Salvar' : 'Adicionar', kind: 'primary', onClick: async (m) => {
+          const nome = m.querySelector('#iv-nome').value.trim();
+          const base = m.querySelector('input[name="iv-base"]:checked')?.value || 'km';
+          const intervalo = parseFloat(m.querySelector('#iv-intervalo').value);
+          if (!nome) { toast('Informe o nome do serviço', { kind: 'error' }); return; }
+          if (!isFinite(intervalo) || intervalo <= 0) { toast('Informe um intervalo válido', { kind: 'error' }); return; }
+          try {
+            if (isEdit) {
+              await window.Api.put(`/bikes/${bike.id}/components/${compId}/intervals/${interval.id}`, { nome, base, intervalo });
+              toast('Serviço atualizado');
+            } else {
+              await window.Api.post(`/bikes/${bike.id}/components/${compId}/intervals`, { nome, base, intervalo });
+              toast('Serviço adicionado');
+            }
+            Modals.close();
+            await load();
+          } catch (e) { toast('Erro ao salvar serviço', { kind: 'error' }); }
+        }},
+      ],
+      onMount: (m) => m.querySelector('#iv-nome').focus(),
+    });
+  }
+
+  function confirmDeleteInterval(bike, compId, intId) {
+    const iv = findInterval(bike, compId, intId);
+    Modals.open({
+      tag: 'Remover serviço',
+      title: iv ? esc(iv.nome) : 'Remover serviço',
+      bodyHTML: `<p style="font-size:14px;color:var(--muted);">Remover este serviço recorrente? O histórico de manutenção já registrado é mantido.</p>`,
+      actions: [
+        { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
+        { label: 'Remover', kind: 'danger', onClick: async () => {
+          try {
+            await window.Api.del(`/bikes/${bike.id}/components/${compId}/intervals/${intId}`);
+            toast('Serviço removido');
+            Modals.close();
+            await load();
+          } catch (e) { toast('Erro ao remover', { kind: 'error' }); }
+        }},
+      ],
+    });
+  }
+
+  async function registerInterval(bike, compId, intId) {
+    const iv = findInterval(bike, compId, intId);
+    Modals.open({
+      tag: 'Registrar serviço',
+      title: iv ? esc(iv.nome) : 'Registrar serviço',
+      bodyHTML: `
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+          ${esc(bike.nome)} · km atual: <strong>${esc(fmtKm(bike.kmTotal))}</strong>
+        </p>
+        <div class="field">
+          <label class="field-label" for="reg-data">Data do serviço</label>
+          <input id="reg-data" class="field-input" type="date" value="${escAttr(todayISO())}" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="reg-notas">Observações (opcional)</label>
+          <textarea id="reg-notas" class="field-textarea" placeholder="Detalhes do serviço…"></textarea>
+        </div>
+        <p style="font-size:12px;color:var(--muted2);margin-top:6px;">
+          A contagem regressiva deste serviço será reiniciada a partir desta data/km.
+        </p>`,
+      actions: [
+        { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
+        { label: 'Registrar', kind: 'primary', onClick: async (m) => {
+          const data  = m.querySelector('#reg-data').value || todayISO();
+          const notas = m.querySelector('#reg-notas').value.trim();
+          try {
+            await window.Api.post(`/bikes/${bike.id}/components/${compId}/intervals/${intId}/register`,
+              { data, notas: notas || undefined });
+            toast('Serviço registrado');
             Modals.close();
             await load();
           } catch (e) { toast('Erro ao registrar', { kind: 'error' }); }

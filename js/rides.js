@@ -113,6 +113,8 @@ function renderMonthView() {
     });
   }
 
+  const weatherMap = weatherByDate();
+
   let html = '';
 
   // Cabeçalho dos dias da semana
@@ -137,7 +139,14 @@ function renderMonthView() {
     if (has)     classes.push('has-ride');
 
     html += `<div class="${classes.join(' ')}" data-date="${dateISO}">`;
-    html += `<div class="month-cell-day">${day}</div>`;
+    const wx = weatherMap[dateISO];
+    const wxChip = wx
+      ? `<span class="month-cell-wx" title="${escAttr((wx.tMax != null ? wx.tMax + '°C' : '') + ' · chuva ' + wx.chuva + '%')}">` +
+        `<i class="fa-solid ${esc(wx.icon)}"></i>` +
+        (wx.tMax != null ? `<span class="month-cell-wx-temp">${wx.tMax}°</span>` : '') +
+        `</span>`
+      : '';
+    html += `<div class="month-cell-day">${day}${wxChip}</div>`;
 
     // Badges de dias treinados com ícone + métricas
     const dayTL = tlByDate[dateISO] || [];
@@ -590,6 +599,23 @@ function wmoIcon(code) {
   return WMO_ICONS[code] || 'fa-cloud-sun';
 }
 
+// Mapa dateISO → previsão (a partir do cache do strip), usado para colocar
+// símbolos de previsão nos dias do calendário dentro da janela disponível.
+function weatherByDate() {
+  const map = {};
+  const daily = _weatherCache;
+  if (!daily || !daily.time) return map;
+  daily.time.forEach((dateStr, i) => {
+    map[dateStr] = {
+      wmo:   daily.weathercode?.[i],
+      icon:  wmoIcon(daily.weathercode?.[i]),
+      tMax:  daily.temperature_2m_max?.[i] != null ? Math.round(daily.temperature_2m_max[i]) : null,
+      chuva: daily.precipitation_probability_max?.[i] ?? 0,
+    };
+  });
+  return map;
+}
+
 // Avalia condições e devolve label + cor + alerta para ciclismo.
 function ridesEsforco(day) {
   const tMax    = day.tMax;
@@ -637,6 +663,8 @@ async function fetchRidesWeather() {
     _weatherCache   = daily;
     _weatherCacheTs = Date.now();
     renderWeatherStrip(strip, _weatherCache);
+    // Símbolos de previsão no calendário (dias dentro da janela disponível)
+    if (_ridesViewMode === 'month') renderMonthView();
   } catch (err) {
     console.warn('[Rides] Weather:', err);
     strip.classList.remove('hidden');
@@ -684,7 +712,7 @@ function renderWeatherStrip(strip, daily) {
   strip.innerHTML = `
     <div class="rws-header">
       <span class="rws-title"><i class="fa-solid fa-location-dot"></i> São Paulo</span>
-      <span class="rws-updated">previsão 7 dias · atualizado ${updatedAt}</span>
+      <span class="rws-updated"><i class="fa-solid fa-circle-info"></i> previsão dos próximos ${days.length} dias · atualizado ${updatedAt}</span>
     </div>
     <div class="rws-days">
       ${days.map((d, i) => `

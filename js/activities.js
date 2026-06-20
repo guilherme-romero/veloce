@@ -80,13 +80,17 @@
       const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
       buckets.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
                      label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
-                     km: 0 });
+                     km: 0, count: 0, elev: 0 });
     }
     const byKey = Object.fromEntries(buckets.map(b => [b.key, b]));
     activities.forEach(x => {
       const d = new Date(x.inicio);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (byKey[key]) byKey[key].km += (x.distanciaKm || 0);
+      if (byKey[key]) {
+        byKey[key].km    += (x.distanciaKm || 0);
+        byKey[key].count += 1;
+        byKey[key].elev  += (x.elevacaoM || 0);
+      }
     });
     return buckets;
   }
@@ -144,24 +148,65 @@
     if (!canvas || !window.Chart) return;
     if (_volumeChart) _volumeChart.destroy();
     _volumeChart = new Chart(canvas, {
-      type: 'bar',
       data: {
         labels: buckets.map(b => b.label),
-        datasets: [{
-          data: buckets.map(b => +b.km.toFixed(1)),
-          backgroundColor: 'rgba(20,217,184,0.5)',
-          borderColor: '#14d9b8',
-          borderWidth: 1,
-          borderRadius: 4,
-        }],
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Distância (km)',
+            data: buckets.map(b => +b.km.toFixed(1)),
+            backgroundColor: 'rgba(20,217,184,0.5)',
+            borderColor: '#14d9b8',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y',
+            order: 3,
+          },
+          {
+            type: 'bar',
+            label: 'Atividades',
+            data: buckets.map(b => b.count),
+            backgroundColor: 'rgba(155,123,255,0.45)',
+            borderColor: '#9b7bff',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'yCount',
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: 'Elevação (m)',
+            data: buckets.map(b => Math.round(b.elev)),
+            borderColor: '#f5923a',
+            backgroundColor: 'rgba(245,146,58,0.15)',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: '#f5923a',
+            tension: 0.3,
+            fill: false,
+            yAxisID: 'yElev',
+            order: 1,
+          },
+        ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} km` } } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, labels: { color: '#9299a8', boxWidth: 12, padding: 12, font: { size: 11 } } },
+          tooltip: { callbacks: { label: (ctx) => {
+            const v = ctx.parsed.y;
+            if (ctx.dataset.label === 'Distância (km)') return `${v} km`;
+            if (ctx.dataset.label === 'Elevação (m)')   return `${v} m`;
+            return `${v} atividade${v === 1 ? '' : 's'}`;
+          } } },
+        },
         scales: {
-          y: { beginAtZero: true, ticks: { color: '#9299a8', callback: v => v + ' km' }, grid: { color: '#252830' } },
-          x: { ticks: { color: '#9299a8' }, grid: { display: false } },
+          y:      { beginAtZero: true, position: 'left',  ticks: { color: '#9299a8', callback: v => v + ' km' }, grid: { color: '#252830' } },
+          yElev:  { beginAtZero: true, position: 'right', ticks: { color: '#f5923a', callback: v => v + ' m' }, grid: { drawOnChartArea: false } },
+          yCount: { display: false, beginAtZero: true },
+          x:      { ticks: { color: '#9299a8' }, grid: { display: false } },
         },
       },
     });

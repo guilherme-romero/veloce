@@ -62,8 +62,12 @@
     if (!window.Storage) return 0;
     const log = Storage.getTrainingLog ? Storage.getTrainingLog() : [];
     const datesAtivas = new Set(log.map(e => e.data));
-    let streak = 0;
     const d = new Date(); d.setHours(0,0,0,0);
+    // Se ainda não houve atividade hoje, a sequência não quebra: começa a
+    // contagem a partir de ontem (ex.: às 9h, antes do treino do dia).
+    const hojeISO = d.toISOString().slice(0, 10);
+    if (!datesAtivas.has(hojeISO)) d.setDate(d.getDate() - 1);
+    let streak = 0;
     while (true) {
       const iso = d.toISOString().slice(0, 10);
       if (datesAtivas.has(iso)) {

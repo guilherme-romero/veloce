@@ -42,18 +42,36 @@
     return arr[0];
   }
 
+  function addDaysISO(iso, delta) {
+    const d = new Date(iso + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    return d.toISOString().slice(0, 10);
+  }
+
   function calcStreaks(days, dayMap) {
-    let current = 0, record = 0, run = 0;
-    const today = days[days.length - 1];
-    for (const d of days) {
-      if (dayMap[d]) { run++; record = Math.max(record, run); }
-      else           { run = 0; }
+    // RECORDE — visão histórica: percorre TODAS as datas do training_log
+    // (não apenas a janela de 91 dias exibida no grid), contando o maior
+    // número de dias consecutivos com atividade.
+    const allDates = Object.keys(dayMap).sort();
+    let record = 0, run = 0, prev = null;
+    for (const iso of allDates) {
+      if (prev && addDaysISO(prev, 1) === iso) run++;
+      else run = 1;
+      record = Math.max(record, run);
+      prev = iso;
     }
-    // Sequência atual (de trás pra frente até hoje)
-    for (let i = days.length - 1; i >= 0; i--) {
-      if (dayMap[days[i]]) current++;
-      else break;
+
+    // SEQ. ATUAL — conta para trás a partir de hoje. Se ainda não houve
+    // atividade hoje, a sequência não quebra: começa a partir de ontem.
+    const todayISO = new Date(); todayISO.setHours(12, 0, 0, 0);
+    let cursor = todayISO.toISOString().slice(0, 10);
+    if (!dayMap[cursor]) cursor = addDaysISO(cursor, -1);
+    let current = 0;
+    while (dayMap[cursor]) {
+      current++;
+      cursor = addDaysISO(cursor, -1);
     }
+
     return { current, record };
   }
 

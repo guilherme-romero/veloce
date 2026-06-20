@@ -836,8 +836,16 @@ body.edit-mode #btn-edit-profile-2 { display: flex; }
 .month-cell-day {
   font-size: 12px; font-weight: 700;
   color: var(--muted2);
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
 }
 .month-cell.has-ride .month-cell-day { color: var(--text); }
+.month-cell-wx {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 10px; font-weight: 600;
+  color: var(--muted2);
+}
+.month-cell-wx i { color: var(--teal); font-size: 11px; }
+.month-cell-wx-temp { color: var(--muted); }
 .month-cell-ride {
   display: flex; align-items: center; gap: 4px;
   background: var(--teal-dim);
