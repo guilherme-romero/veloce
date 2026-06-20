@@ -25,6 +25,8 @@ const migrations = [
   'ALTER TABLE garmin_activities ADD COLUMN polyline TEXT',
   // BUG-016: separa contagem total vs bike no meta de sync
   'ALTER TABLE garmin_sync_meta ADD COLUMN last_total_count INTEGER',
+  // Fase 11.5: pressão recomendada (psi) por componente (ex.: pneu)
+  'ALTER TABLE bike_components ADD COLUMN pressao TEXT',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }

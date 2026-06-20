@@ -198,7 +198,7 @@
           </div>
         </div>
 
-        <div class="bike-stats-block">
+        <div class="bike-stats-block bike-stats-clickable" data-act="stats" data-bike="${escAttr(b.id)}" title="Ver estatísticas detalhadas">
           <div class="bike-stat">
             <i class="fa-solid fa-route bike-stat-icon"></i>
             <span class="bike-stat-value">${esc(fmtKm(kmTotal))}</span>
@@ -228,6 +228,9 @@
         </div>
 
         <div class="bike-card-footer">
+          <button class="btn btn-ghost btn-sm" data-act="stats" data-bike="${escAttr(b.id)}">
+            <i class="fa-solid fa-chart-simple"></i> Estatísticas
+          </button>
           <button class="btn btn-ghost btn-sm" data-act="log" data-bike="${escAttr(b.id)}">
             <i class="fa-solid fa-clipboard-list"></i> Histórico de manutenções
           </button>
@@ -255,13 +258,15 @@
       <div class="bike-comp-item ${sev === 'red' ? 'danger' : sev === 'amber' ? 'warn' : ''}">
         <div class="bike-comp-row">
           <div class="bike-comp-info">
-            <div class="bike-comp-name">
+            <div class="bike-comp-name bike-comp-name-link" data-act="comp-detail" data-bike="${escAttr(c.bikeId)}" data-comp="${escAttr(c.id)}" title="Ver detalhes e histórico">
               <i class="fa-solid fa-circle bike-comp-icon ${sev}"></i>
               ${esc(TYPE_LABEL[c.tipo] || c.tipo)}
+              <i class="fa-solid fa-chevron-right bike-comp-name-caret"></i>
             </div>
             <div class="bike-comp-stats">
               ${esc(fmtKm(c.kmDesgastado))} / ${esc(fmtKm(c.vidaUtilKm))}
             </div>
+            ${c.pressao ? `<div class="bike-comp-pressao"><i class="fa-solid fa-gauge-high"></i> ${esc(c.pressao)}</div>` : ''}
             <div class="bike-comp-status ${sev}">${esc(status)}</div>
             <div class="bike-comp-progress">
               <div class="bike-comp-progress-fill ${sev}" style="width:${Math.min(100, pct)}%"></div>
@@ -381,6 +386,8 @@
         case 'substituir':    return openSubstituirModal(bike, compId);
         case 'revisao':       return openRevisaoModal(bike);
         case 'log':           return openLogModal(bike);
+        case 'stats':         return openStatsModal(bike);
+        case 'comp-detail':   return openComponentDetail(bike, compId);
         case 'add-interval':  return openIntervalModal(bike, compId, null);
         case 'edit-interval': return openIntervalModal(bike, compId, findInterval(bike, compId, intId));
         case 'del-interval':  return confirmDeleteInterval(bike, compId, intId);
@@ -613,6 +620,15 @@
           <input id="c-intervalo" class="field-input" type="number" min="50" step="50"
                  value="${escAttr(c.intervaloLimpezaKm || 300)}" />
         </div>
+
+        <div class="field">
+          <label class="field-label" for="c-pressao">Pressão recomendada (opcional)</label>
+          <input id="c-pressao" class="field-input" type="text" maxlength="60"
+                 value="${escAttr(c.pressao || '')}" placeholder="Ex.: Asfalto 34-36 · Trilha 32-34 psi" />
+          <small style="display:block;font-size:11px;color:var(--muted2);margin-top:4px;">
+            Útil para pneus — referência rápida de calibragem.
+          </small>
+        </div>
       `,
       actions: [
         { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
@@ -650,6 +666,7 @@
       kmAtInstall:        parseFloat(modal.querySelector('#c-km-install').value) || 0,
       temLimpeza:         modal.querySelector('#c-tem-limpeza').checked,
       intervaloLimpezaKm: parseFloat(modal.querySelector('#c-intervalo').value) || null,
+      pressao:            modal.querySelector('#c-pressao').value.trim(),
     };
     if (data.vidaUtilKm <= 0) { toast('Vida útil deve ser > 0', { kind: 'error' }); return; }
 
@@ -941,6 +958,153 @@
         }},
       ],
     });
+  }
+
+  /* ──────────────────────────────────────────────────────────────────
+     Modal — Detalhe do componente (stats + intervalos + histórico)
+  ─────────────────────────────────────────────────────────────────── */
+  function renderIntervalRowReadonly(iv) {
+    const sev = severityFor(iv.pct);
+    const baseLabel = iv.base === 'km'
+      ? `a cada ${iv.intervalo.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} km`
+      : `a cada ${Math.round(iv.intervalo)} ${Math.round(iv.intervalo) === 1 ? 'dia' : 'dias'}`;
+    return `
+      <div class="bike-interval ${sev}">
+        <div class="bike-interval-main">
+          <div class="bike-interval-top">
+            <span class="bike-interval-name">${esc(iv.nome)}</span>
+            <span class="bike-interval-restante ${sev}">${esc(fmtIntervalRestante(iv))}</span>
+          </div>
+          <div class="bike-interval-bar">
+            <div class="bike-interval-fill ${sev}" style="width:${Math.min(100, iv.pct)}%"></div>
+          </div>
+          <div class="bike-interval-sub">${esc(baseLabel)}</div>
+        </div>
+      </div>`;
+  }
+
+  async function openComponentDetail(bike, compId) {
+    const comp = (_componentsByBike.get(bike.id) || []).find(c => c.id === compId);
+    if (!comp) return;
+
+    const pct = comp.vidaUtilKm > 0 ? (comp.kmDesgastado / comp.vidaUtilKm) * 100 : 0;
+    const sev = severityFor(pct);
+    const statusTxt = pct >= 100 ? '⚠ Vida útil vencida' : `${Math.round(pct)}% da vida útil consumida`;
+
+    const intervalsHTML = (comp.intervals || []).length
+      ? `<div class="bike-detail-section"><div class="bike-detail-h">Serviços recorrentes</div>
+           <div class="bike-intervals">${comp.intervals.map(renderIntervalRowReadonly).join('')}</div></div>`
+      : '';
+
+    const cleanHTML = comp.temLimpeza
+      ? `<div class="bike-detail-row"><span>Limpeza</span><strong>${esc(fmtKm(comp.kmDesdeUltimaLimpeza ?? 0))} / ${esc(fmtKm(comp.intervaloLimpezaKm || 0))}</strong></div>`
+      : '';
+
+    Modals.open({
+      tag: 'Componente',
+      title: esc(TYPE_LABEL[comp.tipo] || comp.tipo),
+      bodyHTML: `
+        <div class="bike-detail-stats">
+          <div class="bike-detail-row"><span>Desgaste</span><strong class="${sev}">${esc(fmtKm(comp.kmDesgastado))} / ${esc(fmtKm(comp.vidaUtilKm))}</strong></div>
+          <div class="bike-comp-progress" style="margin:4px 0 8px;">
+            <div class="bike-comp-progress-fill ${sev}" style="width:${Math.min(100, pct)}%"></div>
+          </div>
+          <div class="bike-detail-status ${sev}">${esc(statusTxt)}</div>
+          ${comp.pressao ? `<div class="bike-detail-row"><span>Pressão</span><strong>${esc(comp.pressao)}</strong></div>` : ''}
+          ${cleanHTML}
+        </div>
+        ${intervalsHTML}
+        <div class="bike-detail-section">
+          <div class="bike-detail-h">Histórico deste componente</div>
+          <div id="comp-detail-log" class="bike-log-list"><div class="bike-log-empty">Carregando…</div></div>
+        </div>`,
+      actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => Modals.close() }],
+    });
+
+    try {
+      const items = await window.Api.get(`/bikes/${bike.id}/maintenance-log`);
+      const el = document.querySelector('#comp-detail-log');
+      if (!el) return;
+      const own = (items || []).filter(l => l.componentId === compId);
+      el.innerHTML = own.length
+        ? own.map(renderLogItem).join('')
+        : '<div class="bike-log-empty">Nenhum evento registrado para este componente.</div>';
+    } catch (e) {
+      const el = document.querySelector('#comp-detail-log');
+      if (el) el.innerHTML = '<div class="bike-log-empty">Erro ao carregar histórico.</div>';
+    }
+  }
+
+  /* ──────────────────────────────────────────────────────────────────
+     Modal — Estatísticas detalhadas da bike
+  ─────────────────────────────────────────────────────────────────── */
+  function fmtVel(v) {
+    if (v == null || !isFinite(v)) return '—';
+    return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' km/h';
+  }
+
+  function renderStatsContent(s) {
+    const big = (icon, value, label) => `
+      <div class="bike-stats-tot">
+        <i class="fa-solid ${icon}"></i>
+        <span class="bike-stats-tot-val">${esc(value)}</span>
+        <span class="bike-stats-tot-lbl">${esc(label)}</span>
+      </div>`;
+
+    const row = (label, avg, mx) => `
+      <tr>
+        <td class="bst-key">${esc(label)}</td>
+        <td class="bst-num">${esc(avg)}</td>
+        <td class="bst-num">${esc(mx)}</td>
+      </tr>`;
+
+    const totais = `
+      <div class="bike-stats-totals">
+        ${big('fa-route',    fmtKm(s.kmTotal),      'distância')}
+        ${big('fa-clock',    fmtTempo(s.tempoMovS), 'em movimento')}
+        ${big('fa-mountain', fmtElev(s.elevM),      'elevação')}
+        ${big('fa-list-check', s.atividades,        s.atividades === 1 ? 'atividade' : 'atividades')}
+        ${s.calorias ? big('fa-fire', s.calorias.toLocaleString('pt-BR') + ' kcal', 'energia') : ''}
+      </div>`;
+
+    const tabela = `
+      <table class="bike-stats-table">
+        <thead>
+          <tr><th>Por atividade</th><th>Média</th><th>Máximo</th></tr>
+        </thead>
+        <tbody>
+          ${row('Distância',  s.avg.km != null ? fmtKm(s.avg.km) : '—',       s.max.km != null ? fmtKm(s.max.km) : '—')}
+          ${row('Tempo em mov.', s.avg.tempoS != null ? fmtTempo(s.avg.tempoS) : '—', '—')}
+          ${row('Ganho de elev.', s.avg.elevM != null ? fmtElev(s.avg.elevM) : '—', s.max.elevM != null ? fmtElev(s.max.elevM) : '—')}
+          ${row('Velocidade',  fmtVel(s.avg.velKmh), fmtVel(s.max.velKmh))}
+          ${(s.avg.fc != null || s.max.fc != null) ? row('FC', s.avg.fc != null ? s.avg.fc + ' bpm' : '—', s.max.fc != null ? s.max.fc + ' bpm' : '—') : ''}
+          ${(s.avg.watts != null || s.max.watts != null) ? row('Potência', s.avg.watts != null ? s.avg.watts + ' W' : '—', s.max.watts != null ? s.max.watts + ' W' : '—') : ''}
+        </tbody>
+      </table>`;
+
+    return totais + tabela;
+  }
+
+  async function openStatsModal(bike) {
+    Modals.open({
+      tag: 'Estatísticas',
+      title: esc(bike.nome),
+      bodyHTML: '<div id="bike-stats-content"><div class="bike-log-empty">Carregando…</div></div>',
+      actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => Modals.close() }],
+    });
+    try {
+      const s = await window.Api.get(`/bikes/${bike.id}/stats`);
+      const el = document.querySelector('#bike-stats-content');
+      if (!el) return;
+      if (!s || !s.atividades) {
+        el.innerHTML = '<div class="bike-log-empty">Sem atividades registradas para esta bike ainda.</div>';
+        return;
+      }
+      el.innerHTML = renderStatsContent(s);
+    } catch (e) {
+      const el = document.querySelector('#bike-stats-content');
+      if (el) el.innerHTML = '<div class="bike-log-empty">Erro ao carregar estatísticas.</div>';
+    }
   }
 
   /* ──────────────────────────────────────────────────────────────────

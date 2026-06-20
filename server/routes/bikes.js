@@ -37,6 +37,7 @@ function rowToComponent(c) {
     temLimpeza:         !!c.tem_limpeza,
     intervaloLimpezaKm: c.intervalo_limpeza_km ?? null,
     kmAtLastClean:      c.km_at_last_clean ?? 0,
+    pressao:            c.pressao || '',
     createdAt:          c.created_at,
   };
 }
@@ -136,6 +137,77 @@ function calcBikeKm(db, bike) {
   return calcBikeStats(db, bike).kmTotal;
 }
 
+// Estatísticas detalhadas: totais + médias + máximos por atividade.
+// Reúne atividades Garmin + Strava (não-linkadas) desde active_since.
+function calcBikeStatsDetailed(db, bike) {
+  const base = +(bike.km_inicial || 0);
+  const empty = {
+    kmTotal: +base.toFixed(1), tempoMovS: 0, elevM: 0, atividades: 0, calorias: 0,
+    avg: { km: null, tempoS: null, elevM: null, velKmh: null, fc: null, watts: null },
+    max: { km: null, velKmh: null, elevM: null, watts: null, fc: null },
+  };
+  if (!bike.active_since) return empty;
+
+  const garmin = db.prepare(
+    `SELECT distancia_m, tempo_mov_s, elevacao_m, velocidade_avg, velocidade_max,
+            fc_media, fc_max, watts_avg, watts_max, calorias
+     FROM garmin_activities
+     WHERE data_inicio >= ?
+       AND (tipo IS NULL OR tipo NOT IN ${EXCLUDED_GARMIN_TYPES})`
+  ).all(bike.active_since);
+  const strava = db.prepare(
+    `SELECT s.distancia_m, s.tempo_mov_s, s.elevacao_m, s.velocidade_avg, s.velocidade_max,
+            s.fc_media, s.fc_max, s.watts_avg, NULL AS watts_max, NULL AS calorias
+     FROM strava_activities s
+     LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+     WHERE s.data_inicio >= ?
+       AND l.strava_id IS NULL
+       AND (s.tipo IS NULL OR s.tipo NOT IN ${EXCLUDED_STRAVA_TYPES})`
+  ).all(bike.active_since);
+
+  const acts = garmin.concat(strava);
+  if (acts.length === 0) return empty;
+
+  const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+  const valid = (arr) => arr.filter(v => v != null && isFinite(v));
+  const avg = (arr) => { const v = valid(arr); return v.length ? sum(v) / v.length : null; };
+  const max = (arr) => { const v = valid(arr); return v.length ? Math.max(...v) : null; };
+  const r1 = (v) => v == null ? null : +v.toFixed(1);
+
+  const kmArr    = acts.map(a => (a.distancia_m || 0) / 1000);
+  const tempoArr = acts.map(a => a.tempo_mov_s).filter(v => v != null);
+  const elevArr  = acts.map(a => a.elevacao_m);
+  const velAvg   = acts.map(a => a.velocidade_avg != null ? a.velocidade_avg * 3.6 : null);
+  const velMax   = acts.map(a => a.velocidade_max != null ? a.velocidade_max * 3.6 : null);
+  const fcAvg    = acts.map(a => a.fc_media);
+  const fcMax    = acts.map(a => a.fc_max);
+  const wAvg     = acts.map(a => a.watts_avg);
+  const wMax     = acts.map(a => a.watts_max);
+
+  return {
+    kmTotal:    +(base + sum(kmArr)).toFixed(1),
+    tempoMovS:  sum(tempoArr.map(v => +v || 0)),
+    elevM:      Math.round(sum(valid(elevArr))),
+    atividades: acts.length,
+    calorias:   Math.round(sum(valid(acts.map(a => a.calorias)))),
+    avg: {
+      km:     r1(avg(kmArr)),
+      tempoS: avg(tempoArr.map(v => +v || 0)) != null ? Math.round(avg(tempoArr.map(v => +v || 0))) : null,
+      elevM:  avg(elevArr) != null ? Math.round(avg(elevArr)) : null,
+      velKmh: r1(avg(velAvg)),
+      fc:     avg(fcAvg) != null ? Math.round(avg(fcAvg)) : null,
+      watts:  avg(wAvg) != null ? Math.round(avg(wAvg)) : null,
+    },
+    max: {
+      km:     r1(max(kmArr)),
+      velKmh: r1(max(velMax)),
+      elevM:  max(elevArr) != null ? Math.round(max(elevArr)) : null,
+      watts:  max(wMax) != null ? Math.round(max(wMax)) : null,
+      fc:     max(fcMax) != null ? Math.round(max(fcMax)) : null,
+    },
+  };
+}
+
 /* ──────────────────────────────────────────────────────────────────────
    Normalização de inputs
 ─────────────────────────────────────────────────────────────────────── */
@@ -162,6 +234,7 @@ function normalizeComponent(input) {
     temLimpeza:         c.temLimpeza ? 1 : 0,
     intervaloLimpezaKm: isFinite(parseFloat(c.intervaloLimpezaKm)) ? parseFloat(c.intervaloLimpezaKm) : null,
     kmAtLastClean:      isFinite(parseFloat(c.kmAtLastClean))      ? parseFloat(c.kmAtLastClean)      : 0,
+    pressao:            String(c.pressao || '').trim(),
   };
 }
 
@@ -271,6 +344,13 @@ async function routes(fastify) {
     });
   });
 
+  // ── Estatísticas detalhadas da bike ──────────────────────────────────
+  fastify.get('/api/bikes/:id/stats', async (req, reply) => {
+    const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(req.params.id);
+    if (!bike) return reply.code(404).send({ error: 'bike nao encontrada' });
+    return calcBikeStatsDetailed(fastify.db, bike);
+  });
+
   // ── Adicionar componente ─────────────────────────────────────────────
   fastify.post('/api/bikes/:id/components', async (req, reply) => {
     const { id } = req.params;
@@ -288,9 +368,9 @@ async function routes(fastify) {
 
     try {
       fastify.db.prepare(`INSERT INTO bike_components
-        (id, bike_id, tipo, vida_util_km, km_at_install, tem_limpeza, intervalo_limpeza_km, km_at_last_clean)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(body.id, id, n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, kmAtLastClean);
+        (id, bike_id, tipo, vida_util_km, km_at_install, tem_limpeza, intervalo_limpeza_km, km_at_last_clean, pressao)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(body.id, id, n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, kmAtLastClean, n.pressao);
     } catch (e) {
       return reply.code(409).send({ error: 'componente ja existe' });
     }
@@ -307,8 +387,8 @@ async function routes(fastify) {
     const n = normalizeComponent(merged);
     fastify.db.prepare(`UPDATE bike_components SET
       tipo = ?, vida_util_km = ?, km_at_install = ?, tem_limpeza = ?,
-      intervalo_limpeza_km = ?, km_at_last_clean = ? WHERE id = ?`)
-      .run(n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, n.kmAtLastClean, cid);
+      intervalo_limpeza_km = ?, km_at_last_clean = ?, pressao = ? WHERE id = ?`)
+      .run(n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, n.kmAtLastClean, n.pressao, cid);
     return rowToComponent(fastify.db.prepare('SELECT * FROM bike_components WHERE id = ?').get(cid));
   });
 
