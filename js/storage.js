@@ -412,6 +412,37 @@ const Storage = {
       }));
     } catch (e) { console.warn('[exportJSON] activities', e); }
 
+    // Garagem de bikes — lista + componentes + manutenções (Fase 15.3).
+    let bikesSummary = [];
+    try {
+      const bikes = await window.Api.get('/bikes');
+      if (Array.isArray(bikes)) {
+        bikesSummary = await Promise.all(bikes.map(async (b) => {
+          let componentes = [], manutencoes = [];
+          try {
+            const comps = await window.Api.get(`/bikes/${encodeURIComponent(b.id)}/components`);
+            componentes = (Array.isArray(comps) ? comps : []).map(c => ({
+              tipo: c.tipo, kmDesgastado: c.kmDesgastado, vidaUtilKm: c.vidaUtilKm,
+              pressao: c.pressao, temLimpeza: c.temLimpeza,
+            }));
+          } catch (e) { /* sem componentes */ }
+          try {
+            const logs = await window.Api.get(`/bikes/${encodeURIComponent(b.id)}/maintenance-log`);
+            manutencoes = (Array.isArray(logs) ? logs : []).map(m => ({
+              data: m.data, tipoEvento: m.tipoEvento, componentTipo: m.componentTipo,
+              kmBike: m.kmBike, notas: m.notas,
+            }));
+          } catch (e) { /* sem manutenções */ }
+          return {
+            id: b.id, nome: b.nome, marca: b.marca, modelo: b.modelo, tipo: b.tipo,
+            ano: b.ano, pesoKg: b.pesoKg, kmInicial: b.kmInicial, activeSince: b.activeSince,
+            kmTotal: b.kmTotal, atividades: b.atividades,
+            componentes, manutencoes,
+          };
+        }));
+      }
+    } catch (e) { console.warn('[exportJSON] bikes', e); }
+
     return JSON.stringify({
       version:       SCHEMA_VERSION,
       exportedAt:    new Date().toISOString(),
@@ -424,6 +455,7 @@ const Storage = {
       homeExercises: Storage.getHomeExercises(),
       routes:        Storage.getRoutes(),
       activitiesSummary,
+      bikesSummary,
     }, null, 2);
   },
 

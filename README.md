@@ -2,7 +2,7 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.16.2** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.19.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
 
 ---
 
@@ -22,10 +22,12 @@ Agrupa dados do atleta e fisiologia em uma única aba:
 Cadastro de bicicletas com rastreamento automático de desgaste de componentes:
 - Modelo "bike ativa": uma bike acumula km de atividades Garmin/Strava a partir de uma data
 - **Badge de status** — círculo verde (ATIVA) ou vermelho (INATIVA) com data de início em destaque
+- **Estatísticas agregadas** — km total, tempo em movimento e elevação por bike, com modal de detalhes (médias e máximas de velocidade, FC e potência)
 - Componentes (pneu, corrente, pastilhas, discos, cassete, cabo de freio) com vida útil em km
-- Alertas de substituição quando o desgaste atinge 80% e 100%
-- Ciclo de limpeza para corrente (a cada N km)
-- Histórico completo de manutenções e revisões completas
+- **Pressão de pneu (PSI)** configurável por componente
+- Alertas de substituição quando o desgaste atinge 80% e 100%, com **filtro "Atenção"** para ver só o que precisa de cuidado
+- Ciclo de limpeza para corrente e **intervalos de serviço recorrentes** (por km ou por dias) com registro rápido
+- **Página de detalhe do componente** + histórico completo de manutenções e revisões
 
 ### 🚴 Treinos
 Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
@@ -33,13 +35,14 @@ Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
 - **Semana padrão** — agenda semanal personalizável com modos de treino dinâmicos
 
 ### 🗓️ Passeios & Rotas
-- Calendário mensal de passeios planejados
+- Calendário mensal de passeios planejados, com **símbolo de clima em cada dia** dentro da janela de previsão
 - Análise de rotas a partir de arquivos GPX (mapa, perfil de elevação, calculadora de tempo, previsão de clima)
-- **Modal de clima detalhado para rotas** — temperatura máx/mín, sensação térmica, chuva, vento, rajadas, UV, nascer/pôr do sol e breakdown horário das 4h após a saída
+- **Modal de clima detalhado para rotas** — temperatura máx/mín, sensação térmica, chuva, vento, rajadas, UV e nascer/pôr do sol
 
 ### 📊 Histórico
-- Heat-map dos últimos 90 dias (estilo GitHub contributions)
-- Volume de treino: km/semana, tempo total, elevação, distribuição por zona FC
+- Heat-map dos últimos 90 dias (estilo GitHub contributions), com sequência atual e **recorde histórico**
+- Volume de treino: km/semana, tempo total, distribuição por zona FC
+- **Gráfico de volume mensal combinado** — barras de km + barras de número de atividades + linha de elevação acumulada
 - Última atividade com mini-mapa
 - **Últimas 5 atividades** em cards detalhados com mini-mapa, distância, tempo, elevação, FC, calorias e potência/cadência
 - Revisão de auto-registros dos últimos 7 dias
@@ -66,18 +69,20 @@ Análises derivadas dos dados de saúde e performance do seu relógio:
 ### 💾 Backup e Relatórios
 - **Backup automático semanal** — snapshot do banco em `data/backups/` (retenção: últimos 8)
 - Lista de snapshots disponíveis para download direto no app
-- Exportar/importar JSON completo
+- Exportar/importar JSON completo (inclui resumo de atividades Strava/Garmin e a garagem de bikes)
 - Exportar pesagens em CSV
 - **Relatório completo em PDF** com filtro de período (30 dias / 90 dias / tudo)
   - Capa, perfil, evolução de peso (gráfico), pesagens, atividades, insights, recordes
+  - **Heat-map de atividade dos últimos 90 dias** desenhado no PDF, volume mensal e HRV × Carga
   - Seção de Bike: km total por bike, vida útil de componentes, histórico de manutenções
 - **Download da base completa em ZIP** — `training.db` + avatares (tokens não incluídos)
+- **Restauração da base a partir de um ZIP** — com confirmação dupla (digitar "RESTAURAR"), backup de segurança automático antes da troca e reinício do serviço ao final
 - Imprimir / salvar como PDF
 
 ### 🌤️ Previsão do tempo (Passeios + Rotas)
-- Faixa de 7 dias com ícone WMO, máx/mín, % chuva, UV e indicador de esforço para ciclismo
+- Faixa de previsão com ícone WMO, máx/mín, % chuva, UV e indicador de esforço para ciclismo (com nota de quantos dias de previsão estão disponíveis)
+- **Símbolo de clima em cada dia** do calendário de passeios, dentro da janela de previsão
 - Modal detalhado por dia: sensação térmica, rajadas, mm de chuva, nascer/pôr do sol
-- **Rotas:** breakdown horário das 4h a partir do horário de saída configurado (temperatura, precipitação, vento)
 - Alertas específicos: vento perigoso, calor extremo, chuva forte, UV alto
 - Proxy server-side (sem problema de CORS no PWA)
 

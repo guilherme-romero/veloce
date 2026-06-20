@@ -4,9 +4,12 @@
    POST /api/backup/snapshot       → escreve snapshot em data/backups/ (Fase 13.1.1)
    GET  /api/backup/list           → lista snapshots disponíveis  (Fase 13.1.2)
    GET  /api/backup/file/:name     → download de snapshot específico (Fase 13.1.2)
+   POST /api/backup/restore        → restaura training.db a partir de um ZIP (Fase 15.1)
 ═══════════════════════════════════════════════════════════════════════ */
 const path = require('path');
 const fs = require('fs');
+const { execFileSync, spawn } = require('child_process');
+const Database = require('better-sqlite3');
 const archiver = require('archiver');
 const { requireAuth } = require('../middleware/auth');
 
@@ -14,7 +17,9 @@ const DATA_DIR    = path.resolve(__dirname, '..', '..', 'data');
 const DB_FILE     = path.join(DATA_DIR, 'training.db');
 const AVATARS_DIR = path.join(DATA_DIR, 'avatars');
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
+const RESTORE_TMP = path.join(DATA_DIR, 'restore-tmp');
 const RETENTION   = 8;  // mantém últimos 8 snapshots (≈ 2 meses semanais)
+const RESTORE_MAX = 50 * 1024 * 1024;  // 50 MB — limite do upload de restore
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -86,8 +91,61 @@ function pruneSnapshots() {
   return toDelete.map(f => f.name);
 }
 
+// Remove recursivamente um diretório (idempotente, tolera ausência).
+function rmrf(dir) {
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { /* ignora */ }
+}
+
+// Valida que um arquivo é um SQLite íntegro e tem o schema esperado.
+// Abre numa conexão readonly separada (não toca o banco vivo). Lança em erro.
+function assertValidDb(dbPath) {
+  if (!fs.existsSync(dbPath)) throw new Error('training.db ausente no ZIP');
+  let probe;
+  try {
+    probe = new Database(dbPath, { readonly: true, fileMustExist: true });
+    const rows = probe.pragma('integrity_check', { simple: false });
+    const ok = Array.isArray(rows) && rows.length === 1 && rows[0]?.integrity_check === 'ok';
+    if (!ok) throw new Error('integrity_check falhou no banco do ZIP');
+    // Sanidade do schema: tabela singleton do perfil deve existir.
+    const t = probe.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='user_profile'"
+    ).get();
+    if (!t) throw new Error('estrutura inesperada (user_profile ausente)');
+  } finally {
+    try { probe && probe.close(); } catch (e) { /* ignora */ }
+  }
+}
+
+// Reinicia o serviço via systemd (db é reaberto limpo no boot por db/init.js).
+// Roda destacado para sobreviver ao SIGTERM que o próprio restart dispara.
+function scheduleRestart(log) {
+  setTimeout(() => {
+    try {
+      const child = spawn('sudo', ['-n', 'systemctl', 'restart', 'treino-bike-api'], {
+        detached: true, stdio: 'ignore',
+      });
+      child.on('error', (e) => {
+        log && log.error({ err: e }, 'restart via systemctl falhou; saindo com código 1');
+        process.exit(1);  // Restart=on-failure cobre o fallback
+      });
+      child.unref();
+    } catch (e) {
+      log && log.error({ err: e }, 'spawn systemctl lançou; saindo com código 1');
+      process.exit(1);
+    }
+  }, 600);
+}
+
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
+
+  // Parser de corpo bruto para o upload do ZIP de restore. Escopo do plugin
+  // backup apenas — não interfere nas demais rotas. bodyLimit dedicado (50MB).
+  fastify.addContentTypeParser(
+    'application/zip',
+    { parseAs: 'buffer', bodyLimit: RESTORE_MAX },
+    (req, body, done) => done(null, body)
+  );
 
   // Download imediato (já existia)
   fastify.get('/api/backup/data-zip', async (req, reply) => {
@@ -152,6 +210,103 @@ async function routes(fastify) {
       .type('application/zip')
       .header('Content-Disposition', `attachment; filename="${name}"`)
       .send(fs.createReadStream(full));
+  });
+
+  // Restaura training.db (e avatars) a partir de um ZIP enviado.
+  // Fluxo: valida → backup pré-restore → fecha banco → swap → reinicia.
+  fastify.post('/api/backup/restore', async (req, reply) => {
+    const buf = req.body;
+    if (!Buffer.isBuffer(buf) || buf.length === 0) {
+      return reply.code(400).send({ error: 'corpo vazio — envie um .zip' });
+    }
+    // Assinatura ZIP ("PK\x03\x04")
+    if (buf[0] !== 0x50 || buf[1] !== 0x4b) {
+      return reply.code(400).send({ error: 'arquivo não é um ZIP válido' });
+    }
+
+    ensureBackupsDir();
+    rmrf(RESTORE_TMP);
+    fs.mkdirSync(RESTORE_TMP, { recursive: true });
+    const zipPath     = path.join(RESTORE_TMP, 'upload.zip');
+    const extractDir  = path.join(RESTORE_TMP, 'extracted');
+
+    try {
+      // 1. Grava e extrai (unzip CLI, sem shell)
+      fs.writeFileSync(zipPath, buf);
+      fs.mkdirSync(extractDir, { recursive: true });
+      try {
+        execFileSync('unzip', ['-o', '-q', zipPath, '-d', extractDir], { timeout: 30000 });
+      } catch (e) {
+        req.log.error({ err: e }, 'unzip falhou');
+        return reply.code(400).send({ error: 'falha ao extrair o ZIP' });
+      }
+
+      // 2. Valida METADATA (precisa ser um backup do treino-bike)
+      const metaPath = path.join(extractDir, 'METADATA.json');
+      if (!fs.existsSync(metaPath)) {
+        return reply.code(400).send({ error: 'METADATA.json ausente — não parece um backup do Treino Bike' });
+      }
+      let meta;
+      try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); }
+      catch { return reply.code(400).send({ error: 'METADATA.json corrompido' }); }
+      if (meta.app !== 'treino-bike') {
+        return reply.code(400).send({ error: `backup de outro app (${meta.app || '?'})` });
+      }
+
+      // 3. Valida o training.db do ZIP (conexão readonly isolada)
+      const newDbPath = path.join(extractDir, 'training.db');
+      try {
+        assertValidDb(newDbPath);
+      } catch (e) {
+        req.log.warn({ err: e }, 'db do ZIP inválido');
+        return reply.code(400).send({ error: 'banco inválido no ZIP: ' + e.message });
+      }
+
+      // 4. Backup pré-restore do banco atual (segurança / rollback manual)
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const preRestore = path.join(BACKUPS_DIR, `pre-restore-${ts}.db`);
+      try { fastify.db.pragma('wal_checkpoint(TRUNCATE)'); } catch (e) { /* não fatal */ }
+      try {
+        fs.copyFileSync(DB_FILE, preRestore);
+      } catch (e) {
+        req.log.error({ err: e }, 'falha ao criar backup pré-restore');
+        return reply.code(500).send({ error: 'não foi possível salvar backup de segurança; restore abortado' });
+      }
+
+      // 5. Fecha o banco vivo e faz o swap do arquivo.
+      try { fastify.db.close(); } catch (e) { req.log.warn({ err: e }, 'db.close pré-swap'); }
+      try {
+        fs.copyFileSync(newDbPath, DB_FILE);
+        // Remove WAL/SHM antigos para não misturar com o banco restaurado.
+        for (const ext of ['-wal', '-shm']) {
+          try { fs.unlinkSync(DB_FILE + ext); } catch (e) { /* pode não existir */ }
+        }
+        // Avatars (opcional) — substitui o diretório se presente no ZIP.
+        const newAvatars = path.join(extractDir, 'avatars');
+        if (fs.existsSync(newAvatars) && fs.statSync(newAvatars).isDirectory()) {
+          rmrf(AVATARS_DIR);
+          fs.cpSync(newAvatars, AVATARS_DIR, { recursive: true });
+        }
+      } catch (e) {
+        // Rollback: restaura o banco a partir do backup pré-restore.
+        req.log.error({ err: e }, 'swap do banco falhou — tentando rollback');
+        try { fs.copyFileSync(preRestore, DB_FILE); } catch (e2) { req.log.error({ err: e2 }, 'ROLLBACK FALHOU'); }
+        return reply.code(500).send({ error: 'falha no swap do banco; rollback aplicado. Serviço será reiniciado.' });
+      }
+
+      // 6. Sucesso — responde e agenda reinício (banco reabre limpo no boot).
+      req.log.info({ meta, preRestore: path.basename(preRestore) }, 'restore aplicado; reiniciando');
+      scheduleRestart(req.log);
+      return {
+        ok: true,
+        restart: true,
+        preRestore: path.basename(preRestore),
+        restoredFrom: { version: meta.version || null, exportedAt: meta.exportedAt || null },
+      };
+    } finally {
+      // Limpeza do tmp (não falha o restore se der erro aqui)
+      rmrf(RESTORE_TMP);
+    }
   });
 }
 

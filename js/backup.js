@@ -56,6 +56,15 @@ function openBackupModal() {
         Não inclui tokens Garmin (por segurança).
       </p>
 
+      <label class="btn btn-ghost" style="display:inline-flex;justify-content:center;cursor:pointer;width:100%;margin-top:8px;">
+        <i class="fa-solid fa-database"></i> Restaurar base de dados (.zip)
+        <input id="restore-file" type="file" accept="application/zip,.zip" style="display:none" />
+      </label>
+      <p style="font-size:11px;color:var(--red);margin-top:6px;">
+        <i class="fa-solid fa-triangle-exclamation"></i> Substitui <strong>todo</strong> o banco atual.
+        Um backup de segurança é criado antes e o servidor reinicia ao final.
+      </p>
+
       <div style="border-top:1px solid var(--border);margin:14px 0 8px;"></div>
       <div class="field-label" style="margin-bottom:8px;">Snapshots automáticos</div>
       <div id="snapshots-card" style="font-size:12px;color:var(--muted2);">Carregando…</div>
@@ -86,6 +95,11 @@ function openBackupModal() {
       modal.querySelector('[data-export-csv]').onclick = exportWeightsCSV;
       modal.querySelector('[data-export-pdf]').onclick = () => exportRelatorioPDF(_selectedPdfWindow);
       modal.querySelector('[data-export-zip]').onclick = exportDataZip;
+      modal.querySelector('#restore-file').onchange = (e) => {
+        const f = e.target.files[0];
+        e.target.value = '';  // permite reselecionar o mesmo arquivo
+        if (f) confirmRestore(f);
+      };
       modal.querySelector('[data-print]').onclick = () => { Modals.close(); setTimeout(() => window.print(), 300); };
 
       // Botões de período do PDF (toggle visual)
@@ -208,6 +222,70 @@ async function exportDataZip() {
   }
 }
 
+// ── Restaurar base de dados a partir de ZIP (Fase 15.1) ──────────────────
+function confirmRestore(file) {
+  const sizeTxt = file.size > 1e6 ? (file.size / 1e6).toFixed(1) + ' MB' : (file.size / 1e3).toFixed(0) + ' KB';
+  Modals.close();
+  Modals.open({
+    tag: 'Atenção',
+    title: 'Restaurar base de dados?',
+    bodyHTML: `
+      <p style="color:var(--muted2);font-size:14px;line-height:1.7;">
+        Você vai substituir <strong style="color:var(--red)">todo</strong> o banco atual
+        pelos dados de:
+      </p>
+      <div style="background:var(--surface2);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:13px;">
+        <i class="fa-solid fa-file-zipper"></i> ${esc(file.name)}
+        <span style="color:var(--muted2);">· ${sizeTxt}</span>
+      </div>
+      <p style="color:var(--muted2);font-size:13px;line-height:1.6;">
+        Um <strong>backup de segurança</strong> do banco atual é gravado antes da troca.
+        O servidor <strong>reinicia</strong> ao final e a página recarrega sozinha.
+        Essa ação <strong>não pode ser desfeita</strong> pela interface.
+      </p>
+      <div class="field-label" style="margin:12px 0 6px;">Digite <strong>RESTAURAR</strong> para confirmar</div>
+      <input id="restore-confirm" type="text" class="field-input" autocomplete="off" placeholder="RESTAURAR"
+             style="width:100%;text-transform:uppercase;letter-spacing:1px;" />
+    `,
+    actions: [
+      { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
+      { label: 'Restaurar', kind: 'danger', onClick: () => {
+        const v = (document.getElementById('restore-confirm')?.value || '').trim().toUpperCase();
+        if (v !== 'RESTAURAR') { toast('Digite RESTAURAR para confirmar', { kind: 'error' }); return; }
+        restoreFromZip(file);
+      }},
+    ],
+    onMount: (modal) => {
+      const inp = modal.querySelector('#restore-confirm');
+      if (inp) setTimeout(() => inp.focus(), 100);
+    },
+  });
+}
+
+async function restoreFromZip(file) {
+  Modals.close();
+  toast('Enviando backup e restaurando…');
+  try {
+    const resp = await fetch('/api/backup/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/zip' },
+      body: file,
+      credentials: 'same-origin',
+    });
+    let data = {};
+    try { data = await resp.json(); } catch (e) { /* sem corpo JSON */ }
+    if (!resp.ok || !data.ok) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+    toast('Backup restaurado · servidor reiniciando, recarregando em instantes…', { duration: 9000 });
+    // O backend reinicia (RestartSec=5 + boot ≈ 6-8s). Aguarda e recarrega.
+    setTimeout(() => location.reload(), 9000);
+  } catch (e) {
+    console.error('[Backup] restore', e);
+    toast('Falha ao restaurar: ' + (e.message || e), { kind: 'error' });
+  }
+}
+
 // ── Relatório PDF (jsPDF) ────────────────────────────────────────────────
 async function exportRelatorioPDF(daysWindow) {
   if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -283,6 +361,87 @@ async function buildRelatorioPDF(daysWindow) {
       y += imgH + 8;
       return true;
     } catch (e) { console.warn('[PDF] canvas', id, e); return false; }
+  };
+
+  // Heatmap dos últimos 90 dias desenhado vetorialmente (o grid da tela é
+  // <div>, não <canvas>, então captureCanvas não serve). Fase 15.2.
+  const drawHeatmap90d = () => {
+    const log = (window.Storage && Storage.getTrainingLog) ? Storage.getTrainingLog() : [];
+    if (!log.length) return false;
+    const dayMap = {};
+    log.forEach(e => {
+      if (!dayMap[e.data]) dayMap[e.data] = new Set();
+      (e.tipos || []).forEach(t => dayMap[e.data].add(t));
+    });
+    const COL = {
+      bike: [20, 217, 184], fisico: [245, 165, 35], alongamento: [78, 158, 245],
+      multi: [168, 85, 247], none: [230, 230, 230],
+    };
+    const tipoOf = (set) => {
+      if (!set || set.size === 0) return 'none';
+      if (set.size > 1) return 'multi';
+      return [...set][0];
+    };
+    const addDays = (iso, delta) => {
+      const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + delta);
+      return d.toISOString().slice(0, 10);
+    };
+    // 91 dias (hoje + 90 anteriores)
+    const today = new Date(); today.setHours(12, 0, 0, 0);
+    const days = [];
+    for (let i = 90; i >= 0; i--) {
+      const d = new Date(today); d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    const ativos = days.filter(d => dayMap[d]).length;
+    if (ativos === 0) return false;
+    const pct = Math.round((ativos / days.length) * 100);
+    // Streaks (mesma lógica do heatmap da tela)
+    const allDates = Object.keys(dayMap).sort();
+    let record = 0, run = 0, prev = null;
+    for (const iso of allDates) {
+      run = (prev && addDays(prev, 1) === iso) ? run + 1 : 1;
+      record = Math.max(record, run); prev = iso;
+    }
+    let cursor = days[days.length - 1];
+    if (!dayMap[cursor]) cursor = addDays(cursor, -1);
+    let current = 0;
+    while (dayMap[cursor]) { current++; cursor = addDays(cursor, -1); }
+
+    setSection('Atividade dos últimos 90 dias');
+    pdf.setFontSize(10); pdf.setTextColor(40);
+    pdf.text(`${pct}% dias ativos  ·  ${current} de sequência atual  ·  recorde de ${record}`, PAD, y);
+    y += 14;
+
+    const cell = 9, gap = 2, step = cell + gap;
+    const startDow = new Date(days[0] + 'T12:00:00').getDay(); // 0=dom
+    const cols = Math.ceil((startDow + days.length) / 7);
+    const gridH = 7 * step;
+    ensureSpace(gridH + 20);
+    const gridX = PAD, gridY = y;
+    let col = 0, row = startDow;
+    for (const iso of days) {
+      const [r, g, b] = COL[tipoOf(dayMap[iso])];
+      pdf.setFillColor(r, g, b);
+      pdf.rect(gridX + col * step, gridY + row * step, cell, cell, 'F');
+      row++; if (row > 6) { row = 0; col++; }
+    }
+    y = gridY + gridH + 6;
+    // Legenda
+    const legend = [
+      ['Bike', COL.bike], ['Físico', COL.fisico],
+      ['Along.', COL.alongamento], ['Misto', COL.multi],
+    ];
+    let lx = PAD;
+    pdf.setFontSize(8);
+    for (const [lbl, [r, g, b]] of legend) {
+      pdf.setFillColor(r, g, b); pdf.rect(lx, y - 6, 7, 7, 'F');
+      pdf.setTextColor(90); pdf.text(lbl, lx + 11, y);
+      lx += 11 + pdf.getTextWidth(lbl) + 14;
+    }
+    y += 14;
+    pdf.setTextColor(40); pdf.setFontSize(10);
+    return true;
   };
 
   // ─── CAPA ─────────────────────────────────────────────────────────────
@@ -378,7 +537,8 @@ async function buildRelatorioPDF(daysWindow) {
     }
   } catch (e) { console.warn('[PDF] atividades', e); }
 
-  // ─── GRÁFICOS ADICIONAIS (Fase 13.2.1) ───────────────────────────────
+  // ─── GRÁFICOS ADICIONAIS (Fase 13.2.1 + heatmap 15.2) ─────────────────
+  drawHeatmap90d();
   captureCanvas('volumeChart',  'Volume mensal');
   captureCanvas('weeklyKmChart','Km semanais');
   captureCanvas('hrvLoadChart', 'HRV × Carga');
