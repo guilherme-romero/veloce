@@ -603,6 +603,7 @@ function capitalize(s) {
 ═══════════════════════════════════════════════════════════════════════ */
 let _weatherCache    = null;
 let _weatherCacheTs  = 0;
+let _weatherPage     = 0;   // página atual da faixa (7 dias por página)
 const WEATHER_TTL_MS = 60 * 60 * 1000; // 1 hora (dados diários mudam pouco após 06h)
 
 const WMO_ICONS = {
@@ -685,6 +686,7 @@ async function fetchRidesWeather() {
 
     _weatherCache   = daily;
     _weatherCacheTs = Date.now();
+    _weatherPage    = 0;
     renderWeatherStrip(strip, _weatherCache);
     // Símbolos de previsão no calendário (dias dentro da janela disponível)
     if (_ridesViewMode === 'month') renderMonthView();
@@ -722,41 +724,66 @@ function buildWeatherDay(daily, i) {
 }
 
 function renderWeatherStrip(strip, daily) {
-  // A faixa mostra só os 7 primeiros dias (compacta); o calendário usa todos.
-  const days = daily.time.slice(0, 7).map((_, i) => {
+  // 7 dias por página; setas paginam por toda a janela (até 16 dias).
+  const total = daily.time.length;
+  const PAGE  = 7;
+  const pages = Math.max(1, Math.ceil(total / PAGE));
+  _weatherPage = Math.min(Math.max(_weatherPage, 0), pages - 1);
+
+  const start = _weatherPage * PAGE;
+  const end   = Math.min(start + PAGE, total);
+  const days  = [];
+  for (let i = start; i < end; i++) {
     const day = buildWeatherDay(daily, i);
     day.esf = ridesEsforco(day);
-    return day;
-  });
+    day.absIdx = i;            // índice absoluto p/ abrir o detalhe correto
+    days.push(day);
+  }
 
   const updatedAt = new Date(_weatherCacheTs)
     .toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const nav = pages > 1;
 
   strip.classList.remove('hidden');
   strip.innerHTML = `
     <div class="rws-header">
       <span class="rws-title"><i class="fa-solid fa-location-dot"></i> São Paulo</span>
-      <span class="rws-updated"><i class="fa-solid fa-circle-info"></i> previsão dos próximos ${days.length} dias · atualizado ${updatedAt}</span>
+      <span class="rws-updated"><i class="fa-solid fa-circle-info"></i> previsão de ${total} dias · atualizado ${updatedAt}</span>
     </div>
-    <div class="rws-days">
-      ${days.map((d, i) => `
-        <div class="rws-day${d.isToday ? ' rws-today' : ''}" data-day="${i}">
-          <div class="rws-wd">${d.wd}</div>
-          <div class="rws-dm">${d.dm}</div>
-          <i class="fa-solid ${d.icon} rws-icon"></i>
-          <div class="rws-tmax">${d.tMax}°</div>
-          <div class="rws-tmin">${d.tMin}°</div>
-          <div class="rws-rain"><i class="fa-solid fa-droplet"></i>${d.chuva}%</div>
-          ${d.uv != null ? `<div class="rws-uv">UV ${Math.round(d.uv)}</div>` : ''}
-          <div class="rws-esf" style="color:${d.esf.color}">${d.esf.label}</div>
-        </div>`).join('')}
-    </div>`;
+    <div class="rws-strip-row">
+      ${nav ? `<button class="rws-arrow" data-pg="prev" ${_weatherPage === 0 ? 'disabled' : ''} aria-label="Dias anteriores"><i class="fa-solid fa-chevron-left"></i></button>` : ''}
+      <div class="rws-days">
+        ${days.map(d => `
+          <div class="rws-day${d.isToday ? ' rws-today' : ''}" data-day="${d.absIdx}">
+            <div class="rws-wd">${d.wd}</div>
+            <div class="rws-dm">${d.dm}</div>
+            <i class="fa-solid ${d.icon} rws-icon"></i>
+            <div class="rws-tmax">${d.tMax}°</div>
+            <div class="rws-tmin">${d.tMin}°</div>
+            <div class="rws-rain"><i class="fa-solid fa-droplet"></i>${d.chuva}%</div>
+            ${d.uv != null ? `<div class="rws-uv">UV ${Math.round(d.uv)}</div>` : ''}
+            <div class="rws-esf" style="color:${d.esf.color}">${d.esf.label}</div>
+          </div>`).join('')}
+      </div>
+      ${nav ? `<button class="rws-arrow" data-pg="next" ${_weatherPage >= pages - 1 ? 'disabled' : ''} aria-label="Próximos dias"><i class="fa-solid fa-chevron-right"></i></button>` : ''}
+    </div>
+    ${nav ? `<div class="rws-pageinfo">página ${_weatherPage + 1} de ${pages}</div>` : ''}`;
 
-  // Detalhes ao clicar num dia
+  // Detalhes ao clicar num dia (reconstrói pelo índice absoluto)
   strip.querySelectorAll('.rws-day').forEach(el => {
     el.addEventListener('click', () => {
       const idx = parseInt(el.dataset.day, 10);
-      openWeatherDetail(days[idx]);
+      const day = buildWeatherDay(daily, idx);
+      day.esf = ridesEsforco(day);
+      openWeatherDetail(day);
+    });
+  });
+
+  // Setas de paginação
+  strip.querySelectorAll('.rws-arrow').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _weatherPage += (btn.dataset.pg === 'next' ? 1 : -1);
+      renderWeatherStrip(strip, daily);
     });
   });
 }
