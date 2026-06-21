@@ -35,7 +35,7 @@ const HOURLY_FIELDS = [
   'uv_index',
 ].join(',');
 
-function buildUrl({ lat, lon, days = 7, includeHourly = false }) {
+function buildUrl({ lat, lon, days = 16, includeHourly = false }) {
   let url = `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${lat}&longitude=${lon}` +
     `&daily=${DAILY_FIELDS}` +
@@ -95,7 +95,7 @@ async function routes(fastify) {
       if (rawDate) {
         const idx = daily.time.indexOf(rawDate);
         if (idx < 0) {
-          return reply.code(404).send({ error: 'Data fora do range de 7 dias' });
+          return reply.code(404).send({ error: 'Data fora do range de 16 dias' });
         }
         const day = {};
         for (const key of Object.keys(daily)) {

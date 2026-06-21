@@ -350,6 +350,9 @@
             <button class="btn btn-ghost btn-sm" data-act="substituir" data-bike="${escAttr(c.bikeId)}" data-comp="${escAttr(c.id)}">
               <i class="fa-solid fa-rotate"></i> Substituir
             </button>
+            <button class="bike-icon-btn" data-act="edit-comp" data-bike="${escAttr(c.bikeId)}" data-comp="${escAttr(c.id)}" title="Editar">
+              <i class="fa-solid fa-pen"></i>
+            </button>
             <button class="bike-icon-btn danger" data-act="del-comp" data-bike="${escAttr(c.bikeId)}" data-comp="${escAttr(c.id)}" title="Remover">
               <i class="fa-solid fa-trash"></i>
             </button>
@@ -449,6 +452,7 @@
         case 'del-bike':      return confirmDeleteBike(bike);
         case 'activate-bike': return openActivateModal(bike);
         case 'add-comp':      return openComponentModal(bike, null);
+        case 'edit-comp':     return openComponentModal(bike, (_componentsByBike.get(bikeId) || []).find(c => c.id === compId) || null);
         case 'del-comp':      return confirmDeleteComponent(bike, compId);
         case 'limpar':        return openLimparModal(bike, compId);
         case 'substituir':    return openSubstituirModal(bike, compId);

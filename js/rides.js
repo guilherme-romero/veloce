@@ -146,7 +146,9 @@ function renderMonthView() {
         (wx.tMax != null ? `<span class="month-cell-wx-temp">${wx.tMax}°</span>` : '') +
         `</span>`
       : '';
-    html += `<div class="month-cell-day">${day}${wxChip}</div>`;
+    const moon = moonPhase(dateISO);
+    const moonChip = `<span class="month-cell-moon" title="${escAttr(moon.nome)}">${moon.emoji}</span>`;
+    html += `<div class="month-cell-day"><span class="mc-day-left">${day} ${moonChip}</span>${wxChip}</div>`;
 
     // Badges de dias treinados com ícone + métricas
     const dayTL = tlByDate[dateISO] || [];
@@ -564,6 +566,27 @@ function isSameDay(a, b) {
          a.getDate()     === b.getDate();
 }
 
+/* ── Fase da lua (cálculo astronômico, sem API) ─────────────────────────
+   8 fases a partir do mês sinódico e de uma lua nova de referência. */
+const MOON_PHASES = [
+  { emoji: '🌑', nome: 'Lua Nova' },
+  { emoji: '🌒', nome: 'Crescente côncava' },
+  { emoji: '🌓', nome: 'Quarto crescente' },
+  { emoji: '🌔', nome: 'Crescente gibosa' },
+  { emoji: '🌕', nome: 'Lua cheia' },
+  { emoji: '🌖', nome: 'Minguante gibosa' },
+  { emoji: '🌗', nome: 'Quarto minguante' },
+  { emoji: '🌘', nome: 'Minguante côncava' },
+];
+function moonPhase(dateISO) {
+  const SYN = 29.53058867;                    // mês sinódico (dias)
+  const ref = Date.UTC(2000, 0, 6, 18, 14);   // lua nova de referência (UTC)
+  const t   = new Date(dateISO + 'T12:00:00').getTime();
+  const days = (t - ref) / 86400000;
+  const frac = (((days % SYN) + SYN) % SYN) / SYN;  // 0..1 dentro do ciclo
+  return MOON_PHASES[Math.round(frac * 8) % 8];
+}
+
 function formatDateBR(iso) {
   if (!iso) return '—';
   const d = new Date(iso + 'T00:00:00');
@@ -699,7 +722,8 @@ function buildWeatherDay(daily, i) {
 }
 
 function renderWeatherStrip(strip, daily) {
-  const days = daily.time.map((_, i) => {
+  // A faixa mostra só os 7 primeiros dias (compacta); o calendário usa todos.
+  const days = daily.time.slice(0, 7).map((_, i) => {
     const day = buildWeatherDay(daily, i);
     day.esf = ridesEsforco(day);
     return day;

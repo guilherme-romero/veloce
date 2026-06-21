@@ -44,3 +44,6 @@ roadmap.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Páginas-modelo (referência visual local)
+modelo_html/

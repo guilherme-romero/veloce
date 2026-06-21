@@ -53,20 +53,6 @@ function initCharts() {
             pointBorderWidth: 2,
             spanGaps: true,
           },
-          {
-            label: 'Histórico',
-            data: [],
-            borderColor: CHART_COLORS.muted,
-            backgroundColor: 'transparent',
-            borderWidth: 1.5,
-            tension: 0.3,
-            pointRadius: 3,
-            pointBackgroundColor: CHART_COLORS.muted,
-            pointBorderColor: '#0c0d10',
-            pointBorderWidth: 1.5,
-            fill: false,
-            spanGaps: true,
-          },
         ]
       },
       options: {
@@ -199,7 +185,7 @@ function renderIntensity(workouts) {
  * regressão linear sobre as medições → linha de tendência estendida pelas
  * 12 semanas do plano. Sem entrada manual de peso. (Fase — projeção Garmin)
  * @param {Object}  user     — { pesoMeta, dataInicioPlano }
- * @param {Array}   weights  — [ { data: 'YYYY-MM-DD', peso: 84.2, tipo: 'atual'|'historico' } ]
+ * @param {Array}   weights  — [ { data: 'YYYY-MM-DD', peso: 84.2 } ]  (somente Garmin)
  */
 function renderWeightChart(user, weights) {
   if (!weightChart) return;
@@ -251,50 +237,24 @@ function renderWeightChart(user, weights) {
   }
   const projection = planDates.map(trendAt);
 
-  // Medições do plano mapeadas para a semana mais próxima
+  // Medições do plano mapeadas para a semana mais próxima (só dados do Garmin)
   const real = new Array(13).fill(null);
-  const historicEntries = [];
   (weights || []).forEach(w => {
-    if (w.tipo === 'historico') { historicEntries.push(w); return; }
     const sem = weekIndex(start, w.data);
     if (sem >= 0 && sem <= 12) real[sem] = w.peso;  // última da semana vence
   });
 
-  /* ── Histórico anterior ao plano ──────────────────────────────────── */
-  let finalLabels = planLabels;
-  let finalProj   = projection;
-  let finalReal   = real;
-  let finalHist   = new Array(13).fill(null);
-
-  if (historicEntries.length > 0) {
-    historicEntries.sort((a, b) => a.data.localeCompare(b.data));
-
-    const histLabels = historicEntries.map(h => {
-      const semHist = -Math.ceil(daysBetween(h.data, start) / 7);
-      return `S${semHist} · ${shortBR(h.data)}`;
-    });
-    const histVals  = historicEntries.map(h => h.peso);
-    const histDates = historicEntries.map(h => h.data);
-    const histN = historicEntries.length;
-
-    finalLabels = [...histLabels, ...planLabels];
-    finalProj   = [...histDates.map(trendAt), ...projection];
-    finalReal   = [...new Array(histN).fill(null), ...real];
-    finalHist   = [...histVals, ...new Array(13).fill(null)];
-
-    // Conecta linha histórica ao registro mais recente (mesmo com lacunas)
-    const lastRealIdx = finalReal.reduce((acc, v, i) => v !== null ? i : acc, -1);
-    if (lastRealIdx >= histN) finalHist[lastRealIdx] = finalReal[lastRealIdx];
-  }
+  const finalLabels = planLabels;
+  const finalProj   = projection;
+  const finalReal   = real;
 
   weightChart.data.labels           = finalLabels;
   weightChart.data.datasets[0].data = finalProj;
   weightChart.data.datasets[1].data = finalReal;
-  weightChart.data.datasets[2].data = finalHist;
 
   // Y axis: range com folga, considerando meta + medições + tendência
   const pesoRef = measured.length ? measured[measured.length - 1].peso : 0;
-  const allVals = [...finalProj, ...finalReal, ...finalHist].filter(v => v != null);
+  const allVals = [...finalProj, ...finalReal].filter(v => v != null);
   if (allVals.length > 0) {
     const loBase = meta ? Math.min(meta - 2, ...allVals) : Math.min(...allVals);
     const hiBase = Math.max(pesoRef + 1, ...allVals);
@@ -324,10 +284,6 @@ function formatLabel(iso, semana) {
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   return `S${semana} · ${dd}/${mm}`;
-}
-function shortBR(iso) {
-  const [, m, d] = iso.split('-');
-  return `${d}/${m}`;
 }
 
 /* expor */
