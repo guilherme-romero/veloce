@@ -2,7 +2,7 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.22.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.22.5** · PWA self-hosted (frontend estático + backend Node/SQLite)
 
 ---
 
@@ -93,9 +93,21 @@ Análises derivadas dos dados de saúde e performance do seu relógio:
 
 ## 📱 Como acessar
 
-**Web:** [bike.arkhamcloud.net](https://bike.arkhamcloud.net) (login com usuário + senha).
+**Web:** acesse pela URL onde você hospedar a aplicação (login com usuário + senha).
 
 **App (mobile):** instale como PWA — abra o site no navegador → menu → "Adicionar à tela inicial". Funciona offline depois de carregado.
+
+---
+
+## 🚀 Implantação
+
+Não há build step: o frontend é servido como arquivos estáticos e o backend Fastify expõe `/api/*`.
+
+1. **Backend** — em `server/`: `cp .env.example .env` e preencha os segredos (JWT, credenciais Strava/Garmin), depois `npm install`. Rode na porta 3000 (em produção via systemd — ver `server/scripts/README-systemd.md`).
+2. **Frontend** — sirva a raiz do repositório com nginx (ou qualquer servidor estático) e proxie `/api/*` para `127.0.0.1:3000`.
+3. **HTTPS/domínio** — aponte seu domínio para o servidor através de um proxy reverso / CDN à sua escolha. O PWA exige HTTPS para instalar e funcionar offline.
+
+Detalhes de arquitetura e do fluxo de versão ficam em `CLAUDE.md`.
 
 ---
 
@@ -113,7 +125,7 @@ Arquitetura mais técnica e decisões de design ficam no arquivo `CLAUDE.md` (in
 
 ## 📦 Privacidade
 
-Todos os seus dados ficam num servidor próprio (LXC em Proxmox). Strava e Garmin são acessados via tokens isolados que vivem apenas no `.env` do servidor — nada vai para terceiros.
+Por ser self-hosted, todos os dados ficam no servidor onde você implantar a aplicação — nada é enviado a terceiros. As credenciais de Strava e Garmin vivem apenas no `.env` do servidor, que **não é versionado** (está no `.gitignore`); portanto, nenhum token ou dado pessoal é exposto neste repositório público.
 
 ---
 

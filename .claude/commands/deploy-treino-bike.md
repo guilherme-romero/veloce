@@ -46,7 +46,7 @@ Resuma:
 - Arquivos alterados e o que mudou
 - Hash e mensagem do commit
 - Se o serviço foi reiniciado e está ativo
-- App disponível em: https://bike.arkhamcloud.net
+- App disponível na URL pública configurada
 
 ### 7. Rollback (se o deploy quebrar o site)
 
