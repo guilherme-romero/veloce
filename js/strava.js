@@ -73,9 +73,32 @@
     if (btn) btn.addEventListener('click', sync);
   }
 
+  // Modal explicativo (i) — como funciona a conexão Strava (Fase 17.4)
+  function openInfo() {
+    if (!window.Modals) return;
+    Modals.open({
+      tag: 'Conexões',
+      title: 'Como funciona o Strava',
+      bodyHTML: `
+        <div class="conn-info-body">
+          <p><strong>Autorização oficial (OAuth).</strong> A conexão usa a API oficial do Strava
+          com um <code>refresh_token</code> guardado no servidor (<code>server/.env</code>).
+          Os tokens nunca saem do seu servidor.</p>
+          <p><strong>O que importa:</strong> atividades de bike dos últimos 90 dias
+          (distância, tempo, elevação, FC, potência) e marca os dias treinados no calendário.</p>
+          <p><strong>De-duplicação:</strong> quando a mesma pedalada também vem da Garmin,
+          o app vincula as duas e conta só uma vez no km da bike.</p>
+          <p><strong>Reconexão:</strong> a conexão é fixa via <code>.env</code> — se o token
+          expirar ou for revogado, atualize as credenciais no servidor e reinicie o backend.</p>
+        </div>`,
+      actions: [{ label: 'Entendi', kind: 'primary', onClick: () => Modals.close() }],
+    });
+  }
+
   async function load() {
     const stateEl = $('strava-state');
     if (!stateEl) return;
+    $('strava-info') && ($('strava-info').onclick = openInfo);
     stateEl.textContent = 'verificando…';
     stateEl.className = 'strava-state';
     try {
@@ -117,5 +140,5 @@
     }
   }
 
-  window.Strava = { load, sync };
+  window.Strava = { load, sync, openInfo };
 })();

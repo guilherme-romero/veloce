@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   SCHEDULER — sincronização automática às 6h, 16h e 21h (horário local).
+   SCHEDULER — sincronização automática a cada 30 minutos (horário local).
    Chamado uma vez em index.js após o servidor subir.
 ═══════════════════════════════════════════════════════════════════════ */
 const garmin = require('./services/garmin');
@@ -7,15 +7,16 @@ const strava = require('./services/strava');
 const { autoFillBike } = require('./utils/training-log-helper');
 const { runMatching }  = require('./utils/activity-matcher');
 
-const SYNC_HOURS = [6, 16, 21];   // horários locais de sync automático
+const SYNC_INTERVAL_MIN = 30;     // intervalo do sync automático (minutos)
 const CHECK_INTERVAL_MS = 60_000; // verifica a cada minuto
 
-// Evita disparo duplo na mesma hora (chave = "YYYY-MM-DD:HH")
+// Evita disparo duplo no mesmo slot (chave = "YYYY-MM-DD:HH:bloco")
 const _synced = new Set();
 
-function hourKey() {
+function slotKey() {
   const now = new Date();
-  return `${now.toISOString().slice(0, 10)}:${now.getHours()}`;
+  const block = Math.floor(now.getMinutes() / SYNC_INTERVAL_MIN);
+  return `${now.toISOString().slice(0, 10)}:${now.getHours()}:${block}`;
 }
 
 // ── Garmin: atividades de bike ─────────────────────────────────────────
@@ -297,13 +298,13 @@ async function runFullSync(db, log) {
 // ── Setup ──────────────────────────────────────────────────────────────
 function setup(db, log) {
   setInterval(() => {
-    const now  = new Date();
-    const hour = now.getHours();
-    if (!SYNC_HOURS.includes(hour)) return;
-    const key  = hourKey();
+    const now = new Date();
+    // Dispara apenas nas viradas de :00 e :30 (alinhado ao relógio).
+    if (now.getMinutes() % SYNC_INTERVAL_MIN !== 0) return;
+    const key = slotKey();
     if (_synced.has(key)) return;
     _synced.add(key);
-    // Mantém o Set pequeno — descarta chaves com mais de 24h
+    // Mantém o Set pequeno — basta lembrar dos slots recentes.
     if (_synced.size > 10) {
       const oldest = [..._synced][0];
       _synced.delete(oldest);
@@ -311,7 +312,7 @@ function setup(db, log) {
     runFullSync(db, log).catch(e => log.error({ err: e }, '[scheduler] erro no sync automático'));
   }, CHECK_INTERVAL_MS);
 
-  log.info(`[scheduler] ativo — sync às ${SYNC_HOURS.join('h, ')}h`);
+  log.info(`[scheduler] ativo — sync automático a cada ${SYNC_INTERVAL_MIN} min`);
 }
 
 module.exports = { setup };

@@ -125,9 +125,14 @@ async function getActivityPolyline(activityId) {
   return res.polyline || null;
 }
 
+async function getActivityHrZones(activityId) {
+  const res = await runCli(['hr-zones', String(activityId)], { timeoutMs: 60_000 });
+  return Array.isArray(res.zones) ? res.zones : [];
+}
+
 module.exports = {
   isConfigured, status, login, logout,
   listActivities, isBikeActivity, listWeighIns, listDailyHealth,
   listTrainingReadiness, listTrainingStatus, listPersonalRecords, listFitnessScores,
-  getActivityPolyline,
+  getActivityPolyline, getActivityHrZones,
 };

@@ -32,6 +32,7 @@
   let _bikes = [];
   let _componentsByBike = new Map();   // bikeId → array<component>
   let _filterByBike = new Map();       // bikeId → 'todos' | 'atencao'
+  let _brands = { marcas: [], modelos: [] };   // cache p/ datalist (Fase 16.1)
 
   /* ──────────────────────────────────────────────────────────────────
      Helpers
@@ -80,6 +81,11 @@
     return 'green';
   }
 
+  // Pressão recomendada só faz sentido para pneus.
+  function isTireType(tipo) {
+    return tipo === 'pneu_dianteiro' || tipo === 'pneu_traseiro';
+  }
+
   // Componente "precisa de atenção": desgaste >= 80%, limpeza vencendo,
   // ou algum intervalo de serviço com >= 80% decorrido.
   function compNeedsAttention(c) {
@@ -94,6 +100,67 @@
   }
 
   /* ──────────────────────────────────────────────────────────────────
+     Avaliação por estrelas (Fase 16) — input + exibição
+  ─────────────────────────────────────────────────────────────────── */
+  function starsInputHTML(value) {
+    const v = parseInt(value, 10) || 0;
+    const stars = [1, 2, 3, 4, 5].map(n =>
+      `<button type="button" class="star-btn ${n <= v ? 'filled' : ''}" data-star="${n}" aria-label="${n} estrela${n > 1 ? 's' : ''}">
+         <i class="fa-${n <= v ? 'solid' : 'regular'} fa-star"></i>
+       </button>`).join('');
+    return `<div class="star-input" data-rating="${v}">${stars}
+      <button type="button" class="star-clear" data-star="0" title="Limpar nota">limpar</button></div>`;
+  }
+
+  function wireStars(root) {
+    const box = root.querySelector('.star-input');
+    if (!box) return;
+    box.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-star]');
+      if (!t) return;
+      const val = parseInt(t.dataset.star, 10) || 0;
+      box.dataset.rating = val;
+      box.querySelectorAll('.star-btn').forEach(b => {
+        const n = parseInt(b.dataset.star, 10);
+        const filled = n <= val;
+        b.classList.toggle('filled', filled);
+        const ic = b.querySelector('i');
+        if (ic) ic.className = `fa-${filled ? 'solid' : 'regular'} fa-star`;
+      });
+    });
+  }
+
+  function readStars(root) {
+    const box = root.querySelector('.star-input');
+    return box ? (parseInt(box.dataset.rating, 10) || 0) : 0;
+  }
+
+  // Estrelas estáticas para exibição. `compact` mostra ★ + número (média).
+  function starsStatic(value, compact) {
+    const v = value || 0;
+    if (!v) return '<span class="stars-static muted">sem nota</span>';
+    if (compact) {
+      const txt = v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+      return `<span class="stars-static"><i class="fa-solid fa-star"></i> ${esc(txt)}</span>`;
+    }
+    const r = Math.round(v);
+    let h = '<span class="stars-static">';
+    for (let n = 1; n <= 5; n++) h += `<i class="fa-${n <= r ? 'solid' : 'regular'} fa-star"></i>`;
+    return h + '</span>';
+  }
+
+  async function loadBrands() {
+    try {
+      const b = await window.Api.get('/bikes/meta/brands');
+      _brands = { marcas: b.marcas || [], modelos: b.modelos || [] };
+    } catch (e) { _brands = { marcas: [], modelos: [] }; }
+  }
+
+  function datalistHTML(id, values) {
+    return `<datalist id="${id}">${(values || []).map(v => `<option value="${escAttr(v)}"></option>`).join('')}</datalist>`;
+  }
+
+  /* ──────────────────────────────────────────────────────────────────
      Carregamento
   ─────────────────────────────────────────────────────────────────── */
   async function load() {
@@ -103,6 +170,7 @@
       console.warn('[Bikes] falha ao carregar', e);
       _bikes = [];
     }
+    loadBrands();   // fire-and-forget: alimenta o datalist de marcas/modelos
     _componentsByBike.clear();
     // Carrega componentes em paralelo para cada bike
     await Promise.all(_bikes.map(async b => {
@@ -590,6 +658,21 @@
           <select id="c-tipo" class="field-select">${tipoOptions}</select>
         </div>
 
+        <div class="bike-form-row">
+          <div class="field">
+            <label class="field-label" for="c-marca">Marca</label>
+            <input id="c-marca" class="field-input" type="text" list="dl-marcas" maxlength="40"
+                   value="${escAttr(c.marca || '')}" placeholder="Ex.: Continental" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="c-modelo">Modelo</label>
+            <input id="c-modelo" class="field-input" type="text" list="dl-modelos" maxlength="60"
+                   value="${escAttr(c.modelo || '')}" placeholder="Ex.: GP5000" />
+          </div>
+        </div>
+        ${datalistHTML('dl-marcas', _brands.marcas)}
+        ${datalistHTML('dl-modelos', _brands.modelos)}
+
         <div class="field">
           <label class="field-label" for="c-vida">Vida útil estimada (km)</label>
           <input id="c-vida" class="field-input" type="number" min="100" step="100"
@@ -621,13 +704,19 @@
                  value="${escAttr(c.intervaloLimpezaKm || 300)}" />
         </div>
 
-        <div class="field">
+        <div class="field" id="c-pressao-row" style="${isTireType(c.tipo) ? '' : 'display:none'}">
           <label class="field-label" for="c-pressao">Pressão recomendada (opcional)</label>
           <input id="c-pressao" class="field-input" type="text" maxlength="60"
                  value="${escAttr(c.pressao || '')}" placeholder="Ex.: Asfalto 34-36 · Trilha 32-34 psi" />
           <small style="display:block;font-size:11px;color:var(--muted2);margin-top:4px;">
-            Útil para pneus — referência rápida de calibragem.
+            Referência rápida de calibragem do pneu.
           </small>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="c-observacao">Observação (opcional)</label>
+          <textarea id="c-observacao" class="field-textarea" maxlength="500"
+                    placeholder="Notas sobre a peça: tubeless, composto, onde comprou…">${esc(c.observacao || '')}</textarea>
         </div>
       `,
       actions: [
@@ -642,7 +731,9 @@
         const limpRow    = m.querySelector('#c-limpeza-row');
         const intervalEl = m.querySelector('#c-intervalo');
 
-        // Ao trocar tipo: sugere vida útil e estado de limpeza
+        const pressaoRow = m.querySelector('#c-pressao-row');
+
+        // Ao trocar tipo: sugere vida útil e estado de limpeza; pressão só p/ pneu
         tipoSel.addEventListener('change', () => {
           const opt = tipoSel.selectedOptions[0];
           vidaInput.value = opt.dataset.vida;
@@ -650,6 +741,7 @@
           limpChk.checked = temLimp;
           limpRow.style.display = temLimp ? '' : 'none';
           intervalEl.value = opt.dataset.intervalo;
+          if (pressaoRow) pressaoRow.style.display = isTireType(tipoSel.value) ? '' : 'none';
         });
 
         limpChk.addEventListener('change', () => {
@@ -666,7 +758,12 @@
       kmAtInstall:        parseFloat(modal.querySelector('#c-km-install').value) || 0,
       temLimpeza:         modal.querySelector('#c-tem-limpeza').checked,
       intervaloLimpezaKm: parseFloat(modal.querySelector('#c-intervalo').value) || null,
-      pressao:            modal.querySelector('#c-pressao').value.trim(),
+      // Pressão só persiste para pneus
+      pressao:            isTireType(modal.querySelector('#c-tipo').value)
+                            ? modal.querySelector('#c-pressao').value.trim() : '',
+      marca:              modal.querySelector('#c-marca').value.trim(),
+      modelo:             modal.querySelector('#c-modelo').value.trim(),
+      observacao:         modal.querySelector('#c-observacao').value.trim(),
     };
     if (data.vidaUtilKm <= 0) { toast('Vida útil deve ser > 0', { kind: 'error' }); return; }
 
@@ -755,44 +852,94 @@
   function openSubstituirModal(bike, compId) {
     const comp = (_componentsByBike.get(bike.id) || []).find(c => c.id === compId);
     if (!comp) return;
+
+    const tipoLabel = esc(TYPE_LABEL[comp.tipo] || comp.tipo);
+    const saiNome = [comp.marca, comp.modelo].filter(Boolean).join(' ').trim();
+    const kmRodado = comp.kmDesgastado != null ? comp.kmDesgastado : null;
+
     Modals.open({
       tag: 'Substituir componente',
-      title: `Substituir ${esc(TYPE_LABEL[comp.tipo] || comp.tipo)}`,
+      title: `Substituir ${tipoLabel}`,
       bodyHTML: `
-        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">
           ${esc(bike.nome)} · km atual: <strong>${esc(fmtKm(bike.kmTotal))}</strong>
         </p>
-        <div class="field">
-          <label class="field-label" for="sub-data">Data da substituição</label>
-          <input id="sub-data" class="field-input" type="date" value="${escAttr(todayISO())}" />
+
+        <div class="bike-sub-block">
+          <div class="bike-sub-block-h"><i class="fa-solid fa-star-half-stroke"></i> Avaliar a peça que sai</div>
+          <div class="bike-sub-saindo">
+            ${tipoLabel}${saiNome ? ` · <strong>${esc(saiNome)}</strong>` : ''}
+            ${kmRodado != null ? ` · rodou <strong>${esc(fmtKm(kmRodado))}</strong>` : ''}
+          </div>
+          <div class="field">
+            <label class="field-label">Nota de durabilidade/qualidade</label>
+            ${starsInputHTML(0)}
+          </div>
+          <div class="field">
+            <label class="field-label" for="sub-review">Como foi? (recompraria?)</label>
+            <textarea id="sub-review" class="field-textarea" maxlength="500"
+                      placeholder="Durabilidade, qualidade, custo-benefício, recompraria…"></textarea>
+          </div>
         </div>
-        <div class="field">
-          <label class="field-label" for="sub-vida">Nova vida útil da peça (km)</label>
-          <input id="sub-vida" class="field-input" type="number" min="100" step="100"
-                 value="${escAttr(comp.vidaUtilKm)}" />
+
+        <div class="bike-sub-block">
+          <div class="bike-sub-block-h"><i class="fa-solid fa-rotate"></i> Novo componente</div>
+          <div class="bike-form-row">
+            <div class="field">
+              <label class="field-label" for="sub-marca">Marca</label>
+              <input id="sub-marca" class="field-input" type="text" list="dl-marcas" maxlength="40"
+                     value="${escAttr(comp.marca || '')}" placeholder="Ex.: Continental" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="sub-modelo">Modelo</label>
+              <input id="sub-modelo" class="field-input" type="text" list="dl-modelos" maxlength="60"
+                     value="${escAttr(comp.modelo || '')}" placeholder="Ex.: GP5000" />
+            </div>
+          </div>
+          ${datalistHTML('dl-marcas', _brands.marcas)}
+          ${datalistHTML('dl-modelos', _brands.modelos)}
+          <div class="bike-form-row">
+            <div class="field">
+              <label class="field-label" for="sub-vida">Nova vida útil (km)</label>
+              <input id="sub-vida" class="field-input" type="number" min="100" step="100"
+                     value="${escAttr(comp.vidaUtilKm)}" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="sub-data">Data da troca</label>
+              <input id="sub-data" class="field-input" type="date" value="${escAttr(todayISO())}" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label" for="sub-notas">Observações da peça nova (opcional)</label>
+            <textarea id="sub-notas" class="field-textarea" maxlength="500"
+                      placeholder="Tubeless, onde comprou, custo…"></textarea>
+          </div>
         </div>
-        <div class="field">
-          <label class="field-label" for="sub-notas">Observações (opcional)</label>
-          <textarea id="sub-notas" class="field-textarea" placeholder="Marca, motivo, custo…"></textarea>
-        </div>
+
         <p style="font-size:12px;color:var(--muted2);margin-top:6px;">
-          Km de desgaste desta peça serão zerados. O km total da bike continua acumulando.
+          A peça que sai vai para o histórico (km rodado, dias de uso e sua nota).
+          O desgaste é zerado; o km total da bike continua acumulando.
         </p>`,
       actions: [
         { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
         { label: 'Confirmar troca', kind: 'primary', onClick: async (m) => {
           const data       = m.querySelector('#sub-data').value || todayISO();
           const notas      = m.querySelector('#sub-notas').value.trim();
+          const review     = m.querySelector('#sub-review').value.trim();
+          const rating     = readStars(m) || null;
           const vidaUtilKm = parseFloat(m.querySelector('#sub-vida').value) || comp.vidaUtilKm;
+          const novaMarca  = m.querySelector('#sub-marca').value.trim();
+          const novoModelo = m.querySelector('#sub-modelo').value.trim();
           try {
             await window.Api.post(`/bikes/${bike.id}/components/${compId}/substituir`,
-              { data, notas, vidaUtilKm });
+              { data, notas, review, rating, vidaUtilKm, novaMarca, novoModelo, novaObservacao: notas });
             toast('Substituição registrada');
             Modals.close();
             await load();
           } catch (e) { toast('Erro ao registrar', { kind: 'error' }); }
         }},
       ],
+      onMount: (m) => wireStars(m),
     });
   }
 
@@ -983,6 +1130,48 @@
       </div>`;
   }
 
+  // Timeline de gerações retiradas de um componente (Fase 16.4)
+  function renderRetiredItem(r) {
+    const nome = [r.marca, r.modelo].filter(Boolean).join(' ').trim() || (TYPE_LABEL[r.tipo] || r.tipo);
+    const vidaPct = (r.vidaUtilKm > 0 && r.kmRodado != null)
+      ? Math.round((r.kmRodado / r.vidaUtilKm) * 100) : null;
+    const meta = [
+      r.kmRodado != null ? `${fmtKm(r.kmRodado)} rodados` : null,
+      r.diasUso != null ? `${r.diasUso} ${r.diasUso === 1 ? 'dia' : 'dias'}` : null,
+      vidaPct != null ? `${vidaPct}% da vida (${fmtKm(r.vidaUtilKm)})` : null,
+    ].filter(Boolean).join(' · ');
+    return `
+      <div class="bike-retired-item">
+        <div class="bike-retired-top">
+          <span class="bike-retired-nome">${esc(nome)}</span>
+          ${starsStatic(r.rating)}
+        </div>
+        <div class="bike-retired-meta">${esc(meta || '—')}${r.dataSubstituicao ? ` · trocado em ${esc(fmtDate(r.dataSubstituicao))}` : ''}</div>
+        ${r.review ? `<div class="bike-retired-review">"${esc(r.review)}"</div>` : ''}
+      </div>`;
+  }
+
+  // Bloco agregado por tipo+marca: durabilidade média + nota média + nº trocas
+  function renderRetiredAggregates(aggregates, opts) {
+    if (!aggregates || aggregates.length === 0) return '';
+    const showTipo = !opts || opts.showTipo !== false;
+    const rows = aggregates.map(a => {
+      const nome = [showTipo ? (TYPE_LABEL[a.tipo] || a.tipo) : null,
+        [a.marca, a.modelos[0]].filter(Boolean).join(' ') || (a.marca ? '' : 'sem marca')]
+        .filter(Boolean).join(' · ');
+      const facts = [
+        a.kmMedia != null ? `${fmtKm(a.kmMedia)} média` : null,
+        a.ratingMedia != null ? starsStatic(a.ratingMedia, true) : null,
+        `${a.trocas} ${a.trocas === 1 ? 'troca' : 'trocas'}`,
+      ].filter(Boolean).join(' · ');
+      return `<div class="bike-retired-agg-item">
+        <span class="bike-retired-agg-nome">${esc(nome)}</span>
+        <span class="bike-retired-agg-facts">${facts}</span>
+      </div>`;
+    }).join('');
+    return `<div class="bike-retired-agg">${rows}</div>`;
+  }
+
   async function openComponentDetail(bike, compId) {
     const comp = (_componentsByBike.get(bike.id) || []).find(c => c.id === compId);
     if (!comp) return;
@@ -1005,15 +1194,23 @@
       title: esc(TYPE_LABEL[comp.tipo] || comp.tipo),
       bodyHTML: `
         <div class="bike-detail-stats">
+          ${(comp.marca || comp.modelo) ? `<div class="bike-detail-row"><span>Peça atual</span><strong>${esc([comp.marca, comp.modelo].filter(Boolean).join(' '))}</strong></div>` : ''}
           <div class="bike-detail-row"><span>Desgaste</span><strong class="${sev}">${esc(fmtKm(comp.kmDesgastado))} / ${esc(fmtKm(comp.vidaUtilKm))}</strong></div>
           <div class="bike-comp-progress" style="margin:4px 0 8px;">
             <div class="bike-comp-progress-fill ${sev}" style="width:${Math.min(100, pct)}%"></div>
           </div>
           <div class="bike-detail-status ${sev}">${esc(statusTxt)}</div>
+          ${comp.dataInstall ? `<div class="bike-detail-row"><span>Instalado em</span><strong>${esc(fmtDate(comp.dataInstall))}</strong></div>` : ''}
           ${comp.pressao ? `<div class="bike-detail-row"><span>Pressão</span><strong>${esc(comp.pressao)}</strong></div>` : ''}
           ${cleanHTML}
+          ${comp.observacao ? `<div class="bike-detail-obs">${esc(comp.observacao)}</div>` : ''}
         </div>
         ${intervalsHTML}
+        <div class="bike-detail-section" id="comp-detail-retired-wrap" style="display:none;">
+          <div class="bike-detail-h">Gerações anteriores</div>
+          <div id="comp-detail-agg"></div>
+          <div id="comp-detail-retired"></div>
+        </div>
         <div class="bike-detail-section">
           <div class="bike-detail-h">Histórico deste componente</div>
           <div id="comp-detail-log" class="bike-log-list"><div class="bike-log-empty">Carregando…</div></div>
@@ -1021,18 +1218,34 @@
       actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => Modals.close() }],
     });
 
+    // Histórico de manutenção (log) deste componente
     try {
       const items = await window.Api.get(`/bikes/${bike.id}/maintenance-log`);
       const el = document.querySelector('#comp-detail-log');
-      if (!el) return;
-      const own = (items || []).filter(l => l.componentId === compId);
-      el.innerHTML = own.length
-        ? own.map(renderLogItem).join('')
-        : '<div class="bike-log-empty">Nenhum evento registrado para este componente.</div>';
+      if (el) {
+        const own = (items || []).filter(l => l.componentId === compId);
+        el.innerHTML = own.length
+          ? own.map(renderLogItem).join('')
+          : '<div class="bike-log-empty">Nenhum evento registrado para este componente.</div>';
+      }
     } catch (e) {
       const el = document.querySelector('#comp-detail-log');
       if (el) el.innerHTML = '<div class="bike-log-empty">Erro ao carregar histórico.</div>';
     }
+
+    // Gerações retiradas deste slot (Fase 16.4)
+    try {
+      const r = await window.Api.get(`/bikes/${bike.id}/retired-components?componentId=${encodeURIComponent(compId)}`);
+      const items = (r && r.items) || [];
+      const wrap = document.querySelector('#comp-detail-retired-wrap');
+      if (wrap && items.length) {
+        wrap.style.display = '';
+        const aggEl = document.querySelector('#comp-detail-agg');
+        const listEl = document.querySelector('#comp-detail-retired');
+        if (aggEl) aggEl.innerHTML = renderRetiredAggregates(r.aggregates, { showTipo: false });
+        if (listEl) listEl.innerHTML = items.map(renderRetiredItem).join('');
+      }
+    } catch (e) { /* sem histórico de retirados — silencioso */ }
   }
 
   /* ──────────────────────────────────────────────────────────────────
@@ -1089,22 +1302,34 @@
     Modals.open({
       tag: 'Estatísticas',
       title: esc(bike.nome),
-      bodyHTML: '<div id="bike-stats-content"><div class="bike-log-empty">Carregando…</div></div>',
+      bodyHTML: `<div id="bike-stats-content"><div class="bike-log-empty">Carregando…</div></div>
+        <div id="bike-stats-retired"></div>`,
       actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => Modals.close() }],
     });
     try {
       const s = await window.Api.get(`/bikes/${bike.id}/stats`);
       const el = document.querySelector('#bike-stats-content');
-      if (!el) return;
-      if (!s || !s.atividades) {
-        el.innerHTML = '<div class="bike-log-empty">Sem atividades registradas para esta bike ainda.</div>';
-        return;
+      if (el) {
+        el.innerHTML = (!s || !s.atividades)
+          ? '<div class="bike-log-empty">Sem atividades registradas para esta bike ainda.</div>'
+          : renderStatsContent(s);
       }
-      el.innerHTML = renderStatsContent(s);
     } catch (e) {
       const el = document.querySelector('#bike-stats-content');
       if (el) el.innerHTML = '<div class="bike-log-empty">Erro ao carregar estatísticas.</div>';
     }
+
+    // Durabilidade de componentes substituídos (Fase 16.4)
+    try {
+      const r = await window.Api.get(`/bikes/${bike.id}/retired-components`);
+      const el = document.querySelector('#bike-stats-retired');
+      if (el && r && r.aggregates && r.aggregates.length) {
+        el.innerHTML = `<div class="bike-detail-section">
+          <div class="bike-detail-h">Durabilidade de componentes</div>
+          ${renderRetiredAggregates(r.aggregates, { showTipo: true })}
+        </div>`;
+      }
+    } catch (e) { /* silencioso */ }
   }
 
   /* ──────────────────────────────────────────────────────────────────

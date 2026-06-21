@@ -160,20 +160,54 @@
       }
     })();
 
-    // Ações rápidas
-    $('home-btn-weight')?.addEventListener('click', () => {
-      if (window.openWeightModal) openWeightModal();
-    });
-    $('home-btn-training')?.addEventListener('click', () => {
-      if (window.TrainingLog && TrainingLog.openMarkTrainingModal) {
-        TrainingLog.openMarkTrainingModal(new Date().toISOString().slice(0,10));
-      }
-    });
-    $('home-btn-sync')?.addEventListener('click', () => {
-      if (window.Garmin && Garmin.sync) Garmin.sync();
-    });
+    // Ações rápidas — vincula só uma vez (load() pode ser re-chamado p/ refresh)
+    const actions = $('home-btn-training');
+    if (actions && !actions._wiredHome) {
+      actions._wiredHome = true;
+      $('home-btn-training')?.addEventListener('click', () => {
+        if (window.TrainingLog && TrainingLog.openMarkTrainingModal) {
+          TrainingLog.openMarkTrainingModal(new Date().toISOString().slice(0,10));
+        }
+      });
+      $('home-btn-sync')?.addEventListener('click', syncAll);
+    }
 
     loadLastActivities();
+  }
+
+  // Sincroniza Strava + Garmin em paralelo, cada um condicionado ao seu
+  // /status (pula o que não estiver configurado/conectado). Falha de um
+  // serviço não aborta o outro. (Fase 17.1)
+  async function syncAll() {
+    const btn = $('home-btn-sync');
+    if (btn && btn.disabled) return;
+    const original = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando…'; }
+
+    // Descobre quais serviços estão prontos
+    const [stravaStatus, garminStatus] = await Promise.all([
+      window.Api.get('/strava/status').catch(() => null),
+      window.Api.get('/garmin/status').catch(() => null),
+    ]);
+    const doStrava = !!(stravaStatus && stravaStatus.configured && stravaStatus.connected && window.Strava && Strava.sync);
+    const doGarmin = !!(garminStatus && garminStatus.configured && garminStatus.connected && window.Garmin && Garmin.sync);
+
+    if (!doStrava && !doGarmin) {
+      if (window.toast) window.toast('Nenhum serviço conectado. Configure em Conexões.', 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = original; }
+      return;
+    }
+
+    const results = await Promise.allSettled([
+      doStrava ? Strava.sync() : Promise.resolve(),
+      doGarmin ? Garmin.sync() : Promise.resolve(),
+    ]);
+    const failed = results.filter(r => r.status === 'rejected').length;
+    if (failed && window.toast) window.toast('Sincronização concluída com erros em ' + failed + ' serviço(s).', 'error');
+
+    // Atualiza KPIs/atividades da Home após o sync
+    try { load(); } catch (_) {}
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
   }
 
   window.Home = { load };

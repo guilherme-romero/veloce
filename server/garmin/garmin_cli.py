@@ -275,6 +275,26 @@ def cmd_activity_polyline(args):
     emit({"id": args.id, "polyline": encoded, "hasGeo": geo is not None})
 
 
+def cmd_hr_zones(args):
+    """Distribuição de tempo por zona de FC de uma atividade."""
+    client, _ = make_client()
+    authenticate(client)
+    try:
+        zones = client.get_activity_hr_in_timezones(args.id)
+    except Exception as e:
+        die(f"FETCH_ERROR: {e}")
+    out = []
+    for z in (zones or []):
+        if not isinstance(z, dict):
+            continue
+        out.append({
+            "zona": z.get("zoneNumber"),
+            "segundos": round(z.get("secsInZone") or 0),
+            "limiteInferior": z.get("zoneLowBoundary"),
+        })
+    emit({"id": args.id, "zones": out})
+
+
 def encode_polyline(points):
     """Google polyline encoder (algoritmo padrão)."""
     if not points:
@@ -474,6 +494,9 @@ def main():
     pap = sub.add_parser("activity-polyline")
     pap.add_argument("id", type=int)
 
+    phz = sub.add_parser("hr-zones")
+    phz.add_argument("id", type=int)
+
     args = p.parse_args()
     handlers = {
         "status": cmd_status, "login": cmd_login, "logout": cmd_logout,
@@ -484,6 +507,7 @@ def main():
         "personal-records": cmd_personal_records,
         "hill-score": cmd_hill_score,
         "activity-polyline": cmd_activity_polyline,
+        "hr-zones": cmd_hr_zones,
     }
     handlers[args.cmd](args)
 

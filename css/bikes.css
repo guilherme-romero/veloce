@@ -519,10 +519,75 @@
   padding: 30px 0;
 }
 
+/* ── Avaliação por estrelas (Fase 16) ─────────────────────────────── */
+.star-input {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 0;
+}
+.star-btn {
+  background: none; border: none; cursor: pointer; padding: 2px;
+  font-size: 22px; line-height: 1; color: var(--amber);
+}
+.star-btn i { color: var(--amber); }
+.star-btn:not(.filled) i { color: var(--muted2); }
+.star-btn:hover { transform: scale(1.1); }
+.star-clear {
+  background: none; border: none; cursor: pointer;
+  font-size: 11px; color: var(--muted2); margin-left: 8px;
+  text-decoration: underline;
+}
+.stars-static { color: var(--amber); font-size: 13px; white-space: nowrap; }
+.stars-static i { color: var(--amber); }
+.stars-static.muted, .stars-static.muted i { color: var(--muted2); font-style: italic; }
+
+/* ── Modal de substituição em blocos (Fase 16.3) ──────────────────── */
+.bike-sub-block {
+  background: var(--surface2); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 14px;
+}
+.bike-sub-block-h {
+  font-size: 12px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+}
+.bike-sub-block-h i { color: var(--teal); }
+.bike-sub-saindo {
+  font-size: 13px; color: var(--muted); margin-bottom: 8px;
+}
+.bike-sub-block .field:last-child { margin-bottom: 0; }
+
+/* ── Histórico de componentes retirados (Fase 16.4) ───────────────── */
+.bike-detail-obs {
+  font-size: 12px; color: var(--muted); font-style: italic;
+  margin-top: 8px; padding: 8px 10px; background: var(--surface2);
+  border-radius: 8px; line-height: 1.4;
+}
+.bike-retired-item {
+  border-left: 2px solid var(--border); padding: 6px 0 6px 10px;
+  margin-bottom: 8px;
+}
+.bike-retired-top {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.bike-retired-nome { font-size: 13px; font-weight: 600; color: var(--text); }
+.bike-retired-meta { font-size: 11px; color: var(--muted2); margin-top: 2px; }
+.bike-retired-review {
+  font-size: 12px; color: var(--muted); font-style: italic; margin-top: 4px;
+}
+.bike-retired-agg { margin-bottom: 10px; }
+.bike-retired-agg-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--border);
+}
+.bike-retired-agg-item:last-child { border-bottom: none; }
+.bike-retired-agg-nome { color: var(--text); font-weight: 600; }
+.bike-retired-agg-facts { color: var(--muted); white-space: nowrap; }
+
 @media (max-width: 480px) {
   .bike-header { flex-direction: column; }
   .bike-actions { width: 100%; justify-content: flex-end; }
   .bike-comp-row { flex-direction: column; align-items: flex-start; }
   .bike-comp-actions { width: 100%; }
   .bike-log-item { grid-template-columns: 1fr; }
+  .bike-retired-agg-item { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .bike-retired-agg-facts { white-space: normal; }
 }

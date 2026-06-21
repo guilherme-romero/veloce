@@ -36,10 +36,10 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=1.19.0">
-  <link rel="stylesheet" href="css/rides.css?v=1.19.0">
-  <link rel="stylesheet" href="css/routes.css?v=1.19.0">
-  <link rel="stylesheet" href="css/bikes.css?v=1.19.0">
+  <link rel="stylesheet" href="css/style.css?v=1.22.0">
+  <link rel="stylesheet" href="css/rides.css?v=1.22.0">
+  <link rel="stylesheet" href="css/routes.css?v=1.22.0">
+  <link rel="stylesheet" href="css/bikes.css?v=1.22.0">
 </head>
 <body>
 
@@ -113,14 +113,11 @@
 
     <!-- Ações rápidas -->
     <div class="home-actions">
-      <button type="button" class="btn btn-primary" id="home-btn-weight">
-        <i class="fa-solid fa-weight-scale"></i> Registrar pesagem
-      </button>
-      <button type="button" class="btn btn-ghost" id="home-btn-training">
+      <button type="button" class="btn btn-primary" id="home-btn-training">
         <i class="fa-solid fa-bicycle"></i> Marcar treino
       </button>
       <button type="button" class="btn btn-ghost" id="home-btn-sync">
-        <i class="fa-solid fa-rotate"></i> Sincronizar Garmin
+        <i class="fa-solid fa-rotate"></i> Sincronizar
       </button>
     </div>
 
@@ -194,15 +191,13 @@
           <div class="chart-card">
             <div class="card-head">
               <span class="card-label" style="margin:0;">Projeção de peso · 12 semanas</span>
-              <button id="btn-add-weight" class="btn btn-sm btn-primary" type="button">
-                <i class="fa-solid fa-plus"></i> Pesagem
-              </button>
+              <span class="card-hint-inline"><i class="fa-solid fa-weight-scale"></i> via balança Garmin</span>
             </div>
             <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
             <div class="chart-card-foot">
               <div class="legend-row">
-                <span><span class="swatch swatch-dashed"></span>Projeção</span>
-                <span><span class="swatch" style="background:var(--teal)"></span>Real</span>
+                <span><span class="swatch swatch-dashed"></span>Tendência</span>
+                <span><span class="swatch" style="background:var(--teal)"></span>Medido (Garmin)</span>
                 <span><span class="swatch" style="background:var(--muted)"></span>Histórico</span>
               </div>
             </div>
@@ -670,6 +665,9 @@
           <div class="strava-title">
             <i class="fa-brands fa-strava" style="color:#fc4c02;"></i>
             <span>Strava</span>
+            <button type="button" class="conn-info-btn" id="strava-info" title="Como funciona" aria-label="Como funciona a conexão Strava">
+              <i class="fa-solid fa-circle-info"></i>
+            </button>
           </div>
           <div class="strava-state" id="strava-state">verificando…</div>
         </div>
@@ -683,6 +681,9 @@
           <div class="strava-title">
             <img src="icones/garmin-connect.png" alt="Garmin Connect" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;">
             <span>Garmin Connect</span>
+            <button type="button" class="conn-info-btn" id="garmin-info" title="Como funciona" aria-label="Como funciona a conexão Garmin">
+              <i class="fa-solid fa-circle-info"></i>
+            </button>
           </div>
           <div class="strava-state" id="garmin-state">verificando…</div>
         </div>
@@ -880,31 +881,31 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=1.19.0"></script>
-<script src="js/utils.js?v=1.19.0"></script>
-<script src="js/router.js?v=1.19.0"></script>
-<script src="js/defaults.js?v=1.19.0"></script>
-<script src="js/api.js?v=1.19.0"></script>
-<script src="js/storage.js?v=1.19.0"></script>
-<script src="js/profile.js?v=1.19.0"></script>
-<script src="js/charts.js?v=1.19.0"></script>
-<script src="js/modals.js?v=1.19.0"></script>
-<script src="js/workouts.js?v=1.19.0"></script>
-<script src="js/rides.js?v=1.19.0"></script>
-<script src="js/bikes.js?v=1.19.0"></script>
-<script src="js/training-log.js?v=1.19.0"></script>
-<script src="js/home-workout.js?v=1.19.0"></script>
-<script src="js/backup.js?v=1.19.0"></script>
-<script src="js/gpx.js?v=1.19.0"></script>
-<script src="js/routes.js?v=1.19.0"></script>
-<script src="js/heatmap.js?v=1.19.0"></script>
-<script src="js/strava.js?v=1.19.0"></script>
-<script src="js/garmin.js?v=1.19.0"></script>
-<script src="js/activities.js?v=1.19.0"></script>
-<script src="js/insights.js?v=1.19.0"></script>
-<script src="js/home.js?v=1.19.0"></script>
-<script src="js/app.js?v=1.19.0"></script>
-<script src="js/pwa.js?v=1.19.0"></script>
+<script src="js/version.js?v=1.22.0"></script>
+<script src="js/utils.js?v=1.22.0"></script>
+<script src="js/router.js?v=1.22.0"></script>
+<script src="js/defaults.js?v=1.22.0"></script>
+<script src="js/api.js?v=1.22.0"></script>
+<script src="js/storage.js?v=1.22.0"></script>
+<script src="js/profile.js?v=1.22.0"></script>
+<script src="js/charts.js?v=1.22.0"></script>
+<script src="js/modals.js?v=1.22.0"></script>
+<script src="js/workouts.js?v=1.22.0"></script>
+<script src="js/rides.js?v=1.22.0"></script>
+<script src="js/bikes.js?v=1.22.0"></script>
+<script src="js/training-log.js?v=1.22.0"></script>
+<script src="js/home-workout.js?v=1.22.0"></script>
+<script src="js/backup.js?v=1.22.0"></script>
+<script src="js/gpx.js?v=1.22.0"></script>
+<script src="js/routes.js?v=1.22.0"></script>
+<script src="js/heatmap.js?v=1.22.0"></script>
+<script src="js/strava.js?v=1.22.0"></script>
+<script src="js/garmin.js?v=1.22.0"></script>
+<script src="js/activities.js?v=1.22.0"></script>
+<script src="js/insights.js?v=1.22.0"></script>
+<script src="js/home.js?v=1.22.0"></script>
+<script src="js/app.js?v=1.22.0"></script>
+<script src="js/pwa.js?v=1.22.0"></script>
 
 </body>
 </html>

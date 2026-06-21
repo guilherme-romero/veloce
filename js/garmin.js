@@ -114,9 +114,35 @@
     }
   }
 
+  // Modal explicativo (i) — como funciona a conexão Garmin (Fase 17.4)
+  function openInfo() {
+    if (!window.Modals) return;
+    Modals.open({
+      tag: 'Conexões',
+      title: 'Como funciona o Garmin Connect',
+      bodyHTML: `
+        <div class="conn-info-body">
+          <p><strong>Login não-oficial.</strong> A conexão usa a biblioteca
+          <code>python-garminconnect</code> fazendo login com seu e-mail e senha
+          (definidos em <code>server/.env</code>). A sessão SSO fica salva em
+          <code>data/garmin_session/</code> no servidor.</p>
+          <p><strong>MFA:</strong> se a sua conta tem verificação em duas etapas,
+          o app pede o código no momento de <em>Conectar</em>.</p>
+          <p><strong>O que importa:</strong> atividades, pesagens da balança,
+          dados de saúde (sono, HRV, stress, Body Battery), Training Readiness,
+          recordes pessoais e scores.</p>
+          <p><strong>Atenção:</strong> por ser um login não-oficial, muitos
+          acessos em sequência podem levar a bloqueio temporário de IP pela Garmin.
+          A sincronização automática roda a cada 30 min para manter os dados frescos.</p>
+        </div>`,
+      actions: [{ label: 'Entendi', kind: 'primary', onClick: () => Modals.close() }],
+    });
+  }
+
   async function load() {
     const stateEl = $('garmin-state');
     if (!stateEl) return;
+    $('garmin-info') && ($('garmin-info').onclick = openInfo);
     stateEl.textContent = 'verificando…';
     stateEl.className = 'strava-state';
     try {
@@ -211,5 +237,5 @@
     }
   }
 
-  window.Garmin = { load, sync, doLogin, doLogout };
+  window.Garmin = { load, sync, doLogin, doLogout, openInfo };
 })();

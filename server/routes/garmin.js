@@ -302,6 +302,29 @@ async function routes(fastify) {
     }
   });
 
+  // ── GET /api/garmin/activity/:id/hr-zones ────────────────────────
+  // Distribuição de tempo por zona de FC (lazy fetch + cache em hr_zones).
+  fastify.get('/api/garmin/activity/:id/hr-zones', async (req, reply) => {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id)) return reply.code(400).send({ error: 'id invalido' });
+    try {
+      const row = fastify.db.prepare('SELECT hr_zones FROM garmin_activities WHERE id_garmin = ?').get(id);
+      if (!row) return reply.code(404).send({ error: 'atividade nao encontrada' });
+      if (row.hr_zones != null) {
+        try { return { id, zones: JSON.parse(row.hr_zones), cached: true }; }
+        catch (_) { /* cache corrompido — refaz abaixo */ }
+      }
+      const zones = await garmin.getActivityHrZones(id);
+      // Cacheia sempre (mesmo vazio) para não repetir a chamada à Garmin.
+      fastify.db.prepare('UPDATE garmin_activities SET hr_zones = ? WHERE id_garmin = ?')
+        .run(JSON.stringify(zones || []), id);
+      return { id, zones: zones || [], cached: false };
+    } catch (err) {
+      req.log.warn({ err }, 'garmin hr-zones falhou');
+      return { id, zones: [], error: 'fetch_failed' };
+    }
+  });
+
   // ── GET /api/garmin/activities ───────────────────────────────────
   fastify.get('/api/garmin/activities', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);

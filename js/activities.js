@@ -110,6 +110,9 @@
         `<div><span class="lv">${fmtTime(act.tempoMovS)}</span><span class="ll">movimento</span></div>` +
         `<div><span class="lv">${fmtElev(act.elevacaoM)}</span><span class="ll">elevação</span></div>` +
         `<div><span class="lv">${act.velMediaKmh != null ? act.velMediaKmh.toFixed(1).replace('.', ',') + ' km/h' : '—'}</span><span class="ll">vel. média</span></div>` +
+        `<div><span class="lv">${l5Fc(act.fcMedia)}</span><span class="ll">FC média</span></div>` +
+        `<div><span class="lv">${l5Rpm(act.cadenciaAvg)}</span><span class="ll">cadência</span></div>` +
+        `<div><span class="lv">${l5Kcal(act.calorias)}</span><span class="ll">calorias</span></div>` +
       '</div>';
 
     const mapEl = $('last-activity-map');
@@ -479,6 +482,27 @@
     } catch { return iso; }
   }
 
+  // Barra de distribuição de tempo por zona de FC (item 5).
+  // Reusa as cores de window.FC_ZONES (Z1..Z5 → índices 0..4).
+  function renderZoneBar(zones) {
+    const list = (zones || []).filter(z => (z.segundos || 0) > 0);
+    const total = list.reduce((s, z) => s + (z.segundos || 0), 0);
+    if (!total) return '<div class="last5-zones-empty">Sem dados de zona de FC nesta atividade.</div>';
+    const COLORS = window.FC_ZONES || [];
+    const colorFor = (z) => (COLORS[(z.zona || 1) - 1] || {}).color || 'var(--muted2)';
+    const segs = list.map(z => {
+      const pct = (z.segundos / total) * 100;
+      return `<div class="last5-zone-seg" style="width:${pct.toFixed(1)}%;background:${colorFor(z)}" title="Z${z.zona}: ${Math.round(pct)}%"></div>`;
+    }).join('');
+    const legend = list.map(z => {
+      const pct = Math.round((z.segundos / total) * 100);
+      return `<span class="last5-zone-key"><span class="last5-zone-dot" style="background:${colorFor(z)}"></span>Z${z.zona} ${pct}%</span>`;
+    }).join('');
+    return `<div class="last5-zones-label">Distribuição por zona de FC</div>
+      <div class="last5-zone-bar">${segs}</div>
+      <div class="last5-zone-legend">${legend}</div>`;
+  }
+
   function renderLast5(acts) {
     const card = $('last5-card');
     const list = $('last5-list');
@@ -514,9 +538,24 @@
             <div class="last5-title">${esc(a.nome || 'Atividade')} ${fonte}</div>
             <div class="last5-meta">${esc(l5DataLong(a.data))} · ${esc(a.tipo || 'Ride')}</div>
             <div class="last5-stats">${stats}</div>
+            ${a.fonte === 'garmin' && a.fcMedia ? `<div class="last5-zones" id="last5-zones-${i}"></div>` : ''}
           </div>
         </div>`;
     }).join('');
+
+    // Carrega distribuição de zonas de FC (Garmin) — lazy + cache no backend
+    top5.forEach((a, i) => {
+      if (a.fonte !== 'garmin' || !a.fcMedia) return;
+      const zEl = document.getElementById(`last5-zones-${i}`);
+      if (!zEl) return;
+      window.Api.get(`/garmin/activity/${a.id}/hr-zones`).then(res => {
+        if (myToken !== _last5Token || !zEl.isConnected) return;
+        zEl.innerHTML = renderZoneBar(res && res.zones);
+      }).catch(err => {
+        if (myToken !== _last5Token) return;
+        console.warn('[last5] hr-zones failed', a.id, err);
+      });
+    });
 
     // Carrega polyline assíncrona para cada um dos 5
     top5.forEach((a, i) => {

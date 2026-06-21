@@ -38,7 +38,32 @@ function rowToComponent(c) {
     intervaloLimpezaKm: c.intervalo_limpeza_km ?? null,
     kmAtLastClean:      c.km_at_last_clean ?? 0,
     pressao:            c.pressao || '',
+    marca:              c.marca || '',
+    modelo:             c.modelo || '',
+    observacao:         c.observacao || '',
+    dataInstall:        c.data_install || null,
     createdAt:          c.created_at,
+  };
+}
+
+// Componente retirado (geração anterior de um slot) → DTO
+function rowToRetired(r) {
+  return {
+    id:               r.id,
+    bikeId:           r.bike_id,
+    componentId:      r.component_id || null,
+    tipo:             r.tipo,
+    marca:            r.marca || '',
+    modelo:           r.modelo || '',
+    observacao:       r.observacao || '',
+    vidaUtilKm:       r.vida_util_km ?? null,
+    kmRodado:         r.km_rodado ?? null,
+    diasUso:          r.dias_uso ?? null,
+    dataInstall:      r.data_install || null,
+    dataSubstituicao: r.data_substituicao || null,
+    rating:           r.rating ?? null,
+    review:           r.review || '',
+    createdAt:        r.created_at,
   };
 }
 
@@ -235,6 +260,9 @@ function normalizeComponent(input) {
     intervaloLimpezaKm: isFinite(parseFloat(c.intervaloLimpezaKm)) ? parseFloat(c.intervaloLimpezaKm) : null,
     kmAtLastClean:      isFinite(parseFloat(c.kmAtLastClean))      ? parseFloat(c.kmAtLastClean)      : 0,
     pressao:            String(c.pressao || '').trim(),
+    marca:              String(c.marca || '').trim(),
+    modelo:             String(c.modelo || '').trim(),
+    observacao:         String(c.observacao || '').trim(),
   };
 }
 
@@ -365,12 +393,17 @@ async function routes(fastify) {
     const kmAtLastClean = isFinite(parseFloat(body.kmAtLastClean))
       ? parseFloat(body.kmAtLastClean)
       : n.kmAtInstall;
+    // Data de instalação: aceita override (componente instalado no passado),
+    // senão assume hoje.
+    const dataInstall = /^\d{4}-\d{2}-\d{2}$/.test(String(body.dataInstall || ''))
+      ? String(body.dataInstall).slice(0, 10)
+      : todayISO();
 
     try {
       fastify.db.prepare(`INSERT INTO bike_components
-        (id, bike_id, tipo, vida_util_km, km_at_install, tem_limpeza, intervalo_limpeza_km, km_at_last_clean, pressao)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(body.id, id, n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, kmAtLastClean, n.pressao);
+        (id, bike_id, tipo, vida_util_km, km_at_install, tem_limpeza, intervalo_limpeza_km, km_at_last_clean, pressao, marca, modelo, observacao, data_install)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(body.id, id, n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, kmAtLastClean, n.pressao, n.marca, n.modelo, n.observacao, dataInstall);
     } catch (e) {
       return reply.code(409).send({ error: 'componente ja existe' });
     }
@@ -387,8 +420,9 @@ async function routes(fastify) {
     const n = normalizeComponent(merged);
     fastify.db.prepare(`UPDATE bike_components SET
       tipo = ?, vida_util_km = ?, km_at_install = ?, tem_limpeza = ?,
-      intervalo_limpeza_km = ?, km_at_last_clean = ?, pressao = ? WHERE id = ?`)
-      .run(n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, n.kmAtLastClean, n.pressao, cid);
+      intervalo_limpeza_km = ?, km_at_last_clean = ?, pressao = ?,
+      marca = ?, modelo = ?, observacao = ? WHERE id = ?`)
+      .run(n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, n.kmAtLastClean, n.pressao, n.marca, n.modelo, n.observacao, cid);
     return rowToComponent(fastify.db.prepare('SELECT * FROM bike_components WHERE id = ?').get(cid));
   });
 
@@ -425,7 +459,10 @@ async function routes(fastify) {
     return { ok: true, kmBike };
   });
 
-  // ── Substituir componente (zera desgaste + opcional nova vida útil) ──
+  // ── Substituir componente ────────────────────────────────────────────
+  // Antes de zerar o desgaste, arquiva a geração que sai em
+  // bike_retired_components (km rodado real, dias de uso, vida planejada +
+  // avaliação por estrelas/review). Depois aplica os dados do NOVO item.
   fastify.post('/api/bikes/:id/components/:cid/substituir', async (req, reply) => {
     const { id, cid } = req.params;
     const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
@@ -433,25 +470,101 @@ async function routes(fastify) {
     const comp = fastify.db.prepare('SELECT * FROM bike_components WHERE id = ?').get(cid);
     if (!comp) return reply.code(404).send({ error: 'componente nao encontrado' });
 
+    const body = req.body || {};
     const kmBike = calcBikeKm(fastify.db, bike);
-    const data = (req.body && req.body.data) ? String(req.body.data).slice(0, 10) : todayISO();
-    const notas = String((req.body && req.body.notas) || '');
-    const novaVidaUtil = isFinite(parseFloat(req.body && req.body.vidaUtilKm))
-      ? parseFloat(req.body.vidaUtilKm)
-      : comp.vida_util_km;
+    const data = body.data ? String(body.data).slice(0, 10) : todayISO();
+    const notas = String(body.notas || '');
+
+    // Dados do NOVO item (fallback para os do item que sai)
+    const novaVidaUtil = isFinite(parseFloat(body.vidaUtilKm)) ? parseFloat(body.vidaUtilKm) : comp.vida_util_km;
+    const novaMarca = body.novaMarca != null ? String(body.novaMarca).trim() : (comp.marca || '');
+    const novoModelo = body.novoModelo != null ? String(body.novoModelo).trim() : (comp.modelo || '');
+    const novaObs = body.novaObservacao != null ? String(body.novaObservacao).trim() : '';
+
+    // Avaliação do item que SAI
+    const ratingRaw = parseInt(body.rating, 10);
+    const rating = isFinite(ratingRaw) ? Math.max(1, Math.min(5, ratingRaw)) : null;
+    const review = String(body.review || '').trim();
+
+    // Snapshot da geração que sai
+    const kmRodado = +(kmBike - (comp.km_at_install || 0)).toFixed(1);
+    const instISO = comp.data_install
+      || (comp.created_at ? String(comp.created_at).slice(0, 10) : null);
+    let diasUso = null;
+    if (instISO && /^\d{4}-\d{2}-\d{2}$/.test(instISO)) {
+      const ms = new Date(data + 'T12:00:00') - new Date(instISO + 'T12:00:00');
+      if (isFinite(ms)) diasUso = Math.max(0, Math.round(ms / 86400000));
+    }
+
+    const retiredId = `brc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const logId = `bml_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     const tx = fastify.db.transaction(() => {
+      fastify.db.prepare(`INSERT INTO bike_retired_components
+        (id, bike_id, component_id, tipo, marca, modelo, observacao,
+         vida_util_km, km_rodado, dias_uso, data_install, data_substituicao, rating, review)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(retiredId, id, cid, comp.tipo, comp.marca || '', comp.modelo || '', comp.observacao || '',
+             comp.vida_util_km, kmRodado, diasUso, instISO, data, rating, review);
       fastify.db.prepare(`UPDATE bike_components SET
-        vida_util_km = ?, km_at_install = ?, km_at_last_clean = ? WHERE id = ?`)
-        .run(novaVidaUtil, kmBike, kmBike, cid);
+        vida_util_km = ?, km_at_install = ?, km_at_last_clean = ?,
+        marca = ?, modelo = ?, observacao = ?, data_install = ? WHERE id = ?`)
+        .run(novaVidaUtil, kmBike, kmBike, novaMarca, novoModelo, novaObs, data, cid);
       fastify.db.prepare(`INSERT INTO bike_maintenance_log
         (id, bike_id, component_id, tipo_evento, data, km_bike, notas)
         VALUES (?, ?, ?, 'substituicao', ?, ?, ?)`)
         .run(logId, id, cid, data, kmBike, notas);
     });
     tx();
-    return { ok: true, kmBike };
+    return { ok: true, kmBike, retiredId };
+  });
+
+  // ── Componentes retirados (histórico + agregado por tipo+marca) ──────
+  fastify.get('/api/bikes/:id/retired-components', async (req, reply) => {
+    const { id } = req.params;
+    const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
+    if (!bike) return reply.code(404).send({ error: 'bike nao encontrada' });
+
+    const compId = req.query && req.query.componentId;
+    const rows = compId
+      ? fastify.db.prepare('SELECT * FROM bike_retired_components WHERE bike_id = ? AND component_id = ? ORDER BY data_substituicao DESC, created_at DESC').all(id, compId)
+      : fastify.db.prepare('SELECT * FROM bike_retired_components WHERE bike_id = ? ORDER BY data_substituicao DESC, created_at DESC').all(id);
+    const items = rows.map(rowToRetired);
+
+    // Agregado por tipo+marca: nº de trocas, km médio rodado, nota média.
+    const groups = new Map();
+    for (const r of items) {
+      const key = r.tipo + '|' + (r.marca || '');
+      if (!groups.has(key)) {
+        groups.set(key, { tipo: r.tipo, marca: r.marca || '', modelos: new Set(), trocas: 0, kmSum: 0, kmN: 0, ratingSum: 0, ratingN: 0 });
+      }
+      const g = groups.get(key);
+      g.trocas++;
+      if (r.modelo) g.modelos.add(r.modelo);
+      if (r.kmRodado != null && isFinite(r.kmRodado)) { g.kmSum += r.kmRodado; g.kmN++; }
+      if (r.rating != null) { g.ratingSum += r.rating; g.ratingN++; }
+    }
+    const aggregates = [...groups.values()].map(g => ({
+      tipo:        g.tipo,
+      marca:       g.marca,
+      modelos:     [...g.modelos],
+      trocas:      g.trocas,
+      kmMedia:     g.kmN ? Math.round(g.kmSum / g.kmN) : null,
+      ratingMedia: g.ratingN ? +(g.ratingSum / g.ratingN).toFixed(1) : null,
+    })).sort((a, b) => b.trocas - a.trocas);
+
+    return { items, aggregates };
+  });
+
+  // ── Marcas/modelos já usados (datalist no formulário) ────────────────
+  fastify.get('/api/bikes/meta/brands', async () => {
+    const q = (sql) => fastify.db.prepare(sql).all().map(r => Object.values(r)[0]).filter(Boolean);
+    const marcas = q("SELECT DISTINCT marca FROM bike_components WHERE marca <> ''")
+      .concat(q("SELECT DISTINCT marca FROM bike_retired_components WHERE marca <> ''"));
+    const modelos = q("SELECT DISTINCT modelo FROM bike_components WHERE modelo <> ''")
+      .concat(q("SELECT DISTINCT modelo FROM bike_retired_components WHERE modelo <> ''"));
+    const uniq = (a) => [...new Set(a)].sort((x, y) => String(x).localeCompare(String(y)));
+    return { marcas: uniq(marcas), modelos: uniq(modelos) };
   });
 
   // ── Intervalos de serviço recorrentes ───────────────────────────────

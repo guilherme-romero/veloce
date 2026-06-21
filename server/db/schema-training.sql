@@ -330,3 +330,27 @@ CREATE TABLE IF NOT EXISTS bike_service_intervals (
   created_at    TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_bike_interval_comp ON bike_service_intervals(component_id);
+
+-- Snapshot de componentes retirados na substituição (Fase 16.2).
+-- Cada linha é uma "geração" anterior daquele slot de componente: preserva
+-- km rodado real, dias de uso, vida planejada e a avaliação qualitativa
+-- (estrelas + review) para apoiar decisões de recompra.
+CREATE TABLE IF NOT EXISTS bike_retired_components (
+  id                TEXT PRIMARY KEY,
+  bike_id           TEXT NOT NULL REFERENCES bikes(id) ON DELETE CASCADE,
+  component_id      TEXT,                   -- slot de origem (pode ser deletado depois)
+  tipo              TEXT NOT NULL,
+  marca             TEXT,
+  modelo            TEXT,
+  observacao        TEXT,
+  vida_util_km      REAL,                   -- vida planejada na época
+  km_rodado         REAL,                   -- real = km_bike − km_at_install
+  dias_uso          INTEGER,                -- data_substituicao − data_install
+  data_install      TEXT,
+  data_substituicao TEXT,
+  rating            INTEGER,                -- 1..5
+  review            TEXT,                   -- avaliação qualitativa
+  created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_retired_bike ON bike_retired_components(bike_id);
+CREATE INDEX IF NOT EXISTS idx_retired_tipo_marca ON bike_retired_components(tipo, marca);

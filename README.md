@@ -2,19 +2,19 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.19.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
+> Versão atual: **1.22.0** · Em produção em [bike.arkhamcloud.net](https://bike.arkhamcloud.net)
 
 ---
 
 ## ✨ O que o app faz
 
 ### 🏠 Início
-Resumo com sua meta de peso, km da semana, sequência de dias ativos e índice de fadiga. Atalhos rápidos para registrar pesagem, marcar treino ou sincronizar com a Garmin.
+Resumo com sua meta de peso, km da semana, sequência de dias ativos e índice de fadiga. Atalhos rápidos para registrar pesagem, marcar treino ou **sincronizar** (Strava + Garmin de uma vez, cada um se estiver conectado).
 
 ### 👤 Perfil
 Agrupa dados do atleta e fisiologia em uma única aba:
 - **Atleta** — idade, IMC, FC máxima, peso, bike ativa, projeção de peso em 12 semanas e análise de tendência (taxa de perda semanal e previsão da meta)
-- **Peso atualizado automaticamente** via sync Garmin (balança Garmin → perfil)
+- **Peso 100% automático** — o peso atual e a projeção vêm direto da balança Garmin (regressão do histórico sincronizado); não há mais entrada manual de pesagem. Só a **meta** de peso é editável.
 - **Fisiologia** — seis zonas de FC (Z1–Z6) calculadas a partir da idade, com cores consistentes em todo o app (gráficos, calendário, badges)
 - Foto de perfil personalizada
 
@@ -23,11 +23,13 @@ Cadastro de bicicletas com rastreamento automático de desgaste de componentes:
 - Modelo "bike ativa": uma bike acumula km de atividades Garmin/Strava a partir de uma data
 - **Badge de status** — círculo verde (ATIVA) ou vermelho (INATIVA) com data de início em destaque
 - **Estatísticas agregadas** — km total, tempo em movimento e elevação por bike, com modal de detalhes (médias e máximas de velocidade, FC e potência)
-- Componentes (pneu, corrente, pastilhas, discos, cassete, cabo de freio) com vida útil em km
-- **Pressão de pneu (PSI)** configurável por componente
+- Componentes (pneu, corrente, pastilhas, discos, cassete, cabo de freio) com vida útil em km, **marca, modelo e observação editável**
+- **Pressão de pneu (PSI)** configurável (aparece só para pneus)
 - Alertas de substituição quando o desgaste atinge 80% e 100%, com **filtro "Atenção"** para ver só o que precisa de cuidado
 - Ciclo de limpeza para corrente e **intervalos de serviço recorrentes** (por km ou por dias) com registro rápido
-- **Página de detalhe do componente** + histórico completo de manutenções e revisões
+- **Substituição com avaliação** — ao trocar uma peça, ela vai para o histórico com km rodado real, dias de uso, nota por estrelas (1–5) e review
+- **Durabilidade de componentes** — média de km e nota por marca/modelo (ex.: "Pneu Continental GP5000 · 4.200 km média · ★4,3 · 3 trocas") para apoiar a recompra
+- **Página de detalhe do componente** + gerações anteriores + histórico completo de manutenções e revisões
 
 ### 🚴 Treinos
 Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
@@ -43,8 +45,8 @@ Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
 - Heat-map dos últimos 90 dias (estilo GitHub contributions), com sequência atual e **recorde histórico**
 - Volume de treino: km/semana, tempo total, distribuição por zona FC
 - **Gráfico de volume mensal combinado** — barras de km + barras de número de atividades + linha de elevação acumulada
-- Última atividade com mini-mapa
-- **Últimas 5 atividades** em cards detalhados com mini-mapa, distância, tempo, elevação, FC, calorias e potência/cadência
+- Última atividade com mini-mapa, distância, movimento, elevação, vel. média, **FC média, cadência e calorias**
+- **Últimas 5 atividades** em cards detalhados com mini-mapa, distância, tempo, elevação, FC, calorias e potência/cadência — e **gráfico de distribuição por zona de FC** (Z1–Z5) em cada atividade Garmin
 - Revisão de auto-registros dos últimos 7 dias
 
 ### 🧠 Insights (a partir dos dados Garmin)
@@ -62,7 +64,8 @@ Análises derivadas dos dados de saúde e performance do seu relógio:
 ### 🔌 Conexões
 - **Strava** — importa atividades de bike, marca os dias treinados
 - **Garmin Connect** — atividades, pesagens da balança, dados de saúde diários e estados de treino (Productive, Recovery, Maintaining)
-- **Auto-sync** — sincronização automática nos horários 6h, 16h e 21h (Strava + Garmin, sem intervenção manual)
+- **Botão (i) em cada card** explicando como funciona a conexão de cada serviço (OAuth oficial do Strava × login não-oficial da Garmin com MFA)
+- **Auto-sync** — sincronização automática a cada 30 minutos (Strava + Garmin, sem intervenção manual)
 - De-duplicação automática quando a mesma ride aparece nos dois
 - Edição manual sempre prevalece sobre o sync (regra "manual wins")
 

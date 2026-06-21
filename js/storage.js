@@ -418,12 +418,13 @@ const Storage = {
       const bikes = await window.Api.get('/bikes');
       if (Array.isArray(bikes)) {
         bikesSummary = await Promise.all(bikes.map(async (b) => {
-          let componentes = [], manutencoes = [];
+          let componentes = [], manutencoes = [], retirados = [];
           try {
             const comps = await window.Api.get(`/bikes/${encodeURIComponent(b.id)}/components`);
             componentes = (Array.isArray(comps) ? comps : []).map(c => ({
-              tipo: c.tipo, kmDesgastado: c.kmDesgastado, vidaUtilKm: c.vidaUtilKm,
-              pressao: c.pressao, temLimpeza: c.temLimpeza,
+              tipo: c.tipo, marca: c.marca, modelo: c.modelo, observacao: c.observacao,
+              kmDesgastado: c.kmDesgastado, vidaUtilKm: c.vidaUtilKm,
+              pressao: c.pressao, temLimpeza: c.temLimpeza, dataInstall: c.dataInstall,
             }));
           } catch (e) { /* sem componentes */ }
           try {
@@ -433,11 +434,20 @@ const Storage = {
               kmBike: m.kmBike, notas: m.notas,
             }));
           } catch (e) { /* sem manutenções */ }
+          try {
+            const ret = await window.Api.get(`/bikes/${encodeURIComponent(b.id)}/retired-components`);
+            retirados = ((ret && ret.items) || []).map(r => ({
+              tipo: r.tipo, marca: r.marca, modelo: r.modelo,
+              kmRodado: r.kmRodado, diasUso: r.diasUso, vidaUtilKm: r.vidaUtilKm,
+              dataInstall: r.dataInstall, dataSubstituicao: r.dataSubstituicao,
+              rating: r.rating, review: r.review,
+            }));
+          } catch (e) { /* sem retirados */ }
           return {
             id: b.id, nome: b.nome, marca: b.marca, modelo: b.modelo, tipo: b.tipo,
             ano: b.ano, pesoKg: b.pesoKg, kmInicial: b.kmInicial, activeSince: b.activeSince,
             kmTotal: b.kmTotal, atividades: b.atividades,
-            componentes, manutencoes,
+            componentes, manutencoes, retiredComponents: retirados,
           };
         }));
       }

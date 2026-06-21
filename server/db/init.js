@@ -27,6 +27,13 @@ const migrations = [
   'ALTER TABLE garmin_sync_meta ADD COLUMN last_total_count INTEGER',
   // Fase 11.5: pressão recomendada (psi) por componente (ex.: pneu)
   'ALTER TABLE bike_components ADD COLUMN pressao TEXT',
+  // Fase 16.1: campos descritivos + data de instalação por componente
+  'ALTER TABLE bike_components ADD COLUMN marca TEXT',
+  'ALTER TABLE bike_components ADD COLUMN modelo TEXT',
+  'ALTER TABLE bike_components ADD COLUMN observacao TEXT',
+  'ALTER TABLE bike_components ADD COLUMN data_install TEXT',
+  // Item 5: cache da distribuição de tempo por zona de FC por atividade
+  'ALTER TABLE garmin_activities ADD COLUMN hr_zones TEXT',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }

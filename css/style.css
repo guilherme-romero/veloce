@@ -1145,6 +1145,28 @@ body.edit-mode .exercise-actions { display: flex; }
   color: var(--text);
 }
 .strava-title i { font-size: 18px; }
+/* Botão (i) "como funciona" nos cards de conexão (Fase 17.4) */
+.conn-info-btn {
+  background: none; border: none; cursor: pointer; padding: 2px;
+  color: var(--muted2); font-size: 14px; line-height: 1;
+  display: inline-flex; align-items: center;
+}
+.conn-info-btn:hover { color: var(--teal); }
+.conn-info-btn i { font-size: 14px; }
+.conn-info-body { font-size: 13px; color: var(--muted); line-height: 1.55; }
+.conn-info-body p { margin: 0 0 10px; }
+.conn-info-body p:last-child { margin-bottom: 0; }
+.conn-info-body strong { color: var(--text); }
+.conn-info-body code {
+  background: var(--surface2); padding: 1px 5px; border-radius: 4px;
+  font-size: 12px; color: var(--teal);
+}
+/* Dica inline no cabeçalho de card (ex.: "via balança Garmin") */
+.card-hint-inline {
+  font-size: 11px; color: var(--muted2); display: inline-flex;
+  align-items: center; gap: 5px; white-space: nowrap;
+}
+.card-hint-inline i { color: var(--teal); font-size: 11px; }
 .strava-state {
   font-size: 11px;
   padding: 3px 8px;
@@ -1237,7 +1259,7 @@ body.edit-mode .exercise-actions { display: flex; }
 .last-activity-meta  { font-size: 12px; color: var(--muted2); margin-top: 2px; }
 .last-activity-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: 8px;
   margin-top: 14px;
   padding-top: 12px;
@@ -1760,6 +1782,31 @@ body.edit-mode .exercise-actions { display: flex; }
   letter-spacing: 0.5px;
   margin-top: 2px;
 }
+
+/* Distribuição por zona de FC (item 5) */
+.last5-zones { margin-top: 12px; }
+.last5-zones-label {
+  font-size: 10px; color: var(--muted2);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;
+}
+.last5-zone-bar {
+  display: flex; height: 12px; border-radius: 6px; overflow: hidden;
+  background: var(--surface2);
+}
+.last5-zone-seg { height: 100%; }
+.last5-zone-seg:first-child { border-radius: 6px 0 0 6px; }
+.last5-zone-seg:last-child  { border-radius: 0 6px 6px 0; }
+.last5-zone-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 6px;
+}
+.last5-zone-key {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--muted);
+}
+.last5-zone-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+}
+.last5-zones-empty { font-size: 11px; color: var(--muted2); margin-top: 10px; }
 
 /* ── Insights Fase 9 (Readiness, PBs, Scores) ────────────────────────── */
 

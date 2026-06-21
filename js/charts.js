@@ -195,46 +195,69 @@ function renderIntensity(workouts) {
 
 /* ── Render do gráfico de peso ──────────────────────────────────────── */
 /**
- * @param {Object}  user     — { pesoAtual, pesoMeta, dataInicioPlano }
+ * Projeção gerada a partir do histórico real de pesagens (balança Garmin):
+ * regressão linear sobre as medições → linha de tendência estendida pelas
+ * 12 semanas do plano. Sem entrada manual de peso. (Fase — projeção Garmin)
+ * @param {Object}  user     — { pesoMeta, dataInicioPlano }
  * @param {Array}   weights  — [ { data: 'YYYY-MM-DD', peso: 84.2, tipo: 'atual'|'historico' } ]
  */
 function renderWeightChart(user, weights) {
   if (!weightChart) return;
 
-  const peso  = user.pesoAtual || 0;
   const meta  = user.pesoMeta  || 0;
   const start = user.dataInicioPlano || tbToday();
 
-  // 13 pontos (Sem 0..Sem 12) a partir do início do plano
-  const planLabels = [];
-  const projection = [];
+  // Consolida todas as pesagens por dia (média) — base da regressão
+  const byDay = {};
+  (weights || []).forEach(w => {
+    if (w.peso == null) return;
+    (byDay[w.data] = byDay[w.data] || []).push(w.peso);
+  });
+  const measured = Object.entries(byDay)
+    .map(([data, ps]) => ({ data, peso: ps.reduce((s, p) => s + p, 0) / ps.length }))
+    .sort((a, b) => a.data.localeCompare(b.data));
 
-  for (let i = 0; i <= 12; i++) {
-    const d = addDays(start, i * 7);
-    planLabels.push(formatLabel(d, i));
-    if (peso && meta) {
-      const v = peso - ((peso - meta) / 12) * i;
-      projection.push(+v.toFixed(2));
-    } else {
-      projection.push(null);
+  // Regressão linear (kg/dia) sobre as medições reais → tendência
+  let slope = null, intercept = null, t0 = null;
+  if (measured.length >= 2) {
+    t0 = new Date(measured[0].data + 'T12:00:00').getTime();
+    const pts = measured.map(w => ({
+      x: (new Date(w.data + 'T12:00:00').getTime() - t0) / 86400000,
+      y: w.peso,
+    }));
+    const n  = pts.length;
+    const sx = pts.reduce((s, p) => s + p.x, 0);
+    const sy = pts.reduce((s, p) => s + p.y, 0);
+    const sxy = pts.reduce((s, p) => s + p.x * p.y, 0);
+    const sx2 = pts.reduce((s, p) => s + p.x * p.x, 0);
+    const denom = n * sx2 - sx * sx;
+    if (denom !== 0) {
+      slope = (n * sxy - sx * sy) / denom;
+      intercept = (sy - slope * sx) / n;
     }
   }
-  if (peso && meta) projection[12] = meta;
+  const trendAt = (iso) => {
+    if (slope == null) return null;
+    const x = (new Date(iso + 'T12:00:00').getTime() - t0) / 86400000;
+    return +(intercept + slope * x).toFixed(2);
+  };
 
-  // Pesagens "atuais": mapeadas para a semana mais próxima
+  // Eixo: 13 pontos (Sem 0..Sem 12) a partir do início do plano
+  const planLabels = [], planDates = [];
+  for (let i = 0; i <= 12; i++) {
+    const d = addDays(start, i * 7);
+    planDates.push(d);
+    planLabels.push(formatLabel(d, i));
+  }
+  const projection = planDates.map(trendAt);
+
+  // Medições do plano mapeadas para a semana mais próxima
   const real = new Array(13).fill(null);
   const historicEntries = [];
-
   (weights || []).forEach(w => {
-    if (w.tipo === 'historico') {
-      historicEntries.push(w);
-      return;
-    }
+    if (w.tipo === 'historico') { historicEntries.push(w); return; }
     const sem = weekIndex(start, w.data);
-    if (sem >= 0 && sem <= 12) {
-      // Múltiplas pesagens na mesma semana → mantém a última
-      real[sem] = w.peso;
-    }
+    if (sem >= 0 && sem <= 12) real[sem] = w.peso;  // última da semana vence
   });
 
   /* ── Histórico anterior ao plano ──────────────────────────────────── */
@@ -250,11 +273,12 @@ function renderWeightChart(user, weights) {
       const semHist = -Math.ceil(daysBetween(h.data, start) / 7);
       return `S${semHist} · ${shortBR(h.data)}`;
     });
-    const histVals = historicEntries.map(h => h.peso);
+    const histVals  = historicEntries.map(h => h.peso);
+    const histDates = historicEntries.map(h => h.data);
     const histN = historicEntries.length;
 
     finalLabels = [...histLabels, ...planLabels];
-    finalProj   = [...new Array(histN).fill(null), ...projection];
+    finalProj   = [...histDates.map(trendAt), ...projection];
     finalReal   = [...new Array(histN).fill(null), ...real];
     finalHist   = [...histVals, ...new Array(13).fill(null)];
 
@@ -268,13 +292,14 @@ function renderWeightChart(user, weights) {
   weightChart.data.datasets[1].data = finalReal;
   weightChart.data.datasets[2].data = finalHist;
 
-  // Y axis: range com folga
+  // Y axis: range com folga, considerando meta + medições + tendência
+  const pesoRef = measured.length ? measured[measured.length - 1].peso : 0;
   const allVals = [...finalProj, ...finalReal, ...finalHist].filter(v => v != null);
-  if (allVals.length > 0 && peso && meta) {
-    const min = Math.floor(Math.min(meta - 2, ...allVals) - 0.5);
-    const max = Math.ceil(Math.max(peso + 1, ...allVals) + 0.5);
-    weightChart.options.scales.y.min = min;
-    weightChart.options.scales.y.max = max;
+  if (allVals.length > 0) {
+    const loBase = meta ? Math.min(meta - 2, ...allVals) : Math.min(...allVals);
+    const hiBase = Math.max(pesoRef + 1, ...allVals);
+    weightChart.options.scales.y.min = Math.floor(loBase - 0.5);
+    weightChart.options.scales.y.max = Math.ceil(hiBase + 0.5);
   }
 
   weightChart.update();
