@@ -387,34 +387,64 @@
         `<div class="vt-stat"><strong>${acts.length}</strong><span>atividades</span></div>`;
     }
 
-    // Km por semana (12 semanas)
+    // Volume por semana (12 semanas): km + nº de atividades + elevação
     const weeks = [];
     const now = new Date();
     for (let i = 11; i >= 0; i--) {
       const ws = getWeekStart(new Date(now.getTime() - i * 7 * 86400_000));
       const we = new Date(ws.getTime() + 7 * 86400_000);
       const label = ws.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
-      const km = acts
-        .filter(a => { const d = new Date(a.inicio); return d >= ws && d < we; })
-        .reduce((s, a) => s + (a.distanciaKm || 0), 0);
-      weeks.push({ label, km: +km.toFixed(1) });
+      const inWeek = acts.filter(a => { const d = new Date(a.inicio); return d >= ws && d < we; });
+      const km   = inWeek.reduce((s, a) => s + (a.distanciaKm || 0), 0);
+      const elev = inWeek.reduce((s, a) => s + (a.elevacaoM || 0), 0);
+      weeks.push({ label, km: +km.toFixed(1), count: inWeek.length, elev: Math.round(elev) });
     }
 
     const kmCanvas = $('weeklyKmChart');
     if (kmCanvas) {
       if (_weeklyChart) _weeklyChart.destroy();
       _weeklyChart = new Chart(kmCanvas, {
-        type: 'bar',
         data: {
           labels: weeks.map(w => w.label),
-          datasets: [{ data: weeks.map(w => w.km), backgroundColor: 'rgba(20,217,184,0.45)', borderColor: '#14d9b8', borderWidth: 1, borderRadius: 3 }],
+          datasets: [
+            {
+              type: 'bar', label: 'Distância (km)',
+              data: weeks.map(w => w.km),
+              backgroundColor: 'rgba(20,217,184,0.5)', borderColor: '#14d9b8',
+              borderWidth: 1, borderRadius: 4, yAxisID: 'y', order: 3,
+            },
+            {
+              type: 'bar', label: 'Atividades',
+              data: weeks.map(w => w.count),
+              backgroundColor: 'rgba(155,123,255,0.45)', borderColor: '#9b7bff',
+              borderWidth: 1, borderRadius: 4, yAxisID: 'yCount', order: 2,
+            },
+            {
+              type: 'line', label: 'Elevação (m)',
+              data: weeks.map(w => w.elev),
+              borderColor: '#f5923a', backgroundColor: 'rgba(245,146,58,0.15)',
+              borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#f5923a',
+              tension: 0.3, fill: false, yAxisID: 'yElev', order: 1,
+            },
+          ],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y + ' km' } } },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: true, labels: { color: '#9299a8', boxWidth: 12, padding: 12, font: { size: 11 } } },
+            tooltip: { callbacks: { label: (ctx) => {
+              const v = ctx.parsed.y;
+              if (ctx.dataset.label === 'Distância (km)') return `${v} km`;
+              if (ctx.dataset.label === 'Elevação (m)')   return `${v} m`;
+              return `${v} atividade${v === 1 ? '' : 's'}`;
+            } } },
+          },
           scales: {
-            y: { beginAtZero: true, ticks: { color: '#9299a8', callback: v => v + ' km' }, grid: { color: '#252830' } },
-            x: { ticks: { color: '#9299a8', maxRotation: 45 }, grid: { display: false } },
+            y:      { beginAtZero: true, position: 'left',  ticks: { color: '#9299a8', callback: v => v + ' km' }, grid: { color: '#252830' } },
+            yElev:  { beginAtZero: true, position: 'right', ticks: { color: '#f5923a', callback: v => v + ' m' }, grid: { drawOnChartArea: false } },
+            yCount: { display: false, beginAtZero: true },
+            x:      { ticks: { color: '#9299a8', maxRotation: 45 }, grid: { display: false } },
           },
         },
       });
@@ -482,25 +512,30 @@
     } catch { return iso; }
   }
 
-  // Barra de distribuição de tempo por zona de FC (item 5).
+  // Pizza de distribuição de tempo por zona de FC (item 5).
   // Reusa as cores de window.FC_ZONES (Z1..Z5 → índices 0..4).
-  function renderZoneBar(zones) {
+  // Usa conic-gradient (sem canvas/Chart.js) para caber no card.
+  function renderZonePie(zones) {
     const list = (zones || []).filter(z => (z.segundos || 0) > 0);
     const total = list.reduce((s, z) => s + (z.segundos || 0), 0);
     if (!total) return '<div class="last5-zones-empty">Sem dados de zona de FC nesta atividade.</div>';
     const COLORS = window.FC_ZONES || [];
     const colorFor = (z) => (COLORS[(z.zona || 1) - 1] || {}).color || 'var(--muted2)';
-    const segs = list.map(z => {
-      const pct = (z.segundos / total) * 100;
-      return `<div class="last5-zone-seg" style="width:${pct.toFixed(1)}%;background:${colorFor(z)}" title="Z${z.zona}: ${Math.round(pct)}%"></div>`;
-    }).join('');
+    let acc = 0;
+    const stops = list.map(z => {
+      const start = acc;
+      acc += (z.segundos / total) * 100;
+      return `${colorFor(z)} ${start.toFixed(2)}% ${acc.toFixed(2)}%`;
+    }).join(', ');
     const legend = list.map(z => {
       const pct = Math.round((z.segundos / total) * 100);
       return `<span class="last5-zone-key"><span class="last5-zone-dot" style="background:${colorFor(z)}"></span>Z${z.zona} ${pct}%</span>`;
     }).join('');
     return `<div class="last5-zones-label">Distribuição por zona de FC</div>
-      <div class="last5-zone-bar">${segs}</div>
-      <div class="last5-zone-legend">${legend}</div>`;
+      <div class="last5-zone-pie-wrap">
+        <div class="last5-zone-pie" style="background:conic-gradient(${stops})"></div>
+        <div class="last5-zone-legend">${legend}</div>
+      </div>`;
   }
 
   function renderLast5(acts) {
@@ -550,7 +585,7 @@
       if (!zEl) return;
       window.Api.get(`/garmin/activity/${a.id}/hr-zones`).then(res => {
         if (myToken !== _last5Token || !zEl.isConnected) return;
-        zEl.innerHTML = renderZoneBar(res && res.zones);
+        zEl.innerHTML = renderZonePie(res && res.zones);
       }).catch(err => {
         if (myToken !== _last5Token) return;
         console.warn('[last5] hr-zones failed', a.id, err);

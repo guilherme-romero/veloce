@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v1.22.0';
+const CACHE_VERSION = 'v1.22.2';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
@@ -71,13 +71,11 @@ self.addEventListener('install', (event) => {
           .then(r => cache.put(u, r))
           .catch(() => null)
       ));
-      // Se NÃO há SW controlando ainda (primeira instalação), ativa imediatamente.
-      // Senão, espera o cliente pedir via mensagem (banner "Atualizar").
-      const clients = await self.clients.matchAll();
-      const hasController = clients.some(c => c.frameType !== 'none');
-      if (!hasController) {
-        await self.skipWaiting();
-      }
+      // Ativa SEMPRE a nova versão imediatamente (não espera o banner).
+      // Combinado com clients.claim() no activate + reload no pwa.js, garante
+      // que toda atualização publicada reflete na próxima carga, sem o usuário
+      // ficar preso numa versão antiga em cache.
+      await self.skipWaiting();
     })()
   );
 });
