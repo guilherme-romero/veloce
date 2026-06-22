@@ -1,28 +1,41 @@
 /* ═══════════════════════════════════════════════════════════════════════
    TREINO BIKE — STYLE
-   Dark theme fixo · Outfit (Google Fonts) · Tokens via CSS Custom Props
+   Hi-Vis Peloton (v2.0) · Archivo + Bebas Neue (Google Fonts) · Tokens via CSS Custom Props
 ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── TOKENS ─────────────────────────────────────────────────────────── */
 :root {
+  /* ── Hi-Vis Peloton (v2.0) ─────────────────────────────────────
+     Tema escuro "ink", acento lima de alta visibilidade + magenta
+     de jersey. Cores funcionais/zonas FC inalteradas (já alinhadas). */
+
   /* Surfaces */
-  --bg:        #0c0d10;
-  --surface:   #13151a;
-  --surface2:  #1c1f28;
-  --border:    #252830;
-  --border2:   #2f3340;
+  --bg:        #0d0f12;   /* ink */
+  --surface:   #14181d;
+  --surface2:  #1c2128;
+  --border:    #2a313a;
+  --border2:   #2a313a;
+  --border-soft: #1c2128;
 
   /* Text */
-  --text:      #e8eaf0;
-  --muted:     #6b7280;
-  --muted2:    #9299a8;
+  --text:      #eef2f4;
+  --muted:     #8b95a1;
+  --muted2:    #c4ccd4;
 
-  /* Accent (semantic) */
-  --teal:      #14d9b8;
-  --teal-dim:  rgba(20,217,184,0.12);
-  --teal-glow: rgba(20,217,184,0.25);
-  --amber:     #f5a523;
-  --amber-dim: rgba(245,165,35,0.12);
+  /* Acento primário — lima (mapeado em --teal* p/ cascata no app) */
+  --lime:      #c6f135;
+  --lime-dim:  rgba(198,241,53,0.12);
+  --teal:      #c6f135;
+  --teal-dim:  rgba(198,241,53,0.12);
+  --teal-glow: rgba(198,241,53,0.25);
+
+  /* Acento secundário — magenta (jersey, badge garmin, alertas) */
+  --magenta:     #ec3a8b;
+  --magenta-dim: rgba(236,58,139,0.12);
+
+  /* Funcionais / zonas de FC (inalteradas) */
+  --amber:     #f5d523;
+  --amber-dim: rgba(245,213,35,0.12);
   --red:       #f0523a;
   --red-dim:   rgba(240,82,58,0.12);
   --blue:      #4e9ef5;
@@ -37,12 +50,13 @@
   --pink-dim:  rgba(236,72,153,0.12);
 
   /* Layout */
-  --radius:    14px;
+  --radius:    16px;
   --radius-sm: 8px;
   --radius-lg: 18px;
 
   /* Typography */
-  --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-sans:    'Archivo', system-ui, -apple-system, sans-serif;
+  --font-display: 'Bebas Neue', 'Archivo', sans-serif;
 }
 
 /* ── RESET ──────────────────────────────────────────────────────────── */
@@ -75,29 +89,31 @@ input, select, textarea { font-family: inherit; }
 ═══════════════════════════════════════════════════════════════════════ */
 nav {
   position: sticky; top: 0; z-index: 100;
-  background: rgba(12,13,16,0.9);
+  background: rgba(13,15,18,0.9);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
 }
 .nav-inner {
   max-width: 1400px; margin: 0 auto;
-  padding: 0 24px;
-  height: 64px;
+  padding: 0 28px;
+  height: 66px;
   display: flex; align-items: center; justify-content: space-between; gap: 24px;
 }
 .nav-brand {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 18px; font-weight: 800;
-  font-style: italic; letter-spacing: -0.02em;
+  display: flex; align-items: center; gap: 11px;
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 400;
+  letter-spacing: 0.03em;
   color: var(--text);
   text-transform: uppercase;
 }
+.nav-brand b { color: var(--lime); font-weight: 400; }
 .nav-brand-icon {
-  width: 34px; height: 34px; border-radius: 8px;
-  background: var(--teal);
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--lime);
   display: flex; align-items: center; justify-content: center;
-  color: #0c0d10; font-size: 16px;
+  color: #0d0f12; font-size: 16px;
 }
 .nav-links { display: flex; align-items: center; gap: 4px; }
 @media (max-width: 700px) { .nav-links { display: none; } }
@@ -133,20 +149,23 @@ main {
 
 .section-label {
   display: inline-flex; align-items: center; gap: 10px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.16em;
-  text-transform: uppercase; color: var(--teal);
-  margin-bottom: 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--lime);
+  margin-bottom: 10px;
 }
 .section-label::before {
   content: ''; display: block;
-  width: 22px; height: 2px; background: var(--teal);
+  width: 22px; height: 2px; background: var(--lime);
 }
 .section-title {
-  font-size: clamp(28px, 4vw, 42px);
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  font-family: var(--font-display);
+  font-size: clamp(34px, 5vw, 50px);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 0.9;
+  text-transform: uppercase;
   color: var(--text);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .section-sub {
   color: var(--muted2); margin-top: 0; font-size: 14px;
@@ -187,9 +206,11 @@ main {
 }
 .btn:hover { border-color: var(--border2); background: var(--surface); }
 .btn-primary {
-  background: var(--teal); color: #0c0d10; border-color: var(--teal);
+  background: var(--lime); color: #0d0f12; border-color: var(--lime);
+  font-family: var(--font-display); font-weight: 400;
+  text-transform: uppercase; letter-spacing: 0.05em; font-size: 15px;
 }
-.btn-primary:hover { background: #11c4a6; border-color: #11c4a6; }
+.btn-primary:hover { background: #b4dd28; border-color: #b4dd28; }
 .btn-ghost { background: transparent; border-color: var(--border); }
 .btn-ghost:hover { background: var(--surface2); }
 .btn-danger { color: var(--red); border-color: var(--red-dim); background: var(--red-dim); }
@@ -302,7 +323,7 @@ body.edit-mode #btn-edit-profile-2 { display: flex; }
 }
 .tip-box {
   background: var(--teal-dim);
-  border: 1px solid rgba(20,217,184,0.2);
+  border: 1px solid rgba(198,241,53,0.2);
   border-radius: var(--radius-sm);
   padding: 12px 16px;
   font-size: 13px; color: var(--teal);
@@ -577,7 +598,7 @@ body.edit-mode #btn-edit-profile-2 { display: flex; }
 #detail-steps li i { color: var(--teal); margin-top: 4px; flex-shrink: 0; font-size: 12px; }
 .focus-box {
   background: var(--teal-dim);
-  border: 1px solid rgba(20,217,184,0.2);
+  border: 1px solid rgba(198,241,53,0.2);
   border-radius: var(--radius-sm);
   padding: 20px;
 }
@@ -1311,8 +1332,8 @@ body.edit-mode .exercise-actions { display: flex; }
   vertical-align: middle;
   font-weight: 700;
 }
-.source-strava { background: rgba(252,76,2,0.14); color: #fc4c02; }
-.source-garmin { background: rgba(0,124,195,0.14); color: #007cc3; }
+.source-strava { background: var(--lime-dim); color: var(--lime); }
+.source-garmin { background: var(--magenta-dim); color: var(--magenta); }
 
 /* ── Training log: metricas enriquecidas (Fase 4.6a) ─────────────────── */
 .tl-metrics {
@@ -1627,13 +1648,20 @@ body.edit-mode .exercise-actions { display: flex; }
   padding: 16px 14px;
   text-align: center;
 }
-.home-kpi-label {
-  font-size: 10px; color: var(--muted2);
-  text-transform: uppercase; letter-spacing: 0.5px;
-  margin-bottom: 6px;
+.home-kpi {
+  text-align: left;
 }
-.home-kpi-val { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.1; }
-.home-kpi-sub { font-size: 11px; color: var(--muted2); margin-top: 4px; }
+.home-kpi-label {
+  font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;
+  margin-bottom: 8px;
+}
+.home-kpi-val {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 4vw, 46px); font-weight: 400;
+  color: var(--text); line-height: 0.82; letter-spacing: 0.01em;
+}
+.home-kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
 .home-actions {
   display: flex;

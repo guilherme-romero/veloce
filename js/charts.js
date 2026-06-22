@@ -4,13 +4,19 @@
 
 const CHART_COLORS = {
   grid:      'rgba(255,255,255,0.06)',
-  tick:      '#6b7280',
-  teal:      '#14d9b8',
-  tealFill:  'rgba(20,217,184,0.10)',
-  amber:     '#f5a523',
-  amberFill: 'rgba(245,165,35,0.10)',
-  muted:     '#6b7280',
+  tick:      '#8b95a1',
+  teal:      '#c6f135',   /* lima (Hi-Vis v2.0) */
+  tealFill:  'rgba(198,241,53,0.12)',
+  amber:     '#f5d523',
+  amberFill: 'rgba(245,213,35,0.12)',
+  muted:     '#8b95a1',
 };
+
+/* Tema escuro global do Chart.js — fonte Archivo + cor de texto muted */
+if (window.Chart) {
+  Chart.defaults.font.family = "'Archivo', system-ui, sans-serif";
+  Chart.defaults.color = '#8b95a1';
+}
 
 let weightChart    = null;
 let intensityChart = null;
@@ -136,7 +142,7 @@ function initCharts() {
             }
           }
         },
-        cutout: '70%'
+        cutout: '62%'
       }
     });
   }

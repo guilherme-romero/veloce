@@ -48,3 +48,6 @@ Thumbs.db
 
 # Páginas-modelo (referência visual local)
 modelo2_html/
+
+# Handoff de design (referência visual local, runtime de protótipo)
+design_handoff_treinobike_hivis/

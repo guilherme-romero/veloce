@@ -23,7 +23,7 @@
 
   // ── Helpers de cor (usa FC_ZONES quando aplicável) ──────────────
   const COLORS = {
-    teal:   '#14d9b8',
+    teal:   '#c6f135',
     amber:  '#f5a523',
     red:    '#f0523a',
     green:  '#22c55e',
@@ -246,7 +246,7 @@
         datasets: [{
           data: semanas.map(s => s.trimpKg),
           // Barra com tracejado (opacity menor) quando intensidade é estimada (sem FC)
-          backgroundColor: semanas.map(s => s.estimado ? 'rgba(20,217,184,0.20)' : 'rgba(20,217,184,0.45)'),
+          backgroundColor: semanas.map(s => s.estimado ? 'rgba(198,241,53,0.20)' : 'rgba(198,241,53,0.45)'),
           borderColor: semanas.map(s => s.estimado ? COLORS.muted2 : COLORS.teal),
           borderWidth: 1,
           borderDash: [],
@@ -398,7 +398,7 @@
           {
             data: pontos.map(p => p.y),
             borderColor: COLORS.teal,
-            backgroundColor: 'rgba(20,217,184,0.10)',
+            backgroundColor: 'rgba(198,241,53,0.12)',
             tension: 0.25,
             fill: true,
             pointRadius: 3,

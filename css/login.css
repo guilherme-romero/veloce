@@ -3,21 +3,23 @@
 ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --bg:        #0c0d10;
-  --surface:   #13151a;
-  --surface2:  #1a1d24;
-  --border:    #252830;
-  --border2:   #2e323b;
-  --text:      #e8eaf0;
-  --muted:     #6b7280;
-  --muted2:    #9299a8;
-  --teal:      #14d9b8;
-  --teal-dim:  rgba(20, 217, 184, 0.12);
+  --bg:        #0d0f12;
+  --surface:   #14181d;
+  --surface2:  #1c2128;
+  --border:    #2a313a;
+  --border2:   #2a313a;
+  --text:      #eef2f4;
+  --muted:     #8b95a1;
+  --muted2:    #c4ccd4;
+  --lime:      #c6f135;
+  --teal:      #c6f135;
+  --teal-dim:  rgba(198, 241, 53, 0.12);
   --red:       #ef4444;
   --red-dim:   rgba(239, 68, 68, 0.12);
-  --radius:    14px;
+  --radius:    16px;
   --radius-sm: 8px;
-  --font-sans: 'Outfit', system-ui, sans-serif;
+  --font-sans:    'Archivo', system-ui, sans-serif;
+  --font-display: 'Bebas Neue', 'Archivo', sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

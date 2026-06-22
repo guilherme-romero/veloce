@@ -158,8 +158,8 @@
             type: 'bar',
             label: 'Distância (km)',
             data: buckets.map(b => +b.km.toFixed(1)),
-            backgroundColor: 'rgba(20,217,184,0.5)',
-            borderColor: '#14d9b8',
+            backgroundColor: 'rgba(198,241,53,0.5)',
+            borderColor: '#c6f135',
             borderWidth: 1,
             borderRadius: 4,
             yAxisID: 'y',
@@ -410,7 +410,7 @@
             {
               type: 'bar', label: 'Distância (km)',
               data: weeks.map(w => w.km),
-              backgroundColor: 'rgba(20,217,184,0.5)', borderColor: '#14d9b8',
+              backgroundColor: 'rgba(198,241,53,0.5)', borderColor: '#c6f135',
               borderWidth: 1, borderRadius: 4, yAxisID: 'y', order: 3,
             },
             {
