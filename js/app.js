@@ -372,8 +372,15 @@ function renderWeightAnalysis() {
   card.style.display = '';
 
   const sign = taxaKgSem <= 0 ? '' : '+';
-  document.getElementById('wa-taxa').textContent     = `${sign}${taxaKgSem.toString().replace('.', ',')}`;
-  document.getElementById('wa-faltam').textContent   = faltam > 0 ? `${faltam.toString().replace('.', ',')} kg` : '✓ Meta atingida';
+  const taxaEl = document.getElementById('wa-taxa');
+  taxaEl.textContent = `${sign}${taxaKgSem.toString().replace('.', ',')}`;
+  // Perda (taxa negativa) é positiva para o objetivo → lime; ganho → magenta.
+  taxaEl.style.color = taxaKgSem <= 0 ? 'var(--lime)' : 'var(--magenta)';
+
+  const faltamEl = document.getElementById('wa-faltam');
+  faltamEl.textContent = faltam > 0 ? `${faltam.toString().replace('.', ',')} kg` : '✓ Meta atingida';
+  // Ainda ter peso a perder é "negativo" → magenta; meta atingida → lime.
+  faltamEl.style.color = faltam > 0 ? 'var(--magenta)' : 'var(--lime)';
 
   let previsao = '—', semanas = '—', msg = '';
   if (faltam <= 0) {

@@ -325,6 +325,38 @@ async function routes(fastify) {
     }
   });
 
+  // ── GET /api/garmin/zone-distribution ────────────────────────────
+  // Agrega o tempo (segundos) por zona de FC das atividades já sincronizadas
+  // (usa o hr_zones cacheado, sem refazer fetch). Garmin usa 5 zonas.
+  fastify.get('/api/garmin/zone-distribution', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query?.days || 90, 10) || 90, 1), 365);
+    const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+    const rows = fastify.db
+      .prepare(`SELECT hr_zones FROM garmin_activities
+                WHERE data_inicio >= ? AND hr_zones IS NOT NULL
+                  AND hr_zones != '' AND hr_zones != 'null'`)
+      .all(cutoff);
+
+    const segPorZona = [0, 0, 0, 0, 0]; // zonas 1..5
+    let atividades = 0;
+    for (const r of rows) {
+      let zs;
+      try { zs = JSON.parse(r.hr_zones); } catch (_) { continue; }
+      if (!Array.isArray(zs) || zs.length === 0) continue;
+      let usou = false;
+      for (const z of zs) {
+        const idx = (z.zona || 0) - 1;
+        if (idx >= 0 && idx < 5 && isFinite(z.segundos)) {
+          segPorZona[idx] += z.segundos;
+          usou = true;
+        }
+      }
+      if (usou) atividades++;
+    }
+    const totalSegundos = segPorZona.reduce((s, v) => s + v, 0);
+    return { dias: days, atividades, totalSegundos, segundosPorZona: segPorZona };
+  });
+
   // ── GET /api/garmin/activities ───────────────────────────────────
   fastify.get('/api/garmin/activities', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);

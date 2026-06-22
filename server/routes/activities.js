@@ -58,7 +58,7 @@ async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
 
   fastify.get('/api/activities/unified', async (req) => {
-    const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);
+    const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 1825);
     const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
 
     const garmin = fastify.db

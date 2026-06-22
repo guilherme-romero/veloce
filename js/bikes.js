@@ -209,9 +209,9 @@
     const kmTotal = b.kmTotal || 0;
 
     const activeBadge = `<div class="bike-active-badge ${isActive ? 'is-active' : 'is-inactive'}">
-           <i class="fa-solid fa-circle" style="color:${isActive ? 'var(--green)' : 'var(--red)'}"></i>
+           <i class="fa-solid fa-circle" style="color:${isActive ? 'var(--lime)' : 'var(--magenta)'}"></i>
            ${isActive ? 'ATIVA' : 'INATIVA'}
-           ${b.activeSince ? `<span class="bike-active-since" style="color:#000">desde ${esc(fmtDate(b.activeSince))}</span>` : ''}
+           ${b.activeSince ? `<span class="bike-active-since">desde ${esc(fmtDate(b.activeSince))}</span>` : ''}
          </div>`;
 
     const tipoBlock = [b.tipo, b.pesoKg ? `${b.pesoKg} kg` : null, b.ano ? `${b.ano} (${yearsAgo(b.ano)})` : null]

@@ -134,8 +134,8 @@ function initOrUpdateMap(waypoints) {
   _endpointMarkers.forEach(m => _leafletMap.removeLayer(m));
   _endpointMarkers = [];
 
-  // Polyline vermelha
-  _leafletPolyline = L.polyline(coords, { color: '#ef4444', weight: 3.5, opacity: 0.9 })
+  // Polyline magenta (identidade Hi-Vis)
+  _leafletPolyline = L.polyline(coords, { color: '#ec3a8b', weight: 3.5, opacity: 0.9 })
     .addTo(_leafletMap);
 
   _leafletMap.fitBounds(_leafletPolyline.getBounds(), { padding: [30, 30] });
@@ -244,8 +244,8 @@ function renderElevationChart(waypoints) {
       labels,
       datasets: [{
         data: sampled.map(p => p.ele || 0),
-        borderColor: '#ef4444',
-        backgroundColor: 'rgba(239,68,68,0.07)',
+        borderColor: '#ec3a8b',
+        backgroundColor: 'rgba(236,58,139,0.07)',
         borderWidth: 1.5,
         fill: true,
         tension: 0.3,
