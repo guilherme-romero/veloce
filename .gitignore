@@ -32,8 +32,9 @@ data/restore-tmp/
 *.log
 npm-debug.log*
 
-# Roadmap interno (planejamento, não distribuído)
+# Guias internos (não distribuídos)
 roadmap.txt
+CLAUDE.md
 
 # Editor
 .vscode/
@@ -46,5 +47,4 @@ roadmap.txt
 Thumbs.db
 
 # Páginas-modelo (referência visual local)
-modelo_html/
 modelo2_html/

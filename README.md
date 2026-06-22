@@ -107,7 +107,7 @@ Não há build step: o frontend é servido como arquivos estáticos e o backend 
 2. **Frontend** — sirva a raiz do repositório com nginx (ou qualquer servidor estático) e proxie `/api/*` para `127.0.0.1:3000`.
 3. **HTTPS/domínio** — aponte seu domínio para o servidor através de um proxy reverso / CDN à sua escolha. O PWA exige HTTPS para instalar e funcionar offline.
 
-Detalhes de arquitetura e do fluxo de versão ficam em `CLAUDE.md`.
+O fluxo de versão exige incrementar `js/version.js`, `service-worker.js`, `server/package.json` e os `?v=` em `index.html`/`login.html`.
 
 ---
 
@@ -119,7 +119,7 @@ Detalhes de arquitetura e do fluxo de versão ficam em `CLAUDE.md`.
 - **Strava:** OAuth simplificado single-user
 - **Gráficos:** Chart.js · **Mapas:** Leaflet · **Clima:** Open-Meteo
 
-Arquitetura mais técnica e decisões de design ficam no arquivo `CLAUDE.md` (interno).
+A ordem de carregamento dos módulos JS, o esquema do banco e as responsabilidades de cada arquivo estão documentados em comentários no próprio código.
 
 ---
 
