@@ -5,6 +5,7 @@
 
 let _ridesViewMode  = 'month';                  // 'month' | 'list'
 let _ridesMonthCursor = new Date();             // mês exibido na vista calendário
+let _ridesActivities = null;                    // cache das atividades unificadas (Garmin/Strava)
 
 const DIFFICULTY = {
   baixa: { label: 'Baixa', color: 'var(--green)' },
@@ -45,6 +46,8 @@ function initRides() {
   // Pré-carrega clima no boot (dados ficam em cache 30 min; a faixa só
   // fica visível quando a seção é mostrada via loadWeather/showSection).
   fetchRidesWeather();
+  // Pré-carrega atividades sincronizadas p/ os badges do calendário.
+  fetchRidesActivities();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -95,7 +98,8 @@ function renderMonthView() {
   const grid = document.getElementById('rides-month-grid');
   if (!grid) return;
 
-  const firstWeekday = new Date(year, month, 1).getDay();
+  // Segunda como primeira coluna (igual ao mock): converte o getDay() (0=Dom).
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth  = new Date(year, month + 1, 0).getDate();
   const today        = new Date();
   const allRides     = Storage.getRides();
@@ -104,22 +108,15 @@ function renderMonthView() {
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
-  // Training log badges
-  const tlByDate = {};
-  if (typeof TrainingLog !== 'undefined') {
-    TrainingLog.getForMonth(year, month).forEach(e => {
-      if (!tlByDate[e.data]) tlByDate[e.data] = [];
-      tlByDate[e.data].push(e);
-    });
-  }
-
   const weatherMap = weatherByDate();
+  const actByDate  = activitiesByDate();
 
   let html = '';
 
-  // Cabeçalho dos dias da semana
-  WEEKDAY_SHORT.forEach(d => {
-    html += `<div class="month-head">${d}</div>`;
+  // Cabeçalho dos dias da semana (segunda → domingo, igual ao mock)
+  const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+  WEEK_ORDER.forEach(idx => {
+    html += `<div class="month-head">${WEEKDAY_SHORT[idx]}</div>`;
   });
 
   // Células vazias antes do dia 1
@@ -150,34 +147,16 @@ function renderMonthView() {
     const moonChip = `<span class="month-cell-moon" title="${escAttr(moon.nome)}">${moon.emoji}</span>`;
     html += `<div class="month-cell-day"><span class="mc-day-left">${day} ${moonChip}</span>${wxChip}</div>`;
 
-    // Badges de dias treinados com ícone + métricas
-    const dayTL = tlByDate[dateISO] || [];
-    if (dayTL.length > 0) {
-      const TL_ICONS = {
-        bike:        'fa-bicycle',
-        fisico:      'fa-dumbbell',
-        alongamento: 'fa-person-walking',
-      };
-      html += '<div class="tl-badges">';
-      dayTL.forEach(e => {
-        const tipos = e.tipos || (e.tipo ? [e.tipo] : []);
-        const bike = e.payload?.bike;
-        // Linha de métricas: km ou tempo (só para bike com dados)
-        const metricLine = (bike && tipos.includes('bike'))
-          ? (bike.km != null ? bike.km + ' km' : bike.tempoMovS ? Math.floor(bike.tempoMovS/3600) + 'h' + String(Math.floor((bike.tempoMovS%3600)/60)).padStart(2,'0') : '')
-          : '';
-        tipos.forEach(tipo => {
-          const label = TrainingLog?.TL_TYPES?.[tipo]?.label || tipo;
-          const icon  = TL_ICONS[tipo] || 'fa-circle';
-          const tip   = label + (tipo === 'bike' && metricLine ? ` — ${metricLine}` : '') + (bike?.fonte ? ` (${bike.fonte})` : '');
-          html += `<span class="tl-badge" data-tipo="${escAttr(tipo)}" title="${escAttr(tip)}">` +
-                  `<i class="fa-solid ${esc(icon)}"></i>` +
-                  (tipo === 'bike' && metricLine ? `<span class="tl-badge-metric">${esc(metricLine)}</span>` : '') +
-                  `</span>`;
-        });
-      });
-      html += '</div>';
-    }
+    // Atividades sincronizadas (Garmin/Strava) — badge suave com km
+    const dayActs = actByDate[dateISO] || [];
+    dayActs.slice(0, 2).forEach(a => {
+      const km  = isFinite(a.distanciaKm) ? a.distanciaKm.toFixed(1).replace('.', ',') + ' km' : '';
+      const tip = `${a.nome || 'Atividade'}${km ? ' — ' + km : ''} (${a.fonte})`;
+      html += `<span class="cal-act cal-act-${esc(a.fonte)}" title="${escAttr(tip)}">` +
+              `<i class="fa-solid fa-bicycle"></i>` +
+              (km ? `<span class="cal-act-km">${esc(km)}</span>` : '') +
+              `</span>`;
+    });
 
     // Mostra até 2 passeios no card; resto vira "+N"
     const visible = dayRides.slice(0, 2);
@@ -638,6 +617,39 @@ function weatherByDate() {
     };
   });
   return map;
+}
+
+// Mapa dateISO → atividades sincronizadas (Garmin/Strava). Deduplica por dia:
+// se houver atividades de fontes diferentes com distância ~igual, mantém a do
+// Garmin (preferência quando duplicado entre serviços).
+function activitiesByDate() {
+  const map = {};
+  (_ridesActivities || []).forEach(a => {
+    const d = (a.inicio || a.data || '').slice(0, 10);
+    if (!d || !isFinite(a.distanciaKm)) return;
+    (map[d] = map[d] || []).push(a);
+  });
+  Object.keys(map).forEach(d => {
+    const dedup = [];
+    map[d].forEach(a => {
+      const dup = dedup.find(b => Math.abs((b.distanciaKm || 0) - (a.distanciaKm || 0)) < 0.5);
+      if (!dup) { dedup.push(a); return; }
+      if (a.fonte === 'garmin' && dup.fonte !== 'garmin') dedup[dedup.indexOf(dup)] = a;
+    });
+    map[d] = dedup;
+  });
+  return map;
+}
+
+async function fetchRidesActivities() {
+  if (!window.Api) return;
+  try {
+    const resp = await window.Api.get('/activities/unified?days=400');
+    _ridesActivities = (resp && resp.items) || [];
+    if (_ridesViewMode === 'month') renderMonthView();
+  } catch (err) {
+    console.warn('[Rides] Atividades:', err);
+  }
 }
 
 // Avalia condições e devolve label + cor + alerta para ciclismo.

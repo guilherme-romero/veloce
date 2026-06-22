@@ -7,13 +7,21 @@ let currentModeId = null;
 const DAYS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'];
 
 const TYPES = [
-  { id: 'home',  label: 'Em casa',          icon: 'fa-house-user' },
-  { id: 'long',  label: 'Longão',           icon: 'fa-bicycle' },
-  { id: 'hiit',  label: 'HIIT',             icon: 'fa-bolt' },
-  { id: 'climb', label: 'Subida',           icon: 'fa-mountain' },
-  { id: 'group', label: 'Grupo',            icon: 'fa-people-group' },
-  { id: 'rest',  label: 'Descanso',         icon: 'fa-bed' },
+  { id: 'rest',  label: 'Descanso',  icon: 'fa-bed' },
+  { id: 'home',  label: 'Em casa',   icon: 'fa-house-user' },
+  { id: 'ride',  label: 'Pedal',     icon: 'fa-bicycle' },
+  { id: 'hiit',  label: 'HIIT',      icon: 'fa-bolt' },
+  { id: 'long',  label: 'Longão',    icon: 'fa-bicycle' },
 ];
+
+// Cor de cada tipo (identidade Hi-Vis) — usada no ícone do card da agenda.
+const TYPE_COLORS = {
+  rest: 'var(--muted)',
+  home: 'var(--blue)',
+  ride: 'var(--amber)',
+  hiit: 'var(--lime)',
+  long: 'var(--magenta)',
+};
 
 /* ── Render das tabs (modos) ────────────────────────────────────────── */
 function renderModes() {
@@ -65,16 +73,6 @@ function renderCalendar() {
   if (!currentModeId) return;
   const list = Storage.getWorkoutsForMode(currentModeId);
 
-  // Card "+ adicionar"
-  const addCard = document.createElement('div');
-  addCard.className = 'day-card day-card-add';
-  addCard.innerHTML = `
-    <i class="fa-solid fa-plus" style="font-size:24px;color:var(--muted);margin:auto"></i>
-    <span style="font-size:11px;text-align:center;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">Novo treino</span>
-  `;
-  addCard.onclick = () => openWorkoutModal(null);
-  grid.appendChild(addCard);
-
   // Cards de treino
   list.forEach(w => {
     const card = document.createElement('div');
@@ -85,7 +83,7 @@ function renderCalendar() {
       <h4 class="day-title">${esc(w.title)}</h4>
       <div class="day-footer">
         <span class="day-tag">${esc(w.tag || '')}</span>
-        <i class="fa-solid ${typeIcon(w.type)}" style="color:${w.type === 'home' ? 'var(--amber)' : 'var(--muted)'};font-size:13px"></i>
+        <i class="fa-solid ${typeIcon(w.type)}" style="color:${TYPE_COLORS[w.type] || 'var(--muted)'};font-size:13px"></i>
       </div>
     `;
     grid.appendChild(card);
@@ -94,13 +92,23 @@ function renderCalendar() {
   if (list.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'card';
-    empty.style.cssText = 'grid-column: 2 / -1; text-align:center; padding:32px 16px; color:var(--muted); font-size:14px;';
+    empty.style.cssText = 'grid-column: 1 / -1; text-align:center; padding:32px 16px; color:var(--muted); font-size:14px;';
     empty.innerHTML = `
       <i class="fa-solid fa-calendar-plus" style="font-size:24px;color:var(--muted);display:block;margin-bottom:10px"></i>
       Nenhum treino neste modo. Clique em <strong style="color:var(--teal)">Novo treino</strong> para começar.
     `;
     grid.appendChild(empty);
   }
+
+  // Card "+ adicionar" — sempre ao final da sequência
+  const addCard = document.createElement('div');
+  addCard.className = 'day-card day-card-add';
+  addCard.innerHTML = `
+    <i class="fa-solid fa-plus" style="font-size:24px;color:var(--muted);margin:auto"></i>
+    <span style="font-size:11px;text-align:center;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">Novo treino</span>
+  `;
+  addCard.onclick = () => openWorkoutModal(null);
+  grid.appendChild(addCard);
 }
 
 function typeIcon(type) {

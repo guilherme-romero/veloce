@@ -23,9 +23,9 @@ function calcBMI(pesoKg, alturaCm) {
 function bmiInfo(imc) {
   if (!imc)      return { label: '—',                color: 'var(--muted)' };
   if (imc < 18.5) return { label: 'Abaixo do peso', color: 'var(--blue)' };
-  if (imc < 25)   return { label: 'Peso normal',    color: 'var(--green)' };
+  if (imc < 25)   return { label: 'Peso normal',    color: 'var(--lime)' };
   if (imc < 30)   return { label: 'Sobrepeso',      color: 'var(--amber)' };
-  return            { label: 'Obesidade',           color: 'var(--red)' };
+  return            { label: 'Obesidade',           color: 'var(--magenta)' };
 }
 
 function calcFCMax(age) {
@@ -81,7 +81,6 @@ function renderProfile(user) {
     imc
       ? `<span style="color:${info.color}">${imc.toString().replace('.', ',')}</span> <span class="unit">${info.label}</span>`
       : '—');
-  setHTML('stat-fcm',  fcm ? `${fcm}<span class="unit">bpm</span>` : '—');
   setHTML('stat-bike',
     user.bikeModelo
       ? `${escAttr(user.bikeModelo)} · ${(user.bikePeso || 0).toFixed(1).replace('.', ',')} <span class="unit">kg</span>`
@@ -95,6 +94,9 @@ function renderProfile(user) {
     : (perda < 0
       ? `+${Math.abs(perda).toString().replace('.', ',')}<span class="unit" style="font-size:14px">kg</span>`
       : '—'));
+  // Ainda ter peso a perder (valor exibido com "−") é negativo → magenta; já na meta → lime.
+  const perdaEl = document.getElementById('stat-perda');
+  if (perdaEl) perdaEl.style.color = perda > 0 ? 'var(--magenta)' : 'var(--lime)';
   setHTML('stat-imc-meta',
     imcMeta
       ? `${imcMeta.toString().replace('.', ',')}<span class="unit" style="font-size:14px;color:var(--muted)"> ${bmiInfo(imcMeta).label}</span>`
@@ -123,7 +125,17 @@ function renderProfile(user) {
       'Configure seus dados no botão de edição do perfil para começar.');
   }
 
-  // ── Zonas FC ──────────────────────────────
+  // ── FC máxima + Zonas FC ──────────────────
+  // Render inicial com a FCM estimada (220 − idade); em seguida tenta refinar
+  // com o pico real observado no Garmin (assíncrono, não bloqueia).
+  updateFcmZones(fcm, idade, user.nome, false);
+  refineFcMaxFromGarmin(idade, user.nome);
+}
+
+/* ── FC máxima + zonas (reutilizável p/ fórmula ou pico Garmin) ──────── */
+function updateFcmZones(fcm, idade, nome, fromGarmin) {
+  setHTML('stat-fcm', fcm ? `${fcm}<span class="unit">bpm</span>` : '—');
+
   const zones = calcZones(fcm);
   if (zones) {
     setText('zone1-range', `< ${zones.z1.max} BPM`);
@@ -131,21 +143,37 @@ function renderProfile(user) {
     setText('zone3-range', `${zones.z3.min} – ${zones.z3.max} BPM`);
     setText('zone4-range', `${zones.z4.min} – ${zones.z4.max} BPM`);
     setText('zone5-range', `${zones.z5.min} – ${zones.z5.max} BPM`);
-    // Z6 já tem texto no HTML; aqui ajustamos se quisermos dinamizar
     const z6El = document.getElementById('zone6-range');
     if (z6El) z6El.textContent = `> ${zones.z6.min} BPM (Sprint)`;
 
-    if (user.nome) {
-      setHTML('zones-subtitle',
-        `Calculado para <strong>${escHTML(user.nome)}</strong>, ${idade} anos (FCM ~${fcm} bpm). Configure estas zonas no <strong>Garmin</strong>.`);
+    const origem = fromGarmin
+      ? `FC máx <strong>${fcm} bpm</strong> (pico observado no <strong>Garmin</strong>)`
+      : `FCM estimada <strong>${fcm} bpm</strong> (220 − idade)`;
+    if (nome) {
+      setHTML('zones-subtitle', `Calculado para <strong>${escHTML(nome)}</strong>, ${idade} anos · ${origem}.`);
     } else {
-      setText('zones-subtitle', `FCM estimada: ${fcm} bpm. Configure estas zonas no Garmin.`);
+      setHTML('zones-subtitle', `${origem}.`);
     }
   } else {
     ['zone1-range', 'zone2-range', 'zone3-range', 'zone4-range', 'zone5-range', 'zone6-range']
       .forEach(id => setText(id, '—'));
     setText('zones-subtitle', 'Cadastre sua data de nascimento para calcular as zonas.');
   }
+}
+
+/* ── Refina a FC máxima a partir do maior fc_max observado no Garmin ─── */
+async function refineFcMaxFromGarmin(idade, nome) {
+  if (!window.Api) return;
+  try {
+    const resp = await window.Api.get('/activities/unified?days=365');
+    const items = (resp && resp.items) || [];
+    let maxObs = 0;
+    items.forEach(a => {
+      if (isFinite(a.fcMax) && a.fcMax > maxObs) maxObs = a.fcMax;
+    });
+    // Usa o pico observado apenas se for plausível (descarta zeros/ruído).
+    if (maxObs >= 120) updateFcmZones(Math.round(maxObs), idade, nome, true);
+  } catch (_) { /* mantém a FCM estimada já renderizada */ }
 }
 
 /* ── DOM helpers ─────────────────────────────────────────────────────── */

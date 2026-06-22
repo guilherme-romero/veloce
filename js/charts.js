@@ -20,6 +20,7 @@ if (window.Chart) {
 
 let weightChart    = null;
 let intensityChart = null;
+let _intensityTotal = 0;
 
 /* ── Init dos gráficos (estrutura vazia, dados vêm depois) ──────────── */
 function initCharts() {
@@ -110,10 +111,10 @@ function initCharts() {
     intensityChart = new Chart(intensityCtx, {
       type: 'doughnut',
       data: {
-        labels: ['Baixa Z1/Z2', 'Média Z3', 'Alta Z4/Z5'],
+        labels: ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'],
         datasets: [{
-          data: [80, 5, 15],
-          backgroundColor: [CHART_COLORS.teal, CHART_COLORS.amber, '#f0523a'],
+          data: [0, 0, 0, 0, 0],
+          backgroundColor: ['#4e9ef5', '#f5d523', '#22c55e', '#f0523a', '#a855f7'],
           borderColor: '#13151a',
           borderWidth: 2,
           hoverOffset: 6,
@@ -128,8 +129,8 @@ function initCharts() {
             labels: {
               boxWidth: 10,
               color: CHART_COLORS.tick,
-              font: { size: 11, family: "'Outfit', sans-serif" },
-              padding: 12
+              font: { size: 11, family: "'Archivo', sans-serif" },
+              padding: 10
             }
           },
           tooltip: {
@@ -138,7 +139,10 @@ function initCharts() {
             borderWidth: 1,
             padding: 12,
             callbacks: {
-              label: ctx => `${ctx.label}: ${ctx.parsed}%`
+              label: ctx => {
+                const pct = _intensityTotal ? Math.round((ctx.parsed / _intensityTotal) * 100) : 0;
+                return `${ctx.label}: ${pct}% · ${Math.round(ctx.parsed / 60)} min`;
+              }
             }
           }
         },
@@ -148,41 +152,49 @@ function initCharts() {
   }
 }
 
-/* ── Render da distribuição de intensidade (dinâmico) ───────────────── */
-function renderIntensity(workouts) {
+/* ── Render da distribuição de intensidade ──────────────────────────── */
+// Fonte: tempo real em cada zona de FC das atividades Garmin (hr_zones
+// agregado no backend). Garmin usa 5 zonas; Z6 fica zerada. O argumento é
+// ignorado (mantido por compatibilidade com as chamadas existentes).
+function renderIntensity() {
   if (!intensityChart) return;
 
-  const active = (workouts || []).filter(w => w.type !== 'rest');
+  const canvas = document.getElementById('intensityChart');
+  const wrap = canvas ? canvas.parentElement : null;
+  let emptyEl = wrap ? wrap.querySelector('.chart-empty') : null;
 
-  let baixa = 0, media = 0, alta = 0;
-  active.forEach(w => {
-    const t = w.type || 'home';
-    if (t === 'hiit' || t === 'climb') alta++;
-    else if (t === 'group') media++;
-    else baixa++; // home, long e outros → endurance
-  });
-
-  const total = baixa + media + alta;
-  let data;
-
-  if (total === 0) {
-    data = [80, 5, 15]; // fallback quando não há treinos
-  } else {
-    data = [
-      Math.round((baixa / total) * 100),
-      Math.round((media / total) * 100),
-      Math.round((alta  / total) * 100),
-    ];
-    // Aplica correção de arredondamento no valor mais alto (nunca vai ficar negativo)
-    const diff = 100 - data.reduce((s, v) => s + v, 0);
-    if (diff !== 0) {
-      const maxIdx = data.indexOf(Math.max(...data));
-      data[maxIdx] += diff;
+  const showEmpty = (msg) => {
+    if (canvas) canvas.style.display = 'none';
+    if (wrap && !emptyEl) {
+      emptyEl = document.createElement('div');
+      emptyEl.className = 'chart-empty';
+      wrap.appendChild(emptyEl);
     }
-  }
+    if (emptyEl) { emptyEl.textContent = msg; emptyEl.style.display = ''; }
+  };
 
-  intensityChart.data.datasets[0].data = data;
-  intensityChart.update();
+  (async () => {
+    let dist = null;
+    try {
+      if (window.Api) dist = await window.Api.get('/garmin/zone-distribution?days=90');
+    } catch (_) { /* trata como vazio abaixo */ }
+
+    const seg   = (dist && Array.isArray(dist.segundosPorZona)) ? dist.segundosPorZona : [];
+    const total = (dist && dist.totalSegundos) || 0;
+
+    if (!total) {
+      showEmpty('Sincronize atividades com FC no Garmin para ver a distribuição por zona.');
+      return;
+    }
+    if (canvas) canvas.style.display = '';
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    // Segundos reais (não % arredondado) — zonas pequenas (ex.: Z1 com poucos
+    // minutos) continuam visíveis; o % aparece no tooltip.
+    _intensityTotal = total;
+    intensityChart.data.datasets[0].data = seg.slice(0, 5);
+    intensityChart.update();
+  })();
 }
 
 /* ── Render do gráfico de peso ──────────────────────────────────────── */

@@ -43,10 +43,10 @@
     return { txt: sign + Math.abs(pct).toFixed(0) + '%', cls };
   }
 
-  // ── ISO week helpers (segunda como inicio) ─────────────────────
+  // ── Week helpers (domingo como inicio) ─────────────────────────
   function weekStart(d) {
     const date = new Date(d);
-    const day  = (date.getDay() + 6) % 7; // seg=0..dom=6
+    const day  = date.getDay(); // 0 = domingo
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() - day);
     return date;
@@ -93,6 +93,88 @@
       }
     });
     return buckets;
+  }
+
+  // 12 meses (Jan–Dez) de um ano específico, mesmo formato de bucketByMonth.
+  function bucketMonthsOfYear(activities, year) {
+    const buckets = [];
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(year, m, 1);
+      buckets.push({ key: `${year}-${String(m + 1).padStart(2, '0')}`,
+                     label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+                     km: 0, count: 0, elev: 0 });
+    }
+    const byKey = Object.fromEntries(buckets.map(b => [b.key, b]));
+    activities.forEach(x => {
+      const d = new Date(x.inicio);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (byKey[key]) {
+        byKey[key].km    += (x.distanciaKm || 0);
+        byKey[key].count += 1;
+        byKey[key].elev  += (x.elevacaoM || 0);
+      }
+    });
+    return buckets;
+  }
+
+  // ── Filtro por ano (KPIs + Volume Mensal + lista) ───────────────
+  let _histAll  = [];
+  let _histYear = 'all';
+
+  function histActsForYear() {
+    if (_histYear === 'all') return _histAll;
+    return _histAll.filter(a => new Date(a.inicio).getFullYear() === _histYear);
+  }
+
+  function renderHistKpis() {
+    const kpisEl = document.getElementById('hist-kpis');
+    if (kpisEl) kpisEl.style.display = '';
+    const acts = histActsForYear();
+    const totKm   = acts.reduce((s, a) => s + (a.distanciaKm || 0), 0);
+    const totS    = acts.reduce((s, a) => s + (a.tempoMovS   || 0), 0);
+    const totElev = acts.reduce((s, a) => s + (a.elevacaoM   || 0), 0);
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    set('hist-kpi-dist',  Math.round(totKm).toLocaleString('pt-BR'));
+    set('hist-kpi-tempo', Math.round(totS / 3600));
+    set('hist-kpi-elev',  (totElev / 1000).toFixed(1).replace('.', ','));
+    set('hist-kpi-ativ',  acts.length.toLocaleString('pt-BR'));
+    // Badge de período: replicada em todos os blocos que alternam pelo filtro.
+    const periodo = _histYear === 'all' ? 'Total' : String(_histYear);
+    ['hist-kpi-dist-tag', 'hist-kpi-tempo-tag', 'hist-kpi-elev-tag', 'hist-kpi-ativ-tag',
+     'hist-tag-volume', 'hist-tag-last5'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = periodo;
+    });
+  }
+
+  function renderYearChips() {
+    const cont = document.getElementById('hist-year-filters');
+    if (!cont) return;
+    // Janela de filtros: ano atual + 2 anteriores. Anos sem dados não viram chip.
+    const anoAtual = new Date().getFullYear();
+    const comDados = new Set(_histAll.map(a => new Date(a.inicio).getFullYear()));
+    const years = [anoAtual, anoAtual - 1, anoAtual - 2].filter(y => comDados.has(y));
+    let html = '';
+    years.forEach(y => {
+      html += `<button class="year-chip ${_histYear === y ? 'is-active' : ''}" data-year="${y}">${y}</button>`;
+    });
+    html += `<button class="year-chip ${_histYear === 'all' ? 'is-active' : ''}" data-year="all">Tudo</button>`;
+    cont.innerHTML = html;
+    cont.querySelectorAll('.year-chip').forEach(btn => {
+      btn.onclick = () => {
+        const y = btn.dataset.year;
+        _histYear = (y === 'all') ? 'all' : parseInt(y, 10);
+        renderYearChips();
+        applyYearFilter();
+      };
+    });
+  }
+
+  function applyYearFilter() {
+    const acts = histActsForYear();
+    renderHistKpis();
+    renderVolume(_histYear === 'all' ? bucketByMonth(_histAll, 6) : bucketMonthsOfYear(acts, _histYear));
+    renderLast5(acts);
   }
 
   // ── Renders ─────────────────────────────────────────────────────
@@ -169,8 +251,8 @@
             type: 'bar',
             label: 'Atividades',
             data: buckets.map(b => b.count),
-            backgroundColor: 'rgba(155,123,255,0.45)',
-            borderColor: '#9b7bff',
+            backgroundColor: 'rgba(236,58,139,0.45)',
+            borderColor: '#ec3a8b',
             borderWidth: 1,
             borderRadius: 4,
             yAxisID: 'yCount',
@@ -180,11 +262,11 @@
             type: 'line',
             label: 'Elevação (m)',
             data: buckets.map(b => Math.round(b.elev)),
-            borderColor: '#f5923a',
-            backgroundColor: 'rgba(245,146,58,0.15)',
+            borderColor: '#f5d523',
+            backgroundColor: 'rgba(245,213,35,0.15)',
             borderWidth: 2,
             pointRadius: 3,
-            pointBackgroundColor: '#f5923a',
+            pointBackgroundColor: '#f5d523',
             tension: 0.3,
             fill: false,
             yAxisID: 'yElev',
@@ -207,7 +289,7 @@
         },
         scales: {
           y:      { beginAtZero: true, position: 'left',  ticks: { color: '#9299a8', callback: v => v + ' km' }, grid: { color: '#252830' } },
-          yElev:  { beginAtZero: true, position: 'right', ticks: { color: '#f5923a', callback: v => v + ' m' }, grid: { drawOnChartArea: false } },
+          yElev:  { beginAtZero: true, position: 'right', ticks: { color: '#f5d523', callback: v => v + ' m' }, grid: { drawOnChartArea: false } },
           yCount: { display: false, beginAtZero: true },
           x:      { ticks: { color: '#9299a8' }, grid: { display: false } },
         },
@@ -222,7 +304,8 @@
 
     try {
       // Endpoint unificado: server-side dedupe via activity_links (Garmin > Strava)
-      const resp = await window.Api.get('/activities/unified?days=180');
+      // ~3 anos para alimentar os filtros por ano (atual + 2 anteriores).
+      const resp = await window.Api.get('/activities/unified?days=1095');
       const combined = (resp && resp.items) || [];
 
       if (combined.length === 0) {
@@ -242,11 +325,19 @@
         } catch (_) {}
       }
 
+      // Estes não filtram por ano (dados recentes): última atividade, semana
+      // vs. semana passada e volume de treino das últimas 12 semanas.
       renderLastActivity(last);
       renderWeek(bucketByWeek(combined));
-      renderVolume(bucketByMonth(combined, 6));
       renderVolumeTraining(combined);
-      renderLast5(combined);
+
+      // KPIs + Volume Mensal + lista: filtrados pelo ano (default = mais recente).
+      _histAll = combined;
+      const anos = [...new Set(combined.map(a => new Date(a.inicio).getFullYear()))]
+        .filter(y => isFinite(y)).sort((a, b) => b - a);
+      _histYear = anos[0] ?? 'all';
+      renderYearChips();
+      applyYearFilter();
     } catch (err) {
       console.error('[activities]', err);
       empty.textContent = 'Falha ao carregar atividades.';
@@ -359,7 +450,7 @@
 
   function getWeekStart(d) {
     const date = new Date(d);
-    const dow = (date.getDay() + 6) % 7;
+    const dow = date.getDay(); // 0 = domingo
     date.setDate(date.getDate() - dow);
     date.setHours(0, 0, 0, 0);
     return date;
@@ -381,10 +472,10 @@
     const statsEl = $('volume-training-stats');
     if (statsEl) {
       statsEl.innerHTML =
-        `<div class="vt-stat"><strong>${totalKm.toFixed(0)} km</strong><span>total</span></div>` +
+        `<div class="vt-stat"><strong>${Math.round(totalKm).toLocaleString('pt-BR')} km</strong><span>total</span></div>` +
         `<div class="vt-stat"><strong>${h}h${String(m).padStart(2,'0')}</strong><span>em movimento</span></div>` +
-        `<div class="vt-stat"><strong>${totalElevM.toFixed(0)} m</strong><span>elevação</span></div>` +
-        `<div class="vt-stat"><strong>${acts.length}</strong><span>atividades</span></div>`;
+        `<div class="vt-stat"><strong>${Math.round(totalElevM).toLocaleString('pt-BR')} m</strong><span>elevação</span></div>` +
+        `<div class="vt-stat"><strong>${acts.length.toLocaleString('pt-BR')}</strong><span>atividades</span></div>`;
     }
 
     // Volume por semana (12 semanas): km + nº de atividades + elevação
@@ -416,14 +507,14 @@
             {
               type: 'bar', label: 'Atividades',
               data: weeks.map(w => w.count),
-              backgroundColor: 'rgba(155,123,255,0.45)', borderColor: '#9b7bff',
+              backgroundColor: 'rgba(236,58,139,0.45)', borderColor: '#ec3a8b',
               borderWidth: 1, borderRadius: 4, yAxisID: 'yCount', order: 2,
             },
             {
               type: 'line', label: 'Elevação (m)',
               data: weeks.map(w => w.elev),
-              borderColor: '#f5923a', backgroundColor: 'rgba(245,146,58,0.15)',
-              borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#f5923a',
+              borderColor: '#f5d523', backgroundColor: 'rgba(245,213,35,0.15)',
+              borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#f5d523',
               tension: 0.3, fill: false, yAxisID: 'yElev', order: 1,
             },
           ],
@@ -442,7 +533,7 @@
           },
           scales: {
             y:      { beginAtZero: true, position: 'left',  ticks: { color: '#9299a8', callback: v => v + ' km' }, grid: { color: '#252830' } },
-            yElev:  { beginAtZero: true, position: 'right', ticks: { color: '#f5923a', callback: v => v + ' m' }, grid: { drawOnChartArea: false } },
+            yElev:  { beginAtZero: true, position: 'right', ticks: { color: '#f5d523', callback: v => v + ' m' }, grid: { drawOnChartArea: false } },
             yCount: { display: false, beginAtZero: true },
             x:      { ticks: { color: '#9299a8', maxRotation: 45 }, grid: { display: false } },
           },

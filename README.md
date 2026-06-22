@@ -2,7 +2,11 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **1.22.5** · PWA self-hosted (frontend estático + backend Node/SQLite)
+> Versão atual: **2.0** — identidade visual *Hi-Vis Peloton* · PWA self-hosted (frontend estático + backend Node/SQLite)
+
+### 🎨 v2.0 · Identidade visual "Hi-Vis Peloton"
+
+Redesenho completo da interface: tema escuro "ink" (`#0d0f12`), acento **lima** (`#c6f135`) e **magenta** (`#ec3a8b`), tipografia **Bebas Neue** (títulos e números) + **Archivo** (texto), faixas-jersey e números em destaque em todas as seções. Favicons e ícones de PWA próprios. A semana é contada de **domingo a sábado** de forma consistente em todo o app.
 
 ---
 
@@ -15,7 +19,8 @@ Resumo com sua meta de peso, km da semana, sequência de dias ativos e índice d
 Agrupa dados do atleta e fisiologia em uma única aba:
 - **Atleta** — idade, IMC, FC máxima, peso, bike ativa, projeção de peso em 12 semanas e análise de tendência (taxa de perda semanal e previsão da meta)
 - **Peso 100% automático** — o peso atual e a projeção vêm direto da balança Garmin (regressão do histórico sincronizado); não há mais entrada manual de pesagem. Só a **meta** de peso é editável.
-- **Fisiologia** — seis zonas de FC (Z1–Z6) calculadas a partir da idade, com cores consistentes em todo o app (gráficos, calendário, badges)
+- **FC máxima do Garmin** — usa o maior pico de FC observado nas suas atividades (com fallback para a fórmula 220−idade), e as zonas são recalculadas sobre esse valor
+- **Fisiologia** — seis zonas de FC (Z1–Z6), com cores consistentes em todo o app, e um gráfico de **distribuição de intensidade** com o tempo real em cada zona (Z1–Z5) das atividades Garmin
 - Foto de perfil personalizada
 
 ### 🚲 Bike (garagem virtual)
@@ -42,6 +47,8 @@ Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
 - **Modal de clima detalhado para rotas** — temperatura máx/mín, sensação térmica, chuva, vento, rajadas, UV e nascer/pôr do sol
 
 ### 📊 Histórico
+- **Filtros por ano** (ano atual + 2 anteriores · "Tudo") que recalculam os KPIs, o volume mensal e a lista — com badge de período em cada bloco
+- **4 KPIs do período**: distância, tempo total, elevação e número de atividades
 - Heat-map dos últimos 90 dias (estilo GitHub contributions), com sequência atual e **recorde histórico**
 - Volume de treino: km/semana, tempo total, distribuição por zona FC
 - **Gráfico de volume mensal combinado** — barras de km + barras de número de atividades + linha de elevação acumulada
@@ -50,16 +57,14 @@ Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
 - Revisão de auto-registros dos últimos 7 dias
 
 ### 🧠 Insights (a partir dos dados Garmin)
-Análises derivadas dos dados de saúde e performance do seu relógio:
-1. **Índice de Fadiga** — combina Body Battery, HRV e Stress
-2. **Sono × Desempenho** — sono profundo da noite anterior × FC do treino
-3. **Intensidade/kg semanal** — TRIMP normalizado pelo peso (com fallback para atividades sem FC)
-4. **Carga de Treino (TSB)** — fitness vs. fadiga (ATL/CTL/TSB)
-5. **Custo metabólico** — kcal/km com baseline
-6. **HRV × Carga** — quanto seu corpo recupera entre treinos
-7. **Training Readiness (Garmin)** — score matinal oficial da Garmin (sono + recuperação + HRV)
-8. **Recordes pessoais** — seus PBs com badge "Novo!" para conquistas recentes, formatação por tipo de esporte (distância ciclismo em km, elevação em m, potência em W)
-9. **Hill + Endurance Score** — capacidade em subidas e resistência aeróbica
+Painel de carga e forma no topo, seguido de análises detalhadas:
+- **Banner de forma** — estado atual pelo TSB (Forma em pico / Em equilíbrio / Carregado / Sobrecarga), com mensagem e o TSB do dia
+- **4 KPIs** — Carga (CTL), Fadiga (ATL), VO₂ máx (Garmin) e HRV noturno
+- **Carga × Fadiga × Forma · 8 semanas** — gráfico das três curvas
+- **Tempo por zona · 30 dias** — distribuição real de tempo em cada zona de FC do Garmin
+- **Recomendações** — sugestões acionáveis condicionadas aos dados (forma/carga, qualidade de sono, intensidade/volume por zona, tendência de HRV)
+
+Abaixo, os blocos analíticos completos: **Índice de Fadiga** (Body Battery + HRV + Stress), **Carga de Treino (TSB)** com ATL/CTL, **Intensidade/kg semanal**, **Sono × Desempenho**, **Custo metabólico**, **HRV × Carga**, **Training Readiness**, **Recordes pessoais** (distância semanal e de ciclismo, elevação semanal e por pedal, VO₂ máx) e **Hill + Endurance Score**.
 
 ### 🔌 Conexões
 - **Strava** — importa atividades de bike, marca os dias treinados

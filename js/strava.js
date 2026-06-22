@@ -13,6 +13,17 @@
       return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
     } catch { return iso; }
   }
+  // Data + hora do último sync para o mini-card (ex.: { data: "20 jun", hora: "17:01" })
+  function fmtSyncParts(iso) {
+    if (!iso) return { data: 'nunca', hora: '' };
+    try {
+      const d = new Date(iso);
+      return {
+        data: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace(' de ', ' ').replace('.', ''),
+        hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      };
+    } catch { return { data: '—', hora: '' }; }
+  }
 
   function avatarFor(a) {
     const name = `${a.firstname || ''} ${a.lastname || ''}`.trim() || a.username || '';
@@ -47,25 +58,19 @@
 
     const a = status.athlete || {};
     const name = esc(`${a.firstname || ''} ${a.lastname || ''}`.trim() || a.username || 'Atleta');
-    const metaParts = [a.city, a.country].filter(Boolean).map(esc).join(', ');
     const totalAct = Number(status.totalActivities || 0);
-    const lastSync = status.lastSyncAt ? fmtDate(status.lastSyncAt) : 'nunca';
+    const sync = fmtSyncParts(status.lastSyncAt);
+    const syncLabel = sync.hora ? `${esc(sync.hora)} · último sync` : 'último sync';
 
     bodyEl.innerHTML =
-      '<div class="strava-row">' +
-        avatarFor(a) +
-        '<div class="strava-info">' +
-          `<div class="strava-athlete-name">${name}</div>` +
-          (metaParts ? `<div class="strava-athlete-meta">${metaParts} · @${esc(a.username || '')}</div>` : `<div class="strava-athlete-meta">@${esc(a.username || '')}</div>`) +
-        '</div>' +
-      '</div>' +
       '<div class="strava-stats">' +
-        `<div class="strava-stat"><div class="strava-stat-val">${totalAct}</div><div class="strava-stat-label">atividades importadas</div></div>` +
-        `<div class="strava-stat"><div class="strava-stat-val" style="font-size:13px;">${esc(lastSync)}</div><div class="strava-stat-label">última sincronização</div></div>` +
+        `<div class="strava-stat"><div class="strava-stat-val">${totalAct}</div><div class="strava-stat-label">atividades</div></div>` +
+        `<div class="strava-stat"><div class="strava-stat-val">${esc(sync.data)}</div><div class="strava-stat-label">${syncLabel}</div></div>` +
       '</div>' +
+      `<div class="conn-athlete">Atleta: <strong>${name}</strong></div>` +
       '<div class="strava-actions">' +
         '<button type="button" id="btn-strava-sync" class="btn btn-primary">' +
-          '<i class="fa-solid fa-rotate"></i> Sincronizar últimos 90 dias' +
+          '<i class="fa-solid fa-rotate"></i> Sincronizar' +
         '</button>' +
       '</div>';
 

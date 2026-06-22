@@ -19,12 +19,12 @@
   const $ = (id) => document.getElementById(id);
 
   // ── Estado dos gráficos ─────────────────────────────────────────
-  const _charts = { trimp: null, sleep: null, custo: null, hrvLoad: null };
+  const _charts = { trimp: null, sleep: null, custo: null, hrvLoad: null, insLoad: null, insZone: null };
 
   // ── Helpers de cor (usa FC_ZONES quando aplicável) ──────────────
   const COLORS = {
     teal:   '#c6f135',
-    amber:  '#f5a523',
+    amber:  '#f5d523',
     red:    '#f0523a',
     green:  '#22c55e',
     blue:   '#4e9ef5',
@@ -187,10 +187,10 @@
       return aplicaveis.length ? aplicaveis[aplicaveis.length - 1].peso : null;
     };
 
-    // 12 semanas — segunda como início
+    // 12 semanas — domingo como início
     const semanas = [];
     const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
-    const dow = (hoje.getDay() + 6) % 7;
+    const dow = hoje.getDay(); // 0 = domingo
     const semAtualInicio = new Date(hoje); semAtualInicio.setDate(hoje.getDate() - dow);
 
     for (let i = 11; i >= 0; i--) {
@@ -657,8 +657,10 @@
       9: 'Maior elevação num pedal',
     };
 
-    // Mostra todos os recordes com label conhecido
-    const visible = items.filter(p => TYPE_LABELS[p.type_id] != null);
+    // Mostra apenas os recordes selecionados:
+    // 14=dist. semanal · 8=dist. ciclismo · 15=elev. semanal · 9=elev. num pedal · 13=VO2max
+    const ALLOWED_PR_TYPES = new Set([14, 8, 15, 9, 13]);
+    const visible = items.filter(p => ALLOWED_PR_TYPES.has(p.type_id) && TYPE_LABELS[p.type_id] != null);
     $('prs-count').textContent = visible.length;
 
     const now = Date.now();
@@ -752,6 +754,189 @@
   }
 
   // ───────────────────────────────────────────────────────────────
+  // TOPO Hi-Vis — banner + KPIs + carga×fadiga×forma + zona + recomendações
+  // ───────────────────────────────────────────────────────────────
+  function emaSeries(serie, tau) {
+    if (!serie.length) return [];
+    const out = [serie[0]];
+    for (let i = 1; i < serie.length; i++) out.push(out[i - 1] + (serie[i] - out[i - 1]) / tau);
+    return out;
+  }
+
+  function renderInsLoadChart(labels, carga, fadiga, forma) {
+    const el = $('insLoadChart');
+    if (!el || !window.Chart) return;
+    if (_charts.insLoad) { _charts.insLoad.destroy(); _charts.insLoad = null; }
+    _charts.insLoad = new Chart(el.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets: [
+        { label: 'Carga',  data: carga,  borderColor: '#c6f135', backgroundColor: 'rgba(198,241,53,0.08)', borderWidth: 2, pointRadius: 0, tension: 0.35, fill: true },
+        { label: 'Fadiga', data: fadiga, borderColor: '#f5d523', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.35 },
+        { label: 'Forma',  data: forma,  borderColor: '#ec3a8b', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, borderDash: [5, 4], tension: 0.35 },
+      ] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 12, font: { size: 11 } } } },
+        scales: {
+          y: { ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
+          x: { ticks: { color: COLORS.muted2 }, grid: { display: false } },
+        },
+      },
+    });
+  }
+
+  async function renderInsZoneChart() {
+    const el = $('insZoneChart');
+    if (!el || !window.Chart) return;
+    let dist = null;
+    try { dist = await window.Api.get('/garmin/zone-distribution?days=30'); } catch (_) {}
+    const seg = (dist && dist.segundosPorZona) || [];
+    const total = (dist && dist.totalSegundos) || 0;
+    if (_charts.insZone) { _charts.insZone.destroy(); _charts.insZone = null; }
+    if (!total) { el.parentElement.innerHTML = '<div style="color:var(--muted2);font-size:12px;text-align:center;padding:24px 0;">Sem dados de zona de FC nos últimos 30 dias.</div>'; return; }
+    // Usa os SEGUNDOS reais (não % arredondado): zonas pequenas — ex.: Z1 com
+    // poucos minutos — continuam visíveis em vez de sumir por arredondar a 0%.
+    const data = seg.slice(0, 5);
+    _charts.insZone = new Chart(el.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'],
+              datasets: [{ data, backgroundColor: ['#4e9ef5', '#f5d523', '#22c55e', '#f0523a', '#a855f7'], borderColor: '#13151a', borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
+        plugins: { legend: { position: 'bottom', labels: { color: COLORS.muted2, boxWidth: 10, padding: 10, font: { size: 11 } } },
+          tooltip: { callbacks: { label: c => {
+            const pct = total ? Math.round((c.parsed / total) * 100) : 0;
+            const min = Math.round(c.parsed / 60);
+            return `${c.label}: ${pct}% · ${min} min`;
+          } } } } },
+    });
+  }
+
+  // Pool de sugestões por categoria. Cada item tem `when(ctx)` (condição sobre
+  // os dados dos insights) e a mensagem exibida. Para cada categoria mostra-se
+  // a primeira sugestão cuja condição é satisfeita.
+  const INS_REC_POOL = {
+    forma: [
+      { when: c => c.tsb > 15,                      cls: 'lime',    icon: 'fa-circle-check',         title: 'Janela de pico',        msg: 'TSB bem positivo — ideal para uma prova, KOM ou teste de performance nos próximos dias.' },
+      { when: c => c.tsb > 5,                       cls: 'lime',    icon: 'fa-circle-check',         title: 'Aproveite a forma',     msg: 'Você está fresco e em forma — programe um pedal forte enquanto o TSB está positivo.' },
+      { when: c => c.tsb > -10,                     cls: 'lime',    icon: 'fa-gauge',                title: 'Mantenha o ritmo',      msg: 'Carga e recuperação equilibradas — siga com o plano de treino atual.' },
+      { when: c => c.tsb > -25,                     cls: 'amber',   icon: 'fa-gauge-high',           title: 'Bom estímulo',          msg: 'Carga acumulando bem. Treino normal ok, mas evite excesso de volume esta semana.' },
+      { when: c => true,                            cls: 'magenta', icon: 'fa-triangle-exclamation', title: 'Priorize recuperação',  msg: 'Sobrecarga acumulada — reduza volume e intensidade nos próximos dias para evitar overreaching.' },
+    ],
+    sono: [
+      { when: c => c.sonoMedH != null && c.sonoMedH < 6,   cls: 'magenta', icon: 'fa-bed', title: 'Sono insuficiente', msg: c => `Média de apenas ${c.sonoMedH.toFixed(1).replace('.', ',')}h nas últimas noites. A recuperação está comprometida — priorize dormir.` },
+      { when: c => c.sonoMedH != null && c.sonoMedH < 7,   cls: 'amber',   icon: 'fa-bed', title: 'Cuide do sono',     msg: c => `Sua média caiu para ${c.sonoMedH.toFixed(1).replace('.', ',')}h. Priorize o descanso antes do próximo bloco intenso.` },
+      { when: c => c.sonoMedH != null,                     cls: 'lime',    icon: 'fa-bed', title: 'Sono em dia',       msg: c => `Média de ${c.sonoMedH.toFixed(1).replace('.', ',')}h — boa base de recuperação. Mantenha a rotina.` },
+      { when: c => true,                                   cls: 'amber',   icon: 'fa-bed', title: 'Registre o sono',   msg: 'Sincronize o sono no Garmin para acompanhar a qualidade da sua recuperação.' },
+    ],
+    intensidade: [
+      { when: c => c.hrvDelta != null && c.hrvDelta < -6,  cls: 'magenta', icon: 'fa-heart-pulse', title: 'HRV em queda',           msg: 'Sua HRV noturna caiu na última semana — sinal de fadiga. Inclua um dia leve ou de descanso.' },
+      { when: c => c.pctAlto < 0.10,                       cls: 'magenta', icon: 'fa-mountain',    title: 'Adicione subidas',       msg: 'Pouco volume em Z4–Z5 nas últimas 2 semanas. Inclua intervalados em rampa para ganhar potência.' },
+      { when: c => c.pctAlto > 0.30,                       cls: 'lime',    icon: 'fa-arrow-down-wide-short', title: 'Equilibre com base', msg: 'Muito volume em alta intensidade — adicione pedais longos em Z2 para consolidar a base aeróbica.' },
+      { when: c => true,                                   cls: 'amber',   icon: 'fa-bolt',        title: 'Boa dose de intensidade', msg: 'Distribuição de zonas equilibrada — mantenha a mescla de base e intensidade.' },
+    ],
+  };
+
+  function pickRec(cat, ctx) {
+    const pool = INS_REC_POOL[cat] || [];
+    const r = pool.find(x => { try { return x.when(ctx); } catch (_) { return false; } });
+    if (!r) return null;
+    return { cls: r.cls, icon: r.icon, title: r.title, msg: typeof r.msg === 'function' ? r.msg(ctx) : r.msg };
+  }
+
+  function renderInsRecs(tsb, healthArr, activities, fcMax) {
+    const cont = $('ins-recs');
+    if (!cont) return;
+
+    // Sono (média das últimas noites)
+    const sonoVals = healthArr.filter(h => h.sono_total_s != null).slice(0, 7).map(h => h.sono_total_s);
+    const sonoMedH = sonoVals.length ? (sonoVals.reduce((s, v) => s + v, 0) / sonoVals.length) / 3600 : null;
+
+    // Volume em alta intensidade (Z4–Z5 ≈ fcMedia ≥ 85% FCM) nas últimas 2 semanas
+    const duasSem = Date.now() - 14 * 86400_000;
+    let altoTempo = 0, totalTempo = 0;
+    (activities || []).forEach(a => {
+      const d = new Date(a.inicio || a.data); if (isNaN(d) || d.getTime() < duasSem) return;
+      const intens = a.fcMedia && fcMax ? a.fcMedia / fcMax : 0;
+      totalTempo += (a.tempoMovS || 0);
+      if (intens >= 0.85) altoTempo += (a.tempoMovS || 0);
+    });
+    const pctAlto = totalTempo ? altoTempo / totalTempo : 0;
+
+    // Tendência de HRV (semana atual vs. anterior)
+    const hrvSerie = healthArr.filter(h => h.hrv_noite_avg != null).map(h => h.hrv_noite_avg);
+    const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+    const hrvSem = avg(hrvSerie.slice(0, 7)), hrvAnt = avg(hrvSerie.slice(7, 14));
+    const hrvDelta = (hrvSem != null && hrvAnt != null) ? hrvSem - hrvAnt : null;
+
+    const ctx = { tsb, sonoMedH, pctAlto, hrvDelta };
+    const recs = ['forma', 'sono', 'intensidade'].map(cat => pickRec(cat, ctx)).filter(Boolean);
+
+    const esc = window.esc || (s => String(s == null ? '' : s));
+    cont.innerHTML = recs.map(r =>
+      `<div class="ins-rec ${r.cls}"><div class="ins-rec-title"><i class="fa-solid ${r.icon}"></i>${esc(r.title)}</div><div class="ins-rec-msg">${esc(r.msg)}</div></div>`
+    ).join('');
+  }
+
+  function renderInsightsTop(activities, healthArr, prs, fcMax) {
+    const top = $('insights-top');
+    if (!top) return;
+
+    let ctl = 0, atl = 0, tsb = 0, ctlSerie = [], atlSerie = [];
+    if (activities.length && fcMax) {
+      const tssDia = {};
+      activities.forEach(a => { const t = tssDeAtividade(a, fcMax); if (t > 0) tssDia[a.data] = (tssDia[a.data] || 0) + t; });
+      const serie = [];
+      const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
+      for (let i = 59; i >= 0; i--) { const d = new Date(hoje); d.setDate(d.getDate() - i); serie.push(tssDia[d.toISOString().slice(0, 10)] || 0); }
+      ctlSerie = emaSeries(serie, 42);
+      atlSerie = emaSeries(serie, 7);
+      ctl = ctlSerie[ctlSerie.length - 1] || 0;
+      atl = atlSerie[atlSerie.length - 1] || 0;
+      tsb = ctl - atl;
+    }
+    top.hidden = false;
+
+    // Banner
+    let bTitle, bMsg, bColor, bIcon;
+    if (tsb > 10)       { bTitle = 'Forma em pico — aproveite a janela'; bMsg = 'Seu balanço de treino (TSB) está positivo e a fadiga baixa. Bom momento para um pedal forte ou prova.'; bColor = 'var(--lime)'; bIcon = 'fa-bolt'; }
+    else if (tsb > -5)  { bTitle = 'Em equilíbrio'; bMsg = 'Carga e recuperação equilibradas — mantenha o ritmo de treino atual.'; bColor = 'var(--lime)'; bIcon = 'fa-scale-balanced'; }
+    else if (tsb > -20) { bTitle = 'Carregado — bom estímulo'; bMsg = 'Carga acumulada. Treino normal ok, mas monitore sinais de cansaço.'; bColor = 'var(--amber)'; bIcon = 'fa-gauge-high'; }
+    else                { bTitle = 'Sobrecarga — priorize recuperação'; bMsg = 'Risco de overreaching. Reduza volume e intensidade nos próximos dias.'; bColor = 'var(--magenta)'; bIcon = 'fa-triangle-exclamation'; }
+    const banner = $('ins-banner'); if (banner) banner.style.background = bColor;
+    $('ins-banner-title').textContent = bTitle;
+    $('ins-banner-msg').textContent = bMsg;
+    $('ins-banner-tsb').textContent = (tsb >= 0 ? '+' : '') + tsb.toFixed(0);
+    const bico = $('ins-banner-ico'); if (bico) bico.className = 'fa-solid ' + bIcon;
+
+    // KPIs
+    $('ins-kpi-ctl').textContent = ctl.toFixed(0);
+    $('ins-kpi-atl').textContent = atl.toFixed(0);
+    $('ins-kpi-atl-sub').textContent = atl <= ctl ? 'recuperado' : 'fadiga elevada';
+    let vo2 = null;
+    (prs || []).forEach(p => { if (p.type_id === 13) vo2 = p.valor > 1000 ? p.valor / 1000 : p.valor; });
+    $('ins-kpi-vo2').textContent = vo2 ? vo2.toFixed(0) : '—';
+    $('ins-kpi-vo2-sub').textContent = vo2 ? 'estimado pelo Garmin' : 'sincronize o Garmin';
+    const hrvVals = healthArr.filter(h => h.hrv_noite_avg != null).slice(0, 7).map(h => h.hrv_noite_avg);
+    const hrv = hrvVals.length ? hrvVals.reduce((s, v) => s + v, 0) / hrvVals.length : null;
+    $('ins-kpi-hrv').textContent = hrv ? Math.round(hrv) : '—';
+    $('ins-kpi-hrv-sub').textContent = hrv ? 'média 7 dias' : 'sem dados';
+
+    // Gráfico Carga × Fadiga × Forma (8 pontos semanais)
+    const labels = [], cArr = [], aArr = [], fArr = [];
+    for (let w = 7; w >= 0; w--) {
+      const idx = ctlSerie.length - 1 - w * 7;
+      if (idx < 0) continue;
+      labels.push('S' + (8 - w));
+      cArr.push(+ctlSerie[idx].toFixed(1));
+      aArr.push(+atlSerie[idx].toFixed(1));
+      fArr.push(+(ctlSerie[idx] - atlSerie[idx]).toFixed(1));
+    }
+    renderInsLoadChart(labels, cArr, aArr, fArr);
+    renderInsZoneChart();
+    renderInsRecs(tsb, healthArr, activities, fcMax);
+  }
+
+  // ───────────────────────────────────────────────────────────────
   // LOAD — busca dados e renderiza todos os insights
   // ───────────────────────────────────────────────────────────────
   async function load() {
@@ -785,6 +970,7 @@
       content.hidden = false;
 
       // Roda cada insight individualmente — falha em um não derruba os outros
+      try { renderInsightsTop(activities, healthArr, prs, fcMax); } catch (e) { console.error('[insights] topo', e); }
       try { renderFadiga(healthArr); }                              catch (e) { console.error('[insights] 7.1', e); }
       try { renderTSS(activities, fcMax); }                         catch (e) { console.error('[insights] 7.4', e); }
       try { renderTrimpSemanal(activities, weights, fcMax); }       catch (e) { console.error('[insights] 7.3', e); }

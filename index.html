@@ -15,9 +15,11 @@
              worker-src 'self';"
   >
 
-  <link rel="icon" type="image/png" href="icone.png">
-  <link rel="apple-touch-icon" href="icone.png">
-  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.0.29">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.0.29">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.0.29">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.0.29">
+  <link rel="manifest" href="manifest.json?v=2.0.29">
 
   <title>Treino Bike</title>
 
@@ -36,10 +38,10 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.0.0">
-  <link rel="stylesheet" href="css/rides.css?v=2.0.0">
-  <link rel="stylesheet" href="css/routes.css?v=2.0.0">
-  <link rel="stylesheet" href="css/bikes.css?v=2.0.0">
+  <link rel="stylesheet" href="css/style.css?v=2.0.29">
+  <link rel="stylesheet" href="css/rides.css?v=2.0.29">
+  <link rel="stylesheet" href="css/routes.css?v=2.0.29">
+  <link rel="stylesheet" href="css/bikes.css?v=2.0.29">
 </head>
 <body>
 
@@ -81,49 +83,72 @@
 <!-- ═══════════════════ MAIN ═════════════════════════════════════════ -->
 <main>
 
-  <!-- ┌─ HOME (Fase 8.2) ──────────────────────────────────────────┐ -->
+  <!-- ┌─ HOME (Fase 8.2 · estrutura Hi-Vis v2.0) ──────────────────┐ -->
   <section id="home" class="scroll-mt-20">
-    <div class="section-label">Início</div>
-    <h2 class="section-title" id="home-greeting">Olá!</h2>
-    <p class="section-sub" style="margin-bottom:28px;" id="home-subline">Carregando seu resumo…</p>
+
+    <!-- Hero / saudação (faixa-jersey + hachura diagonal) -->
+    <div class="home-hero">
+      <div class="home-hero-hatch" aria-hidden="true"></div>
+      <div class="home-hero-stripe" aria-hidden="true"></div>
+      <div class="home-hero-inner">
+        <div>
+          <div class="section-label">Início</div>
+          <h2 class="section-title" id="home-greeting">Olá!</h2>
+          <p class="section-sub" id="home-subline">Carregando seu resumo…</p>
+        </div>
+        <div class="home-actions">
+          <button type="button" class="btn btn-primary" id="home-btn-training">
+            <i class="fa-solid fa-bicycle"></i> Marcar treino
+          </button>
+          <button type="button" class="btn btn-ghost" id="home-btn-sync">
+            <i class="fa-solid fa-rotate"></i> Sincronizar
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Linha de KPIs -->
     <div class="home-kpis">
       <div class="home-kpi">
-        <div class="home-kpi-label">Meta de peso</div>
-        <div class="home-kpi-val" id="home-meta-val">—</div>
-        <div class="home-kpi-sub" id="home-meta-sub">—</div>
+        <div class="home-kpi-head">
+          <span class="home-kpi-label">Esta semana</span>
+          <i class="fa-solid fa-road home-kpi-icon"></i>
+        </div>
+        <div class="home-kpi-val"><span id="home-week-km">—</span><span class="home-kpi-unit">km</span></div>
+        <div class="home-kpi-sub" id="home-week-sub">pedalados</div>
       </div>
       <div class="home-kpi">
-        <div class="home-kpi-label">Esta semana</div>
-        <div class="home-kpi-val" id="home-week-km">—</div>
-        <div class="home-kpi-sub" id="home-week-sub">km pedalados</div>
-      </div>
-      <div class="home-kpi">
-        <div class="home-kpi-label">Sequência</div>
-        <div class="home-kpi-val" id="home-streak">—</div>
+        <div class="home-kpi-head">
+          <span class="home-kpi-label">Sequência</span>
+          <i class="fa-solid fa-fire home-kpi-icon"></i>
+        </div>
+        <div class="home-kpi-val"><span id="home-streak">—</span><span class="home-kpi-unit">dias</span></div>
         <div class="home-kpi-sub" id="home-streak-sub">dias ativos</div>
       </div>
       <div class="home-kpi">
-        <div class="home-kpi-label">Fadiga</div>
-        <div class="home-kpi-val" id="home-fadiga">—</div>
+        <div class="home-kpi-head">
+          <span class="home-kpi-label">Fadiga</span>
+          <i class="fa-solid fa-heart-pulse home-kpi-icon"></i>
+        </div>
+        <div class="home-kpi-val home-kpi-accent"><span id="home-fadiga">—</span></div>
         <div class="home-kpi-sub" id="home-fadiga-sub">índice 0-100</div>
+      </div>
+      <div class="home-kpi">
+        <div class="home-kpi-head">
+          <span class="home-kpi-label">Meta de peso</span>
+          <i class="fa-solid fa-weight-scale home-kpi-icon"></i>
+        </div>
+        <div class="home-kpi-val"><span id="home-meta-val">—</span><span class="home-kpi-unit">kg</span></div>
+        <div class="home-kpi-sub" id="home-meta-sub">—</div>
       </div>
     </div>
 
-    <!-- Ações rápidas -->
-    <div class="home-actions">
-      <button type="button" class="btn btn-primary" id="home-btn-training">
-        <i class="fa-solid fa-bicycle"></i> Marcar treino
-      </button>
-      <button type="button" class="btn btn-ghost" id="home-btn-sync">
-        <i class="fa-solid fa-rotate"></i> Sincronizar
-      </button>
-    </div>
-
     <!-- Últimas atividades -->
-    <div class="card home-recent" id="home-recent-card" style="margin-top:20px;">
-      <div class="card-label">Últimas atividades</div>
+    <div class="card home-recent" id="home-recent-card">
+      <div class="home-recent-head">
+        <span class="card-label">Últimas atividades</span>
+        <a href="#/atividades" class="home-recent-all">Ver tudo <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
       <div id="home-recent-list" class="home-recent-list">
         <div style="color:var(--muted2);font-size:13px;">Carregando…</div>
       </div>
@@ -159,7 +184,7 @@
         </div>
         <div class="stat-row">
           <span class="stat-key">FC Máxima</span>
-          <span class="stat-val" style="color:var(--red)" id="stat-fcm">—</span>
+          <span class="stat-val" style="color:var(--magenta)" id="stat-fcm">—</span>
         </div>
         <div class="stat-row">
           <span class="stat-key">Bike</span>
@@ -175,7 +200,7 @@
           </div>
           <div class="goal-metric">
             <span class="goal-metric-label">Perda total</span>
-            <span class="goal-metric-val" style="color:var(--red)" id="stat-perda">—</span>
+            <span class="goal-metric-val" style="color:var(--teal)" id="stat-perda">—</span>
           </div>
           <div class="goal-metric">
             <span class="goal-metric-label">IMC na meta</span>
@@ -203,7 +228,9 @@
           </div>
 
           <div class="chart-card">
-            <span class="card-label">Distribuição de intensidade</span>
+            <span class="card-label">Distribuição de intensidade
+              <button class="insight-info-btn" data-info="Percentual do tempo em cada zona de frequência cardíaca (Z1–Z5), somado a partir das suas atividades sincronizadas do Garmin nos últimos 90 dias."><i class="fa-solid fa-circle-info"></i></button>
+            </span>
             <div class="chart-wrap"><canvas id="intensityChart"></canvas></div>
           </div>
         </div>
@@ -239,7 +266,7 @@
     <div id="zones" class="scroll-mt-20" style="margin-top:48px;">
       <div class="section-label">Fisiologia</div>
       <h2 class="section-title">
-        <i class="fa-solid fa-heart-pulse" style="color:var(--red);font-size:0.7em;margin-right:10px"></i>Zonas de treino
+        <i class="fa-solid fa-heart-pulse" style="color:var(--magenta);font-size:0.7em;margin-right:10px"></i>Zonas de treino
       </h2>
       <p class="section-sub" id="zones-subtitle">Calculando zonas…</p>
 
@@ -253,14 +280,14 @@
         </div>
         <div class="zone-card z2">
           <div class="zone-top">
-            <span class="zone-name">Z2 — Resistência (Gordura)</span>
+            <span class="zone-name">Z2 — Resistência</span>
             <span class="zone-bpm" id="zone2-range">—</span>
           </div>
           <p class="zone-desc">Zona mágica para perder peso. Eficiência lipídica.</p>
         </div>
         <div class="zone-card z3">
           <div class="zone-top">
-            <span class="zone-name">Z3 — Tempo (Aeróbica)</span>
+            <span class="zone-name">Z3 — Aeróbica</span>
             <span class="zone-bpm" id="zone3-range">—</span>
           </div>
           <p class="zone-desc">Melhora o transporte de oxigênio.</p>
@@ -281,7 +308,7 @@
         </div>
         <div class="zone-card z6">
           <div class="zone-top">
-            <span class="zone-name">Z6 — Cap. Anaeróbica</span>
+            <span class="zone-name">Z6 — Anaeróbica</span>
             <span class="zone-bpm" id="zone6-range">—</span>
           </div>
           <p class="zone-desc">Tiros curtos (&lt;2 min). Explosão máxima.</p>
@@ -295,10 +322,10 @@
     <div class="section-head">
       <div>
         <div class="section-label">Equipamento</div>
-        <h2 class="section-title">Bike</h2>
+        <h2 class="section-title">Garagem</h2>
         <p class="section-sub">Cadastre suas bicicletas e acompanhe desgaste de componentes (pneu, corrente, freios) baseado nos km das atividades.</p>
       </div>
-      <button id="btn-add-bike" class="btn btn-primary btn-sm" type="button">
+      <button id="btn-add-bike" class="btn btn-primary" type="button">
         <i class="fa-solid fa-plus"></i> Nova bicicleta
       </button>
     </div>
@@ -323,11 +350,11 @@
       <div class="card">
         <div class="workout-header">
           <div style="max-width:500px;">
-            <h2 style="font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-0.025em;margin-bottom:8px;color:var(--text);">Fortalecimento em casa</h2>
+            <h2 style="font-family:var(--font-display);font-size:clamp(34px,5vw,50px);font-weight:400;letter-spacing:0.01em;line-height:0.9;text-transform:uppercase;margin-bottom:8px;color:var(--text);">Fortalecimento em casa</h2>
             <p class="section-sub">Circuito Core &amp; Pernas — 2 a 3× por semana nos dias de descanso da bike.</p>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span class="badge badge-amber"><i class="fa-solid fa-fire"></i> Core &amp; Estabilidade</span>
+            <span class="badge badge-magenta"><i class="fa-solid fa-fire"></i> Core &amp; Estabilidade</span>
             <button id="btn-add-home-exercise" class="btn btn-primary btn-sm" type="button">
               <i class="fa-solid fa-plus"></i> Exercício
             </button>
@@ -462,7 +489,7 @@
             <div><div class="routes-stat-label">Desnível +</div><div class="routes-stat-val" id="stat-desnivel-pos">—</div></div>
           </div>
           <div class="routes-stat">
-            <div class="routes-stat-icon" style="background:var(--red-dim);color:var(--red)"><i class="fa-solid fa-arrow-trend-down"></i></div>
+            <div class="routes-stat-icon" style="background:var(--magenta-dim);color:var(--magenta)"><i class="fa-solid fa-arrow-trend-down"></i></div>
             <div><div class="routes-stat-label">Desnível −</div><div class="routes-stat-val" id="stat-desnivel-neg">—</div></div>
           </div>
           <div class="routes-stat">
@@ -520,28 +547,44 @@
 
   <!-- ┌─ ATIVIDADES ────────────────────────────────────────────────┐ -->
   <section id="activities" class="scroll-mt-20">
-    <div class="section-label">Histórico</div>
-    <h2 class="section-title">Histórico</h2>
-    <p class="section-sub" style="margin-bottom:28px;">
-      Visão consolidada das suas atividades, heat-map de constância e auto-registros importados.
-    </p>
+    <div class="section-head">
+      <div>
+        <div class="section-label">Registro</div>
+        <h2 class="section-title">Histórico de pedaladas</h2>
+        <p class="section-sub">Todas as suas atividades sincronizadas, com volume mensal e mapa de constância.</p>
+      </div>
+      <div class="hist-year-filters" id="hist-year-filters"><!-- chips de ano (gerados em activities.js) --></div>
+    </div>
 
-    <!-- Mini-relatório 90 dias (movido do Perfil em 8.5) -->
-    <div class="report-90d card" id="report-90d" style="display:none;margin-bottom:20px;">
-      <div class="card-label">Evolução — Últimos 90 dias</div>
-      <div class="report-stats">
-        <div class="report-stat">
-          <div class="report-stat-val" id="r90-dias">—</div>
-          <div class="report-stat-label">dias treinados</div>
+    <!-- 4 KPIs do período/ano selecionado -->
+    <div class="home-kpis" id="hist-kpis" style="display:none;margin-bottom:24px;">
+      <div class="home-kpi">
+        <div class="home-kpi-head">
+          <span class="home-kpi-label">Distância <span class="hist-kpi-tag" id="hist-kpi-dist-tag"></span></span>
+          <i class="fa-solid fa-road home-kpi-icon"></i>
         </div>
-        <div class="report-stat">
-          <div class="report-stat-val" id="r90-tipo">—</div>
-          <div class="report-stat-label">tipo mais frequente</div>
+        <div class="home-kpi-val"><span id="hist-kpi-dist">—</span><span class="home-kpi-unit">km</span></div>
+      </div>
+      <div class="home-kpi">
+        <div class="home-kpi-head">
+          <span class="home-kpi-label">Tempo total <span class="hist-kpi-tag" id="hist-kpi-tempo-tag"></span></span>
+          <i class="fa-solid fa-clock home-kpi-icon"></i>
         </div>
-        <div class="report-stat">
-          <div class="report-stat-val" id="r90-peso">—</div>
-          <div class="report-stat-label">média de peso</div>
+        <div class="home-kpi-val"><span id="hist-kpi-tempo">—</span><span class="home-kpi-unit">h</span></div>
+      </div>
+      <div class="home-kpi">
+        <div class="home-kpi-head">
+          <span class="home-kpi-label">Elevação <span class="hist-kpi-tag" id="hist-kpi-elev-tag"></span></span>
+          <i class="fa-solid fa-mountain home-kpi-icon"></i>
         </div>
+        <div class="home-kpi-val"><span id="hist-kpi-elev">—</span><span class="home-kpi-unit">km</span></div>
+      </div>
+      <div class="home-kpi">
+        <div class="home-kpi-head">
+          <span class="home-kpi-label">Atividades <span class="hist-kpi-tag" id="hist-kpi-ativ-tag"></span></span>
+          <i class="fa-solid fa-flag-checkered home-kpi-icon"></i>
+        </div>
+        <div class="home-kpi-val"><span id="hist-kpi-ativ">—</span></div>
       </div>
     </div>
 
@@ -610,7 +653,7 @@
 
       <!-- Linha 2: volume mensal -->
       <div class="card volume-card" style="margin-top:20px;">
-        <div class="card-label">Volume mensal · últimos 6 meses</div>
+        <div class="card-label">Volume mensal <span class="hist-kpi-tag" id="hist-tag-volume"></span></div>
         <div class="chart-wrap"><canvas id="volumeChart"></canvas></div>
       </div>
 
@@ -632,7 +675,7 @@
 
       <!-- Linha 3.5: últimas 5 atividades (Fase 9.1) -->
       <div class="card last5-card" id="last5-card" style="margin-top:20px;" hidden>
-        <div class="card-label">Últimas 5 atividades</div>
+        <div class="card-label">Últimas 5 atividades <span class="hist-kpi-tag" id="hist-tag-last5"></span></div>
         <div id="last5-list" class="last5-list"></div>
       </div>
 
@@ -695,14 +738,69 @@
 
   <!-- ┌─ INSIGHTS (Fase 7) ────────────────────────────────────────┐ -->
   <section id="insights" class="scroll-mt-20">
-    <div class="section-label">Análise</div>
-    <h2 class="section-title">Insights</h2>
+    <div class="section-label">Análise de carga</div>
+    <h2 class="section-title">Insights de treino</h2>
     <p class="section-sub" style="margin-bottom:28px;">
-      Análises derivadas dos dados Garmin Connect — fadiga, recuperação, carga de treino e eficiência metabólica.
+      Carga, forma e fadiga calculadas a partir das suas atividades e dados de saúde do Garmin.
     </p>
 
     <div id="insights-empty" class="card" style="padding:28px;text-align:center;color:var(--muted2);">
       Sincronize com o Garmin para ver seus insights aqui.
+    </div>
+
+    <!-- ── Topo Hi-Vis: banner + KPIs + carga×fadiga×forma + zona + recomendações ── -->
+    <div id="insights-top" hidden>
+      <div class="ins-banner" id="ins-banner">
+        <div class="ins-banner-icon"><i class="fa-solid fa-bolt" id="ins-banner-ico"></i></div>
+        <div class="ins-banner-body">
+          <div class="ins-banner-title" id="ins-banner-title">—</div>
+          <div class="ins-banner-msg" id="ins-banner-msg">—</div>
+        </div>
+        <div class="ins-banner-tsb">
+          <div class="ins-banner-tsb-val" id="ins-banner-tsb">—</div>
+          <div class="ins-banner-tsb-lbl">TSB hoje</div>
+        </div>
+      </div>
+
+      <div class="home-kpis" style="margin-bottom:24px;">
+        <div class="home-kpi">
+          <div class="home-kpi-head"><span class="home-kpi-label">Carga (CTL)</span><i class="fa-solid fa-layer-group home-kpi-icon"></i></div>
+          <div class="home-kpi-val"><span id="ins-kpi-ctl">—</span></div>
+          <div class="home-kpi-sub" id="ins-kpi-ctl-sub">forma de base</div>
+        </div>
+        <div class="home-kpi">
+          <div class="home-kpi-head"><span class="home-kpi-label">Fadiga (ATL)</span><i class="fa-solid fa-battery-half home-kpi-icon"></i></div>
+          <div class="home-kpi-val"><span id="ins-kpi-atl">—</span></div>
+          <div class="home-kpi-sub" id="ins-kpi-atl-sub">carga aguda</div>
+        </div>
+        <div class="home-kpi">
+          <div class="home-kpi-head"><span class="home-kpi-label">VO₂ máx</span><i class="fa-solid fa-lungs home-kpi-icon"></i></div>
+          <div class="home-kpi-val"><span id="ins-kpi-vo2">—</span><span class="home-kpi-unit">ml/kg</span></div>
+          <div class="home-kpi-sub" id="ins-kpi-vo2-sub">—</div>
+        </div>
+        <div class="home-kpi">
+          <div class="home-kpi-head"><span class="home-kpi-label">HRV noturno</span><i class="fa-solid fa-wave-square home-kpi-icon"></i></div>
+          <div class="home-kpi-val"><span id="ins-kpi-hrv">—</span><span class="home-kpi-unit">ms</span></div>
+          <div class="home-kpi-sub" id="ins-kpi-hrv-sub">—</div>
+        </div>
+      </div>
+
+      <div class="ins-top-charts">
+        <div class="card">
+          <div class="card-label">Carga × Fadiga × Forma · 8 semanas
+            <button class="insight-info-btn" data-info="Carga (CTL) = condicionamento de base, média de 42 dias. Fadiga (ATL) = carga aguda, média de 7 dias. Forma (TSB) = Carga − Fadiga: positiva indica frescor; negativa, fadiga acumulada."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
+          <div class="chart-wrap" style="height:240px;"><canvas id="insLoadChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Tempo por zona · 30 dias
+            <button class="insight-info-btn" data-info="Distribuição do tempo em cada zona de frequência cardíaca (Z1–Z5) nas atividades sincronizadas do Garmin nos últimos 30 dias."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
+          <div class="chart-wrap" style="height:240px;"><canvas id="insZoneChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="ins-recs" id="ins-recs"></div>
     </div>
 
     <div id="insights-content" class="insights-grid" hidden>
@@ -880,31 +978,31 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.0.0"></script>
-<script src="js/utils.js?v=2.0.0"></script>
-<script src="js/router.js?v=2.0.0"></script>
-<script src="js/defaults.js?v=2.0.0"></script>
-<script src="js/api.js?v=2.0.0"></script>
-<script src="js/storage.js?v=2.0.0"></script>
-<script src="js/profile.js?v=2.0.0"></script>
-<script src="js/charts.js?v=2.0.0"></script>
-<script src="js/modals.js?v=2.0.0"></script>
-<script src="js/workouts.js?v=2.0.0"></script>
-<script src="js/rides.js?v=2.0.0"></script>
-<script src="js/bikes.js?v=2.0.0"></script>
-<script src="js/training-log.js?v=2.0.0"></script>
-<script src="js/home-workout.js?v=2.0.0"></script>
-<script src="js/backup.js?v=2.0.0"></script>
-<script src="js/gpx.js?v=2.0.0"></script>
-<script src="js/routes.js?v=2.0.0"></script>
-<script src="js/heatmap.js?v=2.0.0"></script>
-<script src="js/strava.js?v=2.0.0"></script>
-<script src="js/garmin.js?v=2.0.0"></script>
-<script src="js/activities.js?v=2.0.0"></script>
-<script src="js/insights.js?v=2.0.0"></script>
-<script src="js/home.js?v=2.0.0"></script>
-<script src="js/app.js?v=2.0.0"></script>
-<script src="js/pwa.js?v=2.0.0"></script>
+<script src="js/version.js?v=2.0.29"></script>
+<script src="js/utils.js?v=2.0.29"></script>
+<script src="js/router.js?v=2.0.29"></script>
+<script src="js/defaults.js?v=2.0.29"></script>
+<script src="js/api.js?v=2.0.29"></script>
+<script src="js/storage.js?v=2.0.29"></script>
+<script src="js/profile.js?v=2.0.29"></script>
+<script src="js/charts.js?v=2.0.29"></script>
+<script src="js/modals.js?v=2.0.29"></script>
+<script src="js/workouts.js?v=2.0.29"></script>
+<script src="js/rides.js?v=2.0.29"></script>
+<script src="js/bikes.js?v=2.0.29"></script>
+<script src="js/training-log.js?v=2.0.29"></script>
+<script src="js/home-workout.js?v=2.0.29"></script>
+<script src="js/backup.js?v=2.0.29"></script>
+<script src="js/gpx.js?v=2.0.29"></script>
+<script src="js/routes.js?v=2.0.29"></script>
+<script src="js/heatmap.js?v=2.0.29"></script>
+<script src="js/strava.js?v=2.0.29"></script>
+<script src="js/garmin.js?v=2.0.29"></script>
+<script src="js/activities.js?v=2.0.29"></script>
+<script src="js/insights.js?v=2.0.29"></script>
+<script src="js/home.js?v=2.0.29"></script>
+<script src="js/app.js?v=2.0.29"></script>
+<script src="js/pwa.js?v=2.0.29"></script>
 
 </body>
 </html>

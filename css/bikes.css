@@ -18,6 +18,16 @@
 .bike-card-active {
   border-color: var(--teal);
   box-shadow: 0 0 0 1px var(--teal-dim) inset;
+  position: relative;
+  overflow: hidden;
+}
+/* Faixa-jersey lima/magenta no topo do card ativo */
+.bike-card-active::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 100%; height: 4px; pointer-events: none;
+  background: repeating-linear-gradient(90deg,
+    var(--lime) 0 14px, var(--bg) 14px 20px,
+    var(--magenta) 20px 34px, var(--bg) 34px 40px);
 }
 
 .bike-header {
@@ -31,17 +41,18 @@
 .bike-active-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 10px;
   font-weight: 700;
   padding: 3px 8px;
-  background: var(--teal);
-  color: #fff;
+  background: var(--teal-dim);
+  color: var(--teal);
   border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
+.bike-active-badge.is-inactive { background: var(--magenta-dim); color: var(--magenta); }
 .bike-active-badge i { font-size: 8px; }
 .bike-active-since {
   font-size: 11px;
@@ -52,12 +63,15 @@
   letter-spacing: 0;
 }
 .bike-name {
-  font-size: 20px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
   color: var(--text);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 4px;
 }
 .bike-name i { color: var(--teal); }
@@ -84,7 +98,8 @@
   transition: background 0.15s, color 0.15s;
 }
 .bike-icon-btn:hover { background: var(--surface3); color: var(--text); }
-.bike-icon-btn.danger:hover { color: var(--red); }
+.bike-icon-btn.danger { color: var(--magenta); }
+.bike-icon-btn.danger:hover { color: var(--magenta); border-color: var(--magenta); }
 
 /* Stats agregadas (km · tempo · elevação) */
 .bike-stats-block {
@@ -96,21 +111,24 @@
 .bike-stat {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
+  text-align: left;
   gap: 2px;
-  padding: 10px 4px;
+  padding: 16px 16px 14px;
   background: var(--surface2);
   border-radius: 10px;
 }
 .bike-stat-icon {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--teal);
-  margin-bottom: 2px;
+  margin-bottom: 6px;
 }
 .bike-stat-value {
-  font-size: 16px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 0.85;
   color: var(--text);
 }
 .bike-stat-label {
@@ -118,6 +136,7 @@
   color: var(--muted2);
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  margin-top: 6px;
 }
 
 /* Componentes */
@@ -323,14 +342,17 @@
   transition: all 0.2s;
 }
 .bike-filter-chip:hover { color: var(--text); }
+/* Ativo "Todos": lima translúcido (outline), não preenchido sólido. */
 .bike-filter-chip.is-active {
-  background: var(--teal);
+  background: var(--teal-dim);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--teal);
 }
-.bike-filter-chip.has-attention:not(.is-active) {
-  color: var(--amber);
-  border-color: var(--amber);
+/* "Atenção" com itens: magenta translúcido (mesmo quando não selecionado). */
+.bike-filter-chip.has-attention {
+  background: var(--magenta-dim);
+  border-color: var(--magenta);
+  color: var(--magenta);
 }
 
 /* Intervalos de serviço recorrentes */
