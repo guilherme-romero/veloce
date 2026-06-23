@@ -385,7 +385,7 @@ function renderWeightAnalysis() {
   let previsao = '—', semanas = '—', msg = '';
   if (faltam <= 0) {
     previsao = 'Meta atingida!';
-    semanas  = '0';
+    semanas  = '—';
     msg      = 'Parabéns! Você atingiu sua meta de peso.';
   } else if (slope < 0) {
     const diasNecessarios = faltam / Math.abs(slope);
@@ -396,10 +396,14 @@ function renderWeightAnalysis() {
     if (semsNec > 52) msg = 'Taxa atual lenta — considere ajustar plano.';
     else if (semsNec > 26) msg = 'Progresso consistente — mantenha o ritmo!';
     else msg = `Meta em ~${semsNec} semanas no ritmo atual.`;
-  } else {
-    previsao = 'N/A';
+  } else if (Math.abs(slope) < 0.01) {
+    previsao = '—';
     semanas  = '—';
-    msg      = 'Taxa atual indica ganho de peso — revise alimentação e treinos.';
+    msg      = 'Peso estável — sem tendência de perda no período.';
+  } else {
+    previsao = '—';
+    semanas  = '—';
+    msg      = 'Tendência de ganho — revise alimentação e treinos.';
   }
   document.getElementById('wa-previsao').textContent = previsao;
   document.getElementById('wa-semanas').textContent  = semanas;

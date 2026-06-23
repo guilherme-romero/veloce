@@ -145,8 +145,12 @@
               <div class="hr-stat"><div class="hr-stat-val hr-speed">${esc(vel)}</div><div class="hr-stat-lbl">km/h</div></div>
               <div class="hr-stat"><div class="hr-stat-val hr-elev">${esc(elev)}</div><div class="hr-stat-lbl"><i class="fa-solid fa-arrow-trend-up"></i> elev m</div></div>
             </div>
+            <button class="home-recent-del" data-id="${esc(String(a.id))}" data-fonte="${esc(a.fonte || '')}" title="Excluir atividade">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
           </div>`;
       }).join('');
+
     } catch (e) {
       console.error('[home] activities', e);
       list.innerHTML = '<div style="color:var(--muted2);font-size:13px;">Falha ao carregar atividades.</div>';
@@ -184,13 +188,23 @@
     // KPI 4 — Fadiga / Training Readiness (prioriza Readiness Garmin se disponível)
     // Busca async — não bloqueia o load síncrono dos outros KPIs
     (async () => {
+      function readinessClass(score) {
+        if (score == null) return 'kpi-hl-lime';
+        if (score > 65) return 'kpi-hl-lime';
+        if (score >= 35) return 'kpi-hl-amber';
+        return 'kpi-hl-magenta';
+      }
       try {
         const readiness = await window.Api.get('/garmin/training-readiness?days=1');
         if (Array.isArray(readiness) && readiness.length > 0 && readiness[0].score != null) {
           const r = readiness[0];
-          $('home-fadiga').textContent = r.score;
+          const cls = readinessClass(r.score);
+          const fadigaEl = $('home-fadiga');
+          fadigaEl.textContent = r.score;
+          fadigaEl.className = fadigaEl.className.replace(/kpi-hl-\w+/g, '').trim();
+          fadigaEl.classList.add(cls);
           $('home-fadiga-sub').innerHTML = r.level
-            ? `prontidão <b class="kpi-hl-lime">${esc(r.level)}</b>`
+            ? `prontidão <b class="${cls}">${esc(r.level)}</b>`
             : '—';
           // Label do card vira "Readiness" pra deixar claro
           const labelEl = document.querySelector('#home .home-kpi:nth-child(3) .home-kpi-label');
@@ -207,6 +221,26 @@
         $('home-fadiga-sub').textContent = 'sincronize Garmin';
       }
     })();
+
+    // Delegação de delete em atividades recentes — vincula só uma vez
+    const recentList = $('home-recent-list');
+    if (recentList && !recentList._delWired) {
+      recentList._delWired = true;
+      recentList.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.home-recent-del');
+        if (!btn) return;
+        if (!confirm('Excluir esta atividade do app? O próximo sync a restaurará se ainda existir no Garmin/Strava.')) return;
+        const { id, fonte } = btn.dataset;
+        try {
+          await window.Api.del(`/activities/${fonte}/${id}`);
+          if (window.toast) window.toast('Atividade excluída', 'success');
+          loadLastActivities();
+        } catch (err) {
+          console.error('[home] delete activity', err);
+          if (window.toast) window.toast('Falha ao excluir atividade', 'error');
+        }
+      });
+    }
 
     // Ações rápidas — vincula só uma vez (load() pode ser re-chamado p/ refresh)
     const actions = $('home-btn-training');

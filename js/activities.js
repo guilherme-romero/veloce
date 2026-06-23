@@ -56,16 +56,21 @@
     const now = new Date();
     const thisWeekStart = weekStart(now);
     const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-    const acc = (start, end) => activities.reduce((a, x) => {
-      const d = new Date(x.inicio);
-      if (d >= start && d < end) {
-        a.km    += (x.distanciaKm || 0);
-        a.time  += (x.tempoMovS   || 0);
-        a.elev  += (x.elevacaoM   || 0);
-        a.count += 1;
-      }
-      return a;
-    }, { km: 0, time: 0, elev: 0, count: 0 });
+    const acc = (start, end) => {
+      const r = activities.reduce((a, x) => {
+        const d = new Date(x.inicio);
+        if (d >= start && d < end) {
+          a.km       += (x.distanciaKm || 0);
+          a.time     += (x.tempoMovS   || 0);
+          a.elev     += (x.elevacaoM   || 0);
+          a.calorias += (x.calorias    || 0);
+          a.count    += 1;
+        }
+        return a;
+      }, { km: 0, time: 0, elev: 0, calorias: 0, count: 0 });
+      r.velMedia = r.time > 0 ? r.km / (r.time / 3600) : 0;
+      return r;
+    };
     return {
       curr: acc(thisWeekStart, new Date(thisWeekStart.getTime() + 7 * 86400_000)),
       prev: acc(lastWeekStart, thisWeekStart),
@@ -171,6 +176,7 @@
   }
 
   function applyYearFilter() {
+    _last5Page = 0;
     const acts = histActsForYear();
     renderHistKpis();
     renderVolume(_histYear === 'all' ? bucketByMonth(_histAll, 6) : bucketMonthsOfYear(acts, _histYear));
@@ -216,16 +222,26 @@
     $('week-elev').textContent   = Math.round(bucket.curr.elev) + ' m';
     $('week-count').textContent  = bucket.curr.count;
 
-    const dKm   = delta(bucket.curr.km,    bucket.prev.km);
-    const dTime = delta(bucket.curr.time,  bucket.prev.time);
-    const dElev = delta(bucket.curr.elev,  bucket.prev.elev);
-    const dCnt  = delta(bucket.curr.count, bucket.prev.count);
+    const velEl = $('week-vel');
+    if (velEl) velEl.textContent = bucket.curr.velMedia > 0 ? bucket.curr.velMedia.toFixed(1).replace('.', ',') + ' km/h' : '—';
 
-    const apply = (id, d) => { const el = $(id); el.textContent = d.txt; el.className = 'week-stat-delta ' + d.cls; };
+    const calEl = $('week-cal');
+    if (calEl) calEl.textContent = bucket.curr.calorias > 0 ? Math.round(bucket.curr.calorias).toLocaleString('pt-BR') + ' kcal' : '—';
+
+    const dKm   = delta(bucket.curr.km,       bucket.prev.km);
+    const dTime = delta(bucket.curr.time,     bucket.prev.time);
+    const dElev = delta(bucket.curr.elev,     bucket.prev.elev);
+    const dCnt  = delta(bucket.curr.count,    bucket.prev.count);
+    const dVel  = delta(bucket.curr.velMedia, bucket.prev.velMedia);
+    const dCal  = delta(bucket.curr.calorias, bucket.prev.calorias);
+
+    const apply = (id, d) => { const el = $(id); if (!el) return; el.textContent = d.txt; el.className = 'week-stat-delta ' + d.cls; };
     apply('week-km-delta',    dKm);
     apply('week-time-delta',  dTime);
     apply('week-elev-delta',  dElev);
     apply('week-count-delta', dCnt);
+    apply('week-vel-delta',   dVel);
+    apply('week-cal-delta',   dCal);
   }
 
   function renderVolume(buckets) {
@@ -584,6 +600,8 @@
   // ──────────────────────────────────────────────────────────────
   const _last5Maps = new Map(); // id → { map: L.Map, bounds: L.LatLngBounds } (para destruir/refitBounds)
   let _last5Token = 0;          // incrementado a cada render — promises de renders antigos descartam
+  let _last5Page  = 0;          // página atual (0-based)
+  let _last5Data  = [];         // atividades completas do ano selecionado (para paginação)
 
   function l5Km(v)    { return (v == null || !isFinite(v)) ? '—' : v.toFixed(1).replace('.', ',') + ' km'; }
   function l5Hm(s)    {
@@ -634,6 +652,14 @@
     const list = $('last5-list');
     if (!card || !list) return;
 
+    _last5Data = acts || [];
+
+    const PAGE_SIZE  = 5;
+    const total      = _last5Data.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    _last5Page       = Math.min(_last5Page, totalPages - 1);
+    const page       = _last5Page;
+
     // Token deste render — promises em voo de renders antigos serão descartadas
     const myToken = ++_last5Token;
 
@@ -641,7 +667,7 @@
     _last5Maps.forEach(({ map }) => { try { map.remove(); } catch (_) {} });
     _last5Maps.clear();
 
-    const top5 = (acts || []).slice(0, 5);
+    const top5 = _last5Data.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
     if (top5.length === 0) { card.hidden = true; return; }
     card.hidden = false;
 
@@ -713,6 +739,22 @@
         mapEl.classList.add('no-map');
       });
     });
+
+    // Paginação
+    const pag = $('last5-pagination');
+    if (pag) {
+      if (totalPages <= 1) {
+        pag.hidden = true;
+      } else {
+        pag.hidden = false;
+        pag.innerHTML = `
+          <button class="last5-pag-btn" id="last5-prev" ${page === 0 ? 'disabled' : ''}>&#8249;</button>
+          <span class="last5-pag-info">${page + 1} / ${totalPages}</span>
+          <button class="last5-pag-btn" id="last5-next" ${page >= totalPages - 1 ? 'disabled' : ''}>&#8250;</button>`;
+        $('last5-prev').onclick = () => { _last5Page = Math.max(0, _last5Page - 1); renderLast5(_last5Data); };
+        $('last5-next').onclick = () => { _last5Page = Math.min(totalPages - 1, _last5Page + 1); renderLast5(_last5Data); };
+      }
+    }
   }
 
   // Re-renderiza tiles dos mapas Leaflet (necessário quando os containers

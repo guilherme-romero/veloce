@@ -240,7 +240,9 @@
         : visibleComps.map(c => renderComponent(c)).join('');
 
     const activateBtn = isActive
-      ? ''
+      ? `<button class="btn btn-ghost btn-sm" data-act="deactivate-bike" data-bike="${escAttr(b.id)}">
+           <i class="fa-solid fa-power-off"></i> Inativar
+         </button>`
       : `<button class="btn btn-ghost btn-sm" data-act="activate-bike" data-bike="${escAttr(b.id)}">
            <i class="fa-solid fa-power-off"></i> Ativar
          </button>`;
@@ -448,9 +450,10 @@
       if (!bike) return;
 
       switch (act) {
-        case 'edit-bike':     return openBikeModal(bike);
-        case 'del-bike':      return confirmDeleteBike(bike);
-        case 'activate-bike': return openActivateModal(bike);
+        case 'edit-bike':       return openBikeModal(bike);
+        case 'del-bike':        return confirmDeleteBike(bike);
+        case 'activate-bike':   return openActivateModal(bike);
+        case 'deactivate-bike': return deactivateBike(bike);
         case 'add-comp':      return openComponentModal(bike, null);
         case 'edit-comp':     return openComponentModal(bike, (_componentsByBike.get(bikeId) || []).find(c => c.id === compId) || null);
         case 'del-comp':      return confirmDeleteComponent(bike, compId);
@@ -637,6 +640,15 @@
         }},
       ],
     });
+  }
+
+  async function deactivateBike(bike) {
+    if (!confirm(`Inativar "${bike.nome}"?`)) return;
+    try {
+      await window.Api.post(`/bikes/${bike.id}/deactivate`);
+      toast('Bike inativada');
+      await load();
+    } catch (e) { toast('Erro ao inativar', { kind: 'error' }); }
   }
 
   /* ──────────────────────────────────────────────────────────────────

@@ -321,7 +321,7 @@ async function routes(fastify) {
     return { ok: true };
   });
 
-  // ── Ativar bike (única) — desativa todas as outras ───────────────────
+  // ── Ativar bike — mantém outras ativas intactas ──────────────────────
   fastify.post('/api/bikes/:id/activate', async (req, reply) => {
     const { id } = req.params;
     const cur = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
@@ -339,12 +339,18 @@ async function routes(fastify) {
       activeSince = cur.active_since || todayISO();
     }
 
-    const tx = fastify.db.transaction(() => {
-      fastify.db.prepare('UPDATE bikes SET active = 0').run();
-      fastify.db.prepare('UPDATE bikes SET active = 1, active_since = ? WHERE id = ?')
-        .run(activeSince, id);
-    });
-    tx();
+    fastify.db.prepare('UPDATE bikes SET active = 1, active_since = ? WHERE id = ?')
+      .run(activeSince, id);
+    const row = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
+    return { ...rowToBike(row), ...calcBikeStats(fastify.db, row) };
+  });
+
+  // ── Inativar bike individualmente ────────────────────────────────────
+  fastify.post('/api/bikes/:id/deactivate', async (req, reply) => {
+    const { id } = req.params;
+    const cur = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
+    if (!cur) return reply.code(404).send({ error: 'bike nao encontrada' });
+    fastify.db.prepare('UPDATE bikes SET active = 0 WHERE id = ?').run(id);
     const row = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
     return { ...rowToBike(row), ...calcBikeStats(fastify.db, row) };
   });
