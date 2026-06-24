@@ -75,6 +75,38 @@ function escListener(e) {
   if (e.key === 'Escape') closeModal();
 }
 
+/**
+ * Confirmação via modal (substitui window.confirm). Retorna Promise<boolean>.
+ * @param {Object}  opts
+ * @param {string}  opts.title          — título da pergunta
+ * @param {string}  [opts.message]      — texto de apoio
+ * @param {string}  [opts.confirmLabel] — rótulo do botão de confirmar
+ * @param {string}  [opts.cancelLabel]  — rótulo do botão de cancelar
+ * @param {boolean} [opts.danger]       — estiliza o botão de confirmar como destrutivo
+ */
+function confirmModal({ title, message = '', confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false }) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (val) => { if (settled) return; settled = true; resolve(val); };
+    openModal({
+      tag: 'Confirmar',
+      title: esc(title),
+      bodyHTML: message ? `<p class="modal-confirm-text">${esc(message)}</p>` : '',
+      actions: [
+        { label: cancelLabel,  kind: 'ghost', onClick: () => { closeModal(); finish(false); } },
+        { label: confirmLabel, kind: danger ? 'danger' : 'primary', onClick: () => { closeModal(); finish(true); } },
+      ],
+      onMount: (el) => {
+        // Fechar pelo X/ESC/backdrop = cancelar (resolve false uma única vez).
+        const obs = new MutationObserver(() => {
+          if (!document.body.contains(el)) { obs.disconnect(); finish(false); }
+        });
+        obs.observe(document.body, { childList: true });
+      },
+    });
+  });
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    TOAST — feedback rápido
 ═══════════════════════════════════════════════════════════════════════ */
@@ -103,5 +135,5 @@ function toast(message, { kind = 'success', duration = 2400 } = {}) {
 }
 
 /* expor */
-window.Modals = { open: openModal, close: closeModal };
+window.Modals = { open: openModal, close: closeModal, confirm: confirmModal };
 window.toast  = toast;

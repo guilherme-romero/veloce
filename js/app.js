@@ -173,7 +173,12 @@ function wireAvatarUpload(modal) {
   });
 
   delBtn?.addEventListener('click', async () => {
-    if (!confirm('Remover a foto do perfil?')) return;
+    const ok = await window.Modals.confirm({
+      title: 'Remover a foto do perfil?',
+      confirmLabel: 'Remover',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await window.Api.del('/user/avatar');
       const u = Storage.getUser();
@@ -357,6 +362,7 @@ function renderWeightAnalysis() {
   const cutoff180  = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
   const cutoff90   = new Date(Date.now() - 90  * 86400_000).toISOString().slice(0, 10);
   let weights = planStart ? allWeights.filter(w => w.data >= planStart) : [];
+  const planPts = weights.length; // pesagens registradas desde o início do plano
   if (weights.length < 3) weights = allWeights.filter(w => w.data >= cutoff180);
   if (weights.length < 3) weights = allWeights.filter(w => w.data >= cutoff90);
   if (weights.length < 3) weights = allWeights;
@@ -406,6 +412,12 @@ function renderWeightAnalysis() {
     if (semsNec > 52) msg = 'Taxa atual lenta — considere ajustar plano.';
     else if (semsNec > 26) msg = 'Progresso consistente — mantenha o ritmo!';
     else msg = `Meta em ~${semsNec} semanas no ritmo atual.`;
+  } else if (planPts < 4) {
+    // Sem tendência de perda E poucos registros desde o início do plano:
+    // a regressão ainda não é confiável — explica em vez de mostrar zero.
+    previsao = '—';
+    semanas  = '—';
+    msg      = 'Poucos dados desde o início do plano — registre mais pesagens para estimar a previsão.';
   } else if (Math.abs(slope) < 0.01) {
     previsao = '—';
     semanas  = '—';

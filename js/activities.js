@@ -444,8 +444,14 @@
     }
   }
 
-  function reviewDiscard(id) {
-    if (!confirm('Descartar este registro? A bike sairá deste dia e o sync não voltará a importá-la.')) return;
+  async function reviewDiscard(id) {
+    const ok = await window.Modals.confirm({
+      title: 'Descartar este registro?',
+      message: 'A bike sairá deste dia e o sync não voltará a importá-la.',
+      confirmLabel: 'Descartar',
+      danger: true,
+    });
+    if (!ok) return;
     const entry = Storage.getTrainingLog().find(e => e.id === id);
     if (!entry) return;
     const tipos = (entry.tipos || []).filter(t => t !== 'bike');

@@ -286,6 +286,7 @@ CREATE TABLE IF NOT EXISTS bikes (
   km_inicial    REAL DEFAULT 0,       -- km já rodados antes de usar o app
   active_since  TEXT,                 -- YYYY-MM-DD; NULL = nunca ativa
   active        INTEGER DEFAULT 0,    -- 1 = bike ativa atualmente
+  deactivated_at TEXT,                -- YYYY-MM-DD da última inativação; NULL = ativa
   created_at    TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_bikes_active ON bikes(active);

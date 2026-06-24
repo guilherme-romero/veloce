@@ -192,7 +192,13 @@
   }
 
   async function doLogout() {
-    if (!confirm('Desconectar a sessão Garmin?')) return;
+    const ok = await window.Modals.confirm({
+      title: 'Desconectar a sessão Garmin?',
+      message: 'Será necessário reconectar para sincronizar novas atividades e dados de saúde.',
+      confirmLabel: 'Desconectar',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await window.Api.post('/garmin/logout', {});
       if (window.toast) window.toast('Sessão Garmin removida');

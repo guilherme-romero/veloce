@@ -229,7 +229,13 @@
       recentList.addEventListener('click', async (e) => {
         const btn = e.target.closest('.home-recent-del');
         if (!btn) return;
-        if (!confirm('Excluir esta atividade do app? O próximo sync a restaurará se ainda existir no Garmin/Strava.')) return;
+        const ok = await window.Modals.confirm({
+          title: 'Excluir esta atividade?',
+          message: 'O próximo sync a restaurará se ainda existir no Garmin/Strava.',
+          confirmLabel: 'Excluir',
+          danger: true,
+        });
+        if (!ok) return;
         const { id, fonte } = btn.dataset;
         try {
           await window.Api.del(`/activities/${fonte}/${id}`);

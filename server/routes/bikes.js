@@ -23,6 +23,7 @@ function rowToBike(r) {
     kmInicial:    r.km_inicial ?? 0,
     activeSince:  r.active_since || null,
     active:       !!r.active,
+    deactivatedAt: r.deactivated_at || null,
     createdAt:    r.created_at,
   };
 }
@@ -160,6 +161,28 @@ function calcBikeStats(db, bike) {
 // Mantém compat: apenas o km (usado em pontos que só precisam disso)
 function calcBikeKm(db, bike) {
   return calcBikeStats(db, bike).kmTotal;
+}
+
+// km total acumulado pela bike no intervalo [active_since, upTo] (inclusivo).
+// Usado ao inativar: congela a quilometragem rodada até a data de inativação.
+function calcBikeKmUpTo(db, bike, upTo) {
+  const base = +(bike.km_inicial || 0);
+  if (!bike.active_since) return +base.toFixed(1);
+  const garmin = db.prepare(
+    `SELECT COALESCE(SUM(distancia_m), 0) AS dist
+     FROM garmin_activities
+     WHERE data_inicio >= ? AND data_inicio <= ?
+       AND (tipo IS NULL OR tipo NOT IN ${EXCLUDED_GARMIN_TYPES})`
+  ).get(bike.active_since, upTo);
+  const strava = db.prepare(
+    `SELECT COALESCE(SUM(distancia_m), 0) AS dist
+     FROM strava_activities s
+     LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+     WHERE s.data_inicio >= ? AND s.data_inicio <= ?
+       AND l.strava_id IS NULL
+       AND (s.tipo IS NULL OR s.tipo NOT IN ${EXCLUDED_STRAVA_TYPES})`
+  ).get(bike.active_since, upTo);
+  return +(base + (garmin.dist + strava.dist) / 1000).toFixed(1);
 }
 
 // Estatísticas detalhadas: totais + médias + máximos por atividade.
@@ -339,18 +362,37 @@ async function routes(fastify) {
       activeSince = cur.active_since || todayISO();
     }
 
-    fastify.db.prepare('UPDATE bikes SET active = 1, active_since = ? WHERE id = ?')
+    // Reativar: nova data de início e limpa a data de inativação. A
+    // quilometragem preservada fica em km_inicial (congelada na inativação)
+    // e novas atividades a partir de activeSince são somadas por cima.
+    fastify.db.prepare('UPDATE bikes SET active = 1, active_since = ?, deactivated_at = NULL WHERE id = ?')
       .run(activeSince, id);
     const row = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
     return { ...rowToBike(row), ...calcBikeStats(fastify.db, row) };
   });
 
   // ── Inativar bike individualmente ────────────────────────────────────
+  // Congela a quilometragem rodada até a data informada em km_inicial e
+  // zera active_since, de modo que atividades posteriores não sejam mais
+  // somadas. A data de inativação fica registrada em deactivated_at.
   fastify.post('/api/bikes/:id/deactivate', async (req, reply) => {
     const { id } = req.params;
     const cur = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
     if (!cur) return reply.code(404).send({ error: 'bike nao encontrada' });
-    fastify.db.prepare('UPDATE bikes SET active = 0 WHERE id = ?').run(id);
+
+    let deactivatedAt = todayISO();
+    if (req.body && req.body.deactivatedAt) {
+      const s = String(req.body.deactivatedAt).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        return reply.code(400).send({ error: 'deactivatedAt deve estar em YYYY-MM-DD' });
+      }
+      deactivatedAt = s;
+    }
+
+    const kmCongelado = calcBikeKmUpTo(fastify.db, cur, deactivatedAt);
+    fastify.db.prepare(
+      'UPDATE bikes SET active = 0, km_inicial = ?, active_since = NULL, deactivated_at = ? WHERE id = ?'
+    ).run(kmCongelado, deactivatedAt, id);
     const row = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
     return { ...rowToBike(row), ...calcBikeStats(fastify.db, row) };
   });

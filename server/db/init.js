@@ -34,6 +34,8 @@ const migrations = [
   'ALTER TABLE bike_components ADD COLUMN data_install TEXT',
   // Item 5: cache da distribuição de tempo por zona de FC por atividade
   'ALTER TABLE garmin_activities ADD COLUMN hr_zones TEXT',
+  // Data em que a bike foi inativada (YYYY-MM-DD); NULL = ativa ou nunca inativada
+  'ALTER TABLE bikes ADD COLUMN deactivated_at TEXT',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }

@@ -211,7 +211,9 @@
     const activeBadge = `<div class="bike-active-badge ${isActive ? 'is-active' : 'is-inactive'}">
            <i class="fa-solid fa-circle" style="color:${isActive ? 'var(--lime)' : 'var(--magenta)'}"></i>
            ${isActive ? 'ATIVA' : 'INATIVA'}
-           ${b.activeSince ? `<span class="bike-active-since">desde ${esc(fmtDate(b.activeSince))}</span>` : ''}
+           ${isActive
+             ? (b.activeSince ? `<span class="bike-active-since">desde ${esc(fmtDate(b.activeSince))}</span>` : '')
+             : (b.deactivatedAt ? `<span class="bike-active-since">inativada em ${esc(fmtDate(b.deactivatedAt))}</span>` : '')}
          </div>`;
 
     const tipoBlock = [b.tipo, b.pesoKg ? `${b.pesoKg} kg` : null, b.ano ? `${b.ano} (${yearsAgo(b.ano)})` : null]
@@ -453,7 +455,7 @@
         case 'edit-bike':       return openBikeModal(bike);
         case 'del-bike':        return confirmDeleteBike(bike);
         case 'activate-bike':   return openActivateModal(bike);
-        case 'deactivate-bike': return deactivateBike(bike);
+        case 'deactivate-bike': return openDeactivateModal(bike);
         case 'add-comp':      return openComponentModal(bike, null);
         case 'edit-comp':     return openComponentModal(bike, (_componentsByBike.get(bikeId) || []).find(c => c.id === compId) || null);
         case 'del-comp':      return confirmDeleteComponent(bike, compId);
@@ -531,11 +533,17 @@
         </div>
 
         <div class="field">
-          <label class="field-label" for="b-km-inicial">Km iniciais (km já rodados antes do app)</label>
+          <label class="field-label" for="b-km-inicial">${isEdit && !b.activeSince
+            ? 'Quilometragem rodada (preservada)'
+            : 'Km iniciais (km já rodados antes do app)'}</label>
           <input id="b-km-inicial" class="field-input" type="number" min="0" step="1"
                  value="${escAttr(b.kmInicial)}" placeholder="0" />
+          ${isEdit && !b.activeSince ? `<small style="display:block;font-size:11px;color:var(--muted2);margin-top:4px;">
+            Quilometragem congelada na inativação. Edite aqui para corrigir.
+          </small>` : ''}
         </div>
 
+        ${(!isEdit || b.activeSince) ? `
         <div class="field">
           <label class="field-label" for="b-active-since">Ativar a partir de</label>
           <input id="b-active-since" class="field-input" type="date"
@@ -543,7 +551,7 @@
           <small style="display:block;font-size:11px;color:var(--muted2);margin-top:4px;">
             Km de atividades nesta data em diante serão contabilizados para esta bike.
           </small>
-        </div>
+        </div>` : ''}
       `,
       actions: [
         { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
@@ -566,8 +574,12 @@
       pesoKg:      parseFloat(modal.querySelector('#b-peso').value) || null,
       ano:         parseInt(modal.querySelector('#b-ano').value, 10) || null,
       kmInicial:   parseFloat(modal.querySelector('#b-km-inicial').value) || 0,
-      activeSince: modal.querySelector('#b-active-since').value || null,
     };
+    // Só envia activeSince quando o campo existe (criação ou edição de bike
+    // ativa). Para bike inativa o campo é omitido → active_since preservado
+    // como NULL (a reativação define a nova data via modal próprio).
+    const asEl = modal.querySelector('#b-active-since');
+    if (asEl) data.activeSince = asEl.value || null;
 
     try {
       if (existingId) {
@@ -619,7 +631,7 @@
       bodyHTML: `
         <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">
           A partir desta data, km de atividades Garmin/Strava serão somados a esta bike.
-          Qualquer outra bike ativa será desativada.
+          A quilometragem já registrada é preservada.
         </p>
         <div class="field">
           <label class="field-label" for="b-act-since">Ativar a partir de</label>
@@ -642,13 +654,35 @@
     });
   }
 
-  async function deactivateBike(bike) {
-    if (!confirm(`Inativar "${bike.nome}"?`)) return;
-    try {
-      await window.Api.post(`/bikes/${bike.id}/deactivate`);
-      toast('Bike inativada');
-      await load();
-    } catch (e) { toast('Erro ao inativar', { kind: 'error' }); }
+  function openDeactivateModal(bike) {
+    Modals.open({
+      tag: 'Inativar bicicleta',
+      title: `Inativar ${esc(bike.nome)}`,
+      bodyHTML: `
+        <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">
+          A quilometragem rodada (<strong>${esc(fmtKm(bike.kmTotal))}</strong>) será preservada e
+          congelada. Atividades após esta data não serão mais somadas a esta bike.
+          Você pode ajustar a quilometragem depois na edição da bike.
+        </p>
+        <div class="field">
+          <label class="field-label" for="b-deact-date">Inativar a partir de</label>
+          <input id="b-deact-date" class="field-input" type="date"
+                 value="${escAttr(todayISO())}" />
+        </div>
+      `,
+      actions: [
+        { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
+        { label: 'Inativar', kind: 'danger', onClick: async (m) => {
+          const deactivatedAt = m.querySelector('#b-deact-date').value || todayISO();
+          try {
+            await window.Api.post(`/bikes/${bike.id}/deactivate`, { deactivatedAt });
+            toast('Bike inativada');
+            Modals.close();
+            await load();
+          } catch (e) { toast('Erro ao inativar', { kind: 'error' }); }
+        }},
+      ],
+    });
   }
 
   /* ──────────────────────────────────────────────────────────────────
