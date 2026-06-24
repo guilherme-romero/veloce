@@ -644,7 +644,7 @@ function activitiesByDate() {
 async function fetchRidesActivities() {
   if (!window.Api) return;
   try {
-    const resp = await window.Api.get('/activities/unified?days=400');
+    const resp = await window.Api.get('/activities/unified?days=1825');
     _ridesActivities = (resp && resp.items) || [];
     if (_ridesViewMode === 'month') renderMonthView();
   } catch (err) {
