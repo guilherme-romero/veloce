@@ -338,19 +338,29 @@ function renderWeightAnalysis() {
     if (!byDay[w.data]) byDay[w.data] = [];
     byDay[w.data].push(w.peso);
   });
-  const weights = Object.entries(byDay)
+  const allWeights = Object.entries(byDay)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([data, pesos]) => ({
       data,
       peso: pesos.reduce((s, p) => s + p, 0) / pesos.length,
     }));
 
-  if (weights.length < 2 || !user.pesoMeta) {
+  if (allWeights.length < 2 || !user.pesoMeta) {
     card.style.display = 'none';
     return;
   }
 
-  // Regressão linear simples: y = peso, x = dias desde primeiro registro
+  // Janela da regressão: dataInicioPlano como primária (respeita o plano
+  // definido pelo usuário); fallback para 180/90 dias se houver < 3 pontos,
+  // evitando que dados muito antigos distorçam a tendência.
+  const planStart  = user.dataInicioPlano || null;
+  const cutoff180  = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
+  const cutoff90   = new Date(Date.now() - 90  * 86400_000).toISOString().slice(0, 10);
+  let weights = planStart ? allWeights.filter(w => w.data >= planStart) : [];
+  if (weights.length < 3) weights = allWeights.filter(w => w.data >= cutoff180);
+  if (weights.length < 3) weights = allWeights.filter(w => w.data >= cutoff90);
+  if (weights.length < 3) weights = allWeights;
+
   const t0 = new Date(weights[0].data + 'T12:00:00').getTime();
   const pts = weights.map(w => ({
     x: (new Date(w.data + 'T12:00:00').getTime() - t0) / 86400_000,
@@ -366,7 +376,7 @@ function renderWeightAnalysis() {
   const slope = (n * sxy - sx * sy) / denom; // kg/dia
   const taxaKgSem = +(slope * 7).toFixed(2);  // negativo = perda
 
-  const pesoAtual = weights[weights.length - 1].peso;
+  const pesoAtual = allWeights[allWeights.length - 1].peso;
   const faltam    = +(pesoAtual - user.pesoMeta).toFixed(1);
 
   card.style.display = '';

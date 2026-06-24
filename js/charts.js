@@ -217,9 +217,18 @@ function renderWeightChart(user, weights) {
     if (w.peso == null) return;
     (byDay[w.data] = byDay[w.data] || []).push(w.peso);
   });
-  const measured = Object.entries(byDay)
+  const allMeasured = Object.entries(byDay)
     .map(([data, ps]) => ({ data, peso: ps.reduce((s, p) => s + p, 0) / ps.length }))
     .sort((a, b) => a.data.localeCompare(b.data));
+
+  // Janela da regressão: dataInicioPlano como primária; fallback para 180/90 dias.
+  const planStart = start; // start = user.dataInicioPlano já passado como parâmetro
+  const cut180 = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
+  const cut90  = new Date(Date.now() - 90  * 86400_000).toISOString().slice(0, 10);
+  let measured = planStart ? allMeasured.filter(w => w.data >= planStart) : [];
+  if (measured.length < 3) measured = allMeasured.filter(w => w.data >= cut180);
+  if (measured.length < 3) measured = allMeasured.filter(w => w.data >= cut90);
+  if (measured.length < 3) measured = allMeasured;
 
   // Regressão linear (kg/dia) sobre as medições reais → tendência
   let slope = null, intercept = null, t0 = null;
