@@ -36,6 +36,11 @@ const migrations = [
   'ALTER TABLE garmin_activities ADD COLUMN hr_zones TEXT',
   // Data em que a bike foi inativada (YYYY-MM-DD); NULL = ativa ou nunca inativada
   'ALTER TABLE bikes ADD COLUMN deactivated_at TEXT',
+  // Bases congeladas na inativação (mesma ideia de km_inicial): preservam
+  // tempo em movimento, elevação e nº de atividades acumulados.
+  'ALTER TABLE bikes ADD COLUMN tempo_base INTEGER DEFAULT 0',
+  'ALTER TABLE bikes ADD COLUMN elev_base INTEGER DEFAULT 0',
+  'ALTER TABLE bikes ADD COLUMN atividades_base INTEGER DEFAULT 0',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }

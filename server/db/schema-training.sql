@@ -287,6 +287,9 @@ CREATE TABLE IF NOT EXISTS bikes (
   active_since  TEXT,                 -- YYYY-MM-DD; NULL = nunca ativa
   active        INTEGER DEFAULT 0,    -- 1 = bike ativa atualmente
   deactivated_at TEXT,                -- YYYY-MM-DD da última inativação; NULL = ativa
+  tempo_base     INTEGER DEFAULT 0,   -- tempo em movimento (s) congelado na inativação
+  elev_base      INTEGER DEFAULT 0,   -- elevação (m) congelada na inativação
+  atividades_base INTEGER DEFAULT 0,  -- nº de atividades congelado na inativação
   created_at    TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_bikes_active ON bikes(active);

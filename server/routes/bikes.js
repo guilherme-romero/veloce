@@ -128,8 +128,11 @@ const EXCLUDED_GARMIN_TYPES = "('virtual_ride','indoor_cycling','e_bike_fitness'
 // que a bike acumulou desde active_since (Garmin tem prioridade; Strava só
 // entra quando não há link de dedup). Retorna objeto de stats.
 function calcBikeStats(db, bike) {
-  const base = +(bike.km_inicial || 0);
-  const out = { kmTotal: +base.toFixed(1), tempoMovS: 0, elevM: 0, atividades: 0 };
+  const base      = +(bike.km_inicial || 0);
+  const tempoBase = +(bike.tempo_base || 0);
+  const elevBase  = +(bike.elev_base || 0);
+  const atvBase   = +(bike.atividades_base || 0);
+  const out = { kmTotal: +base.toFixed(1), tempoMovS: tempoBase, elevM: elevBase, atividades: atvBase };
   if (!bike.active_since) return out;
   const garmin = db.prepare(
     `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
@@ -152,9 +155,9 @@ function calcBikeStats(db, bike) {
        AND (s.tipo IS NULL OR s.tipo NOT IN ${EXCLUDED_STRAVA_TYPES})`
   ).get(bike.active_since);
   out.kmTotal   = +(base + (garmin.dist + strava.dist) / 1000).toFixed(1);
-  out.tempoMovS = (garmin.tempo || 0) + (strava.tempo || 0);
-  out.elevM     = Math.round((garmin.elev || 0) + (strava.elev || 0));
-  out.atividades = (garmin.n || 0) + (strava.n || 0);
+  out.tempoMovS = tempoBase + (garmin.tempo || 0) + (strava.tempo || 0);
+  out.elevM     = elevBase + Math.round((garmin.elev || 0) + (strava.elev || 0));
+  out.atividades = atvBase + (garmin.n || 0) + (strava.n || 0);
   return out;
 }
 
@@ -163,34 +166,52 @@ function calcBikeKm(db, bike) {
   return calcBikeStats(db, bike).kmTotal;
 }
 
-// km total acumulado pela bike no intervalo [active_since, upTo] (inclusivo).
-// Usado ao inativar: congela a quilometragem rodada até a data de inativação.
-function calcBikeKmUpTo(db, bike, upTo) {
-  const base = +(bike.km_inicial || 0);
-  if (!bike.active_since) return +base.toFixed(1);
+// Stats acumuladas pela bike no intervalo [active_since, upTo] (inclusivo).
+// Usado ao inativar: congela km + tempo + elevação + nº de atividades até a
+// data de inativação. Já soma as bases existentes (para múltiplos ciclos).
+function calcBikeStatsUpTo(db, bike, upTo) {
+  const base      = +(bike.km_inicial || 0);
+  const tempoBase = +(bike.tempo_base || 0);
+  const elevBase  = +(bike.elev_base || 0);
+  const atvBase   = +(bike.atividades_base || 0);
+  const out = { kmTotal: +base.toFixed(1), tempoMovS: tempoBase, elevM: elevBase, atividades: atvBase };
+  if (!bike.active_since) return out;
   const garmin = db.prepare(
-    `SELECT COALESCE(SUM(distancia_m), 0) AS dist
+    `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
+            COALESCE(SUM(tempo_mov_s), 0) AS tempo,
+            COALESCE(SUM(elevacao_m),  0) AS elev,
+            COUNT(*) AS n
      FROM garmin_activities
      WHERE data_inicio >= ? AND data_inicio <= ?
        AND (tipo IS NULL OR tipo NOT IN ${EXCLUDED_GARMIN_TYPES})`
   ).get(bike.active_since, upTo);
   const strava = db.prepare(
-    `SELECT COALESCE(SUM(distancia_m), 0) AS dist
+    `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
+            COALESCE(SUM(tempo_mov_s), 0) AS tempo,
+            COALESCE(SUM(elevacao_m),  0) AS elev,
+            COUNT(*) AS n
      FROM strava_activities s
      LEFT JOIN activity_links l ON l.strava_id = s.id_strava
      WHERE s.data_inicio >= ? AND s.data_inicio <= ?
        AND l.strava_id IS NULL
        AND (s.tipo IS NULL OR s.tipo NOT IN ${EXCLUDED_STRAVA_TYPES})`
   ).get(bike.active_since, upTo);
-  return +(base + (garmin.dist + strava.dist) / 1000).toFixed(1);
+  out.kmTotal    = +(base + (garmin.dist + strava.dist) / 1000).toFixed(1);
+  out.tempoMovS  = tempoBase + (garmin.tempo || 0) + (strava.tempo || 0);
+  out.elevM      = elevBase + Math.round((garmin.elev || 0) + (strava.elev || 0));
+  out.atividades = atvBase + (garmin.n || 0) + (strava.n || 0);
+  return out;
 }
 
 // Estatísticas detalhadas: totais + médias + máximos por atividade.
 // Reúne atividades Garmin + Strava (não-linkadas) desde active_since.
 function calcBikeStatsDetailed(db, bike) {
-  const base = +(bike.km_inicial || 0);
+  const base      = +(bike.km_inicial || 0);
+  const tempoBase = +(bike.tempo_base || 0);
+  const elevBase  = +(bike.elev_base || 0);
+  const atvBase   = +(bike.atividades_base || 0);
   const empty = {
-    kmTotal: +base.toFixed(1), tempoMovS: 0, elevM: 0, atividades: 0, calorias: 0,
+    kmTotal: +base.toFixed(1), tempoMovS: tempoBase, elevM: elevBase, atividades: atvBase, calorias: 0,
     avg: { km: null, tempoS: null, elevM: null, velKmh: null, fc: null, watts: null },
     max: { km: null, velKmh: null, elevM: null, watts: null, fc: null },
   };
@@ -215,6 +236,8 @@ function calcBikeStatsDetailed(db, bike) {
 
   const acts = garmin.concat(strava);
   if (acts.length === 0) return empty;
+  // Médias/máximos refletem apenas as atividades da janela ativa atual; os
+  // totais somam as bases congeladas de ciclos anteriores.
 
   const sum = (arr) => arr.reduce((a, b) => a + b, 0);
   const valid = (arr) => arr.filter(v => v != null && isFinite(v));
@@ -234,9 +257,9 @@ function calcBikeStatsDetailed(db, bike) {
 
   return {
     kmTotal:    +(base + sum(kmArr)).toFixed(1),
-    tempoMovS:  sum(tempoArr.map(v => +v || 0)),
-    elevM:      Math.round(sum(valid(elevArr))),
-    atividades: acts.length,
+    tempoMovS:  tempoBase + sum(tempoArr.map(v => +v || 0)),
+    elevM:      elevBase + Math.round(sum(valid(elevArr))),
+    atividades: atvBase + acts.length,
     calorias:   Math.round(sum(valid(acts.map(a => a.calorias)))),
     avg: {
       km:     r1(avg(kmArr)),
@@ -389,10 +412,12 @@ async function routes(fastify) {
       deactivatedAt = s;
     }
 
-    const kmCongelado = calcBikeKmUpTo(fastify.db, cur, deactivatedAt);
+    const congelado = calcBikeStatsUpTo(fastify.db, cur, deactivatedAt);
     fastify.db.prepare(
-      'UPDATE bikes SET active = 0, km_inicial = ?, active_since = NULL, deactivated_at = ? WHERE id = ?'
-    ).run(kmCongelado, deactivatedAt, id);
+      `UPDATE bikes SET active = 0, km_inicial = ?, tempo_base = ?, elev_base = ?,
+       atividades_base = ?, active_since = NULL, deactivated_at = ? WHERE id = ?`
+    ).run(congelado.kmTotal, congelado.tempoMovS, congelado.elevM,
+          congelado.atividades, deactivatedAt, id);
     const row = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
     return { ...rowToBike(row), ...calcBikeStats(fastify.db, row) };
   });
