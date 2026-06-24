@@ -33,6 +33,7 @@
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--surface2);
+  isolation: isolate;
 }
 
 .routes-stats-panel {
