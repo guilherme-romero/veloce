@@ -99,7 +99,7 @@ async function routes(fastify) {
 
   // ── POST /api/garmin/sync ────────────────────────────────────────
   fastify.post('/api/garmin/sync', async (req, reply) => {
-    const days = Math.min(Math.max(parseInt((req.body && req.body.days) || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);
+    const days = Math.min(Math.max(parseInt((req.body && req.body.days) || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 1095);
     try {
       const acts = await garmin.listActivities(days);
       const bikeActs = acts.filter(garmin.isBikeActivity);

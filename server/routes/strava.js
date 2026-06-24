@@ -85,7 +85,7 @@ async function routes(fastify) {
       return reply.code(400).send({ error: 'Strava nao configurado' });
     }
     const daysRaw = parseInt((req.body && req.body.days) || DEFAULT_DAYS, 10);
-    const days = Math.min(Math.max(daysRaw || DEFAULT_DAYS, 1), 365);
+    const days = Math.min(Math.max(daysRaw || DEFAULT_DAYS, 1), 1095);
     const after = Math.floor((Date.now() - days * 86400_000) / 1000);
 
     try {

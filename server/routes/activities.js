@@ -93,6 +93,25 @@ async function routes(fastify) {
     const res = runMatching(fastify.db);
     return { ok: true, ...res };
   });
+
+  // DELETE /api/activities/:fonte/:id
+  // Remove atividade do banco local. O próximo sync re-importará se ainda existir na fonte.
+  fastify.delete('/api/activities/:fonte/:id', async (req, reply) => {
+    const { fonte, id } = req.params;
+    const numId = parseInt(id, 10);
+    if (!isFinite(numId)) return reply.code(400).send({ error: 'id inválido' });
+
+    let result;
+    if (fonte === 'garmin') {
+      result = fastify.db.prepare('DELETE FROM garmin_activities WHERE id_garmin = ?').run(numId);
+    } else if (fonte === 'strava') {
+      result = fastify.db.prepare('DELETE FROM strava_activities WHERE id_strava = ?').run(numId);
+    } else {
+      return reply.code(400).send({ error: 'fonte inválida' });
+    }
+    if (result.changes === 0) return reply.code(404).send({ error: 'atividade não encontrada' });
+    return { ok: true, fonte, id: numId };
+  });
 }
 
 module.exports = routes;

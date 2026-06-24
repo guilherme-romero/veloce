@@ -80,6 +80,13 @@ function openBackupModal() {
       <button class="btn btn-danger" type="button" data-reset>
         <i class="fa-solid fa-triangle-exclamation"></i> Apagar todos os dados
       </button>
+      <button class="btn btn-ghost" type="button" data-carga-historica style="width:100%;margin-top:8px;">
+        <i class="fa-solid fa-clock-rotate-left"></i> Carga histórica
+      </button>
+      <p style="font-size:11px;color:var(--muted2);margin-top:6px;">
+        Sincroniza o máximo de dados disponíveis do Garmin (1 ano) e Strava (1 ano).
+        Útil após uma limpeza ou na primeira configuração.
+      </p>
 
       <div class="tip-box" style="margin-top:8px;font-size:12px;">
         <i class="fa-solid fa-circle-info"></i> O backup é um arquivo JSON simples. Guarde em local seguro (ex.: Google Drive, Dropbox).
@@ -92,6 +99,7 @@ function openBackupModal() {
       modal.querySelector('[data-export]').onclick = exportData;
       modal.querySelector('#backup-file').onchange = (e) => importData(e.target.files[0]);
       modal.querySelector('[data-reset]').onclick = confirmReset;
+      modal.querySelector('[data-carga-historica]').onclick = cargaHistorica;
       modal.querySelector('[data-export-csv]').onclick = exportWeightsCSV;
       modal.querySelector('[data-export-pdf]').onclick = () => exportRelatorioPDF(_selectedPdfWindow);
       modal.querySelector('[data-export-zip]').onclick = exportDataZip;
@@ -775,6 +783,117 @@ function confirmReset() {
       }},
     ],
   });
+}
+
+let _cargaRunning = false;
+
+async function cargaHistorica() {
+  if (_cargaRunning) {
+    toast('Sincronização em andamento…', { kind: 'error' });
+    return;
+  }
+
+  Modals.close();
+
+  const [garminStatus, stravaStatus] = await Promise.all([
+    window.Api.get('/garmin/status').catch(() => null),
+    window.Api.get('/strava/status').catch(() => null),
+  ]);
+  const doGarmin = !!(garminStatus && garminStatus.configured && garminStatus.connected);
+  const doStrava = !!(stravaStatus && stravaStatus.configured && stravaStatus.connected);
+
+  if (!doGarmin && !doStrava) {
+    toast('Nenhum serviço conectado. Configure em Conexões.', { kind: 'error' });
+    return;
+  }
+
+  _cargaRunning = true;
+
+  // Monta lista de etapas conforme serviços disponíveis
+  const steps = [];
+  if (doGarmin) {
+    steps.push({ label: 'Garmin atividades', fn: () => window.Api.post('/garmin/sync',         { days: 1095 }) });
+    steps.push({ label: 'Garmin pesagens',   fn: () => window.Api.post('/garmin/sync-weights', { days: 3650 }) });
+    steps.push({ label: 'Garmin saúde',      fn: () => window.Api.post('/garmin/sync-health',  { days: 365  }) });
+    steps.push({ label: 'Garmin extras',     fn: () => window.Api.post('/garmin/sync-extras',  { days: 90   }) });
+  }
+  if (doStrava) {
+    steps.push({ label: 'Strava',            fn: () => window.Api.post('/strava/sync',         { days: 1095 }) });
+  }
+
+  const total = steps.length;
+  let done = 0, totalActs = 0;
+  const failed = [];
+
+  // Toast persistente de progresso — inserido na mesma toast-stack
+  const stack = document.querySelector('.toast-stack') || (() => {
+    const s = document.createElement('div');
+    s.className = 'toast-stack';
+    document.body.appendChild(s);
+    return s;
+  })();
+  const progEl = document.createElement('div');
+  progEl.className = 'toast toast-progress';
+  stack.appendChild(progEl);
+
+  function updateProgress(stepLabel, ok) {
+    done++;
+    const pct = Math.round((done / total) * 100);
+    const bar = `<div class="toast-prog-bar" style="width:${pct}%"></div>`;
+    const status = ok
+      ? `<i class="fa-solid fa-circle-check" style="color:var(--teal)"></i>`
+      : `<i class="fa-solid fa-circle-exclamation" style="color:var(--red)"></i>`;
+    progEl.innerHTML = `
+      <div class="toast-prog-inner">
+        <div class="toast-prog-head">
+          <span><i class="fa-solid fa-clock-rotate-left"></i> Carga histórica</span>
+          <span class="toast-prog-pct">${pct}%</span>
+        </div>
+        <div class="toast-prog-track">${bar}</div>
+        <div class="toast-prog-step">${status} ${stepLabel}</div>
+      </div>`;
+  }
+
+  // Inicia com estado "iniciando"
+  progEl.innerHTML = `
+    <div class="toast-prog-inner">
+      <div class="toast-prog-head">
+        <span><i class="fa-solid fa-clock-rotate-left"></i> Carga histórica</span>
+        <span class="toast-prog-pct">0%</span>
+      </div>
+      <div class="toast-prog-track"><div class="toast-prog-bar" style="width:0%"></div></div>
+      <div class="toast-prog-step"><i class="fa-solid fa-spinner fa-spin"></i> Iniciando…</div>
+    </div>`;
+
+  // Executa etapas em paralelo, atualizando o progresso individualmente
+  await Promise.all(steps.map(step =>
+    step.fn()
+      .then(r => {
+        totalActs += (r && r.imported || 0) + (r && r.updated || 0);
+        updateProgress(step.label, true);
+      })
+      .catch(() => {
+        failed.push(step.label);
+        updateProgress(step.label, false);
+      })
+  ));
+
+  _cargaRunning = false;
+
+  // Remove o toast de progresso após 2s e exibe o toast final
+  setTimeout(() => {
+    progEl.classList.add('fading');
+    progEl.addEventListener('animationend', () => progEl.remove(), { once: true });
+  }, 2000);
+
+  if (failed.length) {
+    toast(`Carga concluída com erros: ${failed.join(', ')}`, { kind: 'error', duration: 4000 });
+  } else {
+    const msg = totalActs > 0 ? `Carga histórica concluída · ${totalActs} atividades` : 'Carga histórica concluída';
+    toast(msg, { kind: 'success' });
+  }
+
+  try { if (window.Home) Home.load(); } catch (_) {}
 }
 
 function exportWeightsCSV() {

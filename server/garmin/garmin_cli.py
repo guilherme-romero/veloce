@@ -128,7 +128,7 @@ def cmd_logout(args):
 def cmd_activities(args):
     client, _ = make_client()
     authenticate(client)
-    days = max(1, min(int(args.days or 90), 365))
+    days = max(1, min(int(args.days or 90), 1095))
     start = (date.today() - timedelta(days=days)).isoformat()
     end = date.today().isoformat()
     try:
