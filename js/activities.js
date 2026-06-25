@@ -100,6 +100,28 @@
     return buckets;
   }
 
+  // 12 meses (Jan–Dez) somando TODOS os anos: jan/2026 + jan/2024 = jan total.
+  // Usado no filtro "Tudo" para consolidar o histórico inteiro por mês do calendário.
+  function bucketByCalendarMonth(activities) {
+    const buckets = [];
+    for (let m = 0; m < 12; m++) {
+      const d = new Date(2000, m, 1);
+      buckets.push({ key: m,
+                     label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+                     km: 0, count: 0, elev: 0 });
+    }
+    activities.forEach(x => {
+      const m = new Date(x.inicio).getMonth();
+      const b = buckets[m];
+      if (b) {
+        b.km    += (x.distanciaKm || 0);
+        b.count += 1;
+        b.elev  += (x.elevacaoM || 0);
+      }
+    });
+    return buckets;
+  }
+
   // 12 meses (Jan–Dez) de um ano específico, mesmo formato de bucketByMonth.
   function bucketMonthsOfYear(activities, year) {
     const buckets = [];
@@ -179,7 +201,7 @@
     _last5Page = 0;
     const acts = histActsForYear();
     renderHistKpis();
-    renderVolume(_histYear === 'all' ? bucketByMonth(_histAll, 6) : bucketMonthsOfYear(acts, _histYear));
+    renderVolume(_histYear === 'all' ? bucketByCalendarMonth(_histAll) : bucketMonthsOfYear(acts, _histYear));
     renderLast5(acts);
   }
 
