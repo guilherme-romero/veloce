@@ -40,6 +40,7 @@
     { slug: 'atividades',      section: 'activities',   navBtn: 'nav-activities',   label: 'Histórico' },
     { slug: 'historico',       section: 'activities',   navBtn: 'nav-activities',   label: 'Histórico' },
     { slug: 'insights',        section: 'insights',     navBtn: 'nav-insights',     label: 'Insights' },
+    { slug: 'testes',          section: 'testes',       navBtn: 'nav-testes',       label: 'Testes' },
     { slug: 'conexoes',        section: 'integrations', navBtn: 'nav-integrations', label: 'Conexões' },
     // Adicionar aqui novas seções (historico, home)
   ];
@@ -99,6 +100,9 @@
     }
     if (route.section === 'insights' && window.Insights?.load) {
       window.Insights.load();
+    }
+    if (route.section === 'testes' && window.Testes?.load) {
+      window.Testes.load();
     }
   }
 

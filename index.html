@@ -15,11 +15,11 @@
              worker-src 'self';"
   >
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.0.38">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.0.38">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.0.38">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.0.38">
-  <link rel="manifest" href="manifest.json?v=2.0.38">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.0.42">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.0.42">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.0.42">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.0.42">
+  <link rel="manifest" href="manifest.json?v=2.0.42">
 
   <title>Treino Bike</title>
 
@@ -38,10 +38,10 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.0.38">
-  <link rel="stylesheet" href="css/rides.css?v=2.0.38">
-  <link rel="stylesheet" href="css/routes.css?v=2.0.38">
-  <link rel="stylesheet" href="css/bikes.css?v=2.0.38">
+  <link rel="stylesheet" href="css/style.css?v=2.0.42">
+  <link rel="stylesheet" href="css/rides.css?v=2.0.42">
+  <link rel="stylesheet" href="css/routes.css?v=2.0.42">
+  <link rel="stylesheet" href="css/bikes.css?v=2.0.42">
 </head>
 <body>
 
@@ -64,6 +64,7 @@
       <button id="nav-routes"       class="nav-btn"        onclick="scrollToSection('routes')">Rotas</button>
       <button id="nav-activities"   class="nav-btn"        onclick="scrollToSection('activities')">Histórico</button>
       <button id="nav-insights"     class="nav-btn"        onclick="scrollToSection('insights')">Insights</button>
+      <button id="nav-testes"       class="nav-btn"        onclick="scrollToSection('testes')">Testes</button>
       <button id="nav-integrations" class="nav-btn"        onclick="scrollToSection('integrations')">Conexões</button>
     </div>
     <div class="nav-right">
@@ -820,7 +821,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Índice de Fadiga</div>
-            <button class="insight-info-btn" data-info="Combina Body Battery (energia disponível), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio do dia. Escala 0–100: acima de 70 = boa condição; abaixo de 40 = recomenda-se recuperação."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="Combina Body Battery (energia gasta vs. capacidade), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio do dia. Escala 0–100, onde MAIOR = mais fadiga: abaixo de 45 = Recuperado (apto a treino intenso); 45–65 = Moderado (treino normal, evite volume alto); acima de 65 = Fadigado (recomenda-se descanso ou atividade leve)."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="fadiga-status">—</span>
         </div>
@@ -834,6 +835,28 @@
           <div><span class="ib-label">Stress médio</span><span class="ib-val" id="fadiga-stress">—</span></div>
         </div>
         <div class="insight-msg" id="fadiga-msg"></div>
+      </div>
+
+      <!-- Training Readiness (logo abaixo do Índice de Fadiga) -->
+      <div class="card insight-card insight-readiness" id="card-readiness" hidden>
+        <div class="insight-head">
+          <div class="insight-head-left">
+            <div class="card-label">Training Readiness (Garmin)</div>
+            <button class="insight-info-btn" data-info="Score oficial Garmin (0–100) que combina qualidade do sono, HRV, recuperação muscular e histórico de treino. HIGH (>65): pronto para sessão intensa. MODERATE (35–65): treino normal ok. LOW (<35): priorize recuperação. Tempo de recuperação = horas restantes estimadas pelo relógio."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
+          <span class="insight-badge" id="readiness-level">—</span>
+        </div>
+        <div class="insight-gauge">
+          <div class="insight-gauge-fill" id="readiness-fill"></div>
+          <div class="insight-gauge-value" id="readiness-score">—</div>
+        </div>
+        <div class="chart-wrap" style="height:80px; margin-top:8px;"><canvas id="readinessSparkChart"></canvas></div>
+        <div class="insight-breakdown">
+          <div><span class="ib-label">Sono</span><span class="ib-val" id="readiness-sleep">—</span></div>
+          <div><span class="ib-label">Recuperação</span><span class="ib-val" id="readiness-recovery">—</span></div>
+          <div><span class="ib-label">HRV</span><span class="ib-val" id="readiness-hrv">—</span></div>
+        </div>
+        <div class="insight-msg" id="readiness-msg"></div>
       </div>
 
       <!-- 7.4 TSS / ATL / CTL / TSB -->
@@ -856,6 +879,18 @@
         <div class="insight-msg" id="tss-msg"></div>
       </div>
 
+      <!-- % de sono profundo (promovido de Testes · S3) -->
+      <div class="card insight-card">
+        <div class="insight-head">
+          <div class="insight-head-left">
+            <div class="card-label">% de sono profundo</div>
+            <button class="insight-info-btn" data-info="Percentual do sono que foi sono profundo (sono_deep ÷ sono_total) por noite, nos últimos 30 dias. A faixa ideal costuma ficar entre 13% e 23% do total. O sono profundo é a fase mais ligada à recuperação física."><i class="fa-solid fa-circle-info"></i></button>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:200px;"><canvas id="insSleepPctChart"></canvas></div>
+        <div class="insight-msg" id="ins-sleep-pct-msg"></div>
+      </div>
+
       <!-- 7.3 Intensidade/kg semanal -->
       <div class="card insight-card insight-trimp" style="grid-column: span 2;">
         <div class="insight-head">
@@ -869,16 +904,16 @@
         <div class="insight-msg" id="trimp-msg"></div>
       </div>
 
-      <!-- 7.2 Sono x Desempenho -->
+      <!-- HRV noturno × média 7 noites (promovido de Testes · H3) -->
       <div class="card insight-card">
         <div class="insight-head">
           <div class="insight-head-left">
-            <div class="card-label">Sono profundo × FC média</div>
-            <button class="insight-info-btn" data-info="Correlação entre horas de sono profundo (noite anterior) e FC média nos treinos do dia seguinte. FC mais baixa após sono adequado indica melhor recuperação e eficiência cardiovascular. Útil para identificar se a qualidade do sono afeta seu desempenho."><i class="fa-solid fa-circle-info"></i></button>
+            <div class="card-label">HRV noturno × média 7 noites</div>
+            <button class="insight-info-btn" data-info="HRV (variabilidade da frequência cardíaca) noturno por noite, com a média móvel de 7 noites. Barras acima da linha indicam boa recuperação; abaixo, possível fadiga, estresse ou início de doença. Leitura do desvio em relação ao seu próprio baseline."><i class="fa-solid fa-circle-info"></i></button>
           </div>
         </div>
-        <div class="chart-wrap" style="height:200px;"><canvas id="sleepPerfChart"></canvas></div>
-        <div class="insight-msg" id="sleep-msg"></div>
+        <div class="chart-wrap" style="height:200px;"><canvas id="insHrvMaChart"></canvas></div>
+        <div class="insight-msg" id="ins-hrv-ma-msg"></div>
       </div>
 
       <!-- 7.5 Custo metabólico -->
@@ -894,41 +929,7 @@
         <div class="insight-msg" id="custo-msg"></div>
       </div>
 
-      <!-- 7.6 HRV × Carga -->
-      <div class="card insight-card" style="grid-column: span 2;">
-        <div class="insight-head">
-          <div class="insight-head-left">
-            <div class="card-label">HRV noturno × Carga de treino</div>
-            <button class="insight-info-btn" data-info="Correlação entre a variabilidade cardíaca (HRV) noturna e a carga de treino do dia. HRV elevado após treino pesado indica boa capacidade de recuperação. HRV persistentemente baixo mesmo sem treino pesado pode sinalizar estresse, doença ou acúmulo de fadiga."><i class="fa-solid fa-circle-info"></i></button>
-          </div>
-        </div>
-        <div class="chart-wrap" style="height:200px;"><canvas id="hrvLoadChart"></canvas></div>
-        <div class="insight-msg" id="hrv-load-msg"></div>
-      </div>
-
       <!-- ═══ Fase 9.2 — Novos cards baseados em dados Garmin extras ═══ -->
-
-      <!-- Training Readiness -->
-      <div class="card insight-card insight-readiness" id="card-readiness" hidden>
-        <div class="insight-head">
-          <div class="insight-head-left">
-            <div class="card-label">Training Readiness (Garmin)</div>
-            <button class="insight-info-btn" data-info="Score oficial Garmin (0–100) que combina qualidade do sono, HRV, recuperação muscular e histórico de treino. HIGH (>65): pronto para sessão intensa. MODERATE (35–65): treino normal ok. LOW (<35): priorize recuperação. Tempo de recuperação = horas restantes estimadas pelo relógio."><i class="fa-solid fa-circle-info"></i></button>
-          </div>
-          <span class="insight-badge" id="readiness-level">—</span>
-        </div>
-        <div class="insight-gauge">
-          <div class="insight-gauge-fill" id="readiness-fill"></div>
-          <div class="insight-gauge-value" id="readiness-score">—</div>
-        </div>
-        <div class="chart-wrap" style="height:80px; margin-top:8px;"><canvas id="readinessSparkChart"></canvas></div>
-        <div class="insight-breakdown">
-          <div><span class="ib-label">Sono</span><span class="ib-val" id="readiness-sleep">—</span></div>
-          <div><span class="ib-label">Recuperação</span><span class="ib-val" id="readiness-recovery">—</span></div>
-          <div><span class="ib-label">HRV</span><span class="ib-val" id="readiness-hrv">—</span></div>
-        </div>
-        <div class="insight-msg" id="readiness-msg"></div>
-      </div>
 
       <!-- Personal Records -->
       <div class="card insight-card insight-prs" id="card-prs" hidden>
@@ -944,7 +945,7 @@
       </div>
 
       <!-- Hill + Endurance Score -->
-      <div class="card insight-card insight-scores" id="card-scores" style="grid-column: span 2;" hidden>
+      <div class="card insight-card insight-scores" id="card-scores" hidden>
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Hill Score + Endurance Score (Garmin)</div>
@@ -952,7 +953,7 @@
           </div>
           <span class="insight-badge" id="scores-class">—</span>
         </div>
-        <div class="scores-grid">
+        <div class="scores-grid" style="grid-template-columns: 1fr;">
           <div class="score-box">
             <div class="score-label">Endurance Score</div>
             <div class="score-value" id="endurance-value">—</div>
@@ -967,6 +968,59 @@
           </div>
         </div>
         <div class="insight-msg" id="scores-msg"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ┌─ TESTES (TEMPORÁRIO) — propostas de gráficos de Sono e HRV ──────┐ -->
+  <section id="testes" class="scroll-mt-20" style="display:none;">
+    <div class="home-hero">
+      <div class="home-hero-inner">
+        <div>
+          <div class="section-label">Temporário</div>
+          <h2 class="section-title">Testes — propostas de gráficos</h2>
+          <p class="section-sub">Variações de visualização para Sono Profundo e HRV noturno (últimos 30 dias). Seção descartável para avaliação.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="testes-empty" class="empty-state" hidden style="color:var(--muted2);padding:16px;">Carregando…</div>
+
+    <div class="card-label" style="margin:8px 0 4px;">Sono Profundo</div>
+    <div class="insights-grid">
+      <div class="card insight-card" style="grid-column: span 2;">
+        <div class="insight-head"><div class="insight-head-left"><div class="card-label">S1 · Composição do sono (empilhado)</div></div></div>
+        <div class="chart-wrap" style="height:220px;"><canvas id="t-sleep-stack"></canvas></div>
+        <div class="insight-msg">Profundo + leve + REM por noite, em horas — mostra a estrutura do sono.</div>
+      </div>
+      <div class="card insight-card">
+        <div class="insight-head"><div class="insight-head-left"><div class="card-label">S2 · Sono profundo + média 7 noites</div></div></div>
+        <div class="chart-wrap" style="height:200px;"><canvas id="t-sleep-deep"></canvas></div>
+        <div class="insight-msg">Barras por noite com linha de tendência (média móvel de 7 noites).</div>
+      </div>
+      <div class="card insight-card">
+        <div class="insight-head"><div class="insight-head-left"><div class="card-label">S3 · % de sono profundo</div></div></div>
+        <div class="chart-wrap" style="height:200px;"><canvas id="t-sleep-pct"></canvas></div>
+        <div class="insight-msg">Percentual do total, com faixa de referência ideal (13–23%).</div>
+      </div>
+    </div>
+
+    <div class="card-label" style="margin:16px 0 4px;">HRV noturno</div>
+    <div class="insights-grid">
+      <div class="card insight-card" style="grid-column: span 2;">
+        <div class="insight-head"><div class="insight-head-left"><div class="card-label">H1 · HRV noturno + baseline semanal</div></div></div>
+        <div class="chart-wrap" style="height:220px;"><canvas id="t-hrv-baseline"></canvas></div>
+        <div class="insight-msg">HRV por noite contra o baseline semanal do Garmin — desvios indicam estresse/recuperação.</div>
+      </div>
+      <div class="card insight-card">
+        <div class="insight-head"><div class="insight-head-left"><div class="card-label">H2 · HRV × sono profundo</div></div></div>
+        <div class="chart-wrap" style="height:200px;"><canvas id="t-hrv-scatter"></canvas></div>
+        <div class="insight-msg">Dispersão: mais sono profundo tende a elevar a HRV?</div>
+      </div>
+      <div class="card insight-card">
+        <div class="insight-head"><div class="insight-head-left"><div class="card-label">H3 · HRV vs média 7 noites</div></div></div>
+        <div class="chart-wrap" style="height:200px;"><canvas id="t-hrv-ma"></canvas></div>
+        <div class="insight-msg">Barras do HRV noturno com a média móvel — leitura do desvio do próprio baseline.</div>
       </div>
     </div>
   </section>
@@ -989,31 +1043,32 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.0.38"></script>
-<script src="js/utils.js?v=2.0.38"></script>
-<script src="js/router.js?v=2.0.38"></script>
-<script src="js/defaults.js?v=2.0.38"></script>
-<script src="js/api.js?v=2.0.38"></script>
-<script src="js/storage.js?v=2.0.38"></script>
-<script src="js/profile.js?v=2.0.38"></script>
-<script src="js/charts.js?v=2.0.38"></script>
-<script src="js/modals.js?v=2.0.38"></script>
-<script src="js/workouts.js?v=2.0.38"></script>
-<script src="js/rides.js?v=2.0.38"></script>
-<script src="js/bikes.js?v=2.0.38"></script>
-<script src="js/training-log.js?v=2.0.38"></script>
-<script src="js/home-workout.js?v=2.0.38"></script>
-<script src="js/backup.js?v=2.0.38"></script>
-<script src="js/gpx.js?v=2.0.38"></script>
-<script src="js/routes.js?v=2.0.38"></script>
-<script src="js/heatmap.js?v=2.0.38"></script>
-<script src="js/strava.js?v=2.0.38"></script>
-<script src="js/garmin.js?v=2.0.38"></script>
-<script src="js/activities.js?v=2.0.38"></script>
-<script src="js/insights.js?v=2.0.38"></script>
-<script src="js/home.js?v=2.0.38"></script>
-<script src="js/app.js?v=2.0.38"></script>
-<script src="js/pwa.js?v=2.0.38"></script>
+<script src="js/version.js?v=2.0.42"></script>
+<script src="js/utils.js?v=2.0.42"></script>
+<script src="js/router.js?v=2.0.42"></script>
+<script src="js/defaults.js?v=2.0.42"></script>
+<script src="js/api.js?v=2.0.42"></script>
+<script src="js/storage.js?v=2.0.42"></script>
+<script src="js/profile.js?v=2.0.42"></script>
+<script src="js/charts.js?v=2.0.42"></script>
+<script src="js/modals.js?v=2.0.42"></script>
+<script src="js/workouts.js?v=2.0.42"></script>
+<script src="js/rides.js?v=2.0.42"></script>
+<script src="js/bikes.js?v=2.0.42"></script>
+<script src="js/training-log.js?v=2.0.42"></script>
+<script src="js/home-workout.js?v=2.0.42"></script>
+<script src="js/backup.js?v=2.0.42"></script>
+<script src="js/gpx.js?v=2.0.42"></script>
+<script src="js/routes.js?v=2.0.42"></script>
+<script src="js/heatmap.js?v=2.0.42"></script>
+<script src="js/strava.js?v=2.0.42"></script>
+<script src="js/garmin.js?v=2.0.42"></script>
+<script src="js/activities.js?v=2.0.42"></script>
+<script src="js/insights.js?v=2.0.42"></script>
+<script src="js/testes.js?v=2.0.42"></script>
+<script src="js/home.js?v=2.0.42"></script>
+<script src="js/app.js?v=2.0.42"></script>
+<script src="js/pwa.js?v=2.0.42"></script>
 
 </body>
 </html>

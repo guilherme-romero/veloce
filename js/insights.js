@@ -274,79 +274,92 @@
     return true;
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // 7.2 — SONO × DESEMPENHO
-  // ───────────────────────────────────────────────────────────────
-  function renderSonoVsFC(activities, health, fcMax) {
-    if (!activities.length || !health.length || !fcMax) return false;
-
-    const healthByDate = {};
-    health.forEach(h => { healthByDate[h.data] = h; });
-
-    // Para cada atividade, pega sono_deep_s do dia anterior
-    const pontos = [];
-    activities.forEach(a => {
-      if (!a.fcMedia || !a.data) return;
-      const ontem = new Date(a.data + 'T12:00:00');
-      ontem.setDate(ontem.getDate() - 1);
-      const ontemIso = ontem.toISOString().slice(0, 10);
-      const sleep = healthByDate[ontemIso];
-      if (!sleep || !sleep.sono_deep_s) return;
-      pontos.push({
-        x: +(sleep.sono_deep_s / 60).toFixed(1),       // minutos de sono profundo
-        y: +((a.fcMedia / fcMax) * 100).toFixed(1),    // % da FCM
-        nome: a.nome,
-        data: a.data,
-      });
+  // Média móvel simples de N pontos (ignora nulos na janela)
+  function _movingAvg(arr, n) {
+    return arr.map((_, i) => {
+      const win = arr.slice(Math.max(0, i - n + 1), i + 1).filter(v => v != null && isFinite(v));
+      return win.length ? +(win.reduce((s, v) => s + v, 0) / win.length).toFixed(1) : null;
     });
+  }
 
-    if (pontos.length < 3) {
-      $('sleep-msg').textContent = 'Poucos dados ainda — precisa de pelo menos 3 atividades com sono registrado no dia anterior.';
-      return true;
-    }
+  // ───────────────────────────────────────────────────────────────
+  // % DE SONO PROFUNDO (promovido de Testes · S3) — últimos 30 dias
+  // ───────────────────────────────────────────────────────────────
+  function renderSleepPct(health) {
+    const canvas = $('insSleepPctChart');
+    if (!canvas || !window.Chart) return false;
+    const arr = [...health].sort((a, b) => a.data.localeCompare(b.data)).slice(-30);
+    const labels = arr.map(h => h.data.slice(5));
+    const pct = arr.map(h => (h.sono_total_s && h.sono_deep_s) ? +((h.sono_deep_s / h.sono_total_s) * 100).toFixed(1) : null);
 
-    // Análise simples: média de FC% para sono < mediana vs sono > mediana
-    const sorted = [...pontos].sort((a, b) => a.x - b.x);
-    const mediana = sorted[Math.floor(sorted.length / 2)].x;
-    const baixo = pontos.filter(p => p.x < mediana);
-    const alto  = pontos.filter(p => p.x >= mediana);
-    const avgBaixo = baixo.length ? baixo.reduce((s, p) => s + p.y, 0) / baixo.length : 0;
-    const avgAlto  = alto.length  ? alto.reduce((s, p) => s + p.y, 0) / alto.length : 0;
-    const diff = avgBaixo - avgAlto;
-
-    let msg;
-    if (Math.abs(diff) < 2) msg = `Sem padrão claro — FC média similar (${avgAlto.toFixed(0)}% vs ${avgBaixo.toFixed(0)}% da FCM).`;
-    else if (diff > 2)       msg = `Dias com menos sono profundo têm FC mais alta (${avgBaixo.toFixed(0)}% vs ${avgAlto.toFixed(0)}%) — sinal de esforço maior.`;
-    else                     msg = `Dias com mais sono profundo têm FC mais alta — pode indicar treinos mais intensos quando bem descansado.`;
-
-    $('sleep-msg').textContent = msg;
-
-    const canvas = $('sleepPerfChart');
-    if (!canvas || !window.Chart) return true;
-    if (_charts.sleep) _charts.sleep.destroy();
-    _charts.sleep = new Chart(canvas, {
-      type: 'scatter',
+    if (_charts.sleepPct) _charts.sleepPct.destroy();
+    _charts.sleepPct = new Chart(canvas, {
       data: {
-        datasets: [{
-          data: pontos,
-          backgroundColor: 'rgba(78,158,245,0.7)',
-          borderColor: COLORS.blue,
-          pointRadius: 5,
-          pointHoverRadius: 7,
-        }],
+        labels,
+        datasets: [
+          { type: 'line', label: '% profundo',      data: pct,                 borderColor: COLORS.blue,   backgroundColor: 'rgba(78,158,245,0.15)', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: true },
+          { type: 'line', label: 'Ideal máx (23%)', data: labels.map(() => 23), borderColor: COLORS.muted2, borderDash: [4, 4], borderWidth: 1, pointRadius: 0 },
+          { type: 'line', label: 'Ideal mín (13%)', data: labels.map(() => 13), borderColor: COLORS.muted2, borderDash: [4, 4], borderWidth: 1, pointRadius: 0 },
+        ],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: c => `${c.raw.nome}: ${c.raw.x}min sono → ${c.raw.y}% FCM` } },
-        },
+        plugins: { legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 10, font: { size: 11 } } } },
         scales: {
-          x: { title: { display: true, text: 'Sono profundo (min)', color: COLORS.muted2 }, ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
-          y: { title: { display: true, text: '% FC máx', color: COLORS.muted2 }, ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
+          x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } },
+          y: { ticks: { color: COLORS.muted2, callback: v => v + '%' }, grid: { color: COLORS.border }, suggestedMin: 0, suggestedMax: 35 },
         },
       },
     });
+
+    const valid = pct.filter(v => v != null);
+    const avg = valid.length ? valid.reduce((s, v) => s + v, 0) / valid.length : null;
+    const msgEl = $('ins-sleep-pct-msg');
+    if (msgEl) msgEl.textContent = avg == null ? 'Sem dados de sono suficientes.' : `Média de ${avg.toFixed(0)}% de sono profundo (faixa ideal 13–23%).`;
+    return true;
+  }
+
+  // ───────────────────────────────────────────────────────────────
+  // HRV NOTURNO × MÉDIA 7 NOITES (promovido de Testes · H3)
+  // ───────────────────────────────────────────────────────────────
+  function renderHrvMA(health) {
+    const canvas = $('insHrvMaChart');
+    if (!canvas || !window.Chart) return false;
+    const arr = [...health].sort((a, b) => a.data.localeCompare(b.data)).slice(-30);
+    const labels = arr.map(h => h.data.slice(5));
+    const noite = arr.map(h => h.hrv_noite_avg ?? null);
+    const ma = _movingAvg(noite, 7);
+
+    if (_charts.hrvMa) _charts.hrvMa.destroy();
+    _charts.hrvMa = new Chart(canvas, {
+      data: {
+        labels,
+        datasets: [
+          { type: 'bar',  label: 'HRV noturno',     data: noite, backgroundColor: 'rgba(198,241,53,0.4)', borderColor: COLORS.teal, borderWidth: 1, borderRadius: 3 },
+          { type: 'line', label: 'Média 7 noites',  data: ma,    borderColor: COLORS.amber, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 10, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } },
+          y: { ticks: { color: COLORS.muted2, callback: v => v + ' ms' }, grid: { color: COLORS.border } },
+        },
+      },
+    });
+
+    const valid = noite.filter(v => v != null);
+    const last = valid[valid.length - 1];
+    const lastMa = ma.filter(v => v != null).pop();
+    const msgEl = $('ins-hrv-ma-msg');
+    if (msgEl && last != null && lastMa != null) {
+      const d = last - lastMa;
+      msgEl.textContent = Math.abs(d) < 2
+        ? 'HRV noturno em linha com a média de 7 noites.'
+        : (d > 0 ? `HRV ${Math.round(d)} ms acima da média — boa recuperação.`
+                 : `HRV ${Math.round(-d)} ms abaixo da média — possível fadiga ou estresse.`);
+    }
     return true;
   }
 
@@ -421,77 +434,6 @@
         scales: {
           y: { ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
           x: { ticks: { color: COLORS.muted2, maxRotation: 45 }, grid: { display: false } },
-        },
-      },
-    });
-    return true;
-  }
-
-  // ───────────────────────────────────────────────────────────────
-  // 7.6 — HRV × CARGA DE TREINO (correlação visual)
-  // ───────────────────────────────────────────────────────────────
-  function renderHrvVsCarga(activities, health, fcMax) {
-    if (!health.length || !fcMax) return false;
-
-    // TRIMP do dia anterior por data
-    const trimpByDate = {};
-    activities.forEach(a => {
-      const t = trimpDeAtividade(a, fcMax);
-      if (t > 0) trimpByDate[a.data] = (trimpByDate[a.data] || 0) + t;
-    });
-
-    // Pontos: HRV de hoje vs TRIMP de ontem
-    const pontos = [];
-    health.forEach(h => {
-      if (h.hrv_noite_avg == null) return;
-      const ontem = new Date(h.data + 'T12:00:00');
-      ontem.setDate(ontem.getDate() - 1);
-      const ontemIso = ontem.toISOString().slice(0, 10);
-      const trimp = trimpByDate[ontemIso] || 0;
-      pontos.push({ x: +trimp.toFixed(1), y: h.hrv_noite_avg, data: h.data });
-    });
-
-    if (pontos.length < 5) {
-      $('hrv-load-msg').textContent = 'Precisa de pelo menos 5 dias com HRV registrado.';
-      return false;
-    }
-
-    // Pearson approximation: dias com TRIMP > 0
-    const comCarga = pontos.filter(p => p.x > 0);
-    const semCarga = pontos.filter(p => p.x === 0);
-    const avgHrvComCarga = comCarga.length ? comCarga.reduce((s, p) => s + p.y, 0) / comCarga.length : null;
-    const avgHrvSemCarga = semCarga.length ? semCarga.reduce((s, p) => s + p.y, 0) / semCarga.length : null;
-
-    let msg = '';
-    if (avgHrvComCarga != null && avgHrvSemCarga != null) {
-      const delta = avgHrvSemCarga - avgHrvComCarga;
-      if (Math.abs(delta) < 2)      msg = `HRV similar em dias de descanso (${avgHrvSemCarga.toFixed(0)}ms) vs após treino (${avgHrvComCarga.toFixed(0)}ms) — boa adaptação.`;
-      else if (delta > 5)            msg = `HRV cai ~${delta.toFixed(0)}ms após dias de treino — recuperação parcial entre sessões.`;
-      else                           msg = `Padrão saudável — HRV recupera bem após cargas de treino.`;
-    }
-    $('hrv-load-msg').textContent = msg;
-
-    const canvas = $('hrvLoadChart');
-    if (!canvas || !window.Chart) return true;
-    if (_charts.hrvLoad) _charts.hrvLoad.destroy();
-    _charts.hrvLoad = new Chart(canvas, {
-      type: 'scatter',
-      data: {
-        datasets: [{
-          data: pontos,
-          backgroundColor: pontos.map(p => p.x === 0 ? COLORS.muted2 : COLORS.amber),
-          pointRadius: 5,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: c => `${c.raw.data}: TRIMP ${c.raw.x} → HRV ${c.raw.y}ms` } },
-        },
-        scales: {
-          x: { title: { display: true, text: 'TRIMP do dia anterior', color: COLORS.muted2 }, ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
-          y: { title: { display: true, text: 'HRV noturno (ms)', color: COLORS.muted2 }, ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
         },
       },
     });
@@ -974,9 +916,9 @@
       try { renderFadiga(healthArr); }                              catch (e) { console.error('[insights] 7.1', e); }
       try { renderTSS(activities, fcMax); }                         catch (e) { console.error('[insights] 7.4', e); }
       try { renderTrimpSemanal(activities, weights, fcMax); }       catch (e) { console.error('[insights] 7.3', e); }
-      try { renderSonoVsFC(activities, healthArr, fcMax); }         catch (e) { console.error('[insights] 7.2', e); }
+      try { renderSleepPct(healthArr); }                            catch (e) { console.error('[insights] sono%', e); }
+      try { renderHrvMA(healthArr); }                               catch (e) { console.error('[insights] hrv-ma', e); }
       try { renderCustoMetabolico(activities); }                    catch (e) { console.error('[insights] 7.5', e); }
-      try { renderHrvVsCarga(activities, healthArr, fcMax); }       catch (e) { console.error('[insights] 7.6', e); }
       try { renderReadiness(readiness); }                            catch (e) { console.error('[insights] 7.7', e); }
       try { renderPRs(prs); }                                        catch (e) { console.error('[insights] 7.8', e); }
       try { renderScores(scores); }                                  catch (e) { console.error('[insights] 7.9', e); }

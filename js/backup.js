@@ -549,7 +549,8 @@ async function buildRelatorioPDF(daysWindow) {
   drawHeatmap90d();
   captureCanvas('volumeChart',  'Volume mensal');
   captureCanvas('weeklyKmChart','Km semanais');
-  captureCanvas('hrvLoadChart', 'HRV × Carga');
+  captureCanvas('insHrvMaChart',   'HRV noturno × média 7 noites');
+  captureCanvas('insSleepPctChart','% de sono profundo');
 
   // ─── INSIGHTS RESUMIDOS ──────────────────────────────────────────────
   setSection('Insights');
