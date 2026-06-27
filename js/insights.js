@@ -33,6 +33,23 @@
     border: '#252830',
   };
 
+  // Tooltip flutuante padrão (mesma "mini legenda" do HISTÓRICO): ao passar o
+  // mouse sobre qualquer ponto da coluna, mostra todos os valores daquele x.
+  const HOVER = { mode: 'index', intersect: false };
+  const TOOLTIP_STYLE = {
+    backgroundColor: 'rgba(19,21,26,0.95)',
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    titleColor: '#e6e8ec',
+    bodyColor: '#c4c9d4',
+    padding: 10,
+    cornerRadius: 8,
+    usePointStyle: true,
+    boxWidth: 8,
+    boxHeight: 8,
+    boxPadding: 4,
+  };
+
   // ── Helpers de cálculo ──────────────────────────────────────────
   function calcFCMax(user) {
     if (user.fcMax) return user.fcMax;
@@ -255,9 +272,10 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        interaction: HOVER,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: {
+          tooltip: { ...TOOLTIP_STYLE, callbacks: {
             label: c => {
               const s = semanas[c.dataIndex];
               const base = `${c.parsed.y.toFixed(2)} TRIMP/kg`;
@@ -304,7 +322,11 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 10, font: { size: 11 } } } },
+        interaction: HOVER,
+        plugins: {
+          legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 10, font: { size: 11 } } },
+          tooltip: { ...TOOLTIP_STYLE, callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` } },
+        },
         scales: {
           x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } },
           y: { ticks: { color: COLORS.muted2, callback: v => v + '%' }, grid: { color: COLORS.border }, suggestedMin: 0, suggestedMax: 35 },
@@ -340,8 +362,11 @@
         ],
       },
       options: {
-        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-        plugins: { legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 10, font: { size: 11 } } } },
+        responsive: true, maintainAspectRatio: false, interaction: HOVER,
+        plugins: {
+          legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 10, font: { size: 11 } } },
+          tooltip: { ...TOOLTIP_STYLE, callbacks: { label: c => c.parsed.y == null ? `${c.dataset.label}: —` : `${c.dataset.label}: ${c.parsed.y} ms` } },
+        },
         scales: {
           x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } },
           y: { ticks: { color: COLORS.muted2, callback: v => v + ' ms' }, grid: { color: COLORS.border } },
@@ -427,9 +452,10 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        interaction: HOVER,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: c => c.datasetIndex === 0 ? `${c.parsed.y} kcal/km` : `baseline ${baseline.toFixed(0)}` } },
+          tooltip: { ...TOOLTIP_STYLE, callbacks: { label: c => c.datasetIndex === 0 ? `${c.parsed.y} kcal/km` : `baseline ${baseline.toFixed(0)}` } },
         },
         scales: {
           y: { ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
@@ -664,6 +690,21 @@
     const eClass = latest.endurance_classification;
     const CLASS_LABELS = ['—','Iniciante','Amador','Intermediário','Treinado','Bem Treinado','Especialista','Superior','Elite'];
 
+    // Sugestões de progressão do Endurance Score, indexadas pela classificação
+    // (1=Iniciante … 8=Elite). Acompanham a curva: base aeróbica → volume →
+    // limiar → VO2max → polarização → manutenção. Índice 0 = sem dado/score.
+    const ENDURANCE_TIPS = [
+      'Sincronize mais pedais longos no Garmin para o Endurance Score se caracterizar.',
+      'Construa a base: pedais longos e constantes em Z2, 2–3× por semana, sem se preocupar com ritmo.',
+      'Aumente o volume semanal aos poucos (~10%/semana), mantendo a maior parte do tempo em Z2.',
+      'Some um pedal longo progressivo e um treino de tempo/limiar (Z3–Z4) por semana.',
+      'Inclua intervalados de limiar (ex.: 2×20 min em Z4) para elevar o teto aeróbico.',
+      'Periodize: alterne blocos de volume com semanas de VO2max (ex.: 5×4 min em Z5).',
+      'Refine com sweet spot prolongado e recuperação estruturada entre os blocos fortes.',
+      'Mantenha alto volume com treino polarizado (muito Z2 + doses de Z5) e cuide da recuperação.',
+      'Score de elite — foque em manutenção, especificidade de prova e recuperação fina.',
+    ];
+
     $('endurance-value').textContent = eVal ?? '—';
     if (eVal != null) {
       const pct = Math.max(0, Math.min(100, ((eVal - eMin) / (eMax - eMin)) * 100));
@@ -671,6 +712,8 @@
       $('endurance-fill').style.background = COLORS.teal;
     }
     $('endurance-meta').textContent = `${eMin}–${eMax} · ${CLASS_LABELS[eClass] || ''}`;
+    const eTip = $('endurance-tip');
+    if (eTip) eTip.textContent = eVal != null ? (ENDURANCE_TIPS[eClass] || ENDURANCE_TIPS[0]) : '';
 
     // Hill
     const hVal = latest.hill_score;
@@ -718,7 +761,11 @@
       ] },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 12, font: { size: 11 } } } },
+        interaction: HOVER,
+        plugins: {
+          legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 12, font: { size: 11 } } },
+          tooltip: { ...TOOLTIP_STYLE, callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}` } },
+        },
         scales: {
           y: { ticks: { color: COLORS.muted2 }, grid: { color: COLORS.border } },
           x: { ticks: { color: COLORS.muted2 }, grid: { display: false } },
@@ -745,7 +792,7 @@
               datasets: [{ data, backgroundColor: ['#4e9ef5', '#f5d523', '#22c55e', '#f0523a', '#a855f7'], borderColor: '#13151a', borderWidth: 2 }] },
       options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
         plugins: { legend: { position: 'bottom', labels: { color: COLORS.muted2, boxWidth: 10, padding: 10, font: { size: 11 } } },
-          tooltip: { callbacks: { label: c => {
+          tooltip: { ...TOOLTIP_STYLE, callbacks: { label: c => {
             const pct = total ? Math.round((c.parsed / total) * 100) : 0;
             const min = Math.round(c.parsed / 60);
             return `${c.label}: ${pct}% · ${min} min`;
