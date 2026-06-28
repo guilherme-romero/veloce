@@ -41,6 +41,7 @@
     { slug: 'historico',       section: 'activities',   navBtn: 'nav-activities',   label: 'Histórico' },
     { slug: 'insights',        section: 'insights',     navBtn: 'nav-insights',     label: 'Insights' },
     { slug: 'testes',          section: 'testes',       navBtn: 'nav-testes',       label: 'Testes' },
+    { slug: 'ferramentas',     section: 'ferramentas',  navBtn: 'nav-ferramentas',  label: 'Ferramentas' },
     { slug: 'conexoes',        section: 'integrations', navBtn: 'nav-integrations', label: 'Conexões' },
     // Adicionar aqui novas seções (historico, home)
   ];
@@ -103,6 +104,11 @@
     }
     if (route.section === 'testes' && window.Testes?.load) {
       window.Testes.load();
+    }
+    if (route.section === 'ferramentas') {
+      // Lazy-load do iframe: só busca o doc (sql.js/cassetes.db) na 1ª visita
+      const frame = document.getElementById('ferramentas-frame');
+      if (frame && !frame.src && frame.dataset.src) frame.src = frame.dataset.src;
     }
   }
 

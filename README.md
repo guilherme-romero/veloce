@@ -66,6 +66,13 @@ Painel de carga e forma no topo, seguido de análises detalhadas:
 
 Abaixo, os blocos analíticos completos: **Índice de Fadiga** (Body Battery + HRV + Stress), **Carga de Treino (TSB)** com ATL/CTL, **Intensidade/kg semanal**, **Sono × Desempenho**, **Custo metabólico**, **HRV × Carga**, **Training Readiness**, **Recordes pessoais** (distância semanal e de ciclismo, elevação semanal e por pedal, VO₂ máx) e **Hill + Endurance Score**.
 
+### 🧰 Ferramentas
+Calculadoras do ciclista, embarcadas como página própria (mesmo design *Hi-Vis Peloton*):
+- **PSI ideal do pneu** — pressão recomendada por peso, largura, tipo de bike e terreno (10 terrenos), com correção de montagem e enchimento via cartucho de CO₂
+- **Relação × Velocidade** — velocidade por relação (coroa × cog) e cadência, com base de cassetes/coroas Shimano e SRAM
+- **Tempo de percurso** — estimativa por distância, elevação (modelo Strava de "km equivalente") e vento
+- **Nutrição** — taxa de suor e plano de hidratação/carboidrato por temperatura, intensidade, peso e condicionamento, com cronograma de géis
+
 ### 🔌 Conexões
 - **Strava** — importa atividades de bike, marca os dias treinados
 - **Garmin Connect** — atividades, pesagens da balança, dados de saúde diários e estados de treino (Productive, Recovery, Maintaining)

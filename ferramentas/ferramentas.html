@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferramentas — TreinoBike</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background:#0d0f12;font-family:'Archivo',system-ui,sans-serif;color:#eef2f4}
+
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8b95a1}
+  .field input,.field select{background:#0d0f12;border:1px solid #2a313a;border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Archivo',sans-serif;color:#eef2f4;outline:none;transition:border-color .15s;width:100%}
+  .field input:focus,.field select:focus{border-color:#c6f135}
+  .field select option{background:#14181d}
+
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;background:#2a313a;border:none;padding:0;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#c6f135;cursor:pointer;border:2px solid #0d0f12;box-shadow:0 0 0 1px #c6f135}
+  input[type=range]:focus{outline:none}
+
+  .btn-calc{display:inline-flex;align-items:center;gap:8px;background:#c6f135;color:#0d0f12;border:none;border-radius:9px;padding:12px 22px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.05em;cursor:pointer;transition:opacity .15s}
+  .btn-calc:hover{opacity:.88}
+
+  .result-box{background:#14181d;border:1px solid #2a313a;border-radius:18px;padding:24px;display:none}
+  .result-box.show{display:block}
+  .result-row{display:flex;align-items:baseline;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1c2128}
+  .result-row:last-child{border-bottom:none}
+  .result-label{font-size:12px;color:#8b95a1;font-weight:600;letter-spacing:.04em}
+  .result-val{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:#eef2f4}
+  .result-unit{font-size:13px;color:#c6f135;margin-left:4px}
+  .result-highlight .result-val{color:#c6f135}
+
+  .psi-gauge{display:flex;align-items:center;justify-content:center;gap:32px;margin:8px 0}
+  .psi-circle{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .psi-circle-ring{width:88px;height:88px;border-radius:50%;border:3px solid #2a313a;display:flex;align-items:center;justify-content:center;flex-direction:column}
+  .psi-front .psi-circle-ring{border-color:#c6f135;box-shadow:0 0 0 1px rgba(198,241,53,.2)}
+  .psi-rear .psi-circle-ring{border-color:#ec3a8b;box-shadow:0 0 0 1px rgba(236,58,139,.2)}
+  .psi-num{font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:#eef2f4}
+  .psi-unit-small{font-size:10px;color:#8b95a1;letter-spacing:.08em;text-transform:uppercase}
+  .psi-tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8b95a1}
+  .psi-front .psi-tag{color:#c6f135}
+  .psi-rear .psi-tag{color:#ec3a8b}
+
+  .tool-tabs{display:flex;gap:4px;margin-bottom:28px;background:#14181d;padding:5px;border-radius:12px;border:1px solid #1c2128;flex-wrap:wrap}
+  .tab-btn{padding:9px 18px;border:none;border-radius:8px;background:transparent;color:#8b95a1;font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px}
+  .tab-btn.active{background:#c6f135;color:#0d0f12}
+  .tab-btn:not(.active):hover{color:#eef2f4;background:#1c2128}
+  .tool-panel{display:none}
+  .tool-panel.active{display:block}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+  .tip{display:flex;align-items:flex-start;gap:10px;background:rgba(198,241,53,.06);border:1px solid rgba(198,241,53,.18);border-radius:10px;padding:12px 14px;font-size:12px;color:#8b95a1;line-height:1.5}
+  .tip i{color:#c6f135;font-size:13px;margin-top:1px;flex:none}
+
+  .elev-bar-label{display:flex;justify-content:space-between;font-size:11px;color:#8b95a1;margin-bottom:6px;font-weight:600}
+  .elev-bar-track{height:8px;background:#1c2128;border-radius:4px;overflow:hidden}
+  .elev-bar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+
+  .matrix-wrap{overflow-x:auto}
+  .matrix-table{width:100%;border-collapse:collapse;font-size:12px}
+  .matrix-table th{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8b95a1;padding:8px 10px;text-align:center;border-bottom:1px solid #2a313a}
+  .matrix-table td{padding:7px 10px;text-align:center;border-bottom:1px solid #1c2128;font-weight:600;color:#eef2f4}
+  .matrix-table tr:last-child td{border-bottom:none}
+  .matrix-table td.cell-active{color:#c6f135;font-family:'Bebas Neue',sans-serif;font-size:16px}
+  .matrix-table td.col-active{color:#c6f135}
+  .matrix-table tr:hover td{background:rgba(198,241,53,.04)}
+  .matrix-table .td-cog{font-weight:800;color:#8b95a1;text-align:left;font-size:11px;letter-spacing:.08em}
+  .matrix-table .td-cog.row-active{color:#c6f135}
+
+  .route-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .route-stat{background:#0d0f12;border:1px solid #2a313a;border-radius:12px;padding:16px;text-align:center}
+  .route-stat-val{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;color:#eef2f4;margin-bottom:4px}
+  .route-stat-val span{font-size:16px;color:#c6f135;margin-left:3px}
+  .route-stat-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8b95a1}
+
+  /* Gear brand/category selector buttons */
+  .seg-btns{display:flex;gap:6px;flex-wrap:wrap}
+  .seg-btn{padding:8px 16px;border:1px solid #2a313a;border-radius:8px;background:#0d0f12;color:#8b95a1;font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+  .seg-btn.active{background:#c6f135;color:#0d0f12;border-color:#c6f135}
+  .seg-btn:not(.active):hover{border-color:#c6f135;color:#c6f135}
+
+  /* Nutrition */
+  .nutri-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .nutri-card{background:#0d0f12;border:1px solid #2a313a;border-radius:14px;padding:18px 16px;text-align:center}
+  .nutri-card-val{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:.9;color:#c6f135;margin-bottom:4px}
+  .nutri-card-unit{font-size:12px;color:#c6f135;margin-left:2px}
+  .nutri-card-sub{font-size:11px;color:#8b95a1;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:6px}
+  .nutri-card-rate{font-size:11px;color:#eef2f4;font-weight:700;margin-top:3px}
+
+  .schedule-table{width:100%;border-collapse:collapse;font-size:12px}
+  .schedule-table th{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8b95a1;padding:10px 12px;text-align:left;border-bottom:2px solid #2a313a;background:#0d0f12}
+  .schedule-table td{padding:9px 12px;border-bottom:1px solid #1c2128;vertical-align:top;color:#eef2f4;font-size:12px}
+  .schedule-table tr:last-child td{border-bottom:none;font-weight:700;color:#c6f135;border-top:2px solid #2a313a}
+  .schedule-table tr:hover:not(:last-child) td{background:rgba(198,241,53,.04)}
+  .schedule-table .td-time{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#c6f135;white-space:nowrap}
+  .schedule-table .td-total{font-family:'Bebas Neue',sans-serif;font-size:16px}
+
+  /* Modal de terreno */
+  dialog{background:#14181d;border:1px solid #2a313a;border-radius:18px;padding:0;color:#eef2f4;max-width:900px;width:95vw;max-height:90vh;overflow:hidden;margin:auto;inset:0;position:fixed}
+  dialog::backdrop{background:rgba(0,0,0,.7);backdrop-filter:blur(4px)}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #2a313a}
+  .modal-body{padding:20px 24px;overflow-y:auto;max-height:calc(90vh - 80px)}
+  .terrain-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .terrain-card{background:#1c2128;border:2px solid #2a313a;border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+  .terrain-card:hover,.terrain-card.selected{border-color:#c6f135}
+  .terrain-card img{width:100%;height:100px;object-fit:cover;display:block}
+  .terrain-card-info{padding:10px 10px 12px}
+  .terrain-card-name{font-size:11px;font-weight:700;color:#eef2f4;margin-bottom:4px}
+  .terrain-card-psi{font-size:10px;color:#8b95a1;font-weight:600}
+  .terrain-card-badge{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0d0f12;padding:2px 7px;border-radius:4px;display:inline-block;margin-top:4px}
+
+  /* CO2 box */
+  .co2-box{background:#0d0f12;border:1px solid rgba(198,241,53,.2);border-radius:10px;padding:14px 16px;display:none}
+  .co2-box.show{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+
+  @media(max-width:900px){
+    .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+    .route-stats,.nutri-kpi{grid-template-columns:1fr 1fr}
+    .terrain-grid{grid-template-columns:repeat(2,1fr)}
+    .two-col{grid-template-columns:1fr!important}
+  }
+  @media(max-width:600px){
+    .route-stats,.nutri-kpi{grid-template-columns:1fr}
+    .terrain-grid{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV de protótipo removida: esta página é embutida via <iframe> dentro do app (seção FERRAMENTAS) -->
+
+<main style="max-width:1400px;margin:0 auto;padding:28px 28px 80px">
+
+  <!-- HERO -->
+  <section style="position:relative;overflow:hidden;border-radius:18px;border:1px solid #2a313a;background:#14181d;padding:34px 32px;margin-bottom:32px">
+    <div style="position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(198,241,53,.045) 0 2px,transparent 2px 26px);pointer-events:none"></div>
+    <div style="position:absolute;top:0;right:0;width:6px;height:100%;background:repeating-linear-gradient(180deg,#c6f135 0 14px,#0d0f12 14px 20px,#ec3a8b 20px 34px,#0d0f12 34px 40px)"></div>
+    <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px">
+      <div>
+        <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#c6f135;margin-bottom:10px"><span style="width:22px;height:2px;background:#c6f135;display:block"></span>Utilidades</div>
+        <h1 style="font-family:'Bebas Neue',sans-serif;font-size:52px;line-height:.88;letter-spacing:.01em;color:#eef2f4;margin-bottom:8px">FERRAMENTAS</h1>
+        <p style="font-size:14px;color:#8b95a1;max-width:520px">Calculadoras técnicas para otimizar calibragem, transmissão, tempo de percurso e nutrição para o seu pedal.</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="display:flex;align-items:center;gap:8px;background:#1c2128;border:1px solid #2a313a;border-radius:10px;padding:10px 16px">
+          <i class="fa-solid fa-wrench" style="color:#c6f135;font-size:14px"></i>
+          <span style="font-size:13px;font-weight:700;color:#eef2f4">4 ferramentas</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABS -->
+  <div class="tool-tabs">
+    <button class="tab-btn active" onclick="switchTab('psi',this)">
+      <i class="fa-solid fa-gauge-high" style="font-size:11px"></i> PSI do Pneu
+    </button>
+    <button class="tab-btn" onclick="switchTab('gear',this)">
+      <i class="fa-solid fa-gear" style="font-size:11px"></i> Relação × Velocidade
+    </button>
+    <button class="tab-btn" onclick="switchTab('route',this)">
+      <i class="fa-solid fa-mountain" style="font-size:11px"></i> Tempo de Percurso
+    </button>
+    <button class="tab-btn" onclick="switchTab('nutri',this)">
+      <i class="fa-solid fa-droplet" style="font-size:11px"></i> Nutrição
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       FERRAMENTA 1 — PSI IDEAL DO PNEU
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-psi" class="tool-panel active">
+    <div style="display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:start" class="two-col">
+
+      <div style="background:#14181d;border:1px solid #2a313a;border-radius:18px;padding:28px">
+        <div style="margin-bottom:24px">
+          <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#c6f135;margin-bottom:8px"><span style="width:22px;height:2px;background:#c6f135;display:block"></span>Calibragem</div>
+          <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#eef2f4;margin-bottom:4px">PSI IDEAL DO PNEU</h2>
+          <p style="font-size:13px;color:#8b95a1">Fórmula baseada em SILCA — considera peso total, tipo de superfície e teoria do breakpoint pressure.</p>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:18px">
+
+          <div class="grid-3">
+            <div class="field">
+              <label>Ciclista (kg)</label>
+              <input type="number" id="psi-rider" value="75" min="40" max="150" step="0.5">
+            </div>
+            <div class="field">
+              <label>Bike (kg)</label>
+              <input type="number" id="psi-bike" value="9" min="4" max="20" step="0.5">
+            </div>
+            <div class="field">
+              <label>Equipamento (kg)</label>
+              <input type="number" id="psi-equip" value="0" min="0" max="10" step="0.5" placeholder="0">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Largura do pneu — <span id="psi-width-val" style="color:#c6f135">28</span> mm</label>
+            <input type="range" id="psi-width" min="18" max="70" value="28" oninput="document.getElementById('psi-width-val').textContent=this.value">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#8b95a1;margin-top:4px;font-weight:700;letter-spacing:.06em">
+              <span>18mm speed</span><span>28mm road</span><span>40mm gravel</span><span>70mm MTB</span>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>Tipo de montagem</label>
+              <select id="psi-type">
+                <option value="clincher">Clincher (câmara)</option>
+                <option value="tubeless">Tubeless</option>
+                <option value="tubular">Tubular</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Distribuição de peso</label>
+              <select id="psi-distrib">
+                <option value="50/50">50/50 — Triatlo / Contrarrelógio</option>
+                <option value="48/52" selected>48/52 — Road</option>
+                <option value="47/53">47/53 — Gravel</option>
+                <option value="46.5/53.5">46.5/53.5 — MTB</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Tipo de terreno</label>
+            <select id="psi-terrain">
+              <option value="madeira">Pista de Madeira</option>
+              <option value="concreto">Pista de Concreto</option>
+              <option value="asfalto_novo" selected>Asfalto novo</option>
+              <option value="asfalto_desgastado">Asfalto desgastado / Algumas rachaduras</option>
+              <option value="asfalto_mau">Asfalto em mau estado / Revestimento asfáltico</option>
+              <option value="paralelepipedos">Calçada de Paralelepípedos</option>
+              <option value="gravel1">Categoria 1 — Cascalho compacto</option>
+              <option value="gravel2">Categoria 2 — Cascalho médio</option>
+              <option value="gravel3">Categoria 3 — Cascalho solto</option>
+              <option value="gravel4">Categoria 4 — Cascalho muito solto / areia</option>
+            </select>
+            <a href="#" onclick="document.getElementById('terrain-guide').showModal();return false" style="font-size:11px;color:#c6f135;text-decoration:none;margin-top:4px;display:inline-flex;align-items:center;gap:5px;font-weight:700;letter-spacing:.04em"><i class="fa-solid fa-images" style="font-size:10px"></i> Guia de terreno</a>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn-calc" onclick="calcPSI()">
+              <i class="fa-solid fa-calculator" style="font-size:13px"></i> CALCULAR PSI
+            </button>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#8b95a1;cursor:pointer">
+              <input type="checkbox" id="psi-co2" style="accent-color:#c6f135;width:16px;height:16px" onchange="toggleCO2()"> Mostrar equivalência CO₂
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Coluna direita: resultado -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div id="psi-result" class="result-box">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b95a1;margin-bottom:16px">Pressão recomendada</div>
+
+          <div class="psi-gauge">
+            <div class="psi-circle psi-front">
+              <div class="psi-circle-ring">
+                <span class="psi-num" id="psi-front-val">—</span>
+                <span class="psi-unit-small">psi</span>
+              </div>
+              <span class="psi-tag">Dianteiro</span>
+            </div>
+            <div style="text-align:center">
+              <i class="fa-solid fa-arrow-right-arrow-left" style="color:#2a313a;font-size:18px"></i>
+              <div style="font-size:10px;color:#8b95a1;margin-top:6px;letter-spacing:.06em;font-weight:700;text-transform:uppercase">Δ PSI</div>
+              <div id="psi-diff" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#8b95a1">—</div>
+            </div>
+            <div class="psi-circle psi-rear">
+              <div class="psi-circle-ring">
+                <span class="psi-num" id="psi-rear-val">—</span>
+                <span class="psi-unit-small">psi</span>
+              </div>
+              <span class="psi-tag">Traseiro</span>
+            </div>
+          </div>
+
+          <div style="margin-top:16px">
+            <div class="elev-bar-label">
+              <span id="psi-range-min">—</span><span id="psi-range-max">—</span>
+            </div>
+            <div class="elev-bar-track">
+              <div class="elev-bar-fill" id="psi-bar-fill" style="width:0%;background:linear-gradient(90deg,#c6f135,#ec3a8b)"></div>
+            </div>
+            <div style="font-size:10px;color:#8b95a1;margin-top:4px;text-align:center;font-weight:600">Faixa segura para este terreno e pneu</div>
+          </div>
+
+          <!-- CO2 box -->
+          <div id="psi-co2-box" class="co2-box" style="margin-top:14px">
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8b95a1;margin-bottom:4px">Cartuchos CO₂ necessários</div>
+              <div style="display:flex;gap:16px;align-items:baseline">
+                <div><span id="co2-16g" style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#c6f135">—</span><span style="font-size:12px;color:#8b95a1;margin-left:4px">× 16g</span></div>
+                <div><span id="co2-25g" style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#eef2f4">—</span><span style="font-size:12px;color:#8b95a1;margin-left:4px">× 25g</span></div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#8b95a1;line-height:1.5;border-left:2px solid #2a313a;padding-left:14px">
+              Volume estimado do pneu:<br>
+              <span id="co2-volume" style="color:#eef2f4;font-weight:700">—</span> L<br>
+              CO₂ necessário: <span id="co2-grams" style="color:#c6f135;font-weight:700">—</span> g
+            </div>
+          </div>
+
+          <div id="psi-notes" style="margin-top:14px;font-size:12px;color:#8b95a1;line-height:1.6;border-top:1px solid #2a313a;padding-top:14px"></div>
+        </div>
+
+        <div class="tip">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><strong style="color:#eef2f4">Teoria SILCA:</strong> Pressão ótima é aquela que minimiza a soma de Crr (resistência ao rolamento) + Impedância. Em superfícies rugosas o breakpoint pressure é menor — portanto o PSI ideal cai.</div>
+        </div>
+        <div class="tip" style="border-color:rgba(236,58,139,.25);background:rgba(236,58,139,.06)">
+          <i class="fa-solid fa-triangle-exclamation" style="color:#ec3a8b"></i>
+          <div><strong style="color:#eef2f4">Atenção:</strong> Nunca ultrapasse o limite máximo impresso no flanco do pneu. Este cálculo é orientativo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       FERRAMENTA 2 — RELAÇÃO × VELOCIDADE
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-gear" class="tool-panel">
+    <div style="display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start" class="two-col">
+
+      <div style="background:#14181d;border:1px solid #2a313a;border-radius:18px;padding:28px">
+        <div style="margin-bottom:24px">
+          <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#c6f135;margin-bottom:8px"><span style="width:22px;height:2px;background:#c6f135;display:block"></span>Transmissão</div>
+          <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#eef2f4;margin-bottom:4px">RELAÇÃO × VELOCIDADE</h2>
+          <p style="font-size:13px;color:#8b95a1">Selecione marca, cassete e coroa para ver a velocidade em cada pinhão.</p>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:18px">
+
+          <div class="field">
+            <label>Marca</label>
+            <div class="seg-btns" id="gear-brand-btns">
+              <button class="seg-btn active" onclick="selectBrand('Shimano',this)">Shimano</button>
+              <button class="seg-btn" onclick="selectBrand('SRAM',this)">SRAM</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Categoria</label>
+            <div class="seg-btns" id="gear-cat-btns">
+              <button class="seg-btn active" onclick="selectCat('MTB',this)">MTB</button>
+              <button class="seg-btn" onclick="selectCat('Road',this)">Road</button>
+              <button class="seg-btn" onclick="selectCat('Gravel',this)">Gravel</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Cassete</label>
+            <select id="gear-cassete" onchange="onCasseteChange()">
+              <option value="">Selecione...</option>
+            </select>
+            <div id="gear-freehub-badge" style="font-size:11px;color:#8b95a1;margin-top:4px;font-weight:600"></div>
+          </div>
+
+          <div class="field">
+            <label>Coroa (dentes)</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="number" id="gear-chainring" value="34" min="22" max="64" step="1" style="width:90px;flex:none" oninput="document.getElementById('gear-ring-chooser').innerHTML=''">
+              <select id="gear-coroa-preset" onchange="applyCoroaPreset()" style="flex:1">
+                <option value="">Presets da categoria...</option>
+              </select>
+            </div>
+            <div id="gear-ring-chooser" class="seg-btns" style="margin-top:8px"></div>
+          </div>
+
+          <div class="field">
+            <label>Cadência — <span id="gear-cadence-val" style="color:#c6f135">90</span> rpm</label>
+            <input type="range" id="gear-cadence" min="50" max="140" value="90" oninput="document.getElementById('gear-cadence-val').textContent=this.value">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#8b95a1;margin-top:4px;font-weight:700;letter-spacing:.06em">
+              <span>50</span><span>90 ideal</span><span>110 sprint</span><span>140</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Circunferência do pneu</label>
+            <select id="gear-wheel">
+              <option value="2086">700×23c — 2086 mm</option>
+              <option value="2096">700×25c — 2096 mm</option>
+              <option value="2105" selected>700×28c — 2105 mm</option>
+              <option value="2136">700×32c — 2136 mm</option>
+              <option value="2168">700×38c — 2168 mm</option>
+              <option value="2240">700×47c / 650b×47 — 2240 mm</option>
+              <option value="2288">29" × 2.1 MTB — 2288 mm</option>
+              <option value="2326">29" × 2.3 MTB — 2326 mm</option>
+              <option value="2155">27.5" × 2.1 MTB — 2155 mm</option>
+              <option value="2195">27.5" × 2.3 MTB — 2195 mm</option>
+              <option value="2012">26" × 1.95 MTB — 2012 mm</option>
+            </select>
+          </div>
+
+          <button class="btn-calc" onclick="calcGear()">
+            <i class="fa-solid fa-bolt" style="font-size:13px"></i> CALCULAR VELOCIDADES
+          </button>
+        </div>
+      </div>
+
+      <!-- Resultado -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div id="gear-result" class="result-box">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b95a1;margin-bottom:12px">Velocidade por pinhão</div>
+
+          <!-- velocidade da marcha selecionada -->
+          <div style="background:#0d0f12;border:1px solid #2a313a;border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+            <div>
+              <div style="font-size:11px;color:#8b95a1;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Coroa <span id="gr-cr">—</span> × Pinhão <span id="gr-cog-sel">—</span> @ <span id="gr-cad">90</span> rpm</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:72px;line-height:.9;color:#c6f135" id="gear-speed-big">—</div>
+              <div style="font-size:13px;color:#8b95a1;font-weight:700;letter-spacing:.06em;text-transform:uppercase">km/h</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;text-align:right">
+              <div><span style="font-size:11px;color:#8b95a1;font-weight:600;letter-spacing:.04em">Relação</span><br><span id="gr-ratio" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#eef2f4">—</span><span style="font-size:12px;color:#c6f135"> : 1</span></div>
+              <div><span style="font-size:11px;color:#8b95a1;font-weight:600;letter-spacing:.04em">Dist./pedalada</span><br><span id="gr-distrev" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#eef2f4">—</span><span style="font-size:12px;color:#c6f135"> m</span></div>
+            </div>
+          </div>
+
+          <!-- Tabela por cog -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8b95a1;margin-bottom:10px">Velocidade por cog — km/h <span style="color:#c6f135;text-transform:none;letter-spacing:0;font-weight:600">(clique numa linha para fixar a marcha)</span></div>
+          <div class="matrix-wrap">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th style="text-align:left">Cog</th>
+                  <th>60 rpm</th>
+                  <th>75 rpm</th>
+                  <th>90 rpm</th>
+                  <th>100 rpm</th>
+                  <th>110 rpm</th>
+                </tr>
+              </thead>
+              <tbody id="gear-matrix-body"></tbody>
+            </table>
+          </div>
+          <div id="gear-db-badge" style="margin-top:10px;font-size:10px;color:#8b95a1;font-weight:600;display:flex;align-items:center;gap:6px"></div>
+        </div>
+
+        <div class="tip">
+          <i class="fa-solid fa-circle-info"></i>
+          <div>Cadência entre 85–95 rpm é a mais eficiente. Abaixo de 75 rpm aumenta carga muscular; acima de 110 rpm eleva a demanda cardiovascular.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       FERRAMENTA 3 — TEMPO DE PERCURSO
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-route" class="tool-panel">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start" class="two-col">
+      <div style="background:#14181d;border:1px solid #2a313a;border-radius:18px;padding:28px">
+        <div style="margin-bottom:24px">
+          <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#c6f135;margin-bottom:8px"><span style="width:22px;height:2px;background:#c6f135;display:block"></span>Planejamento</div>
+          <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#eef2f4;margin-bottom:4px">TEMPO DE PERCURSO</h2>
+          <p style="font-size:13px;color:#8b95a1">Estime o tempo real considerando o impacto das subidas no seu ritmo.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="grid-2">
+            <div class="field"><label>Distância (km)</label><input type="number" id="route-dist" value="60" min="1" max="500" step="1"></div>
+            <div class="field"><label>Velocidade média plana (km/h)</label><input type="number" id="route-speed" value="28" min="10" max="50" step="0.5"></div>
+          </div>
+          <div class="field">
+            <label>Ganho de elevação — <span id="route-elev-val" style="color:#c6f135">800</span> m</label>
+            <input type="range" id="route-elev" min="0" max="4000" value="800" step="50" oninput="document.getElementById('route-elev-val').textContent=this.value">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#8b95a1;margin-top:4px;font-weight:700;letter-spacing:.06em">
+              <span>0 plano</span><span>400m</span><span>1000m</span><span>2000m+</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Perfil do ciclista</label>
+            <select id="route-profile">
+              <option value="0.8">Iniciante — penalidade maior nas subidas</option>
+              <option value="1.0" selected>Intermediário</option>
+              <option value="1.3">Treinado — sobe bem</option>
+              <option value="1.6">Escalador / avançado</option>
+            </select>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Paradas (minutos)</label><input type="number" id="route-stops" value="15" min="0" max="120" step="5"></div>
+            <div class="field">
+              <label>Vento estimado</label>
+              <select id="route-wind">
+                <option value="0">Sem vento</option>
+                <option value="5">A favor (+5 km/h)</option>
+                <option value="-5">Contra (−5 km/h)</option>
+                <option value="-10">Forte contra (−10 km/h)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn-calc" onclick="calcRoute()"><i class="fa-solid fa-clock" style="font-size:13px"></i> CALCULAR TEMPO</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div id="route-result" class="result-box">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b95a1;margin-bottom:16px">Estimativa de percurso</div>
+          <div class="route-stats">
+            <div class="route-stat"><div class="route-stat-val" id="route-total-time">—<span>h</span></div><div class="route-stat-label">Tempo total</div></div>
+            <div class="route-stat"><div class="route-stat-val" id="route-moving-time">—<span>h</span></div><div class="route-stat-label">Em movimento</div></div>
+            <div class="route-stat"><div class="route-stat-val" id="route-avg-speed-adj">—<span>km/h</span></div><div class="route-stat-label">Vel. ajustada</div></div>
+          </div>
+          <div style="margin-top:16px;display:flex;flex-direction:column;gap:0;border-top:1px solid #2a313a;padding-top:16px">
+            <div class="result-row"><span class="result-label">Distância plana equivalente</span><span><span class="result-val" id="route-virt-dist" style="font-size:22px">—</span><span class="result-unit">km</span></span></div>
+            <div class="result-row"><span class="result-label">Penalidade subidas</span><span><span class="result-val" id="route-climb-penalty" style="font-size:22px;color:#ec3a8b">—</span><span class="result-unit" style="color:#ec3a8b">min</span></span></div>
+            <div class="result-row"><span class="result-label">Calorias estimadas</span><span><span class="result-val" id="route-calories" style="font-size:22px">—</span><span class="result-unit">kcal</span></span></div>
+            <div class="result-row result-highlight"><span class="result-label">Pace médio</span><span><span class="result-val" id="route-pace" style="font-size:22px">—</span><span class="result-unit">min/km</span></span></div>
+          </div>
+          <div style="margin-top:16px"><div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8b95a1;margin-bottom:10px">Composição do tempo</div><div style="display:flex;gap:8px;flex-wrap:wrap" id="route-breakdown"></div></div>
+        </div>
+        <div class="tip"><i class="fa-solid fa-circle-info"></i><div>Método Strava de distância virtual: cada 100 m de elevação equivale a ~1 km de distância plana adicional.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       FERRAMENTA 4 — NUTRIÇÃO E HIDRATAÇÃO
+  ══════════════════════════════════════════════════════════ -->
+  <div id="panel-nutri" class="tool-panel">
+    <div style="display:grid;grid-template-columns:480px 1fr;gap:20px;align-items:start" class="two-col">
+
+      <div style="background:#14181d;border:1px solid #2a313a;border-radius:18px;padding:28px">
+        <div style="margin-bottom:24px">
+          <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#c6f135;margin-bottom:8px"><span style="width:22px;height:2px;background:#c6f135;display:block"></span>Planejamento</div>
+          <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#eef2f4;margin-bottom:4px">NUTRIÇÃO E HIDRATAÇÃO</h2>
+          <p style="font-size:13px;color:#8b95a1">Calcule água, carboidratos, sódio e gere cronograma de géis para o seu pedal. Fórmulas baseadas em ACSM, GSSI e Precision Fuel & Hydration.</p>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:22px">
+
+          <!-- Ciclista -->
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8b95a1;margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-person-biking" style="color:#c6f135"></i> Ciclista</div>
+            <div class="grid-2" style="gap:12px">
+              <div class="field"><label>Peso corporal (kg)</label><input type="number" id="n-weight" value="72" min="40" max="150" step="0.5"></div>
+              <div class="field">
+                <label>Sexo</label>
+                <select id="n-sex">
+                  <option value="m">Masculino</option>
+                  <option value="f">Feminino</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Condicionamento</label>
+                <select id="n-level">
+                  <option value="beginner">Iniciante</option>
+                  <option value="inter" selected>Intermediário</option>
+                  <option value="advanced">Avançado</option>
+                </select>
+              </div>
+              <div class="field" style="justify-content:flex-end">
+                <label style="margin-bottom:8px">Suador intenso?</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#eef2f4;cursor:pointer">
+                  <input type="checkbox" id="n-heavy-sweater" style="accent-color:#c6f135;width:16px;height:16px"> Sim (+30% sódio)
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trajeto -->
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8b95a1;margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-route" style="color:#c6f135"></i> Trajeto</div>
+            <div class="grid-2" style="gap:12px">
+              <div class="field"><label>Distância (km)</label><input type="number" id="n-dist" value="80" min="5" max="500" step="1"></div>
+              <div class="field"><label>Velocidade média (km/h)</label><input type="number" id="n-speed" value="25" min="10" max="50" step="0.5"></div>
+              <div class="field">
+                <label>Ganho de elevação — <span id="n-elev-val" style="color:#c6f135">600</span> m</label>
+                <input type="range" id="n-elev" min="0" max="4000" value="600" step="50" oninput="document.getElementById('n-elev-val').textContent=this.value">
+              </div>
+              <div class="field">
+                <label>Intensidade</label>
+                <select id="n-intensity">
+                  <option value="easy">Leve — passeio / Z1-Z2</option>
+                  <option value="mod" selected>Moderada — endurance / Z3</option>
+                  <option value="hard">Alta — treino / Z4</option>
+                  <option value="max">Máxima — competição / Z5+</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Clima -->
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8b95a1;margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-sun" style="color:#c6f135"></i> Clima</div>
+            <div class="grid-2" style="gap:12px">
+              <div class="field">
+                <label>Temperatura — <span id="n-temp-val" style="color:#c6f135">28</span>°C</label>
+                <input type="range" id="n-temp" min="5" max="45" value="28" oninput="document.getElementById('n-temp-val').textContent=this.value">
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:#8b95a1;margin-top:4px;font-weight:700">
+                  <span>5°C</span><span>20°C</span><span>30°C</span><span>45°C</span>
+                </div>
+              </div>
+              <div class="field">
+                <label>Umidade — <span id="n-humid-val" style="color:#c6f135">60</span>%</label>
+                <input type="range" id="n-humid" min="10" max="100" value="60" oninput="document.getElementById('n-humid-val').textContent=this.value">
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:#8b95a1;margin-top:4px;font-weight:700">
+                  <span>10%</span><span>50%</span><span>80%</span><span>100%</span>
+                </div>
+              </div>
+              <div class="field" style="grid-column:1/-1">
+                <label style="margin-bottom:8px">Condições de exposição</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#eef2f4;cursor:pointer">
+                  <input type="checkbox" id="n-sun" style="accent-color:#c6f135;width:16px;height:16px"> Exposição ao sol direto (+150 ml/h)
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Produto -->
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8b95a1;margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-flask" style="color:#c6f135"></i> Produto (gel)</div>
+            <div class="grid-2" style="gap:12px">
+              <div class="field"><label>Carboidratos por gel (g)</label><input type="number" id="n-gel-carb" value="25" min="10" max="60" step="1"></div>
+              <div class="field"><label>Sódio por gel (mg)</label><input type="number" id="n-gel-sodium" value="100" min="0" max="500" step="10"></div>
+            </div>
+          </div>
+
+          <button class="btn-calc" onclick="calcNutri()">
+            <i class="fa-solid fa-droplet" style="font-size:13px"></i> CALCULAR NUTRIÇÃO
+          </button>
+        </div>
+      </div>
+
+      <!-- Resultado nutrição -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div id="nutri-result" class="result-box">
+
+          <!-- KPIs -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b95a1;margin-bottom:14px">Totais estimados</div>
+          <div class="nutri-kpi" id="nutri-kpi-grid"></div>
+
+          <!-- Dica contextual -->
+          <div id="nutri-tip" style="margin-bottom:16px"></div>
+
+          <!-- Cronograma -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8b95a1;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+            <i class="fa-solid fa-clock" style="color:#c6f135"></i> Cronograma de géis e hidratação
+          </div>
+          <div style="overflow-x:auto">
+            <table class="schedule-table" id="nutri-schedule"></table>
+          </div>
+
+          <div style="margin-top:14px;font-size:11px;color:#8b95a1;border-top:1px solid #2a313a;padding-top:12px;line-height:1.6">
+            <strong style="color:#eef2f4">Referências:</strong> ACSM Position Stand 2007, GSSI Sport Science Exchange, Precision Fuel &amp; Hydration, guia_hidratacao_nutricao.txt
+          </div>
+        </div>
+
+        <div class="tip">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><strong style="color:#eef2f4">Regra de ouro:</strong> Não espere sentir sede ou fome para consumir. Hidrate e alimente-se preventivamente — a sensação de sede já indica 1–2% de desidratação.</div>
+        </div>
+        <div class="tip" style="border-color:rgba(236,58,139,.25);background:rgba(236,58,139,.06)">
+          <i class="fa-solid fa-triangle-exclamation" style="color:#ec3a8b"></i>
+          <div><strong style="color:#eef2f4">Atenção:</strong> Em temperaturas acima de 35°C com alta intensidade, hipernatremia e hiponatremia são riscos reais. Consulte um nutricionista esportivo para eventos >4h.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL: GUIA DE TERRENO -->
+<dialog id="terrain-guide">
+  <div class="modal-header">
+    <div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#c6f135;margin-bottom:4px">Referência Visual</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:#eef2f4">GUIA DE TERRENO</div>
+    </div>
+    <button onclick="document.getElementById('terrain-guide').close()" style="background:#1c2128;border:1px solid #2a313a;border-radius:8px;color:#8b95a1;padding:8px 14px;font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fa-solid fa-xmark"></i> Fechar</button>
+  </div>
+  <div class="modal-body">
+    <p style="font-size:13px;color:#8b95a1;margin-bottom:20px;line-height:1.5">Clique numa superfície para selecioná-la diretamente na calculadora. O fator de PSI é baseado na teoria de <em>breakpoint pressure</em> da SILCA — superfícies mais rugosas exigem menor pressão para minimizar a soma de Crr + Impedância.</p>
+    <div class="terrain-grid" id="terrain-grid-modal"></div>
+  </div>
+</dialog>
+
+<script>
+// ─── DADOS DE TERRENO ────────────────────────────────────────────────────────
+// minPsi/maxPsi = faixa TÍPICA (apenas exibição na barra). safeMin/safeMax = limites
+// físicos de segurança (clamp largo) — não distorcem a física da fórmula nem a distribuição.
+const TERRAIN_MAP = {
+  madeira:           { label:'Pista de Madeira',                  img:'exemplo_pistas/pista_madeira.png',                           mult:1.08, minPsi:90,  maxPsi:140, safeMin:50, safeMax:145, psiRange:'90–140',   badge:'Velódromo', badgeColor:'#22c55e' },
+  concreto:          { label:'Pista de Concreto',                  img:'exemplo_pistas/pista_concreto.png',                          mult:1.03, minPsi:75,  maxPsi:120, safeMin:45, safeMax:125, psiRange:'75–120',   badge:'Liso',      badgeColor:'#4e9ef5' },
+  asfalto_novo:      { label:'Asfalto novo',                       img:'exemplo_pistas/asfalto_novo.png',                            mult:1.00, minPsi:65,  maxPsi:110, safeMin:40, safeMax:120, psiRange:'65–110',   badge:'Baseline',  badgeColor:'#c6f135' },
+  asfalto_desgastado:{ label:'Asfalto desgastado / Rachaduras',    img:'exemplo_pistas/asfalto_desgastado__algumas_rachaduras.png',  mult:0.93, minPsi:55,  maxPsi:100, safeMin:35, safeMax:105, psiRange:'55–100',   badge:'Moderado',  badgeColor:'#f5d523' },
+  asfalto_mau:       { label:'Asfalto em mau estado',              img:'exemplo_pistas/asfalto_em_mau_estado__revestimento_asfaltico.png', mult:0.85, minPsi:45, maxPsi:85, safeMin:30, safeMax:90, psiRange:'45–85', badge:'Ruim',      badgeColor:'#f0523a' },
+  paralelepipedos:   { label:'Paralelepípedos',                    img:'exemplo_pistas/paralelepipedos.png',                         mult:0.72, minPsi:35,  maxPsi:70,  safeMin:25, safeMax:75,  psiRange:'35–70',    badge:'Cobblestone',badgeColor:'#ec3a8b'},
+  gravel1:           { label:'Cascalho Cat 1 — Compacto',          img:'exemplo_pistas/gravel_categoria_1.png',                      mult:0.80, minPsi:30,  maxPsi:65,  safeMin:20, safeMax:70,  psiRange:'30–65',    badge:'Gravel 1',  badgeColor:'#c6f135' },
+  gravel2:           { label:'Cascalho Cat 2 — Médio',             img:'exemplo_pistas/gravel_categoria_2.png',                      mult:0.70, minPsi:25,  maxPsi:55,  safeMin:18, safeMax:60,  psiRange:'25–55',    badge:'Gravel 2',  badgeColor:'#f5d523' },
+  gravel3:           { label:'Cascalho Cat 3 — Solto',             img:'exemplo_pistas/gravel_categoria_3.png',                      mult:0.60, minPsi:20,  maxPsi:45,  safeMin:15, safeMax:50,  psiRange:'20–45',    badge:'Gravel 3',  badgeColor:'#f0523a' },
+  gravel4:           { label:'Cascalho Cat 4 — Muito solto / Areia',img:'exemplo_pistas/gravel_categoria_4.png',                    mult:0.50, minPsi:15,  maxPsi:35,  safeMin:12, safeMax:40,  psiRange:'15–35',    badge:'Gravel 4',  badgeColor:'#ec3a8b' },
+};
+
+// Montar grid do modal
+(function(){
+  const grid = document.getElementById('terrain-grid-modal');
+  const sel  = document.getElementById('psi-terrain');
+  Object.entries(TERRAIN_MAP).forEach(([key, t]) => {
+    const div = document.createElement('div');
+    div.className = 'terrain-card' + (key === sel.value ? ' selected' : '');
+    div.id = 'tc-' + key;
+    div.innerHTML = `<img src="${t.img}" alt="${t.label}" loading="lazy" onerror="this.style.background='#1c2128';this.style.height='100px'">
+      <div class="terrain-card-info">
+        <div class="terrain-card-name">${t.label}</div>
+        <div class="terrain-card-psi">PSI típico: ${t.psiRange}</div>
+        <span class="terrain-card-badge" style="background:${t.badgeColor}">${t.badge}</span>
+        <div style="font-size:10px;color:#8b95a1;margin-top:4px">Fator: ×${t.mult}</div>
+      </div>`;
+    div.onclick = () => {
+      sel.value = key;
+      document.querySelectorAll('.terrain-card').forEach(c => c.classList.remove('selected'));
+      div.classList.add('selected');
+      document.getElementById('terrain-guide').close();
+    };
+    grid.appendChild(div);
+  });
+  // close on backdrop click
+  document.getElementById('terrain-guide').addEventListener('click', function(e){
+    if(e.target === this) this.close();
+  });
+})();
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
+}
+
+// ─── PSI CALCULATOR ──────────────────────────────────────────────────────────
+function calcPSI() {
+  const rider   = parseFloat(document.getElementById('psi-rider').value) || 75;
+  const bike    = parseFloat(document.getElementById('psi-bike').value) || 9;
+  const equip   = parseFloat(document.getElementById('psi-equip').value) || 0;
+  const width   = parseInt(document.getElementById('psi-width').value) || 28;
+  const type    = document.getElementById('psi-type').value;
+  const distribRaw = document.getElementById('psi-distrib').value; // "48/52"
+  const terrain = document.getElementById('psi-terrain').value;
+
+  const parts    = distribRaw.split('/').map(Number);
+  const frontPct = parts[0] / 100;
+  const rearPct  = parts[1] / 100;
+
+  const totalKg  = rider + bike + equip;
+  const totalLbs = totalKg * 2.20462;
+  const frontLbs = totalLbs * frontPct;
+  const rearLbs  = totalLbs * rearPct;
+
+  // Base PSI — Silca inspired: (weight_lbs × 0.65) / (width_in)
+  let frontPSI = (frontLbs * 0.65) / (width / 25.4);
+  let rearPSI  = (rearLbs  * 0.65) / (width / 25.4);
+
+  // Terrain multiplier (SILCA breakpoint pressure theory)
+  const tData = TERRAIN_MAP[terrain];
+  frontPSI *= tData.mult;
+  rearPSI  *= tData.mult;
+
+  // Mounting type correction
+  if (type === 'tubeless') { frontPSI *= 0.85; rearPSI *= 0.85; }
+  if (type === 'tubular')  { frontPSI *= 1.05; rearPSI *= 1.05; }
+
+  // Clamp apenas pelos limites físicos de segurança (largos) — preserva o efeito
+  // da distribuição de peso e da largura na física da fórmula.
+  frontPSI = Math.round(Math.max(tData.safeMin, Math.min(tData.safeMax, frontPSI)));
+  rearPSI  = Math.round(Math.max(tData.safeMin, Math.min(tData.safeMax, rearPSI)));
+
+  // Barra posiciona a média dentro da faixa TÍPICA do terreno (apenas informativo).
+  const avgPSI = (frontPSI + rearPSI) / 2;
+  const barPct = Math.max(3, Math.min(97, Math.round(((avgPSI - tData.minPsi) / (tData.maxPsi - tData.minPsi)) * 100)));
+
+  document.getElementById('psi-front-val').textContent = frontPSI;
+  document.getElementById('psi-rear-val').textContent  = rearPSI;
+  document.getElementById('psi-diff').textContent      = '+' + (rearPSI - frontPSI);
+  document.getElementById('psi-bar-fill').style.width  = barPct + '%';
+  document.getElementById('psi-range-min').textContent = tData.minPsi + ' psi';
+  document.getElementById('psi-range-max').textContent = tData.maxPsi + ' psi';
+
+  const typeLabel = { clincher:'Clincher (câmara)', tubeless:'Tubeless', tubular:'Tubular' }[type];
+  let notes = `<strong style="color:#eef2f4">${typeLabel}</strong> · ${width}mm · ${tData.label} · Dist. peso ${distribRaw}<br>`;
+  notes += `Peso total: ${totalKg.toFixed(1)} kg (ciclista ${rider}kg + bike ${bike}kg + equip ${equip}kg). `;
+  if (type === 'tubeless') notes += 'Tubeless: −15% de pressão vs clincher. ';
+  if (tData.mult < 0.85) notes += 'Superfície muito rugosa — pressão mais baixa reduz as perdas por impedância (teoria SILCA). ';
+  if (tData.mult >= 1.03) notes += 'Superfície lisa — pressão mais alta é ótima para minimizar Crr. ';
+  document.getElementById('psi-notes').innerHTML = notes;
+
+  // CO2
+  if (document.getElementById('psi-co2').checked) calcCO2(avgPSI, width);
+
+  document.getElementById('psi-result').classList.add('show');
+}
+
+function calcCO2(psi, width_mm) {
+  // circunferência da roda estimada pela largura do pneu (road fino → MTB largo)
+  const circ_m  = width_mm <= 32 ? 2.105 : width_mm <= 45 ? 2.190 : 2.290;
+  const r_tire  = (width_mm / 2) / 1000; // metros
+  const vol_L   = Math.PI * r_tire * r_tire * circ_m * 1000; // litros
+  const p_bar   = psi * 0.0689476 + 0.101325; // pressão absoluta em bar
+  const m_co2_g = vol_L * p_bar * 44 / (0.08314 * 293); // lei dos gases ideais, M_CO2=44, T=293K
+  document.getElementById('co2-volume').textContent = vol_L.toFixed(2);
+  document.getElementById('co2-grams').textContent  = Math.round(m_co2_g);
+  document.getElementById('co2-16g').textContent    = Math.ceil(m_co2_g / 16);
+  document.getElementById('co2-25g').textContent    = Math.ceil(m_co2_g / 25);
+}
+
+function toggleCO2() {
+  const box = document.getElementById('psi-co2-box');
+  if (document.getElementById('psi-co2').checked) {
+    const front = parseInt(document.getElementById('psi-front-val').textContent) || 0;
+    const rear  = parseInt(document.getElementById('psi-rear-val').textContent) || 0;
+    const avg   = (front + rear) / 2; // mesma base usada por calcPSI
+    const width = parseInt(document.getElementById('psi-width').value) || 28;
+    if (avg > 0) calcCO2(avg, width);
+    box.classList.add('show');
+  } else {
+    box.classList.remove('show');
+  }
+}
+
+// ─── GEAR CALCULATOR — DADOS EMBUTIDOS (fallback) ────────────────────────────
+const CASSETES_DATA = [
+  {id:1, marca:'Shimano',categoria:'MTB',velocidades:12,freehub:'MicroSpline',relacao:'10-45',modelos:'XTR CS-M9100, XT CS-M8100, SLX CS-M7100',cogs:[10,12,14,16,18,21,24,28,32,36,40,45]},
+  {id:2, marca:'Shimano',categoria:'MTB',velocidades:12,freehub:'MicroSpline',relacao:'10-51',modelos:'Deore CS-M6100, SLX CS-M7100, XT CS-M8100, XTR CS-M9100',cogs:[10,12,14,16,18,21,24,28,33,39,45,51]},
+  {id:3, marca:'Shimano',categoria:'MTB',velocidades:11,freehub:'HG',relacao:'11-42',modelos:'Deore M5100, SLX M7000, XT M8000',cogs:[11,13,15,17,19,21,24,28,32,37,42]},
+  {id:4, marca:'Shimano',categoria:'MTB',velocidades:11,freehub:'HG',relacao:'11-46',modelos:'Deore M5100, SLX M7000, XT M8000',cogs:[11,13,15,17,19,21,24,28,32,37,46]},
+  {id:5, marca:'Shimano',categoria:'MTB',velocidades:10,freehub:'HG',relacao:'11-36',modelos:'Deore HG500, HG50',cogs:[11,13,15,17,19,21,24,28,32,36]},
+  {id:6, marca:'Shimano',categoria:'MTB',velocidades:10,freehub:'HG',relacao:'11-42',modelos:'Deore M4100',cogs:[11,13,15,18,21,24,28,32,37,42]},
+  {id:7, marca:'Shimano',categoria:'Road',velocidades:12,freehub:'HG',relacao:'11-30',modelos:'105 R7101, Ultegra R8101, Dura-Ace R9200',cogs:[11,12,13,14,15,17,19,21,24,27,30,34]},
+  {id:8, marca:'Shimano',categoria:'Road',velocidades:12,freehub:'HG',relacao:'11-34',modelos:'105, Ultegra, Dura-Ace',cogs:[11,12,13,14,15,17,19,21,24,27,30,34]},
+  {id:9, marca:'Shimano',categoria:'Road',velocidades:11,freehub:'HG',relacao:'11-28',modelos:'105 R7000, Ultegra R8000',cogs:[11,12,13,14,15,17,19,21,23,25,28]},
+  {id:10,marca:'Shimano',categoria:'Road',velocidades:11,freehub:'HG',relacao:'11-30',modelos:'105, Ultegra',cogs:[11,12,13,14,15,17,19,21,24,27,30]},
+  {id:11,marca:'Shimano',categoria:'Road',velocidades:11,freehub:'HG',relacao:'11-32',modelos:'105, Ultegra',cogs:[11,12,13,14,16,18,20,22,25,28,32]},
+  {id:12,marca:'Shimano',categoria:'Road',velocidades:11,freehub:'HG',relacao:'11-34',modelos:'105 GS',cogs:[11,13,15,17,19,21,23,25,27,30,34]},
+  {id:13,marca:'Shimano',categoria:'Gravel',velocidades:11,freehub:'HG',relacao:'11-34',modelos:'GRX RX810',cogs:[11,13,15,17,19,21,23,25,27,30,34]},
+  {id:14,marca:'Shimano',categoria:'Gravel',velocidades:12,freehub:'HG',relacao:'11-36',modelos:'GRX RX820',cogs:[11,12,13,15,17,19,21,24,28,32,36]},
+  {id:15,marca:'SRAM',categoria:'MTB',velocidades:12,freehub:'XD',relacao:'10-50',modelos:'GX Eagle, X01 Eagle, XX1 Eagle',cogs:[10,12,14,16,18,21,24,28,32,36,42,50]},
+  {id:16,marca:'SRAM',categoria:'MTB',velocidades:12,freehub:'XD',relacao:'10-52',modelos:'GX Eagle, X0 Eagle, XX Eagle, XX SL Eagle',cogs:[10,12,14,16,18,21,24,28,32,38,44,52]},
+  {id:17,marca:'SRAM',categoria:'MTB',velocidades:12,freehub:'HG',relacao:'11-50',modelos:'NX Eagle PG-1230',cogs:[11,13,15,17,19,22,25,28,32,36,42,50]},
+  {id:18,marca:'SRAM',categoria:'Road',velocidades:12,freehub:'XDR',relacao:'10-26',modelos:'Red AXS',cogs:[10,11,12,13,14,15,16,17,19,21,23,26]},
+  {id:19,marca:'SRAM',categoria:'Road',velocidades:12,freehub:'XDR',relacao:'10-28',modelos:'Rival AXS, Force AXS, Red AXS',cogs:[10,11,12,13,14,15,16,17,19,21,24,28]},
+  {id:20,marca:'SRAM',categoria:'Road',velocidades:12,freehub:'XDR',relacao:'10-30',modelos:'Rival AXS, Force AXS, Red AXS',cogs:[10,11,12,13,14,15,17,19,21,24,27,30]},
+  {id:21,marca:'SRAM',categoria:'Road',velocidades:12,freehub:'XDR',relacao:'10-33',modelos:'Rival AXS, Force AXS, Red AXS',cogs:[10,11,12,13,14,15,17,19,21,24,28,33]},
+  {id:22,marca:'SRAM',categoria:'Road',velocidades:12,freehub:'XDR',relacao:'10-36',modelos:'Force XPLR, Rival XPLR',cogs:[10,11,12,13,15,17,19,21,24,28,32,36]},
+  {id:23,marca:'SRAM',categoria:'Gravel',velocidades:12,freehub:'XDR',relacao:'10-44',modelos:'XPLR XG-1271',cogs:[10,11,13,15,17,19,21,24,28,32,38,44]},
+  {id:24,marca:'SRAM',categoria:'Gravel',velocidades:12,freehub:'XDR',relacao:'10-46',modelos:'XPLR XG-1251',cogs:[10,11,13,15,17,19,21,24,28,32,38,46]},
+];
+
+const COROAS_DATA = [
+  {marca:'Shimano',categoria:'MTB',config:'1x',dentes:'32',modelos:'Deore FC-M4100'},
+  {marca:'Shimano',categoria:'MTB',config:'1x',dentes:'34',modelos:'SLX FC-M7100'},
+  {marca:'Shimano',categoria:'MTB',config:'1x',dentes:'36',modelos:'XT FC-M8100'},
+  {marca:'Shimano',categoria:'MTB',config:'2x',dentes:'26,36',modelos:'Deore FC-M5100-2'},
+  {marca:'Shimano',categoria:'MTB',config:'2x',dentes:'28,38',modelos:'SLX FC-M7100-2'},
+  {marca:'Shimano',categoria:'Road',config:'2x',dentes:'34,50',modelos:'105 FC-R7000, Ultegra FC-R8000'},
+  {marca:'Shimano',categoria:'Road',config:'2x',dentes:'36,52',modelos:'Dura-Ace R9200, Ultegra FC-R8200'},
+  {marca:'Shimano',categoria:'Road',config:'2x',dentes:'33,46',modelos:'105 FC-R7100 compact'},
+  {marca:'Shimano',categoria:'Gravel',config:'1x',dentes:'40',modelos:'GRX FC-RX820'},
+  {marca:'Shimano',categoria:'Gravel',config:'2x',dentes:'31,48',modelos:'GRX FC-RX820-2'},
+  {marca:'SRAM',categoria:'MTB',config:'1x',dentes:'30',modelos:'NX Eagle FC-NX1'},
+  {marca:'SRAM',categoria:'MTB',config:'1x',dentes:'32',modelos:'GX Eagle FC-GX1'},
+  {marca:'SRAM',categoria:'MTB',config:'1x',dentes:'34',modelos:'X01 Eagle FC-X01-1'},
+  {marca:'SRAM',categoria:'MTB',config:'1x',dentes:'36',modelos:'XX1 Eagle FC-XX1-1'},
+  {marca:'SRAM',categoria:'Road',config:'2x',dentes:'33,46',modelos:'Rival AXS WIDE'},
+  {marca:'SRAM',categoria:'Road',config:'2x',dentes:'35,48',modelos:'Force AXS, Red AXS'},
+  {marca:'SRAM',categoria:'Road',config:'2x',dentes:'36,48',modelos:'Force AXS compact'},
+  {marca:'SRAM',categoria:'Gravel',config:'1x',dentes:'38',modelos:'Force XPLR'},
+  {marca:'SRAM',categoria:'Gravel',config:'1x',dentes:'40',modelos:'Rival XPLR'},
+  {marca:'SRAM',categoria:'Gravel',config:'2x',dentes:'35,46',modelos:'Force AXS XPLR Wide'},
+];
+
+// ─── GEAR — Estado ────────────────────────────────────────────────────────────
+let gearBrand = 'Shimano';
+let gearCat   = 'MTB';
+let gearSelectedCog = null;          // cog fixado pelo usuário (clique na tabela)
+let gearState = null;                // {cr, cogs, cadence, circ_m} do último cálculo
+let gearDbConnected = false;         // true se cassetes.db carregou via sql.js
+
+function selectBrand(brand, btn) {
+  gearBrand = brand;
+  document.querySelectorAll('#gear-brand-btns .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  populateCassetes();
+  populateCoroas();
+}
+
+function selectCat(cat, btn) {
+  gearCat = cat;
+  document.querySelectorAll('#gear-cat-btns .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  populateCassetes();
+  populateCoroas();
+}
+
+function populateCassetes() {
+  const sel = document.getElementById('gear-cassete');
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  CASSETES_DATA.filter(c => c.marca === gearBrand && c.categoria === gearCat).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.relacao} · ${c.modelos.split(',')[0].trim()} (${c.velocidades}v ${c.freehub})`;
+    sel.appendChild(opt);
+  });
+  document.getElementById('gear-freehub-badge').textContent = '';
+}
+
+function populateCoroas() {
+  const sel = document.getElementById('gear-coroa-preset');
+  sel.innerHTML = '<option value="">Presets da categoria...</option>';
+  COROAS_DATA.filter(r => r.marca === gearBrand && r.categoria === gearCat).forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.dentes; // string completa (ex.: "34,50") — applyCoroaPreset trata 1x/2x
+    opt.textContent = `${r.config} · ${r.dentes}t · ${r.modelos.split(',')[0]}`;
+    sel.appendChild(opt);
+  });
+  document.getElementById('gear-ring-chooser').innerHTML = '';
+}
+
+function onCasseteChange() {
+  const id = parseInt(document.getElementById('gear-cassete').value);
+  if (!id) { document.getElementById('gear-freehub-badge').textContent = ''; return; }
+  const c = CASSETES_DATA.find(x => x.id === id);
+  if (c) {
+    document.getElementById('gear-freehub-badge').innerHTML =
+      `<i class="fa-solid fa-link" style="font-size:10px;color:#c6f135"></i> Freehub: <strong style="color:#eef2f4">${c.freehub}</strong> · ${c.velocidades} velocidades · <span style="color:#8b95a1">${c.modelos}</span>`;
+  }
+}
+
+function applyCoroaPreset() {
+  const val = document.getElementById('gear-coroa-preset').value;
+  if (!val) return;
+  const rings = val.split(',').map(Number);   // pode ter 1 ou 2 coroas (ex.: "34,50")
+  document.getElementById('gear-chainring').value = rings[0];
+  renderRingChooser(rings);
+}
+
+// G2 — quando a coroa tem 2 dentes (2x), oferece escolher qual coroa dirige o cálculo
+function renderRingChooser(rings) {
+  const box = document.getElementById('gear-ring-chooser');
+  box.innerHTML = '';
+  if (rings.length < 2) return;
+  rings.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'seg-btn' + (i === 0 ? ' active' : '');
+    b.textContent = r + 't' + (i === 0 ? ' (pequena)' : ' (grande)');
+    b.onclick = () => {
+      box.querySelectorAll('.seg-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      document.getElementById('gear-chainring').value = r;
+      if (gearState) calcGear(); // recalcula com a coroa escolhida
+    };
+    box.appendChild(b);
+  });
+}
+
+function updateDbBadge() {
+  const badge = document.getElementById('gear-db-badge');
+  if (!badge) return;
+  badge.innerHTML = gearDbConnected
+    ? `<i class="fa-solid fa-database" style="color:#22c55e;font-size:10px"></i> <span style="color:#8b95a1">Conectado: cassetes.db (SQLite via sql.js)</span>`
+    : `<i class="fa-solid fa-database" style="color:#c6f135;font-size:10px"></i> <span style="color:#8b95a1">Dados embutidos (cassetes.db indisponível via file://)</span>`;
+}
+
+function calcGear() {
+  const casseteId = parseInt(document.getElementById('gear-cassete').value);
+  if (!casseteId) { alert('Selecione um cassete antes de calcular.'); return; }
+  const cassete  = CASSETES_DATA.find(x => x.id === casseteId);
+  if (!cassete) return;
+
+  const cr      = parseFloat(document.getElementById('gear-chainring').value) || 34;
+  const cadence = parseFloat(document.getElementById('gear-cadence').value) || 90;
+  const circ_mm = parseFloat(document.getElementById('gear-wheel').value) || 2105;
+  const circ_m  = circ_mm / 1000;
+  const cogs    = cassete.cogs;
+
+  // Mantém o cog fixado se ainda existir neste cassete; senão usa o do meio
+  let selCog = (gearSelectedCog && cogs.includes(gearSelectedCog))
+    ? gearSelectedCog
+    : cogs[Math.floor(cogs.length / 2)];
+
+  gearState = { cr, cogs, cadence, circ_m, cassete };
+
+  renderGearMatrix();
+  renderGearHeadline(selCog);
+  updateDbBadge();
+  document.getElementById('gear-result').classList.add('show');
+}
+
+// Atualiza o número grande para o cog escolhido
+function renderGearHeadline(cog) {
+  if (!gearState) return;
+  const { cr, cadence, circ_m } = gearState;
+  gearSelectedCog = cog;
+  const ratio    = cr / cog;
+  const speed    = ratio * cadence * circ_m * 60 / 1000;
+  const distPerR = ratio * circ_m;
+  document.getElementById('gr-cr').textContent      = cr;
+  document.getElementById('gr-cog-sel').textContent = cog;
+  document.getElementById('gr-cad').textContent     = cadence;
+  document.getElementById('gear-speed-big').textContent = speed.toFixed(1);
+  document.getElementById('gr-ratio').textContent   = ratio.toFixed(2);
+  document.getElementById('gr-distrev').textContent = distPerR.toFixed(2);
+  // re-realça a linha ativa sem reconstruir a tabela
+  document.querySelectorAll('#gear-matrix-body tr').forEach(tr => {
+    const active = parseInt(tr.dataset.cog) === cog;
+    tr.querySelector('.td-cog').classList.toggle('row-active', active);
+    tr.querySelectorAll('td').forEach((td, idx) => {
+      if (idx === 0) return;
+      td.classList.toggle('cell-active', active && td.classList.contains('col-active'));
+    });
+  });
+}
+
+function renderGearMatrix() {
+  if (!gearState) return;
+  const { cr, cogs, cadence, circ_m } = gearState;
+  const cadences = [60, 75, 90, 100, 110];
+  const tbody = document.getElementById('gear-matrix-body');
+  tbody.innerHTML = '';
+
+  cogs.forEach(cog => {
+    const tr = document.createElement('tr');
+    tr.dataset.cog = cog;
+    tr.style.cursor = 'pointer';
+    const isSelCog = cog === gearSelectedCog;
+    const tdLabel = document.createElement('td');
+    tdLabel.className = 'td-cog' + (isSelCog ? ' row-active' : '');
+    tdLabel.textContent = cog + 't';
+    tr.appendChild(tdLabel);
+
+    cadences.forEach(c => {
+      const s = (cr / cog * c * circ_m * 60 / 1000);
+      const td = document.createElement('td');
+      td.textContent = s.toFixed(1);
+      const isNearCadence = Math.abs(c - cadence) <= 8;
+      if (isNearCadence) td.classList.add('col-active');
+      if (isSelCog && isNearCadence) td.classList.add('cell-active');
+      tr.appendChild(td);
+    });
+    // G1 — clicar na linha fixa aquela marcha no número grande
+    tr.onclick = () => renderGearHeadline(cog);
+    tbody.appendChild(tr);
+  });
+}
+
+// Carrega sql.js (injeta o script clássico) e lê o cassetes.db de verdade.
+// Só funciona via http(s) — em file:// o fetch do .db é bloqueado e usamos os dados embutidos.
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+(async function tryLoadDB() {
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.min.js');
+    if (!window.initSqlJs) return;
+    const SQL = await window.initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+    const resp = await fetch('cassetes.db');
+    if (!resp.ok) return;
+    const buf = await resp.arrayBuffer();
+    const db  = new SQL.Database(new Uint8Array(buf));
+    // valida o schema; se ok, marca como conectado (badge real)
+    const res = db.exec('SELECT COUNT(*) FROM cassetes');
+    if (res && res.length) { gearDbConnected = true; updateDbBadge(); }
+  } catch(e) { /* mantém dados embutidos (fallback JS) */ }
+})();
+
+// Init gear selectors
+populateCassetes();
+populateCoroas();
+
+// ─── ROUTE CALCULATOR ────────────────────────────────────────────────────────
+function calcRoute() {
+  const dist    = parseFloat(document.getElementById('route-dist').value) || 60;
+  const speed   = parseFloat(document.getElementById('route-speed').value) || 28;
+  const elev    = parseFloat(document.getElementById('route-elev').value) || 800;
+  const profile = parseFloat(document.getElementById('route-profile').value) || 1.0;
+  const stops   = parseFloat(document.getElementById('route-stops').value) || 0;
+  const wind    = parseFloat(document.getElementById('route-wind').value) || 0;
+
+  const adjSpeed    = Math.max(speed + wind, 10);
+  const elevEquivKm = elev / 100;
+  const virtDist    = dist + elevEquivKm;
+  const basePenMin  = elevEquivKm / adjSpeed * 60;
+  const climbPenMin = Math.round(basePenMin / profile);
+  const flatTimeMin = (dist / adjSpeed) * 60;
+  const movTimeMin  = flatTimeMin + climbPenMin;
+  const totalTimeMin= movTimeMin + stops;
+  const avgSpeedAdj = dist / (movTimeMin / 60);
+  const calories    = Math.round(dist * 50 + elev * 0.1);
+  const pace        = movTimeMin / dist;
+
+  const fmt = (min) => {
+    const h = Math.floor(min/60), m = Math.round(min%60);
+    return h > 0 ? `${h}:${m.toString().padStart(2,'0')}` : `${m}min`;
+  };
+
+  document.getElementById('route-total-time').innerHTML   = `${fmt(totalTimeMin)}<span>h</span>`;
+  document.getElementById('route-moving-time').innerHTML  = `${fmt(movTimeMin)}<span>h</span>`;
+  document.getElementById('route-avg-speed-adj').innerHTML= `${avgSpeedAdj.toFixed(1)}<span>km/h</span>`;
+  document.getElementById('route-virt-dist').textContent  = virtDist.toFixed(1);
+  document.getElementById('route-climb-penalty').textContent = climbPenMin;
+  document.getElementById('route-calories').textContent   = calories.toLocaleString('pt-BR');
+  document.getElementById('route-pace').textContent       = `${Math.floor(pace)}:${Math.round((pace%1)*60).toString().padStart(2,'0')}`;
+
+  const flatPct  = Math.round(flatTimeMin / totalTimeMin * 100);
+  const climbPct = Math.round(climbPenMin / totalTimeMin * 100);
+  const stopsPct = 100 - flatPct - climbPct;
+  document.getElementById('route-breakdown').innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700">
+      <span style="width:12px;height:12px;background:#c6f135;border-radius:3px;display:block"></span>
+      <span style="color:#8b95a1">Pedalada plana</span>
+      <span style="color:#eef2f4">${flatPct}% · ${fmt(flatTimeMin)}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700">
+      <span style="width:12px;height:12px;background:#ec3a8b;border-radius:3px;display:block"></span>
+      <span style="color:#8b95a1">Penalidade subida</span>
+      <span style="color:#eef2f4">${climbPct}% · ${fmt(climbPenMin)}</span>
+    </div>
+    ${stops > 0 ? `<div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700">
+      <span style="width:12px;height:12px;background:#2a313a;border-radius:3px;display:block"></span>
+      <span style="color:#8b95a1">Paradas</span>
+      <span style="color:#eef2f4">${stopsPct}% · ${fmt(stops)}</span>
+    </div>` : ''}`;
+
+  document.getElementById('route-result').classList.add('show');
+}
+
+// ─── NUTRITION CALCULATOR ────────────────────────────────────────────────────
+function calcNutri() {
+  const weight  = parseFloat(document.getElementById('n-weight').value) || 72;
+  const sex     = document.getElementById('n-sex').value;
+  const level   = document.getElementById('n-level').value;
+  const heavy   = document.getElementById('n-heavy-sweater').checked;
+  const dist    = parseFloat(document.getElementById('n-dist').value) || 80;
+  const speed   = parseFloat(document.getElementById('n-speed').value) || 25;
+  const elev    = parseFloat(document.getElementById('n-elev').value) || 600;
+  const intens  = document.getElementById('n-intensity').value;
+  const temp    = parseInt(document.getElementById('n-temp').value) || 28;
+  const humid   = parseInt(document.getElementById('n-humid').value) || 60;
+  const sun     = document.getElementById('n-sun').checked;
+  const gelCarb = parseFloat(document.getElementById('n-gel-carb').value) || 25;
+  const gelSod  = parseFloat(document.getElementById('n-gel-sodium').value) || 100;
+
+  // Duração estimada (método Strava virtual distance)
+  const elevEquivKm = elev / 100;
+  const virtDist    = dist + elevEquivKm;
+  const duration_h  = virtDist / speed;
+
+  // Taxa de suor base (ml/h) por temperatura
+  let sweat = temp < 20 ? 500 : temp < 28 ? 650 : temp < 35 ? 875 : 1100;
+
+  // Fator de intensidade
+  const iMult = { easy:0.7, mod:1.0, hard:1.3, max:1.6 }[intens];
+  sweat *= iMult;
+
+  // Fator de PESO corporal (mais massa → mais calor metabólico → mais suor; ref. 70kg)
+  const weightFactor = 0.8 + (weight / 70) * 0.2;
+  sweat *= weightFactor;
+
+  // Fator de CONDICIONAMENTO (atletas treinados suam mais cedo e em maior volume)
+  const levelSweat = { beginner:0.9, inter:1.0, advanced:1.1 }[level];
+  sweat *= levelSweat;
+
+  // Fator sexo
+  if (sex === 'f') sweat *= 0.9;
+
+  // Fator umidade >70%
+  if (humid > 70) sweat *= 1.1;
+
+  // Sol direto
+  if (sun) sweat += 150;
+
+  // Água recomendada (ACSM: repor 80–100% do suor; máx absorção ~1000 ml/h)
+  const water_mlh   = Math.min(Math.round(sweat * 0.9), 1000);
+  const water_total = Math.round(water_mlh * duration_h);
+
+  // Carboidratos g/h por duração
+  let carb_gh = duration_h <= 1 ? 25 : duration_h <= 2 ? 45 : duration_h <= 3 ? 67 : duration_h <= 5 ? 75 : 90;
+  if (intens === 'hard' || intens === 'max') carb_gh += 10;
+  // Teto de carbo por CONDICIONAMENTO (intestino treinado tolera mais; iniciante menos → evita desconforto GI)
+  const carbCap = { beginner:60, inter:90, advanced:120 }[level];
+  carb_gh = Math.min(carb_gh, carbCap);
+  const carb_total  = Math.round(carb_gh * duration_h);
+  const carb_per_kg = carb_gh / weight; // g/kg/h — usa o PESO informado
+
+  // Sódio mg/h por temperatura + heavy sweater
+  let sodium_mgh = temp < 20 ? 400 : temp < 28 ? 600 : temp < 35 ? 850 : 1200;
+  if (heavy) sodium_mgh = Math.round(sodium_mgh * 1.3);
+  const sodium_total = Math.round(sodium_mgh * duration_h);
+
+  // Géis
+  const gel_per_h = Math.ceil(carb_gh / gelCarb);
+  const gel_total = Math.ceil(carb_total / gelCarb);
+
+  // KPI cards
+  const kpiEl = document.getElementById('nutri-kpi-grid');
+  kpiEl.innerHTML = `
+    <div class="nutri-card" style="border-color:rgba(78,158,245,.3)">
+      <div class="nutri-card-val" style="color:#4e9ef5">${(water_total/1000).toFixed(1)}<span class="nutri-card-unit" style="color:#4e9ef5">L</span></div>
+      <div class="nutri-card-sub">Água total</div>
+      <div class="nutri-card-rate">${water_mlh} ml/h</div>
+    </div>
+    <div class="nutri-card">
+      <div class="nutri-card-val">${carb_total}<span class="nutri-card-unit">g</span></div>
+      <div class="nutri-card-sub">Carboidratos</div>
+      <div class="nutri-card-rate">${Math.round(carb_gh)} g/h · ${carb_per_kg.toFixed(2)} g/kg/h</div>
+    </div>
+    <div class="nutri-card" style="border-color:rgba(245,213,35,.3)">
+      <div class="nutri-card-val" style="color:#f5d523">${(sodium_total/1000).toFixed(1)}<span class="nutri-card-unit" style="color:#f5d523">g</span></div>
+      <div class="nutri-card-sub">Sódio total</div>
+      <div class="nutri-card-rate">${Math.round(sodium_mgh)} mg/h</div>
+    </div>
+    <div class="nutri-card" style="border-color:rgba(236,58,139,.3)">
+      <div class="nutri-card-val" style="color:#ec3a8b">${gel_total}<span class="nutri-card-unit" style="color:#ec3a8b">géis</span></div>
+      <div class="nutri-card-sub">Géis (${gelCarb}g cada)</div>
+      <div class="nutri-card-rate">${gel_per_h} géis/h</div>
+    </div>`;
+
+  // Dica contextual
+  let tip = '';
+  if (temp > 35 && (intens === 'hard' || intens === 'max')) {
+    tip = `<div class="tip" style="border-color:rgba(236,58,139,.35);background:rgba(236,58,139,.08);margin-bottom:0"><i class="fa-solid fa-triangle-exclamation" style="color:#ec3a8b"></i><div><strong style="color:#eef2f4">Alerta calor extremo + alta intensidade:</strong> Hidrate ANTES de sentir sede. Risco de hiponatremia se beber apenas água sem sódio. Priorize isotônicos. Considere reduzir a intensidade.</div></div>`;
+  } else if (temp > 30) {
+    tip = `<div class="tip"><i class="fa-solid fa-sun" style="color:#f5d523"></i><div><strong style="color:#eef2f4">Calor moderado-alto:</strong> Prefira bebidas com eletrólitos no lugar de água pura. Gel a cada 30 min é ideal para manter glicemia estável.</div></div>`;
+  } else if (temp < 15) {
+    tip = `<div class="tip"><i class="fa-solid fa-snowflake" style="color:#4e9ef5"></i><div><strong style="color:#eef2f4">Tempo frio:</strong> A sensação de sede diminui no frio mas a perda de suor persiste. Beba mesmo sem sentir sede. Carboidratos são ainda mais importantes para manter o calor.</div></div>`;
+  } else if (duration_h > 4) {
+    tip = `<div class="tip"><i class="fa-solid fa-clock" style="color:#c6f135"></i><div><strong style="color:#eef2f4">Pedal longo (${duration_h.toFixed(1)}h):</strong> Para >3h considere mix de glicose + frutose (2:1) — permite absorção de até 90g carbo/h. Não dependa apenas de géis; inclua comida real (bananas, barras).</div></div>`;
+  }
+  document.getElementById('nutri-tip').innerHTML = tip;
+
+  // Cronograma de géis e hidratação
+  // intervalo de gel: 25 min máx, 30 alta, 40 moderada, 45 leve
+  const gelInterval = intens === 'max' ? 25 : intens === 'hard' ? 30 : intens === 'mod' ? 40 : 45;
+  const totalMin    = Math.round(duration_h * 60);
+
+  let schedHtml = `<thead><tr>
+    <th>Horário</th><th>Ação</th><th>Carbo</th><th>Sódio</th><th>Água</th>
+  </tr></thead><tbody>`;
+
+  // Instantes dos eventos DURANTE o pedal
+  const eventTimes = [];
+  for (let t = gelInterval; t <= totalMin; t += gelInterval) eventTimes.push(t);
+  if (eventTimes.length === 0) eventTimes.push(totalMin); // pedais muito curtos
+  const nEvents = eventTimes.length;
+
+  // Distribui os TOTAIS recomendados pelos eventos (último evento recebe o resto → soma exata)
+  const waterEach  = Math.round(water_total  / nEvents);
+  const sodiumEach = Math.round(sodium_total / nEvents);
+
+  // Pré-saída (preparação — não entra na soma do percurso)
+  schedHtml += `<tr><td class="td-time">Pré-saída</td>
+    <td><span style="color:#8b95a1">Preparação:</span> 350 ml de líquido + 1 gel ou banana (~30 min antes)</td>
+    <td class="td-total">${gelCarb}g</td>
+    <td class="td-total">${gelSod}mg</td>
+    <td class="td-total">350ml</td></tr>`;
+
+  // Acumuladores que DEVEM fechar com a linha TOTAL
+  let cumSod = 0, cumWater = 0, gelsUsed = 0;
+
+  eventTimes.forEach((t, i) => {
+    const isLast = (i === nEvents - 1);
+    const h = Math.floor(t/60), m = t%60;
+    const timeStr = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+
+    // distribui gel_total géis uniformemente pelos eventos (soma exata = gel_total)
+    const gelsThisEvent = Math.round((i+1) * gel_total / nEvents) - gelsUsed;
+    gelsUsed += gelsThisEvent;
+    const evCarb = gelsThisEvent * gelCarb;
+
+    // água/sódio: último evento recebe o resto para fechar exatamente o total
+    const evWater  = isLast ? (water_total  - cumWater) : waterEach;
+    const evSodium = isLast ? (sodium_total - cumSod)   : sodiumEach;
+
+    cumSod   += evSodium;
+    cumWater += evWater;
+
+    let action;
+    if (gelsThisEvent >= 1) {
+      const gelTxt = gelsThisEvent === 1 ? '1 gel' : `${gelsThisEvent} géis`;
+      action = `${gelTxt} (${evCarb}g carbo) + ${evWater}ml isotônico`;
+    } else {
+      action = `Hidratação: ${evWater}ml isotônico (sem gel)`;
+    }
+
+    schedHtml += `<tr><td class="td-time">${timeStr}</td>
+      <td>${action}</td>
+      <td class="td-total">${evCarb}g</td>
+      <td class="td-total">${evSodium}mg</td>
+      <td class="td-total">${evWater}ml</td></tr>`;
+  });
+
+  // Linha de TOTAL = soma exata dos eventos do percurso (fecha com as colunas acima)
+  const schedCarbTotal = gelsUsed * gelCarb;
+  schedHtml += `<tr style="background:#0d0f12">
+    <td class="td-time">TOTAL</td>
+    <td><strong>Soma no percurso (${totalMin}min · ${gelsUsed} géis)</strong></td>
+    <td class="td-total">${schedCarbTotal}g</td>
+    <td class="td-total">${cumSod}mg</td>
+    <td class="td-total">${cumWater}ml</td>
+  </tr>`;
+
+  schedHtml += '</tbody>';
+  document.getElementById('nutri-schedule').innerHTML = schedHtml;
+
+  document.getElementById('nutri-result').classList.add('show');
+}
+</script>
+</body>
+</html>

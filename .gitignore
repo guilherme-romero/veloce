@@ -51,3 +51,6 @@ modelo2_html/
 
 # Handoff de design (referência visual local, runtime de protótipo)
 design_handoff_treinobike_hivis/
+
+# Quarentena de arquivos órfãos (avaliar e apagar — fora do repo)
+excluir/
