@@ -1,0 +1,115 @@
+#ferramentas .field{display:flex;flex-direction:column;gap:6px}
+#ferramentas .field label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+#ferramentas .field input,#ferramentas .field select{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;font-family:'Archivo',sans-serif;color:var(--text);outline:none;transition:border-color .15s;width:100%}
+#ferramentas .field input:focus,#ferramentas .field select:focus{border-color:var(--teal)}
+#ferramentas .field select option{background:var(--surface)}
+
+#ferramentas input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;background:var(--border);border:none;padding:0;cursor:pointer}
+#ferramentas input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--teal);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 0 1px var(--teal)}
+#ferramentas input[type=range]:focus{outline:none}
+
+#ferramentas .btn-calc{display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:var(--bg);border:none;border-radius:9px;padding:12px 22px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.05em;cursor:pointer;transition:opacity .15s}
+#ferramentas .btn-calc:hover{opacity:.88}
+
+#ferramentas .result-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;display:none}
+#ferramentas .result-box.show{display:block}
+#ferramentas .result-row{display:flex;align-items:baseline;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--surface2)}
+#ferramentas .result-row:last-child{border-bottom:none}
+#ferramentas .result-label{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em}
+#ferramentas .result-val{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--text)}
+#ferramentas .result-unit{font-size:13px;color:var(--teal);margin-left:4px}
+#ferramentas .result-highlight .result-val{color:var(--teal)}
+
+#ferramentas .psi-gauge{display:flex;align-items:center;justify-content:center;gap:32px;margin:8px 0}
+#ferramentas .psi-circle{display:flex;flex-direction:column;align-items:center;gap:6px}
+#ferramentas .psi-circle-ring{width:88px;height:88px;border-radius:50%;border:3px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column}
+#ferramentas .psi-front .psi-circle-ring{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal-dim)}
+#ferramentas .psi-rear .psi-circle-ring{border-color:#ec3a8b;box-shadow:0 0 0 1px rgba(236,58,139,.2)}
+#ferramentas .psi-num{font-family:'Bebas Neue',sans-serif;font-size:32px;line-height:1;color:var(--text)}
+#ferramentas .psi-unit-small{font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+#ferramentas .psi-tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#ferramentas .psi-front .psi-tag{color:var(--teal)}
+#ferramentas .psi-rear .psi-tag{color:#ec3a8b}
+
+#ferramentas .tool-tabs{display:flex;gap:4px;margin-bottom:28px;background:var(--surface);padding:5px;border-radius:12px;border:1px solid var(--surface2);flex-wrap:wrap}
+#ferramentas .tab-btn{padding:9px 18px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px}
+#ferramentas .tab-btn.active{background:var(--teal);color:var(--bg)}
+#ferramentas .tab-btn:not(.active):hover{color:var(--text);background:var(--surface2)}
+#ferramentas .tool-panel{display:none}
+#ferramentas .tool-panel.active{display:block}
+
+#ferramentas .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#ferramentas .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+#ferramentas .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+#ferramentas .tip{display:flex;align-items:flex-start;gap:10px;background:var(--teal-dim);border:1px solid rgba(198,241,53,.18);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.5}
+#ferramentas .tip i{color:var(--teal);font-size:13px;margin-top:1px;flex:none}
+
+#ferramentas .elev-bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600}
+#ferramentas .elev-bar-track{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+#ferramentas .elev-bar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+
+#ferramentas .matrix-wrap{overflow-x:auto}
+#ferramentas .matrix-table{width:100%;border-collapse:collapse;font-size:12px}
+#ferramentas .matrix-table th{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:8px 10px;text-align:center;border-bottom:1px solid var(--border)}
+#ferramentas .matrix-table td{padding:7px 10px;text-align:center;border-bottom:1px solid var(--surface2);font-weight:600;color:var(--text)}
+#ferramentas .matrix-table tr:last-child td{border-bottom:none}
+#ferramentas .matrix-table td.cell-active{color:var(--teal);font-family:'Bebas Neue',sans-serif;font-size:16px}
+#ferramentas .matrix-table td.col-active{color:var(--teal)}
+#ferramentas .matrix-table tr:hover td{background:rgba(198,241,53,.04)}
+#ferramentas .matrix-table .td-cog{font-weight:800;color:var(--muted);text-align:left;font-size:11px;letter-spacing:.08em}
+#ferramentas .matrix-table .td-cog.row-active{color:var(--teal)}
+
+#ferramentas .route-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+#ferramentas .route-stat{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+#ferramentas .route-stat-val{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;color:var(--text);margin-bottom:4px}
+#ferramentas .route-stat-val span{font-size:16px;color:var(--teal);margin-left:3px}
+#ferramentas .route-stat-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+#ferramentas .seg-btns{display:flex;gap:6px;flex-wrap:wrap}
+#ferramentas .seg-btn{padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--muted);font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:all .15s}
+#ferramentas .seg-btn.active{background:var(--teal);color:var(--bg);border-color:var(--teal)}
+#ferramentas .seg-btn:not(.active):hover{border-color:var(--teal);color:var(--teal)}
+
+#ferramentas .nutri-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+#ferramentas .nutri-card{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:18px 16px;text-align:center}
+#ferramentas .nutri-card-val{font-family:'Bebas Neue',sans-serif;font-size:42px;line-height:.9;color:var(--teal);margin-bottom:4px}
+#ferramentas .nutri-card-unit{font-size:12px;color:var(--teal);margin-left:2px}
+#ferramentas .nutri-card-sub{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:6px}
+#ferramentas .nutri-card-rate{font-size:11px;color:var(--text);font-weight:700;margin-top:3px}
+
+#ferramentas .schedule-table{width:100%;border-collapse:collapse;font-size:12px}
+#ferramentas .schedule-table th{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:10px 12px;text-align:left;border-bottom:2px solid var(--border);background:var(--bg)}
+#ferramentas .schedule-table td{padding:9px 12px;border-bottom:1px solid var(--surface2);vertical-align:top;color:var(--text);font-size:12px}
+#ferramentas .schedule-table tr:last-child td{border-bottom:none;font-weight:700;color:var(--teal);border-top:2px solid var(--border)}
+#ferramentas .schedule-table tr:hover:not(:last-child) td{background:rgba(198,241,53,.04)}
+#ferramentas .schedule-table .td-time{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--teal);white-space:nowrap}
+#ferramentas .schedule-table .td-total{font-family:'Bebas Neue',sans-serif;font-size:16px}
+
+#ferramentas .co2-box{background:var(--bg);border:1px solid rgba(198,241,53,.2);border-radius:10px;padding:14px 16px;display:none}
+#ferramentas .co2-box.show{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+
+/* Modal de terreno (fora da section, escopado pelo ID próprio) */
+#terrain-guide{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:0;color:var(--text);max-width:900px;width:95vw;max-height:90vh;overflow:hidden;margin:auto;inset:0;position:fixed}
+#terrain-guide::backdrop{background:rgba(0,0,0,.7);backdrop-filter:blur(4px)}
+#terrain-guide .modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)}
+#terrain-guide .modal-body{padding:20px 24px;overflow-y:auto;max-height:calc(90vh - 80px)}
+#terrain-guide .terrain-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+#terrain-guide .terrain-card{background:var(--surface2);border:2px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+#terrain-guide .terrain-card:hover,#terrain-guide .terrain-card.selected{border-color:var(--teal)}
+#terrain-guide .terrain-card img{width:100%;height:100px;object-fit:cover;display:block}
+#terrain-guide .terrain-card-info{padding:10px 10px 12px}
+#terrain-guide .terrain-card-name{font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px}
+#terrain-guide .terrain-card-psi{font-size:10px;color:var(--muted);font-weight:600}
+#terrain-guide .terrain-card-badge{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--bg);padding:2px 7px;border-radius:4px;display:inline-block;margin-top:4px}
+
+@media(max-width:900px){
+  #ferramentas .grid-2,#ferramentas .grid-3,#ferramentas .grid-4{grid-template-columns:1fr}
+  #ferramentas .route-stats,#ferramentas .nutri-kpi{grid-template-columns:1fr 1fr}
+  #terrain-guide .terrain-grid{grid-template-columns:repeat(2,1fr)}
+  #ferramentas .two-col{grid-template-columns:1fr!important}
+}
+@media(max-width:600px){
+  #ferramentas .route-stats,#ferramentas .nutri-kpi{grid-template-columns:1fr}
+  #terrain-guide .terrain-grid{grid-template-columns:1fr 1fr}
+}

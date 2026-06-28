@@ -6,11 +6,11 @@ server/.env
 server/garmin/venv/
 server/garmin/__pycache__/
 
-# SQLite databases (dados do usuário)
-data/*.db
-data/*.db-journal
-data/*.db-wal
-data/*.db-shm
+# SQLite databases (dados do usuário — apenas estes são ignorados)
+data/training.db
+data/training.db-journal
+data/training.db-wal
+data/training.db-shm
 
 # Avatares (dados pessoais)
 data/avatars/
@@ -27,6 +27,7 @@ data/backups/pre-restore-*.db
 
 # Diretorio temporario do restore (efemero)
 data/restore-tmp/
+data/restore-tmp/*.db
 
 # Logs
 *.log

@@ -15,11 +15,11 @@
              worker-src 'self';"
   >
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.0.49">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.0.49">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.0.49">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.0.49">
-  <link rel="manifest" href="manifest.json?v=2.0.49">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.0.50">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.0.50">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.0.50">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.0.50">
+  <link rel="manifest" href="manifest.json?v=2.0.50">
 
   <title>Treino Bike</title>
 
@@ -38,10 +38,11 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.0.49">
-  <link rel="stylesheet" href="css/rides.css?v=2.0.49">
-  <link rel="stylesheet" href="css/routes.css?v=2.0.49">
-  <link rel="stylesheet" href="css/bikes.css?v=2.0.49">
+  <link rel="stylesheet" href="css/style.css?v=2.0.50">
+  <link rel="stylesheet" href="css/rides.css?v=2.0.50">
+  <link rel="stylesheet" href="css/routes.css?v=2.0.50">
+  <link rel="stylesheet" href="css/bikes.css?v=2.0.50">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.0.50">
 </head>
 <body>
 
@@ -1027,15 +1028,525 @@
     </div>
   </section>
 
-  <!-- ┌─ FERRAMENTAS — calculadoras do ciclista (embarcadas via iframe) ──┐ -->
+  <!-- ┌─ FERRAMENTAS — calculadoras do ciclista ────────────────────────┐ -->
   <section id="ferramentas" class="scroll-mt-20" style="display:none;">
-    <iframe id="ferramentas-frame"
-            title="Ferramentas do ciclista"
-            data-src="ferramentas/ferramentas.html?v=2.0.49"
-            style="width:100%;height:calc(100vh - 120px);min-height:600px;border:0;border-radius:14px;background:var(--bg);"></iframe>
+
+    <div class="home-hero">
+      <div class="home-hero-hatch" aria-hidden="true"></div>
+      <div class="home-hero-stripe" aria-hidden="true"></div>
+      <div class="home-hero-inner">
+        <div>
+          <div class="section-label">Calculadoras</div>
+          <h2 class="section-title">Ferramentas</h2>
+          <p class="section-sub">PSI · Relação × Velocidade · Tempo de percurso · Nutrição</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tool-tabs">
+      <button class="tab-btn active" onclick="ferrSwitchTab('psi',this)">
+        <i class="fa-solid fa-gauge-high" style="font-size:11px"></i> PSI do Pneu
+      </button>
+      <button class="tab-btn" onclick="ferrSwitchTab('gear',this)">
+        <i class="fa-solid fa-gear" style="font-size:11px"></i> Relação × Velocidade
+      </button>
+      <button class="tab-btn" onclick="ferrSwitchTab('route',this)">
+        <i class="fa-solid fa-mountain" style="font-size:11px"></i> Tempo de Percurso
+      </button>
+      <button class="tab-btn" onclick="ferrSwitchTab('nutri',this)">
+        <i class="fa-solid fa-droplet" style="font-size:11px"></i> Nutrição
+      </button>
+    </div>
+
+    <!-- FERRAMENTA 1 — PSI IDEAL DO PNEU -->
+    <div id="panel-psi" class="tool-panel active">
+      <div style="display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:start" class="two-col">
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px">
+          <div style="margin-bottom:24px">
+            <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:8px"><span style="width:22px;height:2px;background:var(--teal);display:block"></span>Calibragem</div>
+            <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--text);margin-bottom:4px">PSI IDEAL DO PNEU</h2>
+            <p style="font-size:13px;color:var(--muted)">Fórmula baseada em SILCA — considera peso total, tipo de superfície e teoria do breakpoint pressure.</p>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:18px">
+
+            <div class="grid-3">
+              <div class="field">
+                <label>Ciclista (kg)</label>
+                <input type="number" id="psi-rider" value="75" min="40" max="150" step="0.5">
+              </div>
+              <div class="field">
+                <label>Bike (kg)</label>
+                <input type="number" id="psi-bike" value="9" min="4" max="20" step="0.5">
+              </div>
+              <div class="field">
+                <label>Equipamento (kg)</label>
+                <input type="number" id="psi-equip" value="0" min="0" max="10" step="0.5" placeholder="0">
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Largura do pneu — <span id="psi-width-val" style="color:var(--teal)">28</span> mm</label>
+              <input type="range" id="psi-width" min="18" max="70" value="28" oninput="document.getElementById('psi-width-val').textContent=this.value">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700;letter-spacing:.06em">
+                <span>18mm speed</span><span>28mm road</span><span>40mm gravel</span><span>70mm MTB</span>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="field">
+                <label>Tipo de montagem</label>
+                <select id="psi-type">
+                  <option value="clincher">Clincher (câmara)</option>
+                  <option value="tubeless">Tubeless</option>
+                  <option value="tubular">Tubular</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Distribuição de peso</label>
+                <select id="psi-distrib">
+                  <option value="50/50">50/50 — Triatlo / Contrarrelógio</option>
+                  <option value="48/52" selected>48/52 — Road</option>
+                  <option value="47/53">47/53 — Gravel</option>
+                  <option value="46.5/53.5">46.5/53.5 — MTB</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Tipo de terreno</label>
+              <select id="psi-terrain">
+                <option value="madeira">Pista de Madeira</option>
+                <option value="concreto">Pista de Concreto</option>
+                <option value="asfalto_novo" selected>Asfalto novo</option>
+                <option value="asfalto_desgastado">Asfalto desgastado / Algumas rachaduras</option>
+                <option value="asfalto_mau">Asfalto em mau estado / Revestimento asfáltico</option>
+                <option value="paralelepipedos">Calçada de Paralelepípedos</option>
+                <option value="gravel1">Categoria 1 — Cascalho compacto</option>
+                <option value="gravel2">Categoria 2 — Cascalho médio</option>
+                <option value="gravel3">Categoria 3 — Cascalho solto</option>
+                <option value="gravel4">Categoria 4 — Cascalho muito solto / areia</option>
+              </select>
+              <a href="#" onclick="document.getElementById('terrain-guide').showModal();return false" style="font-size:11px;color:var(--teal);text-decoration:none;margin-top:4px;display:inline-flex;align-items:center;gap:5px;font-weight:700;letter-spacing:.04em"><i class="fa-solid fa-images" style="font-size:10px"></i> Guia de terreno</a>
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button class="btn-calc" onclick="ferrCalcPSI()">
+                <i class="fa-solid fa-calculator" style="font-size:13px"></i> CALCULAR PSI
+              </button>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer">
+                <input type="checkbox" id="psi-co2" style="accent-color:var(--teal);width:16px;height:16px" onchange="ferrToggleCO2()"> Mostrar equivalência CO₂
+              </label>
+            </div>
+
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div id="psi-result" class="result-box">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px">Pressão recomendada</div>
+
+            <div class="psi-gauge">
+              <div class="psi-circle psi-front">
+                <div class="psi-circle-ring">
+                  <span class="psi-num" id="psi-front-val">—</span>
+                  <span class="psi-unit-small">psi</span>
+                </div>
+                <span class="psi-tag">Dianteiro</span>
+              </div>
+              <div style="text-align:center">
+                <i class="fa-solid fa-arrow-right-arrow-left" style="color:var(--border);font-size:18px"></i>
+                <div style="font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:.06em;font-weight:700;text-transform:uppercase">Δ PSI</div>
+                <div id="psi-diff" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--muted)">—</div>
+              </div>
+              <div class="psi-circle psi-rear">
+                <div class="psi-circle-ring">
+                  <span class="psi-num" id="psi-rear-val">—</span>
+                  <span class="psi-unit-small">psi</span>
+                </div>
+                <span class="psi-tag">Traseiro</span>
+              </div>
+            </div>
+
+            <div style="margin-top:16px">
+              <div class="elev-bar-label">
+                <span id="psi-range-min">—</span><span id="psi-range-max">—</span>
+              </div>
+              <div class="elev-bar-track">
+                <div class="elev-bar-fill" id="psi-bar-fill" style="width:0%;background:linear-gradient(90deg,var(--teal),#ec3a8b)"></div>
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center;font-weight:600">Faixa segura para este terreno e pneu</div>
+            </div>
+
+            <div id="psi-co2-box" class="co2-box" style="margin-top:14px">
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Cartuchos CO₂ necessários</div>
+                <div style="display:flex;gap:16px;align-items:baseline">
+                  <div><span id="co2-16g" style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--teal)">—</span><span style="font-size:12px;color:var(--muted);margin-left:4px">× 16g</span></div>
+                  <div><span id="co2-25g" style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--text)">—</span><span style="font-size:12px;color:var(--muted);margin-left:4px">× 25g</span></div>
+                </div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.5;border-left:2px solid var(--border);padding-left:14px">
+                Volume estimado do pneu:<br>
+                <span id="co2-volume" style="color:var(--text);font-weight:700">—</span> L<br>
+                CO₂ necessário: <span id="co2-grams" style="color:var(--teal);font-weight:700">—</span> g
+              </div>
+            </div>
+
+            <div id="psi-notes" style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:14px"></div>
+          </div>
+
+          <div class="tip">
+            <i class="fa-solid fa-circle-info"></i>
+            <div><strong style="color:var(--text)">Teoria SILCA:</strong> Pressão ótima é aquela que minimiza a soma de Crr (resistência ao rolamento) + Impedância. Em superfícies rugosas o breakpoint pressure é menor — portanto o PSI ideal cai.</div>
+          </div>
+          <div class="tip" style="border-color:rgba(236,58,139,.25);background:rgba(236,58,139,.06)">
+            <i class="fa-solid fa-triangle-exclamation" style="color:#ec3a8b"></i>
+            <div><strong style="color:var(--text)">Atenção:</strong> Nunca ultrapasse o limite máximo impresso no flanco do pneu. Este cálculo é orientativo.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FERRAMENTA 2 — RELAÇÃO × VELOCIDADE -->
+    <div id="panel-gear" class="tool-panel">
+      <div style="display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start" class="two-col">
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px">
+          <div style="margin-bottom:24px">
+            <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:8px"><span style="width:22px;height:2px;background:var(--teal);display:block"></span>Transmissão</div>
+            <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--text);margin-bottom:4px">RELAÇÃO × VELOCIDADE</h2>
+            <p style="font-size:13px;color:var(--muted)">Selecione marca, cassete e coroa para ver a velocidade em cada pinhão.</p>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:18px">
+
+            <div class="field">
+              <label>Marca</label>
+              <div class="seg-btns" id="gear-brand-btns">
+                <button class="seg-btn active" onclick="ferrSelectBrand('Shimano',this)">Shimano</button>
+                <button class="seg-btn" onclick="ferrSelectBrand('SRAM',this)">SRAM</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Categoria</label>
+              <div class="seg-btns" id="gear-cat-btns">
+                <button class="seg-btn active" onclick="ferrSelectCat('MTB',this)">MTB</button>
+                <button class="seg-btn" onclick="ferrSelectCat('Road',this)">Road</button>
+                <button class="seg-btn" onclick="ferrSelectCat('Gravel',this)">Gravel</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Cassete</label>
+              <select id="gear-cassete" onchange="ferrCasseteChg()">
+                <option value="">Selecione...</option>
+              </select>
+              <div id="gear-freehub-badge" style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:600"></div>
+            </div>
+
+            <div class="field">
+              <label>Coroa (dentes)</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="number" id="gear-chainring" value="34" min="22" max="64" step="1" style="width:90px;flex:none" oninput="document.getElementById('gear-ring-chooser').innerHTML=''">
+                <select id="gear-coroa-preset" onchange="ferrCoroaPreset()" style="flex:1">
+                  <option value="">Presets da categoria...</option>
+                </select>
+              </div>
+              <div id="gear-ring-chooser" class="seg-btns" style="margin-top:8px"></div>
+            </div>
+
+            <div class="field">
+              <label>Cadência — <span id="gear-cadence-val" style="color:var(--teal)">90</span> rpm</label>
+              <input type="range" id="gear-cadence" min="50" max="140" value="90" oninput="document.getElementById('gear-cadence-val').textContent=this.value">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700;letter-spacing:.06em">
+                <span>50</span><span>90 ideal</span><span>110 sprint</span><span>140</span>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Circunferência do pneu</label>
+              <select id="gear-wheel">
+                <option value="2086">700×23c — 2086 mm</option>
+                <option value="2096">700×25c — 2096 mm</option>
+                <option value="2105" selected>700×28c — 2105 mm</option>
+                <option value="2136">700×32c — 2136 mm</option>
+                <option value="2168">700×38c — 2168 mm</option>
+                <option value="2240">700×47c / 650b×47 — 2240 mm</option>
+                <option value="2288">29" × 2.1 MTB — 2288 mm</option>
+                <option value="2326">29" × 2.3 MTB — 2326 mm</option>
+                <option value="2155">27.5" × 2.1 MTB — 2155 mm</option>
+                <option value="2195">27.5" × 2.3 MTB — 2195 mm</option>
+                <option value="2012">26" × 1.95 MTB — 2012 mm</option>
+              </select>
+            </div>
+
+            <button class="btn-calc" onclick="ferrCalcGear()">
+              <i class="fa-solid fa-bolt" style="font-size:13px"></i> CALCULAR VELOCIDADES
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div id="gear-result" class="result-box">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Velocidade por pinhão</div>
+
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+              <div>
+                <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Coroa <span id="gr-cr">—</span> × Pinhão <span id="gr-cog-sel">—</span> @ <span id="gr-cad">90</span> rpm</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:72px;line-height:.9;color:var(--teal)" id="gear-speed-big">—</div>
+                <div style="font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase">km/h</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;text-align:right">
+                <div><span style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.04em">Relação</span><br><span id="gr-ratio" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text)">—</span><span style="font-size:12px;color:var(--teal)"> : 1</span></div>
+                <div><span style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.04em">Dist./pedalada</span><br><span id="gr-distrev" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text)">—</span><span style="font-size:12px;color:var(--teal)"> m</span></div>
+              </div>
+            </div>
+
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Velocidade por cog — km/h <span style="color:var(--teal);text-transform:none;letter-spacing:0;font-weight:600">(clique numa linha para fixar a marcha)</span></div>
+            <div class="matrix-wrap">
+              <table class="matrix-table">
+                <thead>
+                  <tr>
+                    <th style="text-align:left">Cog</th>
+                    <th>60 rpm</th>
+                    <th>75 rpm</th>
+                    <th>90 rpm</th>
+                    <th>100 rpm</th>
+                    <th>110 rpm</th>
+                  </tr>
+                </thead>
+                <tbody id="gear-matrix-body"></tbody>
+              </table>
+            </div>
+            <div id="gear-db-badge" style="margin-top:10px;font-size:10px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px"></div>
+          </div>
+
+          <div class="tip">
+            <i class="fa-solid fa-circle-info"></i>
+            <div>Cadência entre 85–95 rpm é a mais eficiente. Abaixo de 75 rpm aumenta carga muscular; acima de 110 rpm eleva a demanda cardiovascular.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FERRAMENTA 3 — TEMPO DE PERCURSO -->
+    <div id="panel-route" class="tool-panel">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start" class="two-col">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px">
+          <div style="margin-bottom:24px">
+            <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:8px"><span style="width:22px;height:2px;background:var(--teal);display:block"></span>Planejamento</div>
+            <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--text);margin-bottom:4px">TEMPO DE PERCURSO</h2>
+            <p style="font-size:13px;color:var(--muted)">Estime o tempo real considerando o impacto das subidas no seu ritmo.</p>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div class="grid-2">
+              <div class="field"><label>Distância (km)</label><input type="number" id="route-dist" value="60" min="1" max="500" step="1"></div>
+              <div class="field"><label>Velocidade média plana (km/h)</label><input type="number" id="route-speed" value="28" min="10" max="50" step="0.5"></div>
+            </div>
+            <div class="field">
+              <label>Ganho de elevação — <span id="route-elev-val" style="color:var(--teal)">800</span> m</label>
+              <input type="range" id="route-elev" min="0" max="4000" value="800" step="50" oninput="document.getElementById('route-elev-val').textContent=this.value">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700;letter-spacing:.06em">
+                <span>0 plano</span><span>400m</span><span>1000m</span><span>2000m+</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Perfil do ciclista</label>
+              <select id="route-profile">
+                <option value="0.8">Iniciante — penalidade maior nas subidas</option>
+                <option value="1.0" selected>Intermediário</option>
+                <option value="1.3">Treinado — sobe bem</option>
+                <option value="1.6">Escalador / avançado</option>
+              </select>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label>Paradas (minutos)</label><input type="number" id="route-stops" value="15" min="0" max="120" step="5"></div>
+              <div class="field">
+                <label>Vento estimado</label>
+                <select id="route-wind">
+                  <option value="0">Sem vento</option>
+                  <option value="5">A favor (+5 km/h)</option>
+                  <option value="-5">Contra (−5 km/h)</option>
+                  <option value="-10">Forte contra (−10 km/h)</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn-calc" onclick="ferrCalcRoute()"><i class="fa-solid fa-clock" style="font-size:13px"></i> CALCULAR TEMPO</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div id="route-result" class="result-box">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px">Estimativa de percurso</div>
+            <div class="route-stats">
+              <div class="route-stat"><div class="route-stat-val" id="route-total-time">—<span>h</span></div><div class="route-stat-label">Tempo total</div></div>
+              <div class="route-stat"><div class="route-stat-val" id="route-moving-time">—<span>h</span></div><div class="route-stat-label">Em movimento</div></div>
+              <div class="route-stat"><div class="route-stat-val" id="route-avg-speed-adj">—<span>km/h</span></div><div class="route-stat-label">Vel. ajustada</div></div>
+            </div>
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:0;border-top:1px solid var(--border);padding-top:16px">
+              <div class="result-row"><span class="result-label">Distância plana equivalente</span><span><span class="result-val" id="route-virt-dist" style="font-size:22px">—</span><span class="result-unit">km</span></span></div>
+              <div class="result-row"><span class="result-label">Penalidade subidas</span><span><span class="result-val" id="route-climb-penalty" style="font-size:22px;color:#ec3a8b">—</span><span class="result-unit" style="color:#ec3a8b">min</span></span></div>
+              <div class="result-row"><span class="result-label">Calorias estimadas</span><span><span class="result-val" id="route-calories" style="font-size:22px">—</span><span class="result-unit">kcal</span></span></div>
+              <div class="result-row result-highlight"><span class="result-label">Pace médio</span><span><span class="result-val" id="route-pace" style="font-size:22px">—</span><span class="result-unit">min/km</span></span></div>
+            </div>
+            <div style="margin-top:16px"><div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Composição do tempo</div><div style="display:flex;gap:8px;flex-wrap:wrap" id="route-breakdown"></div></div>
+          </div>
+          <div class="tip"><i class="fa-solid fa-circle-info"></i><div>Método Strava de distância virtual: cada 100 m de elevação equivale a ~1 km de distância plana adicional.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FERRAMENTA 4 — NUTRIÇÃO E HIDRATAÇÃO -->
+    <div id="panel-nutri" class="tool-panel">
+      <div style="display:grid;grid-template-columns:480px 1fr;gap:20px;align-items:start" class="two-col">
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px">
+          <div style="margin-bottom:24px">
+            <div style="display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:8px"><span style="width:22px;height:2px;background:var(--teal);display:block"></span>Planejamento</div>
+            <h2 style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--text);margin-bottom:4px">NUTRIÇÃO E HIDRATAÇÃO</h2>
+            <p style="font-size:13px;color:var(--muted)">Calcule água, carboidratos, sódio e gere cronograma de géis para o seu pedal.</p>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:22px">
+
+            <div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-person-biking" style="color:var(--teal)"></i> Ciclista</div>
+              <div class="grid-2" style="gap:12px">
+                <div class="field"><label>Peso corporal (kg)</label><input type="number" id="n-weight" value="75" min="40" max="150" step="0.5"></div>
+                <div class="field">
+                  <label>Sexo</label>
+                  <select id="n-sex">
+                    <option value="m">Masculino</option>
+                    <option value="f">Feminino</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Condicionamento</label>
+                  <select id="n-level">
+                    <option value="beginner">Iniciante</option>
+                    <option value="inter" selected>Intermediário</option>
+                    <option value="advanced">Avançado</option>
+                  </select>
+                </div>
+                <div class="field" style="justify-content:flex-end">
+                  <label style="margin-bottom:8px">Suador intenso?</label>
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer">
+                    <input type="checkbox" id="n-heavy-sweater" style="accent-color:var(--teal);width:16px;height:16px"> Sim (+30% sódio)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-route" style="color:var(--teal)"></i> Trajeto</div>
+              <div class="grid-2" style="gap:12px">
+                <div class="field"><label>Distância (km)</label><input type="number" id="n-dist" value="60" min="5" max="500" step="1"></div>
+                <div class="field"><label>Velocidade média (km/h)</label><input type="number" id="n-speed" value="20" min="10" max="50" step="0.5"></div>
+                <div class="field">
+                  <label>Ganho de elevação — <span id="n-elev-val" style="color:var(--teal)">500</span> m</label>
+                  <input type="range" id="n-elev" min="0" max="4000" value="500" step="50" oninput="document.getElementById('n-elev-val').textContent=this.value">
+                </div>
+                <div class="field">
+                  <label>Intensidade</label>
+                  <select id="n-intensity">
+                    <option value="easy">Leve — passeio / Z1-Z2</option>
+                    <option value="mod" selected>Moderada — endurance / Z3</option>
+                    <option value="hard">Alta — treino / Z4</option>
+                    <option value="max">Máxima — competição / Z5+</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-sun" style="color:var(--teal)"></i> Clima</div>
+              <div class="grid-2" style="gap:12px">
+                <div class="field">
+                  <label>Temperatura — <span id="n-temp-val" style="color:var(--teal)">28</span>°C</label>
+                  <input type="range" id="n-temp" min="5" max="45" value="28" oninput="document.getElementById('n-temp-val').textContent=this.value">
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700">
+                    <span>5°C</span><span>20°C</span><span>30°C</span><span>45°C</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Umidade — <span id="n-humid-val" style="color:var(--teal)">60</span>%</label>
+                  <input type="range" id="n-humid" min="10" max="100" value="60" oninput="document.getElementById('n-humid-val').textContent=this.value">
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700">
+                    <span>10%</span><span>50%</span><span>80%</span><span>100%</span>
+                  </div>
+                </div>
+                <div class="field" style="grid-column:1/-1">
+                  <label style="margin-bottom:8px">Condições de exposição</label>
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer">
+                    <input type="checkbox" id="n-sun" style="accent-color:var(--teal);width:16px;height:16px"> Exposição ao sol direto (+150 ml/h)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fa-solid fa-flask" style="color:var(--teal)"></i> Produto (gel)</div>
+              <div class="grid-2" style="gap:12px">
+                <div class="field"><label>Carboidratos por gel (g)</label><input type="number" id="n-gel-carb" value="25" min="10" max="60" step="1"></div>
+                <div class="field"><label>Sódio por gel (mg)</label><input type="number" id="n-gel-sodium" value="300" min="0" max="500" step="10"></div>
+              </div>
+            </div>
+
+            <button class="btn-calc" onclick="ferrCalcNutri()">
+              <i class="fa-solid fa-droplet" style="font-size:13px"></i> CALCULAR NUTRIÇÃO
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div id="nutri-result" class="result-box">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Totais estimados</div>
+            <div class="nutri-kpi" id="nutri-kpi-grid"></div>
+            <div id="nutri-tip" style="margin-bottom:16px"></div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+              <i class="fa-solid fa-clock" style="color:var(--teal)"></i> Cronograma de géis e hidratação
+            </div>
+            <div style="overflow-x:auto">
+              <table class="schedule-table" id="nutri-schedule"></table>
+            </div>
+            <div style="margin-top:14px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);padding-top:12px;line-height:1.6">
+              <strong style="color:var(--text)">Referências:</strong> ACSM Position Stand 2007, GSSI Sport Science Exchange, Precision Fuel &amp; Hydration
+            </div>
+          </div>
+
+          <div class="tip">
+            <i class="fa-solid fa-circle-info"></i>
+            <div><strong style="color:var(--text)">Regra de ouro:</strong> Não espere sentir sede ou fome para consumir. Hidrate e alimente-se preventivamente — a sensação de sede já indica 1–2% de desidratação.</div>
+          </div>
+          <div class="tip" style="border-color:rgba(236,58,139,.25);background:rgba(236,58,139,.06)">
+            <i class="fa-solid fa-triangle-exclamation" style="color:#ec3a8b"></i>
+            <div><strong style="color:var(--text)">Atenção:</strong> Em temperaturas acima de 35°C com alta intensidade, hipernatremia e hiponatremia são riscos reais. Consulte um nutricionista esportivo para eventos >4h.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </section>
 
 </main>
+
+<!-- Modal Guia de Terreno (Ferramentas) -->
+<dialog id="terrain-guide">
+  <div class="modal-header">
+    <div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:4px">Referência Visual</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text)">GUIA DE TERRENO</div>
+    </div>
+    <button onclick="document.getElementById('terrain-guide').close()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:8px 14px;font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fa-solid fa-xmark"></i> Fechar</button>
+  </div>
+  <div class="modal-body">
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">Clique numa superfície para selecioná-la diretamente na calculadora. O fator de PSI é baseado na teoria de <em>breakpoint pressure</em> da SILCA.</p>
+    <div class="terrain-grid" id="terrain-grid-modal"></div>
+  </div>
+</dialog>
 
 <!-- Popover de informação dos cards de Insights -->
 <div id="insight-popover" class="insight-info-popover" hidden></div>
@@ -1053,32 +1564,33 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.0.49"></script>
-<script src="js/utils.js?v=2.0.49"></script>
-<script src="js/router.js?v=2.0.49"></script>
-<script src="js/defaults.js?v=2.0.49"></script>
-<script src="js/api.js?v=2.0.49"></script>
-<script src="js/storage.js?v=2.0.49"></script>
-<script src="js/profile.js?v=2.0.49"></script>
-<script src="js/charts.js?v=2.0.49"></script>
-<script src="js/modals.js?v=2.0.49"></script>
-<script src="js/workouts.js?v=2.0.49"></script>
-<script src="js/rides.js?v=2.0.49"></script>
-<script src="js/bikes.js?v=2.0.49"></script>
-<script src="js/training-log.js?v=2.0.49"></script>
-<script src="js/home-workout.js?v=2.0.49"></script>
-<script src="js/backup.js?v=2.0.49"></script>
-<script src="js/gpx.js?v=2.0.49"></script>
-<script src="js/routes.js?v=2.0.49"></script>
-<script src="js/heatmap.js?v=2.0.49"></script>
-<script src="js/strava.js?v=2.0.49"></script>
-<script src="js/garmin.js?v=2.0.49"></script>
-<script src="js/activities.js?v=2.0.49"></script>
-<script src="js/insights.js?v=2.0.49"></script>
-<script src="js/testes.js?v=2.0.49"></script>
-<script src="js/home.js?v=2.0.49"></script>
-<script src="js/app.js?v=2.0.49"></script>
-<script src="js/pwa.js?v=2.0.49"></script>
+<script src="js/version.js?v=2.0.50"></script>
+<script src="js/utils.js?v=2.0.50"></script>
+<script src="js/router.js?v=2.0.50"></script>
+<script src="js/defaults.js?v=2.0.50"></script>
+<script src="js/api.js?v=2.0.50"></script>
+<script src="js/storage.js?v=2.0.50"></script>
+<script src="js/profile.js?v=2.0.50"></script>
+<script src="js/charts.js?v=2.0.50"></script>
+<script src="js/modals.js?v=2.0.50"></script>
+<script src="js/workouts.js?v=2.0.50"></script>
+<script src="js/rides.js?v=2.0.50"></script>
+<script src="js/bikes.js?v=2.0.50"></script>
+<script src="js/training-log.js?v=2.0.50"></script>
+<script src="js/home-workout.js?v=2.0.50"></script>
+<script src="js/backup.js?v=2.0.50"></script>
+<script src="js/gpx.js?v=2.0.50"></script>
+<script src="js/routes.js?v=2.0.50"></script>
+<script src="js/heatmap.js?v=2.0.50"></script>
+<script src="js/strava.js?v=2.0.50"></script>
+<script src="js/garmin.js?v=2.0.50"></script>
+<script src="js/activities.js?v=2.0.50"></script>
+<script src="js/insights.js?v=2.0.50"></script>
+<script src="js/testes.js?v=2.0.50"></script>
+<script src="js/ferramentas.js?v=2.0.50"></script>
+<script src="js/home.js?v=2.0.50"></script>
+<script src="js/app.js?v=2.0.50"></script>
+<script src="js/pwa.js?v=2.0.50"></script>
 
 </body>
 </html>

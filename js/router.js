@@ -105,10 +105,8 @@
     if (route.section === 'testes' && window.Testes?.load) {
       window.Testes.load();
     }
-    if (route.section === 'ferramentas') {
-      // Lazy-load do iframe: só busca o doc (sql.js/cassetes.db) na 1ª visita
-      const frame = document.getElementById('ferramentas-frame');
-      if (frame && !frame.src && frame.dataset.src) frame.src = frame.dataset.src;
+    if (route.section === 'ferramentas' && window.Ferramentas?.load) {
+      window.Ferramentas.load();
     }
   }
 
