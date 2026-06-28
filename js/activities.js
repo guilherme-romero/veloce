@@ -8,6 +8,22 @@
   const $ = (id) => document.getElementById(id);
   let _map = null, _volumeChart = null;
 
+  // Estilo de tooltip escuro — igual ao usado nos gráficos de INSIGHTS, para
+  // manter a "mini legenda flutuante" visualmente consistente entre as seções.
+  const TOOLTIP_STYLE = {
+    backgroundColor: 'rgba(19,21,26,0.95)',
+    borderColor: '#252830',
+    borderWidth: 1,
+    titleColor: '#e6e8ec',
+    bodyColor: '#c4c9d4',
+    padding: 10,
+    cornerRadius: 8,
+    usePointStyle: true,
+    boxWidth: 8,
+    boxHeight: 8,
+    boxPadding: 4,
+  };
+
   // ── Polyline decoder (algoritmo Google) ─────────────────────────
   function decodePolyline(str) {
     const points = [];
@@ -234,7 +250,8 @@
     if (_map) { _map.remove(); _map = null; }
     _map = L.map(mapEl, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(_map);
-    const line = L.polyline(pts, { color: '#fc4c02', weight: 3 }).addTo(_map);
+    const lineColor = act.fonte === 'garmin' ? '#007cc3' : '#fc4c02';
+    const line = L.polyline(pts, { color: lineColor, weight: 3 }).addTo(_map);
     _map.fitBounds(line.getBounds(), { padding: [10, 10] });
   }
 
@@ -318,7 +335,7 @@
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: true, labels: { color: '#9299a8', boxWidth: 12, padding: 12, font: { size: 11 } } },
-          tooltip: { callbacks: { label: (ctx) => {
+          tooltip: { ...TOOLTIP_STYLE, callbacks: { label: (ctx) => {
             const v = ctx.parsed.y;
             if (ctx.dataset.label === 'Distância (km)') return `${v} km`;
             if (ctx.dataset.label === 'Elevação (m)')   return `${v} m`;
@@ -355,13 +372,16 @@
       content.hidden = false;
 
       const last = combined[0];
-      // Polyline so existe pra Strava por enquanto
-      if (last.fonte === 'strava') {
-        try {
-          const detail = await window.Api.get('/strava/activity/' + last.id);
-          last.polyline = detail.polyline;
-        } catch (_) {}
-      }
+      // Carrega a polyline conforme a fonte — Garmin tem endpoint próprio
+      // (antes só buscava p/ Strava, então o mapa sumia quando a atividade mais
+      // recente vinha do Garmin, que vence a deduplicação).
+      try {
+        const endpoint = last.fonte === 'garmin'
+          ? `/garmin/activity/${last.id}/polyline`
+          : `/strava/activity/${last.id}`;
+        const detail = await window.Api.get(endpoint);
+        last.polyline = detail?.polyline;
+      } catch (_) {}
 
       // Estes não filtram por ano (dados recentes): última atividade, semana
       // vs. semana passada e volume de treino das últimas 12 semanas.
@@ -507,10 +527,16 @@
 
     card.hidden = false;
 
-    // KM e tempo totais
-    const totalKm   = acts.reduce((s, a) => s + (a.distanciaKm || 0), 0);
-    const totalMovS  = acts.reduce((s, a) => s + (a.tempoMovS || 0), 0);
-    const totalElevM = acts.reduce((s, a) => s + (a.elevacaoM || 0), 0);
+    // Janela de 12 semanas: tudo no card (stats, barras e zonas) usa o mesmo
+    // recorte, coerente com o título. acts pode vir com ~3 anos (days=1095).
+    const now = new Date();
+    const firstWeekStart = getWeekStart(new Date(now.getTime() - 11 * 7 * 86400_000));
+    const acts12 = acts.filter(a => new Date(a.inicio) >= firstWeekStart);
+
+    // KM e tempo totais (das 12 semanas)
+    const totalKm   = acts12.reduce((s, a) => s + (a.distanciaKm || 0), 0);
+    const totalMovS  = acts12.reduce((s, a) => s + (a.tempoMovS || 0), 0);
+    const totalElevM = acts12.reduce((s, a) => s + (a.elevacaoM || 0), 0);
     const h = Math.floor(totalMovS / 3600), m = Math.floor((totalMovS % 3600) / 60);
 
     const statsEl = $('volume-training-stats');
@@ -519,17 +545,16 @@
         `<div class="vt-stat"><strong>${Math.round(totalKm).toLocaleString('pt-BR')} km</strong><span>total</span></div>` +
         `<div class="vt-stat"><strong>${h}h${String(m).padStart(2,'0')}</strong><span>em movimento</span></div>` +
         `<div class="vt-stat"><strong>${Math.round(totalElevM).toLocaleString('pt-BR')} m</strong><span>elevação</span></div>` +
-        `<div class="vt-stat"><strong>${acts.length.toLocaleString('pt-BR')}</strong><span>atividades</span></div>`;
+        `<div class="vt-stat"><strong>${acts12.length.toLocaleString('pt-BR')}</strong><span>atividades</span></div>`;
     }
 
     // Volume por semana (12 semanas): km + nº de atividades + elevação
     const weeks = [];
-    const now = new Date();
     for (let i = 11; i >= 0; i--) {
       const ws = getWeekStart(new Date(now.getTime() - i * 7 * 86400_000));
       const we = new Date(ws.getTime() + 7 * 86400_000);
       const label = ws.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
-      const inWeek = acts.filter(a => { const d = new Date(a.inicio); return d >= ws && d < we; });
+      const inWeek = acts12.filter(a => { const d = new Date(a.inicio); return d >= ws && d < we; });
       const km   = inWeek.reduce((s, a) => s + (a.distanciaKm || 0), 0);
       const elev = inWeek.reduce((s, a) => s + (a.elevacaoM || 0), 0);
       weeks.push({ label, km: +km.toFixed(1), count: inWeek.length, elev: Math.round(elev) });
@@ -545,7 +570,9 @@
             {
               type: 'bar', label: 'Distância (km)',
               data: weeks.map(w => w.km),
-              backgroundColor: 'rgba(198,241,53,0.5)', borderColor: '#c6f135',
+              backgroundColor: 'rgba(198,241,53,0.5)',
+              // Borda âmbar na última barra (semana em curso, parcial); verde-limão nas demais.
+              borderColor: weeks.map((_, i) => i === weeks.length - 1 ? '#f5d523' : '#c6f135'),
               borderWidth: 1, borderRadius: 4, yAxisID: 'y', order: 3,
             },
             {
@@ -568,9 +595,10 @@
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: true, labels: { color: '#9299a8', boxWidth: 12, padding: 12, font: { size: 11 } } },
-            tooltip: { callbacks: { label: (ctx) => {
+            tooltip: { ...TOOLTIP_STYLE, callbacks: { label: (ctx) => {
               const v = ctx.parsed.y;
-              if (ctx.dataset.label === 'Distância (km)') return `${v} km`;
+              const emCurso = ctx.dataIndex === weeks.length - 1;
+              if (ctx.dataset.label === 'Distância (km)') return `${v} km` + (emCurso ? ' (semana em curso)' : '');
               if (ctx.dataset.label === 'Elevação (m)')   return `${v} m`;
               return `${v} atividade${v === 1 ? '' : 's'}`;
             } } },
@@ -585,42 +613,53 @@
       });
     }
 
-    // Zonas FC
-    const user = window.Storage ? Storage.getUser() : {};
-    const fcMax = user.fcMax || (user.dataNascimento ? 220 - Math.floor((Date.now() - new Date(user.dataNascimento).getTime()) / (365.25 * 86400_000)) : null);
+    // Distribuição por zona FC — tempo real em zona (Garmin), mesmo padrão do
+    // INSIGHTS e do Perfil. Fire-and-forget (não bloqueia stats/barras).
+    renderZoneDist();
+  }
+
+  // Doughnut de zonas FC por TEMPO real em zona (segundos do Garmin), via
+  // /garmin/zone-distribution. Reflete os picos (Z5 aparece) — ao contrário de
+  // classificar o pedal inteiro pela FC média. Janela de 12 semanas (84 dias).
+  function fmtZoneTime(seg) {
+    const hh = Math.floor(seg / 3600), mm = Math.round((seg % 3600) / 60);
+    return hh > 0 ? `${hh}h${String(mm).padStart(2, '0')}` : `${mm}min`;
+  }
+
+  async function renderZoneDist() {
     const zoneCanvas = $('zoneDistChart');
-    if (zoneCanvas && fcMax) {
-      const ZONES = (window.FC_ZONES || []).filter(z => z.max !== Infinity);
-      const zoneCounts = ZONES.map(() => 0);
-      let withFC = 0;
-      acts.forEach(a => {
-        if (!a.fcMedia) return;
-        withFC++;
-        const pct = a.fcMedia / fcMax;
-        const zi = ZONES.findIndex(z => pct < z.max);
-        if (zi >= 0) zoneCounts[zi]++;
-      });
-      if (withFC > 0) {
-        if (_zoneChart) _zoneChart.destroy();
-        _zoneChart = new Chart(zoneCanvas, {
-          type: 'doughnut',
-          data: {
-            labels: ZONES.map(z => z.label),
-            datasets: [{ data: zoneCounts, backgroundColor: ZONES.map(z => z.color), borderWidth: 0 }],
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-              legend: { position: 'right', labels: { color: '#9299a8', boxWidth: 12, font: { size: 11 } } },
-              tooltip: { callbacks: { label: c => `${c.label}: ${c.raw} atividades` } },
-            },
-          },
-        });
-      } else {
-        if (_zoneChart) { _zoneChart.destroy(); _zoneChart = null; }
-        zoneCanvas.parentElement.innerHTML = '<div class="vt-chart-label">Distribuição por zona FC</div><div style="color:var(--muted2);font-size:12px;padding:20px 0;text-align:center;">Sem dados de FC nas atividades importadas.</div>';
-      }
+    if (!zoneCanvas || !window.Chart) return;
+    const ZONES = (window.FC_ZONES || []).filter(z => z.max !== Infinity); // Z1..Z5
+
+    let dist = null;
+    try { dist = await window.Api.get('/garmin/zone-distribution?days=84'); } catch (_) {}
+    const seg   = (dist && dist.segundosPorZona) || [];
+    const total = (dist && dist.totalSegundos) || 0;
+
+    if (_zoneChart) { _zoneChart.destroy(); _zoneChart = null; }
+    if (!total) {
+      zoneCanvas.parentElement.innerHTML = '<div class="vt-chart-label">Distribuição por zona FC</div><div style="color:var(--muted2);font-size:12px;padding:20px 0;text-align:center;">Sem dados de zona de FC do Garmin nas últimas 12 semanas.</div>';
+      return;
     }
+
+    const data = seg.slice(0, 5);
+    _zoneChart = new Chart(zoneCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: ZONES.map(z => z.label),
+        datasets: [{ data, backgroundColor: ZONES.map(z => z.color), borderWidth: 0 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: '#9299a8', boxWidth: 12, font: { size: 11 } } },
+          tooltip: { ...TOOLTIP_STYLE, callbacks: { label: c => {
+            const pct = total ? Math.round((c.raw / total) * 100) : 0;
+            return `${c.label}: ${pct}% · ${fmtZoneTime(c.raw)}`;
+          } } },
+        },
+      },
+    });
   }
 
   // ──────────────────────────────────────────────────────────────

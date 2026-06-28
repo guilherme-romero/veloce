@@ -58,8 +58,11 @@
     return Math.round(220 - anos);
   }
 
-  // TRIMP simplificado de Banister (Edwards): tempo (min) × fator de intensidade²
-  // Quando fcMedia não está disponível usa 0,70 (≈ Zona 2) como estimativa conservadora.
+  // TRIMP simplificado: duração (min) × fator de intensidade², onde
+  // intensidade = FC média ÷ FC máxima teórica. É uma aproximação quadrática
+  // para comparação relativa entre semanas — não é a exponencial de Banister
+  // nem a zonal de Edwards, e não usa a reserva de FC de Karvonen.
+  // Sem FC média, usa 0,70 (≈ Zona 2) como estimativa conservadora.
   const INTENSITY_FALLBACK = 0.70;
 
   function trimpDeAtividade(act, fcMax) {
@@ -217,13 +220,14 @@
       const isoFim = fim.toISOString().slice(0, 10);
 
       const acts = activities.filter(a => a.data >= isoIni && a.data < isoFim);
-      let trimpTotal = 0, pesoMed = null, pesoSum = 0, pesoN = 0, semFC = false;
+      let trimpFC = 0, trimpEst = 0, pesoMed = null, pesoSum = 0, pesoN = 0;
       acts.forEach(a => {
-        trimpTotal += trimpDeAtividade(a, fcMax);
-        if (!a.fcMedia) semFC = true; // ao menos uma atividade sem FC → estimado
+        const t = trimpDeAtividade(a, fcMax);
+        if (a.fcMedia) trimpFC += t; else trimpEst += t; // separa carga real vs estimada
         const p = pesoDoDia(a.data);
         if (p) { pesoSum += p; pesoN++; }
       });
+      const trimpTotal = trimpFC + trimpEst;
       pesoMed = pesoN ? pesoSum / pesoN : pesoDoDia(isoFim) || null;
 
       const trimpKg = (trimpTotal > 0 && pesoMed) ? trimpTotal / pesoMed : 0;
@@ -231,13 +235,17 @@
         label: inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', ''),
         trimpKg: +trimpKg.toFixed(2),
         trimpTotal,
-        estimado: acts.length > 0 && semFC, // sem FC real → barra estimada
+        // Estimado só quando a MAIOR parte da carga veio de atividades sem FC
+        estimado: trimpTotal > 0 && trimpEst > trimpFC,
+        parcial: i === 0, // i=0 é a última semana = semana em curso (incompleta)
       });
     }
 
-    // Trend: última vs penúltima semana
-    const ultima = semanas[semanas.length - 1].trimpKg;
-    const penult = semanas[semanas.length - 2].trimpKg;
+    // Trend: compara as duas últimas semanas COMPLETAS (ignora a em curso, que
+    // está parcial e puxaria a tendência para baixo de forma enganosa).
+    const idxAtual = semanas.length - 1;            // semana em curso (parcial)
+    const ultima = semanas[idxAtual - 1]?.trimpKg ?? 0;   // última completa
+    const penult = semanas[idxAtual - 2]?.trimpKg ?? 0;   // anterior à última completa
     let trendLabel = '—', trendColor = COLORS.muted2, msg = '';
     if (penult > 0) {
       const delta = ((ultima - penult) / penult) * 100;
@@ -262,11 +270,11 @@
         labels: semanas.map(s => s.label),
         datasets: [{
           data: semanas.map(s => s.trimpKg),
-          // Barra com tracejado (opacity menor) quando intensidade é estimada (sem FC)
-          backgroundColor: semanas.map(s => s.estimado ? 'rgba(198,241,53,0.20)' : 'rgba(198,241,53,0.45)'),
-          borderColor: semanas.map(s => s.estimado ? COLORS.muted2 : COLORS.teal),
+          // Verde-limão cheio = carga com FC; esmaecido + borda cinza = majoritariamente
+          // estimada (sem FC); borda âmbar = semana em curso (parcial).
+          backgroundColor: semanas.map(s => s.parcial ? 'rgba(198,241,53,0.18)' : (s.estimado ? 'rgba(198,241,53,0.20)' : 'rgba(198,241,53,0.45)')),
+          borderColor: semanas.map(s => s.parcial ? COLORS.amber : (s.estimado ? COLORS.muted2 : COLORS.teal)),
           borderWidth: 1,
-          borderDash: [],
           borderRadius: 3,
         }],
       },
@@ -278,8 +286,10 @@
           tooltip: { ...TOOLTIP_STYLE, callbacks: {
             label: c => {
               const s = semanas[c.dataIndex];
-              const base = `${c.parsed.y.toFixed(2)} TRIMP/kg`;
-              return s.estimado ? base + ' (estimado — sem FC)' : base;
+              let base = `${c.parsed.y.toFixed(2)} TRIMP/kg`;
+              if (s.parcial)       base += ' (semana em curso)';
+              else if (s.estimado) base += ' (estimado — sem FC)';
+              return base;
             }
           }},
         },

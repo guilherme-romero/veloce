@@ -15,11 +15,11 @@
              worker-src 'self';"
   >
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.0.43">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.0.43">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.0.43">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.0.43">
-  <link rel="manifest" href="manifest.json?v=2.0.43">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.0.48">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.0.48">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.0.48">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.0.48">
+  <link rel="manifest" href="manifest.json?v=2.0.48">
 
   <title>Treino Bike</title>
 
@@ -38,10 +38,10 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.0.43">
-  <link rel="stylesheet" href="css/rides.css?v=2.0.43">
-  <link rel="stylesheet" href="css/routes.css?v=2.0.43">
-  <link rel="stylesheet" href="css/bikes.css?v=2.0.43">
+  <link rel="stylesheet" href="css/style.css?v=2.0.48">
+  <link rel="stylesheet" href="css/rides.css?v=2.0.48">
+  <link rel="stylesheet" href="css/routes.css?v=2.0.48">
+  <link rel="stylesheet" href="css/bikes.css?v=2.0.48">
 </head>
 <body>
 
@@ -800,7 +800,7 @@
       <div class="ins-top-charts">
         <div class="card">
           <div class="card-label">Carga × Fadiga × Forma · 8 semanas
-            <button class="insight-info-btn" data-info="Carga (CTL) = condicionamento de base, média de 42 dias. Fadiga (ATL) = carga aguda, média de 7 dias. Forma (TSB) = Carga − Fadiga: positiva indica frescor; negativa, fadiga acumulada."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="Carga (CTL) = condicionamento de base, média móvel exponencial de ~42 dias. Fadiga (ATL) = carga aguda, média móvel exponencial de ~7 dias. Forma (TSB) = Carga − Fadiga: positiva indica frescor; negativa, fadiga acumulada."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <div class="chart-wrap" style="height:240px;"><canvas id="insLoadChart"></canvas></div>
         </div>
@@ -821,7 +821,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Índice de Fadiga</div>
-            <button class="insight-info-btn" data-info="Combina Body Battery (energia gasta vs. capacidade), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio do dia. Escala 0–100, onde MAIOR = mais fadiga: abaixo de 45 = Recuperado (apto a treino intenso); 45–65 = Moderado (treino normal, evite volume alto); acima de 65 = Fadigado (recomenda-se descanso ou atividade leve)."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="Combina Body Battery (energia gasta vs. capacidade), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio dos últimos 7 dias. Escala 0–100, onde MAIOR = mais fadiga: abaixo de 45 = Recuperado (apto a treino intenso); 45–65 = Moderado (treino normal, evite volume alto); acima de 65 = Fadigado (recomenda-se descanso ou atividade leve)."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="fadiga-status">—</span>
         </div>
@@ -864,7 +864,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Carga de Treino (TSB)</div>
-            <button class="insight-info-btn" data-info="TSB = CTL − ATL. CTL (Fitness) é a carga crônica dos últimos 42 dias; ATL (Fadiga) é a carga aguda dos últimos 7 dias. TSB positivo = descansado; negativo = fatigado. Zona ideal para performance: entre −10 e +5."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="TSB = CTL − ATL. CTL (Fitness) é a carga crônica — média móvel exponencial de ~42 dias; ATL (Fadiga) é a carga aguda — média móvel exponencial de ~7 dias. TSB positivo = descansado; negativo = fatigado. Faixas: acima de +10 = pico de frescor; entre +10 e −5 = equilíbrio (ótimo); −5 a −20 = carregado; abaixo de −20 = sobrecarga."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="tss-status">—</span>
         </div>
@@ -896,7 +896,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Intensidade/kg — últimas 12 semanas</div>
-            <button class="insight-info-btn" data-info="TRIMP (Training Impulse) normalizado pelo peso corporal. Mede a carga de treino semanal considerando duração e intensidade (FC). Permite comparar esforço entre semanas independentemente de variações de peso. Barras vermelhas = semanas com dados de FC; laranja = estimativa por duração (sem FC registrada)."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="TRIMP (Training Impulse) é a carga de treino — duração × intensidade² (FC média ÷ FC máxima teórica) — normalizada pelo seu peso, para comparar o esforço entre semanas independentemente de variações de peso. Barras verde-limão cheias = semanas com FC registrada; barras esmaecidas com borda cinza = carga majoritariamente estimada pela duração (sem FC); borda âmbar = semana em curso (parcial). A tendência (badge) compara as duas últimas semanas completas."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="trimp-trend">—</span>
         </div>
@@ -921,7 +921,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Custo metabólico (kcal/km)</div>
-            <button class="insight-info-btn" data-info="Eficiência energética: kcal gastas por km percorrido. Quanto menor, mais eficiente. Valores altos podem indicar terreno difícil (muito desnível), fadiga acumulada ou menor condicionamento aeróbico. Compare a tendência ao longo das semanas para medir evolução."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="Eficiência energética: kcal gastas por km percorrido. Quanto menor, mais eficiente. Valores altos podem indicar terreno difícil (muito desnível), fadiga acumulada ou menor condicionamento aeróbico. Cada ponto é uma atividade com calorias registradas (Garmin); compare a tendência ao longo do tempo para medir evolução."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="custo-trend">—</span>
         </div>
@@ -936,7 +936,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Recordes pessoais (Garmin)</div>
-            <button class="insight-info-btn" data-info="PBs registrados pelo relógio Garmin por tipo de esporte. Badge "Novo!" indica conquistas das últimas 2 semanas. Inclui maior distância, elevação acumulada, potência máxima e tempos por distância (1 km, 5 km, etc.). Ciclismo: distância em km, elevação em m, potência em W."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="PBs registrados pelo relógio Garmin. Badge "Novo!" indica conquistas dos últimos 30 dias. Mostra: maior distância semanal, maior distância num único pedal, maior elevação acumulada na semana, maior elevação num único pedal e melhor VO2máx estimado. Distâncias em km, elevação em m."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="prs-count">—</span>
         </div>
@@ -1044,32 +1044,32 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.0.43"></script>
-<script src="js/utils.js?v=2.0.43"></script>
-<script src="js/router.js?v=2.0.43"></script>
-<script src="js/defaults.js?v=2.0.43"></script>
-<script src="js/api.js?v=2.0.43"></script>
-<script src="js/storage.js?v=2.0.43"></script>
-<script src="js/profile.js?v=2.0.43"></script>
-<script src="js/charts.js?v=2.0.43"></script>
-<script src="js/modals.js?v=2.0.43"></script>
-<script src="js/workouts.js?v=2.0.43"></script>
-<script src="js/rides.js?v=2.0.43"></script>
-<script src="js/bikes.js?v=2.0.43"></script>
-<script src="js/training-log.js?v=2.0.43"></script>
-<script src="js/home-workout.js?v=2.0.43"></script>
-<script src="js/backup.js?v=2.0.43"></script>
-<script src="js/gpx.js?v=2.0.43"></script>
-<script src="js/routes.js?v=2.0.43"></script>
-<script src="js/heatmap.js?v=2.0.43"></script>
-<script src="js/strava.js?v=2.0.43"></script>
-<script src="js/garmin.js?v=2.0.43"></script>
-<script src="js/activities.js?v=2.0.43"></script>
-<script src="js/insights.js?v=2.0.43"></script>
-<script src="js/testes.js?v=2.0.43"></script>
-<script src="js/home.js?v=2.0.43"></script>
-<script src="js/app.js?v=2.0.43"></script>
-<script src="js/pwa.js?v=2.0.43"></script>
+<script src="js/version.js?v=2.0.48"></script>
+<script src="js/utils.js?v=2.0.48"></script>
+<script src="js/router.js?v=2.0.48"></script>
+<script src="js/defaults.js?v=2.0.48"></script>
+<script src="js/api.js?v=2.0.48"></script>
+<script src="js/storage.js?v=2.0.48"></script>
+<script src="js/profile.js?v=2.0.48"></script>
+<script src="js/charts.js?v=2.0.48"></script>
+<script src="js/modals.js?v=2.0.48"></script>
+<script src="js/workouts.js?v=2.0.48"></script>
+<script src="js/rides.js?v=2.0.48"></script>
+<script src="js/bikes.js?v=2.0.48"></script>
+<script src="js/training-log.js?v=2.0.48"></script>
+<script src="js/home-workout.js?v=2.0.48"></script>
+<script src="js/backup.js?v=2.0.48"></script>
+<script src="js/gpx.js?v=2.0.48"></script>
+<script src="js/routes.js?v=2.0.48"></script>
+<script src="js/heatmap.js?v=2.0.48"></script>
+<script src="js/strava.js?v=2.0.48"></script>
+<script src="js/garmin.js?v=2.0.48"></script>
+<script src="js/activities.js?v=2.0.48"></script>
+<script src="js/insights.js?v=2.0.48"></script>
+<script src="js/testes.js?v=2.0.48"></script>
+<script src="js/home.js?v=2.0.48"></script>
+<script src="js/app.js?v=2.0.48"></script>
+<script src="js/pwa.js?v=2.0.48"></script>
 
 </body>
 </html>
