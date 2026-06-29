@@ -319,7 +319,7 @@
     const status = pct >= 100
       ? '⚠ VENCIDO'
       : pct >= 80
-        ? `${Math.round(pct)}% da vida`
+        ? `⚠ ${Math.round(pct)}% — atenção`
         : `${Math.round(pct)}% da vida`;
 
     const cleanBlock = c.temLimpeza

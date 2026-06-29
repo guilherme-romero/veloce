@@ -59,6 +59,13 @@
     return { txt: sign + Math.abs(pct).toFixed(0) + '%', cls };
   }
 
+  // Normaliza timestamp Garmin ("YYYY-MM-DD HH:MM:SS") e Strava ("...Z") para Date local
+  function parseDT(iso) {
+    if (!iso) return new Date(NaN);
+    const s = iso.replace(' ', 'T').replace(/Z$/, '');
+    return new Date(s.includes('T') ? s : s + 'T12:00:00');
+  }
+
   // ── Week helpers (domingo como inicio) ─────────────────────────
   function weekStart(d) {
     const date = new Date(d);
@@ -74,7 +81,7 @@
     const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
     const acc = (start, end) => {
       const r = activities.reduce((a, x) => {
-        const d = new Date(x.inicio);
+        const d = parseDT(x.inicio);
         if (d >= start && d < end) {
           a.km       += (x.distanciaKm || 0);
           a.time     += (x.tempoMovS   || 0);
@@ -105,7 +112,7 @@
     }
     const byKey = Object.fromEntries(buckets.map(b => [b.key, b]));
     activities.forEach(x => {
-      const d = new Date(x.inicio);
+      const d = parseDT(x.inicio);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (byKey[key]) {
         byKey[key].km    += (x.distanciaKm || 0);
@@ -127,7 +134,7 @@
                      km: 0, count: 0, elev: 0 });
     }
     activities.forEach(x => {
-      const m = new Date(x.inicio).getMonth();
+      const m = parseDT(x.inicio).getMonth();
       const b = buckets[m];
       if (b) {
         b.km    += (x.distanciaKm || 0);
@@ -149,7 +156,7 @@
     }
     const byKey = Object.fromEntries(buckets.map(b => [b.key, b]));
     activities.forEach(x => {
-      const d = new Date(x.inicio);
+      const d = parseDT(x.inicio);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (byKey[key]) {
         byKey[key].km    += (x.distanciaKm || 0);
@@ -166,7 +173,7 @@
 
   function histActsForYear() {
     if (_histYear === 'all') return _histAll;
-    return _histAll.filter(a => new Date(a.inicio).getFullYear() === _histYear);
+    return _histAll.filter(a => parseDT(a.inicio).getFullYear() === _histYear);
   }
 
   function renderHistKpis() {
@@ -195,7 +202,7 @@
     if (!cont) return;
     // Janela de filtros: ano atual + 2 anteriores. Anos sem dados não viram chip.
     const anoAtual = new Date().getFullYear();
-    const comDados = new Set(_histAll.map(a => new Date(a.inicio).getFullYear()));
+    const comDados = new Set(_histAll.map(a => parseDT(a.inicio).getFullYear()));
     const years = [anoAtual, anoAtual - 1, anoAtual - 2].filter(y => comDados.has(y));
     let html = '';
     years.forEach(y => {
@@ -391,7 +398,7 @@
 
       // KPIs + Volume Mensal + lista: filtrados pelo ano (default = mais recente).
       _histAll = combined;
-      const anos = [...new Set(combined.map(a => new Date(a.inicio).getFullYear()))]
+      const anos = [...new Set(combined.map(a => parseDT(a.inicio).getFullYear()))]
         .filter(y => isFinite(y)).sort((a, b) => b - a);
       _histYear = anos[0] ?? 'all';
       renderYearChips();
@@ -512,14 +519,6 @@
   // ── Volume de treino (Fase 5c) ──────────────────────────────────
   let _weeklyChart = null, _zoneChart = null;
 
-  function getWeekStart(d) {
-    const date = new Date(d);
-    const dow = date.getDay(); // 0 = domingo
-    date.setDate(date.getDate() - dow);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }
-
   function renderVolumeTraining(acts) {
     const card = $('volume-training-card');
     if (!card || !window.Chart) return;
@@ -530,8 +529,8 @@
     // Janela de 12 semanas: tudo no card (stats, barras e zonas) usa o mesmo
     // recorte, coerente com o título. acts pode vir com ~3 anos (days=1095).
     const now = new Date();
-    const firstWeekStart = getWeekStart(new Date(now.getTime() - 11 * 7 * 86400_000));
-    const acts12 = acts.filter(a => new Date(a.inicio) >= firstWeekStart);
+    const firstWeekStart = weekStart(new Date(now.getTime() - 11 * 7 * 86400_000));
+    const acts12 = acts.filter(a => parseDT(a.inicio) >= firstWeekStart);
 
     // KM e tempo totais (das 12 semanas)
     const totalKm   = acts12.reduce((s, a) => s + (a.distanciaKm || 0), 0);
@@ -551,10 +550,10 @@
     // Volume por semana (12 semanas): km + nº de atividades + elevação
     const weeks = [];
     for (let i = 11; i >= 0; i--) {
-      const ws = getWeekStart(new Date(now.getTime() - i * 7 * 86400_000));
+      const ws = weekStart(new Date(now.getTime() - i * 7 * 86400_000));
       const we = new Date(ws.getTime() + 7 * 86400_000);
       const label = ws.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
-      const inWeek = acts12.filter(a => { const d = new Date(a.inicio); return d >= ws && d < we; });
+      const inWeek = acts12.filter(a => { const d = parseDT(a.inicio); return d >= ws && d < we; });
       const km   = inWeek.reduce((s, a) => s + (a.distanciaKm || 0), 0);
       const elev = inWeek.reduce((s, a) => s + (a.elevacaoM || 0), 0);
       weeks.push({ label, km: +km.toFixed(1), count: inWeek.length, elev: Math.round(elev) });
@@ -629,7 +628,12 @@
   async function renderZoneDist() {
     const zoneCanvas = $('zoneDistChart');
     if (!zoneCanvas || !window.Chart) return;
-    const ZONES = (window.FC_ZONES || []).filter(z => z.max !== Infinity); // Z1..Z5
+    const FC_ZONES_FALLBACK = [
+      { label: 'Z1', color: '#4e9ef5', max: 0.6 }, { label: 'Z2', color: '#22c55e', max: 0.7 },
+      { label: 'Z3', color: '#f5d523', max: 0.8 }, { label: 'Z4', color: '#f0523a', max: 0.9 },
+      { label: 'Z5', color: '#a855f7', max: 1.0 },
+    ];
+    const ZONES = (window.FC_ZONES || FC_ZONES_FALLBACK).filter(z => z.max !== Infinity); // Z1..Z5
 
     let dist = null;
     try { dist = await window.Api.get('/garmin/zone-distribution?days=84'); } catch (_) {}
@@ -695,7 +699,10 @@
     const list = (zones || []).filter(z => (z.segundos || 0) > 0);
     const total = list.reduce((s, z) => s + (z.segundos || 0), 0);
     if (!total) return '<div class="last5-zones-empty">Sem dados de zona de FC nesta atividade.</div>';
-    const COLORS = window.FC_ZONES || [];
+    const COLORS = window.FC_ZONES || [
+      { color: '#4e9ef5' }, { color: '#22c55e' }, { color: '#f5d523' },
+      { color: '#f0523a' }, { color: '#a855f7' },
+    ];
     const colorFor = (z) => (COLORS[(z.zona || 1) - 1] || {}).color || 'var(--muted2)';
     let acc = 0;
     const stops = list.map(z => {

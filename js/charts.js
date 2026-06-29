@@ -229,6 +229,7 @@ function renderWeightChart(user, weights) {
   if (measured.length < 3) measured = allMeasured.filter(w => w.data >= cut180);
   if (measured.length < 3) measured = allMeasured.filter(w => w.data >= cut90);
   if (measured.length < 3) measured = allMeasured;
+  if (measured.length < 5) console.warn(`[projeção peso] Apenas ${measured.length} pesagem(ns) — projeção de baixa confiabilidade.`);
 
   // Regressão linear (kg/dia) sobre as medições reais → tendência
   let slope = null, intercept = null, t0 = null;

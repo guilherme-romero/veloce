@@ -45,7 +45,7 @@ function calcZones(fcm) {
     z3: { min: z2max + 1, max: z3max },
     z4: { min: z3max + 1, max: z4max },
     z5: { min: z4max + 1, max: fcm },
-    z6: { min: fcm, label: 'Sprint (FCM máx)' },
+    z6: { min: fcm, max: Infinity, label: 'Sprint (FCM máx)' },
   };
 }
 

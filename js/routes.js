@@ -297,10 +297,11 @@ function calcularTempo() {
   const data    = document.getElementById('calc-data').value;
   const horario = document.getElementById('calc-horario').value || '07:00';
 
-  const { distancia, desnivelPos } = _currentRoute.stats;
+  const { distancia, desnivelPos, desnivelNeg = 0 } = _currentRoute.stats;
 
   const tempoBase  = distancia / vel;
-  const penalidade = (desnivelPos / 10) / 60;
+  // Naismith: +1 min/10 m de subida, +0.5 min/20 m de descida
+  const penalidade = ((desnivelPos / 10) + (desnivelNeg / 20)) / 60;
   const tempoTotal = tempoBase + penalidade;
 
   const horas   = Math.floor(tempoTotal);
@@ -441,11 +442,11 @@ async function fetchWeather(lat, lon, dateISO) {
 function planRide() {
   if (!_currentRoute) { toast('Nenhuma rota carregada', { kind: 'error' }); return; }
 
-  const { distancia, desnivelPos } = _currentRoute.stats;
+  const { distancia, desnivelPos, desnivelNeg = 0 } = _currentRoute.stats;
 
   // Duração estimada — usa velocidade do calculador se disponível
   const vel        = parseFloat(document.getElementById('calc-velocidade')?.value) || 18;
-  const tempoTotal = distancia / vel + (desnivelPos / 10) / 60;
+  const tempoTotal = distancia / vel + ((desnivelPos / 10) + (desnivelNeg / 20)) / 60;
   const horas      = Math.floor(tempoTotal);
   const minutos    = Math.round((tempoTotal - horas) * 60);
   const duracaoStr = `${horas}h ${String(minutos).padStart(2, '0')}min`;

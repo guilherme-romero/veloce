@@ -22,6 +22,14 @@
     return isNaN(d) ? null : d;
   }
 
+  function toLocalISODate(d) {
+    return [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, '0'),
+      String(d.getDate()).padStart(2, '0'),
+    ].join('-');
+  }
+
   function fmtDate(iso) {
     try {
       const d = parseLocalDT(iso);
@@ -101,11 +109,11 @@
     const d = new Date(); d.setHours(0,0,0,0);
     // Se ainda não houve atividade hoje, a sequência não quebra: começa a
     // contagem a partir de ontem (ex.: às 9h, antes do treino do dia).
-    const hojeISO = d.toISOString().slice(0, 10);
+    const hojeISO = toLocalISODate(d);
     if (!datesAtivas.has(hojeISO)) d.setDate(d.getDate() - 1);
     let streak = 0;
     while (true) {
-      const iso = d.toISOString().slice(0, 10);
+      const iso = toLocalISODate(d);
       if (datesAtivas.has(iso)) {
         streak++;
         d.setDate(d.getDate() - 1);
@@ -212,14 +220,9 @@
           return;
         }
       } catch (_) { /* fallback abaixo */ }
-      // Fallback: usa score do Insights (fadiga manual)
-      const fadigaEl = document.getElementById('fadiga-score');
-      if (fadigaEl && fadigaEl.textContent && fadigaEl.textContent !== '—') {
-        $('home-fadiga').textContent = fadigaEl.textContent;
-      } else {
-        $('home-fadiga').textContent = '—';
-        $('home-fadiga-sub').textContent = 'sincronize Garmin';
-      }
+      // Fallback: sem Readiness Garmin disponível
+      $('home-fadiga').textContent = '—';
+      $('home-fadiga-sub').textContent = 'sincronize Garmin';
     })();
 
     // Delegação de delete em atividades recentes — vincula só uma vez

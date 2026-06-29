@@ -143,7 +143,9 @@ function calcPSI() {
 function calcCO2(psi, width_mm) {
   const circ_m  = width_mm <= 32 ? 2.105 : width_mm <= 45 ? 2.190 : 2.290;
   const r_tire  = (width_mm / 2) / 1000;
-  const vol_L   = Math.PI * r_tire * r_tire * circ_m * 1000;
+  // Toroide (Pappus): V = 2π² × R_roda × r_seção²; R_roda = circunferência / (2π)
+  const R_wheel = circ_m / (2 * Math.PI);
+  const vol_L   = 2 * Math.PI * Math.PI * R_wheel * r_tire * r_tire * 1000;
   const p_bar   = psi * 0.0689476 + 0.101325;
   const m_co2_g = vol_L * p_bar * 44 / (0.08314 * 293);
   document.getElementById('co2-volume').textContent = vol_L.toFixed(2);
@@ -370,7 +372,8 @@ function calcRoute() {
   const movTimeMin  = flatTimeMin + climbPenMin;
   const totalTimeMin= movTimeMin + stops;
   const avgSpeedAdj = dist / (movTimeMin / 60);
-  const calories    = Math.round(dist * 50 + elev * 0.1);
+  const kcalPerKm   = speed < 20 ? 3.5 : speed < 25 ? 5.0 : speed < 30 ? 6.5 : 8.0;
+  const calories    = Math.round(kcalPerKm * dist + elev * 0.08);
   const pace        = movTimeMin / dist;
 
   const fmt = (min) => {
@@ -517,7 +520,7 @@ function calcNutri() {
 
   eventTimes.forEach((t, i) => {
     const isLast = (i === nEvents - 1);
-    const h = Math.floor(t/60), m = t%60;
+    const h = Math.floor(t/60) % 24, m = t%60;
     const timeStr = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
 
     const gelsThisEvent = Math.round((i+1) * gel_total / nEvents) - gelsUsed;

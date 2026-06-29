@@ -67,21 +67,27 @@
 
   function trimpDeAtividade(act, fcMax) {
     if (!act || !fcMax || !act.tempoMovS) return 0;
-    const tempoMin  = act.tempoMovS / 60;
-    const intensity = act.fcMedia
-      ? Math.min(act.fcMedia / fcMax, 1.10)
-      : INTENSITY_FALLBACK;
+    const tempoMin = act.tempoMovS / 60;
+    let intensity  = INTENSITY_FALLBACK;
+    if (act.fcMedia) {
+      const raw = act.fcMedia / fcMax;
+      if (raw > 1.0) console.warn(`[TRIMP] FC média (${act.fcMedia}) > FCMax (${fcMax}) em ${act.data}`);
+      intensity = Math.min(raw, 1.0);
+    }
     return tempoMin * intensity * intensity;
   }
 
   // TSS normalizado (1h em Z4 ≈ 100). Usa TRIMP como base.
   function tssDeAtividade(act, fcMax) {
     if (!act || !fcMax || !act.tempoMovS) return 0;
-    const tempoH    = act.tempoMovS / 3600;
-    const intensity = act.fcMedia
-      ? Math.min(act.fcMedia / fcMax, 1.10)
-      : INTENSITY_FALLBACK;
-    // Aproximação: TSS = tempo_h × intensity² × 100 (calibrado para 1h em ~88% FCM ≈ 80 TSS)
+    const tempoH = act.tempoMovS / 3600;
+    let intensity = INTENSITY_FALLBACK;
+    if (act.fcMedia) {
+      const raw = act.fcMedia / fcMax;
+      if (raw > 1.0) console.warn(`[TSS] FC média (${act.fcMedia}) > FCMax (${fcMax}) em ${act.data}`);
+      intensity = Math.min(raw, 1.0);
+    }
+    // Aproximação: TSS = tempo_h × intensity² × 100 (1h em ~88% FCM ≈ 77 TSS)
     return tempoH * intensity * intensity * 100;
   }
 
@@ -122,15 +128,19 @@
     if (bbDrainAvg == null || stressAvg == null) return false;
 
     // Componentes normalizados em 0-100 (maior = mais fadiga)
-    const bbiScore  = bbMaxAvg ? Math.min(100, (bbDrainAvg / Math.max(bbMaxAvg, 1)) * 100) : 50;
-    const stressScore = Math.min(100, stressAvg * 1.5); // stress 50 → 75 no score
+    const hasBBI    = bbMaxAvg != null && bbDrainAvg != null;
+    const hasStress = stressAvg != null;
+    const hasHRV    = !!(hrvSem && hrvSemAnt);
+    const bbiScore    = hasBBI    ? Math.min(100, (bbDrainAvg / Math.max(bbMaxAvg, 1)) * 100) : 50;
+    const stressScore = hasStress ? Math.min(100, stressAvg * 1.5) : 50; // stress 50 → 75 no score
     let hrvScore = 50;
-    if (hrvSem && hrvSemAnt) {
+    if (hasHRV) {
       const delta = (hrvSemAnt - hrvSem) / hrvSemAnt; // positivo = HRV caindo = fadiga subindo
       hrvScore = Math.max(0, Math.min(100, 50 + delta * 200));
     }
 
-    const fadiga = Math.round(bbiScore * 0.40 + hrvScore * 0.35 + stressScore * 0.25);
+    const fadiga     = Math.round(bbiScore * 0.40 + hrvScore * 0.35 + stressScore * 0.25);
+    const fonteCount = [hasBBI, hasStress, hasHRV].filter(Boolean).length;
 
     let status, color, msg;
     if (fadiga < 45)      { status = 'Recuperado';  color = COLORS.green; msg = 'Recuperação ótima — sessão intensa recomendada.'; }
@@ -143,10 +153,12 @@
     $('fadiga-status').style.color = color;
     $('fadiga-fill').style.width = fadiga + '%';
     $('fadiga-fill').style.background = color;
-    $('fadiga-bb').textContent     = bbMaxAvg ? `${Math.round(bbDrainAvg)} / ${Math.round(bbMaxAvg)}` : '—';
-    $('fadiga-hrv').textContent    = hrvSem ? `${Math.round(hrvSem)} ms` + (hrvSemAnt ? ` (${hrvSem > hrvSemAnt ? '+' : ''}${Math.round(hrvSem - hrvSemAnt)})` : '') : '—';
-    $('fadiga-stress').textContent = `${Math.round(stressAvg)}`;
-    $('fadiga-msg').textContent    = msg;
+    $('fadiga-bb').textContent     = hasBBI    ? `${Math.round(bbDrainAvg)} / ${Math.round(bbMaxAvg)}` : '—';
+    $('fadiga-hrv').textContent    = hasHRV    ? `${Math.round(hrvSem)} ms` + (hrvSemAnt ? ` (${hrvSem > hrvSemAnt ? '+' : ''}${Math.round(hrvSem - hrvSemAnt)})` : '') : '—';
+    $('fadiga-stress').textContent = hasStress ? `${Math.round(stressAvg)}` : '—';
+    $('fadiga-msg').textContent    = fonteCount < 3
+      ? `${msg} (índice baseado em ${fonteCount}/3 fontes Garmin)`
+      : msg;
     return true;
   }
 
@@ -204,7 +216,11 @@
                               .sort((a, b) => a.data.localeCompare(b.data));
     const pesoDoDia = (data) => {
       const aplicaveis = weightsOrd.filter(w => w.data <= data);
-      return aplicaveis.length ? aplicaveis[aplicaveis.length - 1].peso : null;
+      if (!aplicaveis.length) return null;
+      const w = aplicaveis[aplicaveis.length - 1];
+      const days = Math.round((new Date(data + 'T12:00:00') - new Date(w.data + 'T12:00:00')) / 86400000);
+      if (days > 30) console.warn(`[pesoDoDia] Peso de ${w.data} é ${days} dias antigo para ${data}`);
+      return w.peso;
     };
 
     // 12 semanas — domingo como início
@@ -648,7 +664,9 @@
       if (!raw) return null;
       // Suporta "YYYY-MM-DD HH:MM:SS" e "YYYY-MM-DDTHH:MM:SS"
       const iso = raw.split(/[T ]/)[0];
-      return new Date(iso + 'T12:00:00');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+      const d = new Date(iso + 'T12:00:00');
+      return isNaN(d.getTime()) ? null : d;
     };
 
     $('prs-list').innerHTML = visible.map(p => {
@@ -854,7 +872,8 @@
     const duasSem = Date.now() - 14 * 86400_000;
     let altoTempo = 0, totalTempo = 0;
     (activities || []).forEach(a => {
-      const d = new Date(a.inicio || a.data); if (isNaN(d) || d.getTime() < duasSem) return;
+      const isoD = (a.data || (a.inicio || '').slice(0, 10));
+      const d = new Date(isoD + 'T12:00:00'); if (isNaN(d) || d.getTime() < duasSem) return;
       const intens = a.fcMedia && fcMax ? a.fcMedia / fcMax : 0;
       totalTempo += (a.tempoMovS || 0);
       if (intens >= 0.85) altoTempo += (a.tempoMovS || 0);
