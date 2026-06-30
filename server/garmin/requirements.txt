@@ -1,0 +1,11 @@
+# Dependências da venv do conector Garmin (server/garmin/venv).
+# A venv é gitignored; este arquivo documenta/pina a versão para reprodução.
+#
+# Recriar a venv:
+#   python3.12 -m venv server/garmin/venv
+#   server/garmin/venv/bin/pip install -r server/garmin/requirements.txt
+#
+# Fork mantido em github.com/guilherme1985/python-garminconnect (v0.3.6).
+# Pin por commit para reprodutibilidade; @master move com o tempo.
+# Origem instalada localmente: file:///home/prod/env/prod/python_garminconnect
+garminconnect @ git+https://github.com/guilherme1985/python-garminconnect.git@3447b6c240e6c7164d930713749cea0733e6e2a6

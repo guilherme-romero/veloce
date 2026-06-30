@@ -25,6 +25,7 @@ from datetime import date, timedelta
 ROOT = Path(__file__).resolve().parents[2]
 SESSION_DIR = ROOT / "data" / "garmin_session"
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR = ROOT / "data" / "garmin_cache"
 
 
 def die(msg, code=1):
@@ -42,12 +43,28 @@ def has_session():
     return any(SESSION_DIR.iterdir()) if SESSION_DIR.exists() else False
 
 
+def make_cache():
+    """DiskCache persistente entre spawns (TTL por prefixo: intra-day 5min,
+    historico 24h, perfil 7d). Persistir em disco e o que da ganho real:
+    cada chamada do CLI e um processo novo, entao InMemoryCache nao serviria.
+    Falha de cache nunca deve derrubar o comando -> retorna None no erro."""
+    try:
+        from garminconnect.cache import DiskCache
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        return DiskCache(str(CACHE_DIR))
+    except Exception:
+        return None
+
+
 def make_client():
     from garminconnect import Garmin
     email = os.environ.get("GARMIN_EMAIL", "")
     password = os.environ.get("GARMIN_PASSWORD", "")
     if not email or not password:
         die("GARMIN_EMAIL/GARMIN_PASSWORD ausentes no ambiente")
+    cache = make_cache()
+    if cache is not None:
+        return Garmin(email, password, cache=cache), email
     return Garmin(email, password), email
 
 

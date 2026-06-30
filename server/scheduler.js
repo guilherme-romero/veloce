@@ -141,18 +141,29 @@ async function syncGarminHealth(db, log) {
 async function syncGarminReadiness(db, log) {
   const items = await garmin.listTrainingReadiness(14);
   const upsert = db.prepare(`
-    INSERT INTO garmin_training_readiness (
-      data, score, level, sleep_score, recovery_time_h, hrv_weekly_avg, payload
-    ) VALUES (@data, @score, @level, @sleep_score, @recovery_time_h, @hrv_weekly_avg, @payload)
+    INSERT INTO garmin_training_readiness
+      (data, score, level, feedback_short, feedback_long, sleep_score,
+       sleep_factor_pct, recovery_time_h, recovery_factor_pct,
+       acwr_factor_pct, hrv_factor_pct, hrv_weekly_avg, stress_factor_pct)
+    VALUES
+      (@data, @score, @level, @feedback_short, @feedback_long, @sleep_score,
+       @sleep_factor_pct, @recovery_time_h, @recovery_factor_pct,
+       @acwr_factor_pct, @hrv_factor_pct, @hrv_weekly_avg, @stress_factor_pct)
     ON CONFLICT(data) DO UPDATE SET
-      score=excluded.score, level=excluded.level, sleep_score=excluded.sleep_score,
-      recovery_time_h=excluded.recovery_time_h, hrv_weekly_avg=excluded.hrv_weekly_avg,
-      payload=excluded.payload
+      score=excluded.score, level=excluded.level,
+      feedback_short=excluded.feedback_short, feedback_long=excluded.feedback_long,
+      sleep_score=excluded.sleep_score, sleep_factor_pct=excluded.sleep_factor_pct,
+      recovery_time_h=excluded.recovery_time_h, recovery_factor_pct=excluded.recovery_factor_pct,
+      acwr_factor_pct=excluded.acwr_factor_pct, hrv_factor_pct=excluded.hrv_factor_pct,
+      hrv_weekly_avg=excluded.hrv_weekly_avg, stress_factor_pct=excluded.stress_factor_pct
   `);
   const trx = db.transaction((rows) => rows.forEach(r => upsert.run({
     data: r.data, score: r.score ?? null, level: r.level ?? null,
-    sleep_score: r.sleep_score ?? null, recovery_time_h: r.recovery_time_h ?? null,
-    hrv_weekly_avg: r.hrv_weekly_avg ?? null, payload: JSON.stringify(r),
+    feedback_short: r.feedbackShort ?? null, feedback_long: r.feedbackLong ?? null,
+    sleep_score: r.sleepScore ?? null, sleep_factor_pct: r.sleepScoreFactorPercent ?? null,
+    recovery_time_h: r.recoveryTime ?? null, recovery_factor_pct: r.recoveryTimeFactorPercent ?? null,
+    acwr_factor_pct: r.acwrFactorPercent ?? null, hrv_factor_pct: r.hrvFactorPercent ?? null,
+    hrv_weekly_avg: r.hrvWeeklyAverage ?? null, stress_factor_pct: r.stressHistoryFactorPercent ?? null,
   })));
   trx(items);
   log.info({ synced: items.length }, '[scheduler] garmin readiness');

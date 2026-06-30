@@ -22,7 +22,7 @@
     none:        'var(--surface2)',
   };
 
-  const WEEKDAY_LABELS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']; // seg→dom, igual ao calendário de passeios
+  const WEEKDAY_LABELS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; // dom→sáb (domingo como início da semana)
 
   function buildDayMap() {
     const log = (window.Storage && Storage.getTrainingLog) ? Storage.getTrainingLog() : [];
@@ -112,9 +112,9 @@
       .map(l => `<div class="heatmap-wd">${l}</div>`)
       .join('');
 
-    // Grid: primeira célula = início de semana (segunda) do dia mais antigo
+    // Grid: primeira célula = início de semana (domingo) do dia mais antigo
     const firstDay = new Date(days[0] + 'T12:00:00');
-    const startDow = (firstDay.getDay() + 6) % 7; // seg=0 … dom=6 (igual ao rides.js)
+    const startDow = firstDay.getDay(); // dom=0 … sáb=6 (domingo como início da semana)
 
     let html = '';
     // Células vazias antes do primeiro dia

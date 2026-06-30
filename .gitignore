@@ -21,6 +21,9 @@ docs/
 data/garmin_session/
 dados_garmin.txt
 
+# Cache do conector Garmin (DiskCache SQLite, garminconnect 0.3.6)
+data/garmin_cache/
+
 # Snapshots automaticos (mantemos a pasta via .gitkeep)
 data/backups/*.zip
 data/backups/pre-restore-*.db
