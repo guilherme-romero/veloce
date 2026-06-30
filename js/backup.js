@@ -404,21 +404,34 @@ async function buildRelatorioPDF(daysWindow) {
     const ativos = days.filter(d => dayMap[d]).length;
     if (ativos === 0) return false;
     const pct = Math.round((ativos / days.length) * 100);
-    // Streaks (mesma lógica do heatmap da tela)
-    const allDates = Object.keys(dayMap).sort();
-    let record = 0, run = 0, prev = null;
-    for (const iso of allDates) {
-      run = (prev && addDays(prev, 1) === iso) ? run + 1 : 1;
-      record = Math.max(record, run); prev = iso;
+    // Streaks por SEMANAS treinando (mesma lógica do heatmap da tela):
+    // semana "vale" com ≥ 2 dias ativos; semana = domingo→sábado.
+    const MIN_DIAS = 2;
+    const weekStartISO = (iso) => {
+      const d = new Date(iso + 'T12:00:00');
+      return addDays(iso, -d.getDay()); // 0=dom
+    };
+    const prevWeek = (wk) => addDays(wk, -7);
+    const semanas = {};
+    for (const iso of Object.keys(dayMap)) {
+      const wk = weekStartISO(iso);
+      semanas[wk] = (semanas[wk] || 0) + 1;
     }
-    let cursor = days[days.length - 1];
-    if (!dayMap[cursor]) cursor = addDays(cursor, -1);
+    const qualifica = (wk) => (semanas[wk] || 0) >= MIN_DIAS;
+    const wks = Object.keys(semanas).filter(qualifica).sort();
+    let record = 0, run = 0, prev = null;
+    for (const wk of wks) {
+      run = (prev && prevWeek(wk) === prev) ? run + 1 : 1;
+      record = Math.max(record, run); prev = wk;
+    }
+    let cursor = weekStartISO(days[days.length - 1]);
+    if (!qualifica(cursor)) cursor = prevWeek(cursor);
     let current = 0;
-    while (dayMap[cursor]) { current++; cursor = addDays(cursor, -1); }
+    while (qualifica(cursor)) { current++; cursor = prevWeek(cursor); }
 
     setSection('Atividade dos últimos 90 dias');
     pdf.setFontSize(10); pdf.setTextColor(40);
-    pdf.text(`${pct}% dias ativos  ·  ${current} de sequência atual  ·  recorde de ${record}`, PAD, y);
+    pdf.text(`${pct}% dias ativos  ·  ${current} semanas seguidas  ·  recorde de ${record} semanas`, PAD, y);
     y += 14;
 
     const cell = 9, gap = 2, step = cell + gap;

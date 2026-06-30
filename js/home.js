@@ -102,24 +102,53 @@
     }
   }
 
+  // Domingo (início da semana) da data informada, em ISO local.
+  function weekStartISO(d) {
+    const s = new Date(d); s.setHours(0,0,0,0);
+    s.setDate(s.getDate() - s.getDay()); // getDay(): 0=dom
+    return toLocalISODate(s);
+  }
+
+  // Sequência por SEMANAS treinando: uma semana "vale" com ≥ 2 dias ativos.
+  // Retorna { current, record } em número de semanas consecutivas.
+  // A semana atual em andamento não quebra a sequência enquanto não atinge o
+  // critério (espelha a antiga lógica de "se não treinou hoje, conta de ontem").
   function calcStreak() {
-    if (!window.Storage) return 0;
+    if (!window.Storage) return { current: 0, record: 0 };
+    const MIN_DIAS = 2;
     const log = Storage.getTrainingLog ? Storage.getTrainingLog() : [];
-    const datesAtivas = new Set(log.map(e => e.data));
-    const d = new Date(); d.setHours(0,0,0,0);
-    // Se ainda não houve atividade hoje, a sequência não quebra: começa a
-    // contagem a partir de ontem (ex.: às 9h, antes do treino do dia).
-    const hojeISO = toLocalISODate(d);
-    if (!datesAtivas.has(hojeISO)) d.setDate(d.getDate() - 1);
-    let streak = 0;
-    while (true) {
-      const iso = toLocalISODate(d);
-      if (datesAtivas.has(iso)) {
-        streak++;
-        d.setDate(d.getDate() - 1);
-      } else break;
+    // Dias ativos distintos por semana (chave = domingo da semana).
+    const semanas = {}; // weekISO -> Set de datas ativas
+    log.forEach(e => {
+      if (!e.data) return;
+      const d = new Date(e.data + 'T12:00:00');
+      if (isNaN(d)) return;
+      const wk = weekStartISO(d);
+      (semanas[wk] || (semanas[wk] = new Set())).add(e.data);
+    });
+    const qualifica = (wk) => (semanas[wk] ? semanas[wk].size : 0) >= MIN_DIAS;
+    const prevWeek = (wk) => {
+      const d = new Date(wk + 'T12:00:00'); d.setDate(d.getDate() - 7);
+      return toLocalISODate(d);
+    };
+
+    // RECORDE — maior nº de semanas consecutivas qualificadas no histórico.
+    const wks = Object.keys(semanas).filter(qualifica).sort();
+    let record = 0, run = 0, prev = null;
+    for (const wk of wks) {
+      run = (prev && prevWeek(wk) === prev) ? run + 1 : 1;
+      record = Math.max(record, run);
+      prev = wk;
     }
-    return streak;
+
+    // ATUAL — conta para trás a partir da semana corrente. Se a semana atual
+    // ainda não qualifica, começa pela semana anterior (não quebra).
+    let cursor = weekStartISO(new Date());
+    if (!qualifica(cursor)) cursor = prevWeek(cursor);
+    let current = 0;
+    while (qualifica(cursor)) { current++; cursor = prevWeek(cursor); }
+
+    return { current, record };
   }
 
   async function loadLastActivities() {
@@ -188,10 +217,11 @@
     // KPI 2 — KM desta semana (+ variação): preenchido por loadLastActivities,
     // que busca as atividades unificadas (mesma fonte da lista abaixo).
 
-    // KPI 3 — Sequência
-    const streak = calcStreak();
+    // KPI 3 — Sequência (semanas treinando, ≥ 2 dias ativos/semana)
+    const { current: streak, record: streakRecord } = calcStreak();
     $('home-streak').textContent = streak;
-    $('home-streak-sub').textContent = streak === 1 ? 'ativo consecutivo' : 'ativos consecutivos';
+    $('home-streak-sub').textContent =
+      'recorde: ' + streakRecord + (streakRecord === 1 ? ' semana' : ' semanas');
 
     // KPI 4 — Fadiga / Training Readiness (prioriza Readiness Garmin se disponível)
     // Busca async — não bloqueia o load síncrono dos outros KPIs

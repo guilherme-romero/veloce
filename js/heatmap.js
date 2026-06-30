@@ -3,7 +3,8 @@
    Renderiza grid estilo GitHub contributions na seção Perfil.
    Cores: bike=teal, fisico=amber, alongamento=blue, multi=purple,
    vazio=surface2.
-   Totais: % dias ativos, sequência atual, recorde.
+   Totais: % dias ativos, sequência atual e recorde em SEMANAS treinando
+   (semana "vale" com ≥ 2 dias ativos; semana = domingo→sábado).
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const TIPO_COLOR = {
@@ -48,29 +49,41 @@
     return d.toISOString().slice(0, 10);
   }
 
+  // Domingo (início da semana) da data ISO informada.
+  function weekStartISO(iso) {
+    const d = new Date(iso + 'T12:00:00');
+    return addDaysISO(iso, -d.getDay()); // getDay(): 0=dom
+  }
+
   function calcStreaks(days, dayMap) {
-    // RECORDE — visão histórica: percorre TODAS as datas do training_log
-    // (não apenas a janela de 91 dias exibida no grid), contando o maior
-    // número de dias consecutivos com atividade.
-    const allDates = Object.keys(dayMap).sort();
+    // Sequência por SEMANAS treinando: uma semana "vale" com ≥ 2 dias ativos.
+    // Visão histórica: percorre TODAS as datas do training_log (não apenas a
+    // janela de 91 dias exibida no grid).
+    const MIN_DIAS = 2;
+    const semanas = {}; // weekISO -> nº de dias ativos
+    for (const iso of Object.keys(dayMap)) {
+      const wk = weekStartISO(iso);
+      semanas[wk] = (semanas[wk] || 0) + 1;
+    }
+    const qualifica = (wk) => (semanas[wk] || 0) >= MIN_DIAS;
+    const prevWeek = (wk) => addDaysISO(wk, -7);
+
+    // RECORDE — maior nº de semanas consecutivas qualificadas no histórico.
+    const wks = Object.keys(semanas).filter(qualifica).sort();
     let record = 0, run = 0, prev = null;
-    for (const iso of allDates) {
-      if (prev && addDaysISO(prev, 1) === iso) run++;
-      else run = 1;
+    for (const wk of wks) {
+      run = (prev && prevWeek(wk) === prev) ? run + 1 : 1;
       record = Math.max(record, run);
-      prev = iso;
+      prev = wk;
     }
 
-    // SEQ. ATUAL — conta para trás a partir de hoje. Se ainda não houve
-    // atividade hoje, a sequência não quebra: começa a partir de ontem.
+    // SEQ. ATUAL — conta para trás a partir da semana corrente. Se a semana
+    // atual ainda não qualifica, começa pela anterior (não quebra).
     const todayISO = new Date(); todayISO.setHours(12, 0, 0, 0);
-    let cursor = todayISO.toISOString().slice(0, 10);
-    if (!dayMap[cursor]) cursor = addDaysISO(cursor, -1);
+    let cursor = weekStartISO(todayISO.toISOString().slice(0, 10));
+    if (!qualifica(cursor)) cursor = prevWeek(cursor);
     let current = 0;
-    while (dayMap[cursor]) {
-      current++;
-      cursor = addDaysISO(cursor, -1);
-    }
+    while (qualifica(cursor)) { current++; cursor = prevWeek(cursor); }
 
     return { current, record };
   }
@@ -104,8 +117,8 @@
     // Totais
     totals.innerHTML =
       `<span class="heatmap-stat"><strong>${pct}%</strong> dias ativos</span>` +
-      `<span class="heatmap-stat"><strong>${current}</strong> seq. atual</span>` +
-      `<span class="heatmap-stat"><strong>${record}</strong> recorde</span>`;
+      `<span class="heatmap-stat"><strong>${current}</strong> sem. seguidas</span>` +
+      `<span class="heatmap-stat"><strong>${record}</strong> recorde (sem)</span>`;
 
     // Rótulos de dias da semana (coluna fixa à esquerda)
     wdEl.innerHTML = WEEKDAY_LABELS
