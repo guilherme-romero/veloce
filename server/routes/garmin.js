@@ -101,7 +101,7 @@ async function routes(fastify) {
   fastify.post('/api/garmin/sync', async (req, reply) => {
     const days = Math.min(Math.max(parseInt((req.body && req.body.days) || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 1095);
     try {
-      const acts = await garmin.listActivities(days);
+      const acts = await garmin.listActivities(days, { noCache: true });
       const bikeActs = acts.filter(garmin.isBikeActivity);
 
       let imported = 0, updated = 0, daysMarked = 0;
@@ -182,7 +182,7 @@ async function routes(fastify) {
   fastify.post('/api/garmin/sync-weights', async (req, reply) => {
     const days = Math.min(Math.max(parseInt((req.body && req.body.days) || 365, 10) || 365, 1), 3650);
     try {
-      const weighins = await garmin.listWeighIns(days);
+      const weighins = await garmin.listWeighIns(days, { noCache: true });
       let imported = 0, updated = 0, skipped = 0;
 
       const findByDateStmt = fastify.db.prepare('SELECT id, fonte FROM weights WHERE data = ? ORDER BY id DESC');
@@ -236,7 +236,7 @@ async function routes(fastify) {
   fastify.post('/api/garmin/sync-health', async (req, reply) => {
     const days = Math.min(Math.max(parseInt((req.body && req.body.days) || 30, 10) || 30, 1), 365);
     try {
-      const items = await garmin.listDailyHealth(days);
+      const items = await garmin.listDailyHealth(days, { noCache: true });
       const upsert = fastify.db.prepare(`
         INSERT INTO garmin_daily_health (
           data, passos, kcal_total, kcal_ativa, distancia_m, fc_repouso, fc_min, fc_max,
@@ -383,10 +383,10 @@ async function routes(fastify) {
     const days = Math.min(Math.max(parseInt((req.body && req.body.days) || 7, 10) || 7, 1), 90);
     try {
       const [readiness, status, prs, scores] = await Promise.all([
-        garmin.listTrainingReadiness(days).catch(e => { req.log.warn('readiness:' + e.message); return []; }),
-        garmin.listTrainingStatus(Math.min(days, 30)).catch(e => { req.log.warn('status:' + e.message); return []; }),
-        garmin.listPersonalRecords().catch(e => { req.log.warn('pr:' + e.message); return []; }),
-        garmin.listFitnessScores(days).catch(e => { req.log.warn('scores:' + e.message); return []; }),
+        garmin.listTrainingReadiness(days, { noCache: true }).catch(e => { req.log.warn('readiness:' + e.message); return []; }),
+        garmin.listTrainingStatus(Math.min(days, 30), { noCache: true }).catch(e => { req.log.warn('status:' + e.message); return []; }),
+        garmin.listPersonalRecords({ noCache: true }).catch(e => { req.log.warn('pr:' + e.message); return []; }),
+        garmin.listFitnessScores(days, { noCache: true }).catch(e => { req.log.warn('scores:' + e.message); return []; }),
       ]);
 
       // Upserts

@@ -20,14 +20,17 @@ function isConfigured() {
   return !!(process.env.GARMIN_EMAIL && process.env.GARMIN_PASSWORD);
 }
 
-function runCli(args, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+function runCli(args, { timeoutMs = DEFAULT_TIMEOUT_MS, noCache = false } = {}) {
   return new Promise((resolve, reject) => {
     const env = {
       ...process.env,
       GARMIN_EMAIL:    process.env.GARMIN_EMAIL    || '',
       GARMIN_PASSWORD: process.env.GARMIN_PASSWORD || '',
     };
-    const child = spawn(PYTHON_BIN, [CLI_SCRIPT, ...args], { env });
+    // --no-cache eh flag global (antes do subcomando): fura o DiskCache do
+    // garminconnect e busca dados frescos da Garmin. Usado no sync manual.
+    const cliArgs = noCache ? ['--no-cache', ...args] : args;
+    const child = spawn(PYTHON_BIN, [CLI_SCRIPT, ...cliArgs], { env });
     let stdout = '', stderr = '';
     const killer = setTimeout(() => {
       child.kill('SIGKILL');
@@ -77,13 +80,13 @@ async function login(mfaCode) {
 
 async function logout() { return runCli(['logout']); }
 
-async function listActivities(days = 90) {
-  const res = await runCli(['activities', '--days', String(days)], { timeoutMs: 120_000 });
+async function listActivities(days = 90, { noCache = false } = {}) {
+  const res = await runCli(['activities', '--days', String(days)], { timeoutMs: 120_000, noCache });
   return res.items || [];
 }
 
-async function listWeighIns(days = 365) {
-  const res = await runCli(['weighins', '--days', String(days)], { timeoutMs: 60_000 });
+async function listWeighIns(days = 365, { noCache = false } = {}) {
+  const res = await runCli(['weighins', '--days', String(days)], { timeoutMs: 60_000, noCache });
   return res.items || [];
 }
 
@@ -95,28 +98,28 @@ function isBikeActivity(a) {
   return BIKE_TYPES.has(String(a.activityType || '').toLowerCase());
 }
 
-async function listDailyHealth(days = 30) {
-  const res = await runCli(['daily-health', '--days', String(days)], { timeoutMs: 120_000 });
+async function listDailyHealth(days = 30, { noCache = false } = {}) {
+  const res = await runCli(['daily-health', '--days', String(days)], { timeoutMs: 120_000, noCache });
   return res.items || [];
 }
 
-async function listTrainingReadiness(days = 7) {
-  const res = await runCli(['training-readiness', '--days', String(days)], { timeoutMs: 60_000 });
+async function listTrainingReadiness(days = 7, { noCache = false } = {}) {
+  const res = await runCli(['training-readiness', '--days', String(days)], { timeoutMs: 60_000, noCache });
   return res.items || [];
 }
 
-async function listTrainingStatus(days = 1) {
-  const res = await runCli(['training-status', '--days', String(days)], { timeoutMs: 60_000 });
+async function listTrainingStatus(days = 1, { noCache = false } = {}) {
+  const res = await runCli(['training-status', '--days', String(days)], { timeoutMs: 60_000, noCache });
   return res.items || [];
 }
 
-async function listPersonalRecords() {
-  const res = await runCli(['personal-records'], { timeoutMs: 60_000 });
+async function listPersonalRecords({ noCache = false } = {}) {
+  const res = await runCli(['personal-records'], { timeoutMs: 60_000, noCache });
   return res.items || [];
 }
 
-async function listFitnessScores(days = 7) {
-  const res = await runCli(['hill-score', '--days', String(days)], { timeoutMs: 60_000 });
+async function listFitnessScores(days = 7, { noCache = false } = {}) {
+  const res = await runCli(['hill-score', '--days', String(days)], { timeoutMs: 60_000, noCache });
   return res.items || [];
 }
 

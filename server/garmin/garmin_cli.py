@@ -56,13 +56,18 @@ def make_cache():
         return None
 
 
+# Setado por main() a partir de --no-cache: quando True, o cliente e criado
+# sem DiskCache, forcando fetch fresco na Garmin (usado no sync manual).
+NO_CACHE = False
+
+
 def make_client():
     from garminconnect import Garmin
     email = os.environ.get("GARMIN_EMAIL", "")
     password = os.environ.get("GARMIN_PASSWORD", "")
     if not email or not password:
         die("GARMIN_EMAIL/GARMIN_PASSWORD ausentes no ambiente")
-    cache = make_cache()
+    cache = None if NO_CACHE else make_cache()
     if cache is not None:
         return Garmin(email, password, cache=cache), email
     return Garmin(email, password), email
@@ -476,6 +481,10 @@ def cmd_hill_score(args):
 
 def main():
     p = argparse.ArgumentParser()
+    # Flag global (antes do subcomando): ignora o DiskCache e busca dados
+    # frescos da Garmin. O auto-sync do scheduler nao usa; so o sync manual.
+    p.add_argument("--no-cache", action="store_true",
+                   help="ignora o cache em disco e busca dados frescos")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("status")
@@ -515,6 +524,8 @@ def main():
     phz.add_argument("id", type=int)
 
     args = p.parse_args()
+    global NO_CACHE
+    NO_CACHE = bool(getattr(args, "no_cache", False))
     handlers = {
         "status": cmd_status, "login": cmd_login, "logout": cmd_logout,
         "activities": cmd_activities, "activity": cmd_activity,
