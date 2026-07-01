@@ -1,6 +1,7 @@
 # Node
 server/node_modules/
 server/.env
+server/.env.demo
 
 # Python venv (Garmin CLI)
 server/garmin/venv/
@@ -11,6 +12,10 @@ data/training.db
 data/training.db-journal
 data/training.db-wal
 data/training.db-shm
+data/demo.db
+data/demo.db-journal
+data/demo.db-wal
+data/demo.db-shm
 
 # Avatares (dados pessoais)
 data/avatars/

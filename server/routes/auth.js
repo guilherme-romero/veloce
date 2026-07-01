@@ -14,7 +14,7 @@ const cookieOptions = () => ({
   httpOnly: true,
   secure:   config.COOKIE_SECURE,
   sameSite: 'strict',
-  path:     '/',
+  path:     config.COOKIE_PATH,
   maxAge:   config.SESSION_DAYS * 24 * 60 * 60, // segundos
 });
 
@@ -52,7 +52,7 @@ async function routes(fastify) {
     // rejeitados pelo requireAuth, mesmo se exfiltrados.
     const now = Math.floor(Date.now() / 1000);
     fastify.db.prepare('UPDATE auth_state SET last_logout_at = ? WHERE id = 1').run(now);
-    reply.clearCookie(COOKIE_NAME, { path: '/' });
+    reply.clearCookie(COOKIE_NAME, { path: config.COOKIE_PATH });
     return { ok: true };
   });
 

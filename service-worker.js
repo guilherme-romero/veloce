@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.1.3';
+const CACHE_VERSION = 'v2.1.4';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação

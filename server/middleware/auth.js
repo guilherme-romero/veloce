@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const db = require('../db/init');
 
-const COOKIE_NAME = 'tb_session';
+const COOKIE_NAME = config.COOKIE_NAME;
 
 function lastLogoutAt() {
   try {

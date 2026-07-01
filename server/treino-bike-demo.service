@@ -1,0 +1,19 @@
+[Unit]
+Description=Treino Bike API — DEMO (Fastify + SQLite, login user/user)
+After=network.target
+
+[Service]
+Type=simple
+User=prod
+WorkingDirectory=/home/prod/env/prod/treino_bike/server
+# ENV_FILE isola o ambiente: config.js carrega SO este arquivo, nunca o
+# server/.env de producao (que tem tokens reais Strava/Garmin).
+Environment=ENV_FILE=/home/prod/env/prod/treino_bike/server/.env.demo
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

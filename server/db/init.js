@@ -5,8 +5,10 @@ const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 
-const DATA_DIR = path.resolve(__dirname, '..', '..', 'data');
-const DB_PATH  = path.join(DATA_DIR, 'training.db');
+// DATA_DIR/DB_PATH parametrizaveis por env (default = comportamento atual).
+// Uma 2a instancia (ex.: demo) define DB_PATH para apontar a outro banco.
+const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '..', '..', 'data');
+const DB_PATH  = process.env.DB_PATH  || path.join(DATA_DIR, 'training.db');
 const SCHEMA   = path.join(__dirname, 'schema-training.sql');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -66,6 +68,6 @@ try {
   console.warn('[db] wal_checkpoint falhou (não-fatal):', e.message);
 }
 
-console.log(`[db] training.db pronto em ${DB_PATH} (integrity=ok, wal flushed)`);
+console.log(`[db] ${path.basename(DB_PATH)} pronto em ${DB_PATH} (integrity=ok, wal flushed)`);
 
 module.exports = db;
