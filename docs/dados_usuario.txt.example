@@ -1,0 +1,21 @@
+# TEMPLATE de seed do perfil — 1ª execução (opcional)
+#
+# Como usar: copie este arquivo para "dados_usuario.txt" (mesma pasta) e
+# preencha com seus dados. Na PRIMEIRA execução do app (sem perfil no
+# backend e sem versão no localStorage), storage.js lê docs/dados_usuario.txt
+# e semeia o perfil automaticamente. Se o arquivo não existir, o app inicia
+# com o perfil padrão em branco e você preenche pelo modal de perfil.
+#
+# Linhas começando com "#" são ignoradas. Formato: CHAVE: valor
+# Data no formato brasileiro DD/MM/AAAA. Alturas em cm, pesos em kg.
+
+# USUARIO
+NOME:
+DATA NASCIMENTO:
+ALTURA:
+PESO ATUAL:
+PESO META:
+
+# BICICLETA
+PESO:
+MODELO:
