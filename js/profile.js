@@ -83,7 +83,7 @@ function renderProfile(user) {
       : '—');
   setHTML('stat-bike',
     user.bikeModelo
-      ? `${escAttr(user.bikeModelo)} · ${(user.bikePeso || 0).toFixed(1).replace('.', ',')} <span class="unit">kg</span>`
+      ? `${escHTML(user.bikeModelo)} · ${(user.bikePeso || 0).toFixed(1).replace('.', ',')} <span class="unit">kg</span>`
       : '—');
 
   // ── Goal metrics ──────────────────────────
@@ -172,7 +172,8 @@ async function refineFcMaxFromGarmin(idade, nome) {
       if (isFinite(a.fcMax) && a.fcMax > maxObs) maxObs = a.fcMax;
     });
     // Usa o pico observado apenas se for plausível (descarta zeros/ruído).
-    if (maxObs >= 120) updateFcmZones(Math.round(maxObs), idade, nome, true);
+    // Faixa plausível: descarta zeros/ruído (piso 120) e artefatos de sensor (teto 230).
+    if (maxObs >= 120 && maxObs <= 230) updateFcmZones(Math.round(maxObs), idade, nome, true);
   } catch (_) { /* mantém a FCM estimada já renderizada */ }
 }
 

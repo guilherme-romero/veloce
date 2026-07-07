@@ -2064,6 +2064,18 @@ body.edit-mode .exercise-actions { display: flex; }
   white-space: nowrap;
 }
 .last5-meta { font-size: 12px; color: var(--muted2); margin-top: 2px; text-transform: capitalize; }
+.last5-endurance { font-weight: 700; text-transform: none; }
+.last5-endurance.up   { color: var(--green); }
+.last5-endurance.down { color: var(--muted); }
+
+/* TESTES — tabela de comparação de zonas (provisória) */
+.t-zones-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.t-zones-tbl th, .t-zones-tbl td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--grid, #252830); }
+.t-zones-tbl th:first-child, .t-zones-tbl td:first-child,
+.t-zones-tbl th:nth-child(2), .t-zones-tbl td:nth-child(2) { text-align: left; }
+.t-zones-tbl th { color: var(--muted); font-weight: 700; }
+.t-zones-delta.up   { color: var(--green); }
+.t-zones-delta.down { color: var(--red); }
 .last5-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

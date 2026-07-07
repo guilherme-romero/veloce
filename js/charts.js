@@ -305,7 +305,7 @@ function daysBetween(isoA, isoB) {
   return Math.round((b - a) / 86400000);
 }
 function weekIndex(startISO, dataISO) {
-  return Math.round(daysBetween(startISO, dataISO) / 7);
+  return Math.floor(daysBetween(startISO, dataISO) / 7);
 }
 function formatLabel(iso, semana) {
   const d = new Date(iso + 'T00:00:00');

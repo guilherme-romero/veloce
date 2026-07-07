@@ -15,11 +15,11 @@
              worker-src 'self';"
   >
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.1.7">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.1.7">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.1.7">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.1.7">
-  <link rel="manifest" href="manifest.json?v=2.1.7">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.2.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.2.0">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.2.0">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.2.0">
+  <link rel="manifest" href="manifest.json?v=2.2.0">
 
   <title>Treino Bike</title>
 
@@ -38,11 +38,11 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.1.7">
-  <link rel="stylesheet" href="css/rides.css?v=2.1.7">
-  <link rel="stylesheet" href="css/routes.css?v=2.1.7">
-  <link rel="stylesheet" href="css/bikes.css?v=2.1.7">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.1.7">
+  <link rel="stylesheet" href="css/style.css?v=2.2.0">
+  <link rel="stylesheet" href="css/rides.css?v=2.2.0">
+  <link rel="stylesheet" href="css/routes.css?v=2.2.0">
+  <link rel="stylesheet" href="css/bikes.css?v=2.2.0">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.2.0">
 </head>
 <body>
 
@@ -987,49 +987,24 @@
       <div class="home-hero-inner">
         <div>
           <div class="section-label">Temporário</div>
-          <h2 class="section-title">Testes — propostas de gráficos</h2>
-          <p class="section-sub">Variações de visualização para Sono Profundo e HRV noturno (últimos 30 dias). Seção descartável para avaliação.</p>
+          <h2 class="section-title">Testes — comparação de zonas de FC</h2>
+          <p class="section-sub">Simulação provisória: zonas de hoje (FCM 220−idade, %FCM) versus a versão Tanaka (208−0,7×idade) + Karvonen (FC de reserva). Seção descartável para avaliação.</p>
         </div>
       </div>
     </div>
 
     <div id="testes-empty" class="empty-state" hidden style="color:var(--muted2);padding:16px;">Carregando…</div>
 
-    <div class="card-label" style="margin:8px 0 4px;">Sono Profundo</div>
     <div class="insights-grid">
       <div class="card insight-card" style="grid-column: span 2;">
-        <div class="insight-head"><div class="insight-head-left"><div class="card-label">S1 · Composição do sono (empilhado)</div></div></div>
-        <div class="chart-wrap" style="height:220px;"><canvas id="t-sleep-stack"></canvas></div>
-        <div class="insight-msg">Profundo + leve + REM por noite, em horas — mostra a estrutura do sono.</div>
+        <div class="insight-head"><div class="insight-head-left"><div class="card-label">Zonas de FC — Hoje × Tanaka/Karvonen</div></div></div>
+        <div id="t-zones-table"></div>
+        <div class="insight-msg" id="t-zones-note"></div>
       </div>
       <div class="card insight-card">
-        <div class="insight-head"><div class="insight-head-left"><div class="card-label">S2 · Sono profundo + média 7 noites</div></div></div>
-        <div class="chart-wrap" style="height:200px;"><canvas id="t-sleep-deep"></canvas></div>
-        <div class="insight-msg">Barras por noite com linha de tendência (média móvel de 7 noites).</div>
-      </div>
-      <div class="card insight-card">
-        <div class="insight-head"><div class="insight-head-left"><div class="card-label">S3 · % de sono profundo</div></div></div>
-        <div class="chart-wrap" style="height:200px;"><canvas id="t-sleep-pct"></canvas></div>
-        <div class="insight-msg">Percentual do total, com faixa de referência ideal (13–23%).</div>
-      </div>
-    </div>
-
-    <div class="card-label" style="margin:16px 0 4px;">HRV noturno</div>
-    <div class="insights-grid">
-      <div class="card insight-card" style="grid-column: span 2;">
-        <div class="insight-head"><div class="insight-head-left"><div class="card-label">H1 · HRV noturno + baseline semanal</div></div></div>
-        <div class="chart-wrap" style="height:220px;"><canvas id="t-hrv-baseline"></canvas></div>
-        <div class="insight-msg">HRV por noite contra o baseline semanal do Garmin — desvios indicam estresse/recuperação.</div>
-      </div>
-      <div class="card insight-card">
-        <div class="insight-head"><div class="insight-head-left"><div class="card-label">H2 · HRV × sono profundo</div></div></div>
-        <div class="chart-wrap" style="height:200px;"><canvas id="t-hrv-scatter"></canvas></div>
-        <div class="insight-msg">Dispersão: mais sono profundo tende a elevar a HRV?</div>
-      </div>
-      <div class="card insight-card">
-        <div class="insight-head"><div class="insight-head-left"><div class="card-label">H3 · HRV vs média 7 noites</div></div></div>
-        <div class="chart-wrap" style="height:200px;"><canvas id="t-hrv-ma"></canvas></div>
-        <div class="insight-msg">Barras do HRV noturno com a média móvel — leitura do desvio do próprio baseline.</div>
+        <div class="insight-head"><div class="insight-head-left"><div class="card-label">Limite superior por zona (bpm)</div></div></div>
+        <div class="chart-wrap" style="height:240px;"><canvas id="t-zones-chart"></canvas></div>
+        <div class="insight-msg">Comparação do teto de cada zona entre os dois métodos.</div>
       </div>
     </div>
   </section>
@@ -1570,33 +1545,33 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.1.7"></script>
-<script src="js/utils.js?v=2.1.7"></script>
-<script src="js/router.js?v=2.1.7"></script>
-<script src="js/defaults.js?v=2.1.7"></script>
-<script src="js/api.js?v=2.1.7"></script>
-<script src="js/storage.js?v=2.1.7"></script>
-<script src="js/profile.js?v=2.1.7"></script>
-<script src="js/charts.js?v=2.1.7"></script>
-<script src="js/modals.js?v=2.1.7"></script>
-<script src="js/workouts.js?v=2.1.7"></script>
-<script src="js/rides.js?v=2.1.7"></script>
-<script src="js/bikes.js?v=2.1.7"></script>
-<script src="js/training-log.js?v=2.1.7"></script>
-<script src="js/home-workout.js?v=2.1.7"></script>
-<script src="js/backup.js?v=2.1.7"></script>
-<script src="js/gpx.js?v=2.1.7"></script>
-<script src="js/routes.js?v=2.1.7"></script>
-<script src="js/heatmap.js?v=2.1.7"></script>
-<script src="js/strava.js?v=2.1.7"></script>
-<script src="js/garmin.js?v=2.1.7"></script>
-<script src="js/activities.js?v=2.1.7"></script>
-<script src="js/insights.js?v=2.1.7"></script>
-<script src="js/testes.js?v=2.1.7"></script>
-<script src="js/ferramentas.js?v=2.1.7"></script>
-<script src="js/home.js?v=2.1.7"></script>
-<script src="js/app.js?v=2.1.7"></script>
-<script src="js/pwa.js?v=2.1.7"></script>
+<script src="js/version.js?v=2.2.0"></script>
+<script src="js/utils.js?v=2.2.0"></script>
+<script src="js/router.js?v=2.2.0"></script>
+<script src="js/defaults.js?v=2.2.0"></script>
+<script src="js/api.js?v=2.2.0"></script>
+<script src="js/storage.js?v=2.2.0"></script>
+<script src="js/profile.js?v=2.2.0"></script>
+<script src="js/charts.js?v=2.2.0"></script>
+<script src="js/modals.js?v=2.2.0"></script>
+<script src="js/workouts.js?v=2.2.0"></script>
+<script src="js/rides.js?v=2.2.0"></script>
+<script src="js/bikes.js?v=2.2.0"></script>
+<script src="js/training-log.js?v=2.2.0"></script>
+<script src="js/home-workout.js?v=2.2.0"></script>
+<script src="js/backup.js?v=2.2.0"></script>
+<script src="js/gpx.js?v=2.2.0"></script>
+<script src="js/routes.js?v=2.2.0"></script>
+<script src="js/heatmap.js?v=2.2.0"></script>
+<script src="js/strava.js?v=2.2.0"></script>
+<script src="js/garmin.js?v=2.2.0"></script>
+<script src="js/activities.js?v=2.2.0"></script>
+<script src="js/insights.js?v=2.2.0"></script>
+<script src="js/testes.js?v=2.2.0"></script>
+<script src="js/ferramentas.js?v=2.2.0"></script>
+<script src="js/home.js?v=2.2.0"></script>
+<script src="js/app.js?v=2.2.0"></script>
+<script src="js/pwa.js?v=2.2.0"></script>
 
 </body>
 </html>

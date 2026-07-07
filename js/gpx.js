@@ -8,7 +8,7 @@ function parseGPX(xmlString) {
   const doc = parser.parseFromString(xmlString, 'application/xml');
 
   const err = doc.querySelector('parsererror');
-  if (err) throw new Error('XML inválido: ' + err.textContent.slice(0, 100));
+  if (err) throw new Error('XML inválido — verifique se o arquivo é um GPX válido.');
 
   const trkpts = Array.from(doc.querySelectorAll('trkpt'));
   if (trkpts.length === 0) throw new Error('Nenhum ponto de track encontrado no GPX');

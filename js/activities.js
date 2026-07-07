@@ -372,6 +372,12 @@
       const resp = await window.Api.get('/activities/unified?days=1095');
       const combined = (resp && resp.items) || [];
 
+      // Scores de Endurance por dia (p/ exibir o ganho na lista de atividades).
+      try {
+        const scores = await window.Api.get('/garmin/fitness-scores?days=365');
+        buildEnduranceDeltas(scores);
+      } catch (_) { buildEnduranceDeltas([]); }
+
       if (combined.length === 0) {
         empty.hidden = false;
         content.hidden = true;
@@ -676,6 +682,29 @@
   let _last5Page  = 0;          // página atual (0-based)
   let _last5Data  = [];         // atividades completas do ano selecionado (para paginação)
 
+  // Ganho de Endurance por DIA (delta do endurance_score diário da Garmin).
+  // NB: a API não expõe contribuição por atividade — o valor é a variação do
+  // score do dia; havendo mais de uma atividade na data, reflete o ganho do dia.
+  let _enduranceDelta = {};     // 'YYYY-MM-DD' → delta (inteiro, pode ser < 0)
+  function buildEnduranceDeltas(scores) {
+    _enduranceDelta = {};
+    const rows = (Array.isArray(scores) ? scores : [])
+      .filter(s => s && s.data && s.endurance_score != null)
+      .sort((a, b) => a.data.localeCompare(b.data));
+    let prev = null;
+    for (const r of rows) {
+      if (prev != null) _enduranceDelta[r.data] = r.endurance_score - prev;
+      prev = r.endurance_score;
+    }
+  }
+  function enduranceMetaHtml(dateStr) {
+    const d = _enduranceDelta[(dateStr || '').slice(0, 10)];
+    if (d == null || d === 0) return '';
+    const sign = d > 0 ? '+' : '−';
+    const cls  = d > 0 ? 'up' : 'down';
+    return ` · <span class="last5-endurance ${cls}">${sign}${Math.abs(d)} Endurance</span>`;
+  }
+
   function l5Km(v)    { return (v == null || !isFinite(v)) ? '—' : v.toFixed(1).replace('.', ',') + ' km'; }
   function l5Hm(s)    {
     if (!s || !isFinite(s)) return '—';
@@ -764,7 +793,7 @@
           <div id="${mapId}" class="last5-map"></div>
           <div class="last5-body">
             <div class="last5-title">${esc(a.nome || 'Atividade')} ${fonte}</div>
-            <div class="last5-meta">${esc(l5DataLong(a.data))} · ${esc(a.tipo || 'Ride')}</div>
+            <div class="last5-meta">${esc(l5DataLong(a.data))} · ${esc(a.tipo || 'Ride')}${enduranceMetaHtml(a.data)}</div>
             <div class="last5-stats">${stats}</div>
             ${a.fonte === 'garmin' && a.fcMedia ? `<div class="last5-zones" id="last5-zones-${i}"></div>` : ''}
           </div>

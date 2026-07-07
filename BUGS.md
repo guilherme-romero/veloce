@@ -153,6 +153,22 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
   velocidade de plano; superestima duração (e carbo/sódio totais) em percursos montanhosos.
   **Fix:** estimar duração com penalidade de subida explícita, ou pedir a duração ao usuário.
 
+## ✔ Corrigidos em v2.2.0 (2026-07-07) — Onda A (MENORES rápidos)
+
+- `js/gpx.js` — mensagem de erro XML genérica (não embute o cru do `<parsererror>`).
+- `js/profile.js` — `escHTML` (em vez de `escAttr`) para o texto do modelo da bike; teto de FCM
+  observada `≤230` (descarta artefato de sensor) em `refineFcMaxFromGarmin`.
+- `js/insights.js` — badge ATL "recuperado" → "em equilíbrio" (mais preciso).
+- `js/charts.js` — `weekIndex` usa `Math.floor` (mapeamento de semana previsível).
+- `js/ferramentas.js` — `alert` do cassete → `toast`; listener do `#terrain-guide` só registrado
+  uma vez (guarda `dataset.closeWired`).
+- `js/bikes.js` — fallback local de `esc` completo (`& < > " '`); `escAttr` cai no `esc`.
+- `js/storage.js` — `importJSON` com `try/catch` no `JSON.parse`.
+- *(Vento da rota — falso-positivo: o `<select id="route-wind">` já traz opções com sinal
+  explícito "A favor +5 / Contra −5"; sem mudança.)*
+
+---
+
 ## MENOR
 
 - **✓ [MENOR] `js/backup.js:919`** — CSV injection: `w.data/tipo/fonte` sem aspas/escape; vírgula ou

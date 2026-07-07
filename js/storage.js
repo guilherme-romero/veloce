@@ -471,7 +471,9 @@ const Storage = {
   },
 
   importJSON: async (jsonStr) => {
-    const data = JSON.parse(jsonStr);
+    let data;
+    try { data = JSON.parse(jsonStr); }
+    catch (_) { throw new Error('JSON inválido — não foi possível ler o arquivo de backup.'); }
     const Api = window.Api;
 
     // 1. Perfil (PUT substitui)

@@ -26,8 +26,8 @@
     acc[c.key] = c.label; return acc;
   }, {});
 
-  const esc     = window.esc     || (s => String(s == null ? '' : s));
-  const escAttr = window.escAttr || (s => String(s == null ? '' : s).replace(/"/g, '&quot;'));
+  const esc     = window.esc     || (s => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])));
+  const escAttr = window.escAttr || esc;
 
   let _bikes = [];
   let _componentsByBike = new Map();   // bikeId → array<component>

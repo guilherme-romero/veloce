@@ -1084,7 +1084,7 @@
     // KPIs
     $('ins-kpi-ctl').textContent = ctl.toFixed(0);
     $('ins-kpi-atl').textContent = atl.toFixed(0);
-    $('ins-kpi-atl-sub').textContent = atl <= ctl ? 'recuperado' : 'fadiga elevada';
+    $('ins-kpi-atl-sub').textContent = atl <= ctl ? 'em equilíbrio' : 'fadiga elevada';
     let vo2 = null;
     (prs || []).forEach(p => { if (p.type_id === 13) vo2 = p.valor > 1000 ? p.valor / 1000 : p.valor; });
     $('ins-kpi-vo2').textContent = vo2 ? vo2.toFixed(0) : '—';

@@ -1,171 +1,123 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   TESTES (TEMPORÁRIO) — propostas de novos gráficos para Sono e HRV.
-   Renderiza variações a partir de /api/garmin/health para validação visual.
-   ⚠️ Seção descartável: remover (e o módulo) depois de escolher os gráficos.
+   TESTES (TEMPORÁRIO) — comparação provisória de zonas de FC.
+   Método atual (FCM 220−idade + %FCM) × Tanaka (208−0,7×idade) + Karvonen
+   (FC de reserva, usando FC de repouso do Garmin).
+   ⚠️ Seção descartável: remover (e o módulo) depois da avaliação.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const $ = (id) => document.getElementById(id);
-  const _charts = {};
+  let _chart = null;
 
   const COLORS = {
-    deep:   '#4e9ef5',
-    light:  '#7c5cff',
-    rem:    '#22c55e',
-    line:   '#c6f135',
-    amber:  '#f5d523',
-    red:    '#f0523a',
-    muted2: '#9299a8',
-    grid:   '#252830',
+    hoje:  '#c6f135',
+    novo:  '#7c5cff',
+    muted: '#9299a8',
+    grid:  '#252830',
+    text:  '#c4ccd4',
   };
 
-  const hours = (s) => (s == null ? null : +(s / 3600).toFixed(2));
-  const mmdd  = (iso) => (iso || '').slice(5);
+  // Zonas Z1–Z5 pelos limites de % (topo de cada zona).
+  const PCTS = [0.60, 0.70, 0.80, 0.90, 1.00];
+  const ZLABELS = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
+  const ZFAIXA  = ['≤60%', '60–70%', '70–80%', '80–90%', '90–100%'];
 
-  // Média móvel simples de N pontos (ignora nulos na janela)
-  function movingAvg(arr, n) {
-    return arr.map((_, i) => {
-      const win = arr.slice(Math.max(0, i - n + 1), i + 1).filter(v => v != null && isFinite(v));
-      return win.length ? +(win.reduce((s, v) => s + v, 0) / win.length).toFixed(1) : null;
-    });
-  }
+  const round = (n) => Math.round(n);
 
-  const baseOpts = (extra = {}) => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    plugins: {
-      legend: { display: true, labels: { color: COLORS.muted2, boxWidth: 12, padding: 10, font: { size: 11 } } },
-      tooltip: { enabled: true },
-    },
-    scales: {
-      x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } },
-      y: { ticks: { color: COLORS.muted2 }, grid: { color: COLORS.grid } },
-    },
-    ...extra,
-  });
+  function renderCompare({ idade, fcmHoje, fcmTanaka, fcRep, fcRepFonte }) {
+    // Topo de cada zona: hoje = %FCM; Karvonen = FCrep + %·(FCM_tanaka − FCrep).
+    const topHoje = PCTS.map(p => round(fcmHoje * p));
+    const topKarv = PCTS.map(p => round(fcRep + p * (fcmTanaka - fcRep)));
 
-  function destroy(id) { if (_charts[id]) { _charts[id].destroy(); _charts[id] = null; } }
+    // Tabela
+    const rows = ZLABELS.map((z, i) => {
+      const delta = topKarv[i] - topHoje[i];
+      const sign  = delta > 0 ? '+' : (delta < 0 ? '−' : '');
+      const dcls  = delta > 0 ? 'up' : (delta < 0 ? 'down' : '');
+      return `<tr>
+        <td><strong>${z}</strong></td>
+        <td>${ZFAIXA[i]}</td>
+        <td>${topHoje[i]}</td>
+        <td>${topKarv[i]}</td>
+        <td class="t-zones-delta ${dcls}">${sign}${Math.abs(delta)}</td>
+      </tr>`;
+    }).join('');
 
-  function mk(id, cfg) {
-    const canvas = $(id);
-    if (!canvas || !window.Chart) return;
-    destroy(id);
-    _charts[id] = new Chart(canvas, cfg);
-  }
+    const tbl = $('t-zones-table');
+    if (tbl) {
+      tbl.innerHTML = `
+        <table class="t-zones-tbl">
+          <thead><tr>
+            <th>Zona</th><th>% FCM</th><th>Hoje</th><th>Tanaka/Karvonen</th><th>Δ bpm</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    }
 
-  // ── SONO ──────────────────────────────────────────────────────────────
-  function renderSono(health30) {
-    const labels = health30.map(h => mmdd(h.data));
+    const note = $('t-zones-note');
+    if (note) {
+      note.innerHTML =
+        `Idade ${idade} · FCM hoje <strong>${fcmHoje}</strong> (220−idade) · ` +
+        `FCM Tanaka <strong>${fcmTanaka}</strong> (208−0,7×idade) · ` +
+        `FC repouso <strong>${fcRep}</strong> bpm (${fcRepFonte}). ` +
+        `Karvonen usa a FC de reserva (FCM−FCrep), por isso as zonas baixas sobem.`;
+    }
 
-    // S1 — Composição do sono (barras empilhadas: deep + light + rem)
-    mk('t-sleep-stack', {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Profundo', data: health30.map(h => hours(h.sono_deep_s)),  backgroundColor: COLORS.deep,  stack: 's' },
-          { label: 'Leve',     data: health30.map(h => hours(h.sono_light_s)), backgroundColor: COLORS.light, stack: 's' },
-          { label: 'REM',      data: health30.map(h => hours(h.sono_rem_s)),   backgroundColor: COLORS.rem,   stack: 's' },
-        ],
-      },
-      options: baseOpts({
-        scales: {
-          x: { stacked: true, ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } },
-          y: { stacked: true, ticks: { color: COLORS.muted2, callback: v => v + ' h' }, grid: { color: COLORS.grid } },
+    // Gráfico de barras agrupadas (topo por zona)
+    const canvas = $('t-zones-chart');
+    if (canvas && window.Chart) {
+      if (_chart) { _chart.destroy(); _chart = null; }
+      _chart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: ZLABELS,
+          datasets: [
+            { label: 'Hoje (%FCM)',        data: topHoje, backgroundColor: COLORS.hoje },
+            { label: 'Tanaka/Karvonen',    data: topKarv, backgroundColor: COLORS.novo },
+          ],
         },
-      }),
-    });
-
-    // S2 — Sono profundo (barras) + média móvel 7 noites (linha)
-    const deepH = health30.map(h => hours(h.sono_deep_s));
-    mk('t-sleep-deep', {
-      data: {
-        labels,
-        datasets: [
-          { type: 'bar',  label: 'Sono profundo', data: deepH, backgroundColor: 'rgba(78,158,245,0.55)', borderColor: COLORS.deep, borderWidth: 1, borderRadius: 3 },
-          { type: 'line', label: 'Média 7 noites', data: movingAvg(deepH, 7), borderColor: COLORS.line, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 },
-        ],
-      },
-      options: baseOpts({ scales: { x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } }, y: { ticks: { color: COLORS.muted2, callback: v => v + ' h' }, grid: { color: COLORS.grid } } } }),
-    });
-
-    // S3 — % de sono profundo sobre o total, com faixa de referência (13–23%)
-    const pct = health30.map(h => (h.sono_total_s && h.sono_deep_s) ? +((h.sono_deep_s / h.sono_total_s) * 100).toFixed(1) : null);
-    mk('t-sleep-pct', {
-      data: {
-        labels,
-        datasets: [
-          { type: 'line', label: '% profundo', data: pct, borderColor: COLORS.deep, backgroundColor: 'rgba(78,158,245,0.15)', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: true },
-          { type: 'line', label: 'Ideal máx (23%)', data: labels.map(() => 23), borderColor: COLORS.muted2, borderDash: [4, 4], borderWidth: 1, pointRadius: 0 },
-          { type: 'line', label: 'Ideal mín (13%)', data: labels.map(() => 13), borderColor: COLORS.muted2, borderDash: [4, 4], borderWidth: 1, pointRadius: 0 },
-        ],
-      },
-      options: baseOpts({ scales: { x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } }, y: { ticks: { color: COLORS.muted2, callback: v => v + '%' }, grid: { color: COLORS.grid }, suggestedMin: 0, suggestedMax: 35 } } }),
-    });
-  }
-
-  // ── HRV ───────────────────────────────────────────────────────────────
-  function renderHrv(health30) {
-    const labels = health30.map(h => mmdd(h.data));
-    const noite  = health30.map(h => h.hrv_noite_avg ?? null);
-
-    // H1 — HRV noturno + baseline semanal do Garmin
-    mk('t-hrv-baseline', {
-      data: {
-        labels,
-        datasets: [
-          { type: 'line', label: 'HRV noturno', data: noite, borderColor: COLORS.line, backgroundColor: 'rgba(198,241,53,0.12)', borderWidth: 2, pointRadius: 2, tension: 0.3, fill: true },
-          { type: 'line', label: 'Baseline semanal', data: health30.map(h => h.hrv_semanal_avg ?? null), borderColor: COLORS.amber, borderDash: [5, 4], borderWidth: 2, pointRadius: 0, tension: 0.3 },
-        ],
-      },
-      options: baseOpts({ scales: { x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } }, y: { ticks: { color: COLORS.muted2, callback: v => v + ' ms' }, grid: { color: COLORS.grid } } } }),
-    });
-
-    // H2 — HRV noturno × sono profundo (dispersão)
-    const pts = health30
-      .filter(h => h.hrv_noite_avg != null && h.sono_deep_s != null)
-      .map(h => ({ x: hours(h.sono_deep_s), y: h.hrv_noite_avg }));
-    mk('t-hrv-scatter', {
-      type: 'scatter',
-      data: { datasets: [{ label: 'HRV × sono profundo', data: pts, backgroundColor: 'rgba(34,197,94,0.7)', borderColor: COLORS.rem, pointRadius: 5, pointHoverRadius: 7 }] },
-      options: baseOpts({
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y} ms · ${c.parsed.x} h profundo` } } },
-        scales: {
-          x: { title: { display: true, text: 'Sono profundo (h)', color: COLORS.muted2 }, ticks: { color: COLORS.muted2 }, grid: { color: COLORS.grid } },
-          y: { title: { display: true, text: 'HRV (ms)', color: COLORS.muted2 }, ticks: { color: COLORS.muted2 }, grid: { color: COLORS.grid } },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: COLORS.text, boxWidth: 12, padding: 10, font: { size: 11 } } },
+            tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y} bpm` } },
+          },
+          scales: {
+            x: { ticks: { color: COLORS.muted }, grid: { display: false } },
+            y: { ticks: { color: COLORS.muted, callback: v => v + ' bpm' }, grid: { color: COLORS.grid } },
+          },
         },
-      }),
-    });
-
-    // H3 — HRV noturno vs média móvel 7 noites (desvio do próprio baseline)
-    mk('t-hrv-ma', {
-      data: {
-        labels,
-        datasets: [
-          { type: 'bar',  label: 'HRV noturno', data: noite, backgroundColor: 'rgba(198,241,53,0.4)', borderColor: COLORS.line, borderWidth: 1, borderRadius: 3 },
-          { type: 'line', label: 'Média 7 noites', data: movingAvg(noite, 7), borderColor: COLORS.amber, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3 },
-        ],
-      },
-      options: baseOpts({ scales: { x: { ticks: { color: COLORS.muted2, maxTicksLimit: 10 }, grid: { display: false } }, y: { ticks: { color: COLORS.muted2, callback: v => v + ' ms' }, grid: { color: COLORS.grid } } } }),
-    });
+      });
+    }
   }
 
   async function load() {
     const empty = $('testes-empty');
     try {
-      const health = await window.Api.get('/garmin/health?days=60').catch(() => []);
-      const arr = Array.isArray(health) ? [...health].sort((a, b) => a.data.localeCompare(b.data)) : [];
-      const last30 = arr.slice(-30);
-      if (last30.length === 0) {
-        if (empty) { empty.hidden = false; empty.textContent = 'Sem dados de saúde do Garmin para exibir.'; }
+      const user  = (window.Storage && Storage.getUser) ? Storage.getUser() : {};
+      const idade = (window.Profile && Profile.calcAge) ? Profile.calcAge(user.dataNascimento) : 0;
+      if (!idade) {
+        if (empty) { empty.hidden = false; empty.textContent = 'Defina a data de nascimento no perfil para simular as zonas.'; }
         return;
       }
+      const fcmHoje   = Profile.calcFCMax(idade);          // 220 − idade
+      const fcmTanaka = Math.round(208 - 0.7 * idade);     // Tanaka
+
+      // FC de repouso: campo mais recente do Garmin; fallback 60 bpm.
+      let fcRep = 60, fcRepFonte = 'estimada (sem dado Garmin)';
+      try {
+        const health = await window.Api.get('/garmin/health?days=30').catch(() => []);
+        const arr = Array.isArray(health) ? [...health].sort((a, b) => a.data.localeCompare(b.data)) : [];
+        for (let i = arr.length - 1; i >= 0; i--) {
+          if (arr[i] && arr[i].fc_repouso != null) { fcRep = arr[i].fc_repouso; fcRepFonte = 'Garmin, ' + arr[i].data; break; }
+        }
+      } catch (_) {}
+
       if (empty) empty.hidden = true;
-      renderSono(last30);
-      renderHrv(last30);
+      renderCompare({ idade, fcmHoje, fcmTanaka, fcRep, fcRepFonte });
     } catch (err) {
       console.error('[testes]', err);
-      if (empty) { empty.hidden = false; empty.textContent = 'Falha ao carregar dados de teste.'; }
+      if (empty) { empty.hidden = false; empty.textContent = 'Falha ao montar a comparação de zonas.'; }
     }
   }
 

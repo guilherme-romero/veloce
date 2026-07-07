@@ -260,7 +260,7 @@ function updateDbBadge() {
 
 function calcGear() {
   const casseteId = parseInt(document.getElementById('gear-cassete').value);
-  if (!casseteId) { alert('Selecione um cassete antes de calcular.'); return; }
+  if (!casseteId) { if (window.toast) window.toast('Selecione um cassete antes de calcular.', { kind: 'error' }); return; }
   const cassete  = CASSETES_DATA.find(x => x.id === casseteId);
   if (!cassete) return;
 
@@ -612,9 +612,11 @@ function populateTerrainGrid() {
     };
     grid.appendChild(div);
   });
-  document.getElementById('terrain-guide').addEventListener('click', function(e){
-    if (e.target === this) this.close();
-  });
+  const dlg = document.getElementById('terrain-guide');
+  if (dlg && !dlg.dataset.closeWired) {
+    dlg.dataset.closeWired = '1';
+    dlg.addEventListener('click', function(e){ if (e.target === this) this.close(); });
+  }
 }
 
 // ─── LOAD (chamado pelo router na 1ª visita) ──────────────────────────────────
