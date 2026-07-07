@@ -178,8 +178,13 @@ function importHomeExercises(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
+      if (!data || typeof data !== 'object') throw new Error('Formato inválido');
       if (!data.homeExercises || !Array.isArray(data.homeExercises)) {
         throw new Error('Arquivo sem dados de circuito');
+      }
+      if (data.homeExercises.length > 500) throw new Error('Lista de exercícios muito grande');
+      if (!data.homeExercises.every(x => x && typeof x === 'object' && !Array.isArray(x))) {
+        throw new Error('Estrutura de exercícios inválida');
       }
       Storage.setHomeExercises(data.homeExercises);
       renderHomeExercises();

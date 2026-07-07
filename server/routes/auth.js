@@ -47,7 +47,7 @@ async function routes(fastify) {
     return { ok: true, user: config.ADMIN_USER };
   });
 
-  fastify.post('/api/auth/logout', async (req, reply) => {
+  fastify.post('/api/auth/logout', { preHandler: requireAuth }, async (req, reply) => {
     // Invalida server-side: tokens emitidos antes deste timestamp serão
     // rejeitados pelo requireAuth, mesmo se exfiltrados.
     const now = Math.floor(Date.now() / 1000);

@@ -12,6 +12,23 @@ Se houver mudanças em `server/package.json` ou `server/package-lock.json`, rode
 
 Se algo na validação falhar, pare aqui e reporte o erro antes de prosseguir.
 
+### 1.5. Revisão de código com subagents (recomendado)
+
+Antes de commitar, rode a rotina de revisão sobre **o que mudou** (não o projeto inteiro):
+
+- Dispare o subagent **`code-reviewer`** com o escopo do `git diff` (arquivos alterados),
+  pedindo o formato padrão `## BUGS` / `## MELHORIAS` com `arquivo:linha` e severidade.
+- Se o diff tocar **lógica de treino/fisiologia** (`js/profile.js`, `js/insights.js`,
+  `js/workouts.js` — FCM, zonas, TRIMP/TSS/CTL/ATL/TSB), dispare também **`personal-trainer`**
+  para checar correção das fórmulas.
+- Se o diff tocar **lógica nutricional** (calculadora em `js/ferramentas.js`), dispare
+  **`nutritionist`** para checar constantes/faixas seguras.
+
+Consolide os achados: **verifique** cada item CRÍTICO/IMPORTANTE lendo o código antes de aceitar,
+corrija o que for barato agora e **registre o restante** em `BUGS.md` (bugs) e `MELHORIAS.md`
+(melhorias), preservando o formato desses arquivos. Não bloqueie o deploy por MENORES/nitpicks —
+apenas registre-os.
+
 ### 2. Verificar versão
 
 Confira a versão atual em `js/version.js`. Se as mudanças incluem novas features ou bugfixes relevantes, verifique se a versão já foi bumpada nos 4 lugares obrigatórios:

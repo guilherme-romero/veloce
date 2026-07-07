@@ -45,7 +45,7 @@ async function routes(fastify) {
     if (!TIPOS_VALIDOS.includes(tipo)) {
       return reply.code(400).send({ error: 'tipo inválido (atual|historico)' });
     }
-    const fonteFinal = fonte && typeof fonte === 'string' ? fonte : 'manual';
+    const fonteFinal = ['manual', 'garmin'].includes(fonte) ? fonte : 'manual';
 
     const info = fastify.db
       .prepare('INSERT INTO weights (data, peso, tipo, fonte) VALUES (?, ?, ?, ?)')

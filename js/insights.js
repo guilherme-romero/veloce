@@ -94,7 +94,9 @@
   // Média exponencial decaída: TC(hoje) = TC(ontem) + (TSS - TC(ontem)) / tau
   function calcEMA(serieDiaria, tau) {
     if (!serieDiaria.length) return 0;
-    let ema = serieDiaria[0];
+    // Warm-up a partir de 0: com carga zero antes da janela, evita que o
+    // primeiro dia infle CTL/ATL no início do histórico (só converge após ~tau dias).
+    let ema = 0;
     for (let i = 1; i < serieDiaria.length; i++) {
       ema = ema + (serieDiaria[i] - ema) / tau;
     }
@@ -531,6 +533,7 @@
       $('readiness-fill').style.background = color;
     }
     $('readiness-sleep').textContent = latest.sleep_score != null ? `${latest.sleep_score}` : '—';
+    // NB: apesar do nome, `recovery_time_h` guarda MINUTOS (Garmin `recoveryTime`); /60 → horas.
     $('readiness-recovery').textContent = latest.recovery_time_h != null ? `${Math.round(latest.recovery_time_h / 60)}h` : '—';
     $('readiness-hrv').textContent = latest.hrv_weekly_avg != null ? `${latest.hrv_weekly_avg} ms` : '—';
     $('readiness-msg').textContent = msg;
@@ -701,6 +704,129 @@
     return true;
   }
 
+  // ── Endurance Score: tabela de referência oficial da Garmin ──────
+  // Classificação por faixa etária × sexo, em 7 categorias (Recreativo →
+  // Elite). Cada linha: [idadeMin, idadeMax, [t1..t6]] — os 6 limiares de
+  // ENTRADA das categorias 2–7. Categoria 0 (Recreativo) = score < t1;
+  // categoria 6 (Elite) = score >= t6. As cores acompanham a paleta do
+  // projeto (mapeadas de endurance_score_color.txt). Traduzido de
+  // melhorias/endurance_score/ (dados originais da Garmin).
+  const ENDURANCE_TIERS = [
+    { label: 'Recreativo',    color: 'var(--red)'    }, // RED
+    { label: 'Intermediário', color: 'var(--orange)' }, // ORANGE
+    { label: 'Treinado',      color: 'var(--amber)'  }, // YELLOW
+    { label: 'Bem Treinado',  color: 'var(--green)'  }, // GREEN
+    { label: 'Especialista',  color: 'var(--blue)'   }, // BLUE
+    { label: 'Superior',      color: 'var(--purple)' }, // PURPLE
+    { label: 'Elite',         color: 'var(--pink)'   }, // PINK
+  ];
+  const ENDURANCE_TABLE = {
+    m: [
+      [18, 20, [5000, 5700, 6300, 7000, 7600, 8300]],
+      [21, 39, [5100, 5800, 6600, 7300, 8100, 8800]],
+      [40, 44, [5100, 5800, 6500, 7200, 7900, 8600]],
+      [45, 49, [5000, 5700, 6400, 7000, 7700, 8400]],
+      [50, 54, [4900, 5500, 6100, 6800, 7400, 8000]],
+      [55, 59, [4600, 5100, 5700, 6200, 6800, 7300]],
+      [60, 64, [4300, 4800, 5300, 5700, 6200, 6700]],
+      [65, 69, [4100, 4500, 4900, 5400, 5800, 6200]],
+      [70, 74, [3800, 4200, 4600, 4900, 5300, 5700]],
+      [75, 80, [3600, 3900, 4300, 4600, 5000, 5300]],
+      [81, 200, [3300, 3600, 4000, 4300, 4700, 5000]],
+    ],
+    f: [
+      [18, 20, [4600, 5100, 5500, 6000, 6400, 6900]],
+      [21, 39, [4700, 5200, 5700, 6300, 6800, 7300]],
+      [40, 44, [4700, 5200, 5700, 6200, 6700, 7200]],
+      [45, 49, [4600, 5100, 5600, 6100, 6600, 7100]],
+      [50, 54, [4500, 5000, 5400, 5900, 6300, 6800]],
+      [55, 59, [4300, 4700, 5100, 5600, 6000, 6400]],
+      [60, 64, [4100, 4500, 4900, 5300, 5700, 6100]],
+      [65, 69, [3800, 4200, 4600, 4900, 5300, 5700]],
+      [70, 74, [3700, 4100, 4400, 4800, 5100, 5500]],
+      [75, 80, [3500, 3800, 4200, 4500, 4900, 5200]],
+      [81, 200, [3200, 3500, 3800, 4100, 4400, 4700]],
+    ],
+  };
+
+  function _age(iso) {
+    if (window.Profile && Profile.calcAge) return Profile.calcAge(iso);
+    if (!iso) return 0;
+    const [y, m, d] = iso.split('-').map(Number);
+    const t = new Date();
+    let a = t.getFullYear() - y;
+    if (t.getMonth() + 1 < m || (t.getMonth() + 1 === m && t.getDate() < d)) a--;
+    return a > 0 ? a : 0;
+  }
+
+  // Linha da tabela para o sexo/idade informados (null se sem idade).
+  function enduranceRow(sexo, idade) {
+    if (!idade) return null;
+    const rows = ENDURANCE_TABLE[sexo === 'f' ? 'f' : 'm'];
+    for (const r of rows) if (idade <= r[1]) return r;
+    return rows[rows.length - 1];
+  }
+
+  // { idx: 0–6 (categoria atual), next: limiar do próximo estágio ou null }.
+  function enduranceTier(score, row) {
+    if (score == null || !row) return null;
+    const th = row[2];
+    let idx = 0;
+    for (let i = 0; i < th.length; i++) { if (score >= th[i]) idx = i + 1; else break; }
+    return { idx, next: idx < th.length ? th[idx] : null };
+  }
+
+  // Abre o modal "Guia score" com o detalhamento por faixa etária/sexo.
+  function openEnduranceGuide(user, idade, score, row, tier) {
+    if (!window.Modals || !row) return;
+    const esc = window.esc || (s => String(s == null ? '' : s));
+    const fmt = (n) => Number(n).toLocaleString('pt-BR');
+    const th = row[2];
+
+    const rangeText = (i) => {
+      if (i === 0) return `até ${fmt(th[0] - 1)}`;
+      if (i === ENDURANCE_TIERS.length - 1) return `${fmt(th[i - 1])}+`;
+      return `${fmt(th[i - 1])}–${fmt(th[i] - 1)}`;
+    };
+
+    const rowsHTML = ENDURANCE_TIERS.map((t, i) => {
+      const cur = tier && tier.idx === i;
+      return `<div class="endurance-guide__row${cur ? ' endurance-guide__row--current' : ''}" style="--tier-color:${t.color}">
+        <span class="endurance-guide__dot"></span>
+        <span class="endurance-guide__name">${esc(t.label)}</span>
+        <span class="endurance-guide__range">${rangeText(i)}</span>
+        ${cur ? '<span class="endurance-guide__you">Você</span>' : ''}
+      </div>`;
+    }).join('');
+
+    let statusHTML;
+    if (tier && tier.next != null) {
+      const falta = tier.next - score;
+      const catName = ENDURANCE_TIERS[tier.idx].label;
+      const prox = ENDURANCE_TIERS[tier.idx + 1].label;
+      statusHTML = `Você está em <strong>${esc(catName)}</strong> com score <strong>${fmt(score)}</strong>. Faltam <strong>${fmt(falta)}</strong> ponto${falta === 1 ? '' : 's'} para <strong>${esc(prox)}</strong>.`;
+    } else if (tier) {
+      statusHTML = `Você está em <strong>Elite</strong> com score <strong>${fmt(score)}</strong> — o estágio mais alto da escala. 🏆`;
+    } else {
+      statusHTML = `Score atual: <strong>${fmt(score)}</strong>.`;
+    }
+
+    const faixaTxt = row[1] >= 200 ? `${row[0]}+ anos` : `${row[0]}–${row[1]} anos`;
+    const sexoTxt = user.sexo === 'f' ? 'feminina' : 'masculina';
+
+    Modals.open({
+      tag: 'Endurance Score',
+      title: 'Guia do Endurance Score',
+      bodyHTML: `
+        <p class="endurance-guide__intro">O <strong>Endurance Score</strong> é uma métrica da Garmin que mede sua resistência aeróbica geral, combinando volume e intensidade dos treinos ao longo do tempo. Quanto mais consistente e prolongado o esforço, maior o score. A tabela abaixo é a referência oficial da Garmin para a faixa <strong>${esc(faixaTxt)}</strong> (${sexoTxt}).</p>
+        <div class="endurance-guide__status">${statusHTML}</div>
+        <div class="endurance-guide__table">${rowsHTML}</div>
+        <p class="endurance-guide__foot">Classificação de referência por idade e sexo. O score exibido no card vem diretamente do seu Garmin Connect.</p>
+      `,
+      actions: [{ label: 'Fechar', kind: 'primary', onClick: () => Modals.close() }],
+    });
+  }
+
   // 7.9 — Hill + Endurance Score (Garmin)
   function renderScores(items) {
     const card = $('card-scores');
@@ -733,15 +859,44 @@
       'Score de elite — foque em manutenção, especificidade de prova e recuperação fina.',
     ];
 
+    // Categoria de referência (tabela Garmin) a partir do score + perfil, para
+    // colorir a barra por progressão e alimentar o "Guia score". A fonte do
+    // score continua sendo a Garmin — a tabela só classifica e colore.
+    const user = (window.Storage && Storage.getUser) ? Storage.getUser() : {};
+    const idade = _age(user.dataNascimento);
+    const eRow = enduranceRow(user.sexo, idade);
+    const eTier = enduranceTier(eVal, eRow);
+
     $('endurance-value').textContent = eVal ?? '—';
     if (eVal != null) {
       const pct = Math.max(0, Math.min(100, ((eVal - eMin) / (eMax - eMin)) * 100));
       $('endurance-fill').style.width = pct + '%';
-      $('endurance-fill').style.background = COLORS.teal;
+      $('endurance-fill').style.background = eTier ? ENDURANCE_TIERS[eTier.idx].color : COLORS.teal;
     }
-    $('endurance-meta').textContent = `${eMin}–${eMax} · ${CLASS_LABELS[eClass] || ''}`;
+    // Abaixo da barra: quanto falta para o próximo estágio (tabela Garmin por
+    // idade/sexo). Sem idade/sexo → fallback para a classificação Garmin.
+    if (eVal != null && eTier && eTier.next != null) {
+      const falta = Math.max(0, eTier.next - eVal);
+      $('endurance-meta').textContent = `${falta.toLocaleString('pt-BR')} pontos para ${ENDURANCE_TIERS[eTier.idx + 1].label}`;
+    } else if (eVal != null && eTier) {
+      $('endurance-meta').textContent = 'Nível máximo — Elite';
+    } else {
+      $('endurance-meta').textContent = CLASS_LABELS[eClass] || '';
+    }
     const eTip = $('endurance-tip');
     if (eTip) eTip.textContent = eVal != null ? (ENDURANCE_TIPS[eClass] || ENDURANCE_TIPS[0]) : '';
+
+    // Link "Guia score" — só quando há score e perfil (idade/sexo) para a tabela.
+    const guideBtn = $('btn-endurance-guide');
+    if (guideBtn) {
+      if (eVal != null && eRow) {
+        guideBtn.hidden = false;
+        guideBtn.onclick = () => openEnduranceGuide(user, idade, eVal, eRow, eTier);
+      } else {
+        guideBtn.hidden = true;
+        guideBtn.onclick = null;
+      }
+    }
 
     // Hill
     const hVal = latest.hill_score;

@@ -272,11 +272,11 @@
         const { id, fonte } = btn.dataset;
         try {
           await window.Api.del(`/activities/${fonte}/${id}`);
-          if (window.toast) window.toast('Atividade excluída', 'success');
+          if (window.toast) window.toast('Atividade excluída', { kind: 'success' });
           loadLastActivities();
         } catch (err) {
           console.error('[home] delete activity', err);
-          if (window.toast) window.toast('Falha ao excluir atividade', 'error');
+          if (window.toast) window.toast('Falha ao excluir atividade', { kind: 'error' });
         }
       });
     }
@@ -314,7 +314,7 @@
     const doGarmin = !!(garminStatus && garminStatus.configured && garminStatus.connected && window.Garmin && Garmin.sync);
 
     if (!doStrava && !doGarmin) {
-      if (window.toast) window.toast('Nenhum serviço conectado. Configure em Conexões.', 'error');
+      if (window.toast) window.toast('Nenhum serviço conectado. Configure em Conexões.', { kind: 'error' });
       if (btn) { btn.disabled = false; btn.innerHTML = original; }
       return;
     }
@@ -324,7 +324,7 @@
       doGarmin ? Garmin.sync() : Promise.resolve(),
     ]);
     const failed = results.filter(r => r.status === 'rejected').length;
-    if (failed && window.toast) window.toast('Sincronização concluída com erros em ' + failed + ' serviço(s).', 'error');
+    if (failed && window.toast) window.toast('Sincronização concluída com erros em ' + failed + ' serviço(s).', { kind: 'error' });
 
     // Atualiza KPIs/atividades da Home após o sync
     try { load(); } catch (_) {}

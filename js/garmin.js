@@ -166,7 +166,7 @@
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando…'; }
     try {
       await window.Api.post('/garmin/login', {});
-      if (window.toast) window.toast('Conectado à Garmin', 'success');
+      if (window.toast) window.toast('Conectado à Garmin', { kind: 'success' });
       await load();
     } catch (err) {
       if (err.status === 409) {
@@ -178,15 +178,15 @@
         }
         try {
           await window.Api.post('/garmin/login', { mfa: code });
-          if (window.toast) window.toast('Conectado à Garmin', 'success');
+          if (window.toast) window.toast('Conectado à Garmin', { kind: 'success' });
           await load();
         } catch (e2) {
-          if (window.toast) window.toast('Falha no login: ' + (e2.message || e2), 'error');
+          if (window.toast) window.toast('Falha no login: ' + (e2.message || e2), { kind: 'error' });
           if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plug"></i> Conectar'; }
         }
         return;
       }
-      if (window.toast) window.toast('Falha no login: ' + (err.message || err), 'error');
+      if (window.toast) window.toast('Falha no login: ' + (err.message || err), { kind: 'error' });
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plug"></i> Conectar'; }
     }
   }
@@ -204,7 +204,7 @@
       if (window.toast) window.toast('Sessão Garmin removida');
       await load();
     } catch (err) {
-      if (window.toast) window.toast('Falha: ' + (err.message || err), 'error');
+      if (window.toast) window.toast('Falha: ' + (err.message || err), { kind: 'error' });
     }
   }
 
@@ -231,7 +231,7 @@
         if (extrasRes.scores) extras.push(`${extrasRes.scores} scores`);
         if (extras.length) parts.push(extras.join(' + '));
       }
-      if (window.toast) window.toast(parts.join(' · '), 'success');
+      if (window.toast) window.toast(parts.join(' · '), { kind: 'success' });
       try {
         if (window.Storage && Storage.loadAll) await Storage.loadAll();
         if (window.Rides && Rides.render) Rides.render();
@@ -242,7 +242,7 @@
       await load();
     } catch (err) {
       console.error('[garmin] sync', err);
-      if (window.toast) window.toast('Falha ao sincronizar: ' + (err.message || err), 'error');
+      if (window.toast) window.toast('Falha ao sincronizar: ' + (err.message || err), { kind: 'error' });
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Sincronizar últimos 90 dias'; }
     }
   }

@@ -982,7 +982,7 @@
           const novoModelo = m.querySelector('#sub-modelo').value.trim();
           try {
             await window.Api.post(`/bikes/${bike.id}/components/${compId}/substituir`,
-              { data, notas, review, rating, vidaUtilKm, novaMarca, novoModelo, novaObservacao: notas });
+              { data, notas, review, rating, vidaUtilKm, novaMarca, novoModelo });
             toast('Substituição registrada');
             Modals.close();
             await load();

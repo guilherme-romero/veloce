@@ -572,7 +572,7 @@ async function buildRelatorioPDF(daysWindow) {
     return el ? (el.textContent || '').trim() : '—';
   };
   writeLine('Fadiga (0-100):',         readVal('fadiga-score'));
-  writeLine('Training Readiness:',     readVal('readiness-value'));
+  writeLine('Training Readiness:',     readVal('readiness-score'));
   writeLine('Endurance Score:',        readVal('endurance-value'));
   writeLine('Hill Score:',             readVal('hill-value'));
   writeLine('TRIMP/kg semanal:',       readVal('intensity-week'));
@@ -914,9 +914,16 @@ function exportWeightsCSV() {
   try {
     const weights = Storage.getWeights().sort((a, b) => a.data.localeCompare(b.data));
     if (!weights.length) { toast('Nenhuma pesagem registrada', { kind: 'error' }); return; }
+    // Quota campos e neutraliza fórmulas (CSV/formula injection): prefixa com
+    // apóstrofo valores que começam com = + - @ e escapa aspas duplas.
+    const csvCell = (v) => {
+      let s = String(v == null ? '' : v);
+      if (/^[=+\-@]/.test(s)) s = "'" + s;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const header = 'data,peso_kg,tipo,fonte\n';
     const rows = weights.map(w =>
-      `${w.data},${w.peso},${w.tipo || 'atual'},${w.fonte || 'manual'}`
+      [w.data, w.peso, w.tipo || 'atual', w.fonte || 'manual'].map(csvCell).join(',')
     ).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

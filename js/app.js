@@ -83,6 +83,17 @@ function openProfileModal() {
 
       <div class="field-row">
         <div class="field">
+          <label class="field-label" for="f-sexo">Sexo</label>
+          <select id="f-sexo" class="field-select">
+            <option value="m"${u.sexo !== 'f' ? ' selected' : ''}>Masculino</option>
+            <option value="f"${u.sexo === 'f' ? ' selected' : ''}>Feminino</option>
+          </select>
+          <span class="field-hint">Usado no guia do Endurance Score (tabela de referência Garmin).</span>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
           <label class="field-label" for="f-meta">Peso meta (kg)</label>
           <input id="f-meta" class="field-input" type="number" min="30" max="250" step="0.1" value="${u.pesoMeta || ''}" />
           <span class="field-hint">O peso atual vem automaticamente da balança Garmin.</span>
@@ -205,6 +216,7 @@ function saveProfile(modal) {
     ...current,
     nome:            get('f-nome'),
     dataNascimento:  get('f-nasc'),
+    sexo:            get('f-sexo') || 'm',
     altura:          num('f-altura'),
     // pesoAtual NÃO é editável aqui — vem do sync da balança Garmin
     pesoMeta:        num('f-meta'),
@@ -249,6 +261,13 @@ function openOnboardingModal() {
       </div>
       <div class="field-row">
         <div class="field">
+          <label class="field-label" for="ob-sexo">Sexo</label>
+          <select id="ob-sexo" class="field-select">
+            <option value="m" selected>Masculino</option>
+            <option value="f">Feminino</option>
+          </select>
+        </div>
+        <div class="field">
           <label class="field-label" for="ob-peso">Peso atual (kg)</label>
           <input id="ob-peso" class="field-input" type="number" min="30" max="250" step="0.1" placeholder="80,0" />
         </div>
@@ -287,6 +306,7 @@ function saveOnboarding(modal) {
     ...u,
     nome,
     dataNascimento:  get('ob-nasc'),
+    sexo:            get('ob-sexo') || 'm',
     altura:          num('ob-altura') || 170,
     pesoAtual:       num('ob-peso')   || 80,
     pesoMeta:        num('ob-meta')   || 70,
@@ -493,8 +513,8 @@ async function boot() {
     const labels = window.LOAD_ERRORS.map(f => f.label).join(', ');
     console.error('[boot] Falhas ao carregar dados:', window.LOAD_ERRORS);
     try {
-      if (window.Modals && typeof Modals.toast === 'function') {
-        Modals.toast(`Falha ao carregar: ${labels}. Recarregue a página.`, 'error');
+      if (typeof window.toast === 'function') {
+        window.toast(`Falha ao carregar: ${labels}. Recarregue a página.`, { kind: 'error' });
       } else {
         alert(`Falha ao carregar dados: ${labels}\n\nRecarregue a página antes de modificar qualquer informação.`);
       }

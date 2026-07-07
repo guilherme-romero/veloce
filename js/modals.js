@@ -22,8 +22,8 @@ function openModal({ tag, title, bodyHTML, actions = [], onMount }) {
     <div class="modal" role="dialog" aria-modal="true">
       <div class="modal-head">
         <div class="modal-head-text">
-          ${tag ? `<span class="modal-tag">${tag}</span>` : ''}
-          <h3 class="modal-title">${title}</h3>
+          ${tag ? `<span class="modal-tag">${esc(tag)}</span>` : ''}
+          <h3 class="modal-title">${esc(title)}</h3>
         </div>
         <button class="close-btn" data-close type="button" aria-label="Fechar">
           <i class="fa-solid fa-xmark"></i>
@@ -36,7 +36,7 @@ function openModal({ tag, title, bodyHTML, actions = [], onMount }) {
             a.kind === 'primary' ? 'btn-primary'
             : a.kind === 'danger' ? 'btn-danger'
             : 'btn-ghost'
-          }" data-action="${i}">${a.label}</button>
+          }" data-action="${i}">${esc(a.label)}</button>
         `).join('')}
       </div>
     </div>
@@ -90,7 +90,7 @@ function confirmModal({ title, message = '', confirmLabel = 'Confirmar', cancelL
     const finish = (val) => { if (settled) return; settled = true; resolve(val); };
     openModal({
       tag: 'Confirmar',
-      title: esc(title),
+      title,
       bodyHTML: message ? `<p class="modal-confirm-text">${esc(message)}</p>` : '',
       actions: [
         { label: cancelLabel,  kind: 'ghost', onClick: () => { closeModal(); finish(false); } },
@@ -125,7 +125,7 @@ function toast(message, { kind = 'success', duration = 2400 } = {}) {
   const el = document.createElement('div');
   el.className = `toast ${kind === 'error' ? 'toast-error' : ''}`;
   const icon = kind === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check';
-  el.innerHTML = `<i class="fa-solid ${icon}"></i><span>${message}</span>`;
+  el.innerHTML = `<i class="fa-solid ${icon}"></i><span>${esc(message)}</span>`;
   stack.appendChild(el);
 
   setTimeout(() => {

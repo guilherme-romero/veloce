@@ -83,6 +83,9 @@ async function routes(fastify) {
   // ── POST /api/garmin/login ───────────────────────────────────────
   fastify.post('/api/garmin/login', async (req, reply) => {
     const mfa = (req.body && req.body.mfa) || null;
+    if (mfa != null && !/^\d{6,8}$/.test(String(mfa))) {
+      return reply.code(400).send({ error: 'Código MFA inválido (6 a 8 dígitos)' });
+    }
     try {
       const res = await garmin.login(mfa);
       return res;

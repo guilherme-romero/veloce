@@ -91,9 +91,13 @@ function calcPSI() {
   const distribRaw = document.getElementById('psi-distrib').value;
   const terrain = document.getElementById('psi-terrain').value;
 
+  // Distribuição de peso "frente/trás" (ex.: "40/60"). Valida 2 números que
+  // somem ~100; senão, fallback 40/60 para não exibir "NaN psi".
   const parts    = distribRaw.split('/').map(Number);
-  const frontPct = parts[0] / 100;
-  const rearPct  = parts[1] / 100;
+  const distribOk = parts.length === 2 && parts.every(n => isFinite(n) && n > 0)
+                    && Math.abs(parts[0] + parts[1] - 100) < 0.5;
+  const frontPct = distribOk ? parts[0] / 100 : 0.40;
+  const rearPct  = distribOk ? parts[1] / 100 : 0.60;
 
   const totalKg  = rider + bike + equip;
   const totalLbs = totalKg * 2.20462;

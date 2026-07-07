@@ -6,8 +6,8 @@
   const userEl  = document.getElementById('login-user');
   const passEl  = document.getElementById('login-pass');
   const btn     = document.getElementById('login-submit');
-  const btnLbl  = btn.querySelector('.login-btn-label');
-  const btnSpin = btn.querySelector('.login-btn-spin');
+  const btnLbl  = btn ? btn.querySelector('.login-btn-label') : null;
+  const btnSpin = btn ? btn.querySelector('.login-btn-spin') : null;
   const errEl   = document.getElementById('login-error');
   const eyeBtn  = document.getElementById('login-toggle-pass');
   const forgot  = document.getElementById('login-forgot');
@@ -29,11 +29,11 @@
     errEl.textContent = '';
   }
   function setBusy(busy) {
-    btn.disabled = busy;
-    userEl.disabled = busy;
-    passEl.disabled = busy;
-    btnLbl.hidden = busy;
-    btnSpin.hidden = !busy;
+    if (btn) btn.disabled = busy;
+    if (userEl) userEl.disabled = busy;
+    if (passEl) passEl.disabled = busy;
+    if (btnLbl) btnLbl.hidden = busy;
+    if (btnSpin) btnSpin.hidden = !busy;
   }
 
   eyeBtn.addEventListener('click', () => {

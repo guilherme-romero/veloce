@@ -15,11 +15,11 @@
              worker-src 'self';"
   >
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.1.4">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.1.4">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.1.4">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.1.4">
-  <link rel="manifest" href="manifest.json?v=2.1.4">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.1.6">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.1.6">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.1.6">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.1.6">
+  <link rel="manifest" href="manifest.json?v=2.1.6">
 
   <title>Treino Bike</title>
 
@@ -38,11 +38,11 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.1.4">
-  <link rel="stylesheet" href="css/rides.css?v=2.1.4">
-  <link rel="stylesheet" href="css/routes.css?v=2.1.4">
-  <link rel="stylesheet" href="css/bikes.css?v=2.1.4">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.1.4">
+  <link rel="stylesheet" href="css/style.css?v=2.1.6">
+  <link rel="stylesheet" href="css/rides.css?v=2.1.6">
+  <link rel="stylesheet" href="css/routes.css?v=2.1.6">
+  <link rel="stylesheet" href="css/bikes.css?v=2.1.6">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.1.6">
 </head>
 <body>
 
@@ -956,7 +956,10 @@
             <div class="card-label">Hill Score + Endurance Score (Garmin)</div>
             <button class="insight-info-btn" data-info="Scores Garmin calculados a partir do histórico de treinos. Endurance Score mede resistência aeróbica geral (volume e intensidade ao longo do tempo). Hill Score mede capacidade em subidas (potência relativa em percursos com desnível). Ambos crescem gradualmente com treino consistente."><i class="fa-solid fa-circle-info"></i></button>
           </div>
-          <span class="insight-badge" id="scores-class">—</span>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <button class="score-guide-link" id="btn-endurance-guide" type="button" hidden><i class="fa-solid fa-book-open"></i> Guia score</button>
+            <span class="insight-badge" id="scores-class">—</span>
+          </div>
         </div>
         <div class="scores-grid" style="grid-template-columns: 1fr;">
           <div class="score-box">
@@ -1567,33 +1570,33 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.1.4"></script>
-<script src="js/utils.js?v=2.1.4"></script>
-<script src="js/router.js?v=2.1.4"></script>
-<script src="js/defaults.js?v=2.1.4"></script>
-<script src="js/api.js?v=2.1.4"></script>
-<script src="js/storage.js?v=2.1.4"></script>
-<script src="js/profile.js?v=2.1.4"></script>
-<script src="js/charts.js?v=2.1.4"></script>
-<script src="js/modals.js?v=2.1.4"></script>
-<script src="js/workouts.js?v=2.1.4"></script>
-<script src="js/rides.js?v=2.1.4"></script>
-<script src="js/bikes.js?v=2.1.4"></script>
-<script src="js/training-log.js?v=2.1.4"></script>
-<script src="js/home-workout.js?v=2.1.4"></script>
-<script src="js/backup.js?v=2.1.4"></script>
-<script src="js/gpx.js?v=2.1.4"></script>
-<script src="js/routes.js?v=2.1.4"></script>
-<script src="js/heatmap.js?v=2.1.4"></script>
-<script src="js/strava.js?v=2.1.4"></script>
-<script src="js/garmin.js?v=2.1.4"></script>
-<script src="js/activities.js?v=2.1.4"></script>
-<script src="js/insights.js?v=2.1.4"></script>
-<script src="js/testes.js?v=2.1.4"></script>
-<script src="js/ferramentas.js?v=2.1.4"></script>
-<script src="js/home.js?v=2.1.4"></script>
-<script src="js/app.js?v=2.1.4"></script>
-<script src="js/pwa.js?v=2.1.4"></script>
+<script src="js/version.js?v=2.1.6"></script>
+<script src="js/utils.js?v=2.1.6"></script>
+<script src="js/router.js?v=2.1.6"></script>
+<script src="js/defaults.js?v=2.1.6"></script>
+<script src="js/api.js?v=2.1.6"></script>
+<script src="js/storage.js?v=2.1.6"></script>
+<script src="js/profile.js?v=2.1.6"></script>
+<script src="js/charts.js?v=2.1.6"></script>
+<script src="js/modals.js?v=2.1.6"></script>
+<script src="js/workouts.js?v=2.1.6"></script>
+<script src="js/rides.js?v=2.1.6"></script>
+<script src="js/bikes.js?v=2.1.6"></script>
+<script src="js/training-log.js?v=2.1.6"></script>
+<script src="js/home-workout.js?v=2.1.6"></script>
+<script src="js/backup.js?v=2.1.6"></script>
+<script src="js/gpx.js?v=2.1.6"></script>
+<script src="js/routes.js?v=2.1.6"></script>
+<script src="js/heatmap.js?v=2.1.6"></script>
+<script src="js/strava.js?v=2.1.6"></script>
+<script src="js/garmin.js?v=2.1.6"></script>
+<script src="js/activities.js?v=2.1.6"></script>
+<script src="js/insights.js?v=2.1.6"></script>
+<script src="js/testes.js?v=2.1.6"></script>
+<script src="js/ferramentas.js?v=2.1.6"></script>
+<script src="js/home.js?v=2.1.6"></script>
+<script src="js/app.js?v=2.1.6"></script>
+<script src="js/pwa.js?v=2.1.6"></script>
 
 </body>
 </html>

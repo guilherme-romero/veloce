@@ -19,8 +19,6 @@ data/demo.db-shm
 
 # Avatares (dados pessoais)
 data/avatars/
-bike_garage/
-docs/
 
 # Sessao SSO do Garmin (tokens)
 data/garmin_session/
@@ -58,8 +56,6 @@ Thumbs.db
 # Páginas-modelo (referência visual local)
 modelo2_html/
 
-# Handoff de design (referência visual local, runtime de protótipo)
-design_handoff_treinobike_hivis/
+# Melhorias Futuras
+melhorias/
 
-# Quarentena de arquivos órfãos (avaliar e apagar — fora do repo)
-excluir/

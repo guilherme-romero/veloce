@@ -481,7 +481,15 @@ function importPlan(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
+      if (!data || typeof data !== 'object') throw new Error('Formato inválido');
       if (!data.modes && !data.workouts) throw new Error('Arquivo sem dados de plano');
+      // Valida estrutura antes de injetar no Storage (import não confiável).
+      if (data.modes != null) {
+        if (!Array.isArray(data.modes) || data.modes.length > 200) throw new Error('Lista de modos inválida');
+      }
+      if (data.workouts != null) {
+        if (typeof data.workouts !== 'object' || Array.isArray(data.workouts)) throw new Error('Estrutura de exercícios inválida');
+      }
       if (data.modes)    Storage.setModes(data.modes);
       if (data.workouts) Storage.setWorkouts(data.workouts);
       renderModes();

@@ -511,7 +511,7 @@
     } else {
       Storage.updateTrainingEntry(id, { tipos, payload: newPayload });
     }
-    if (window.toast) window.toast('Registro descartado', 'success');
+    if (window.toast) window.toast('Registro descartado', { kind: 'success' });
     renderReview();
     if (window.Rides?.render) Rides.render();
   }

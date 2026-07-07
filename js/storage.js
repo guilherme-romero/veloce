@@ -22,6 +22,7 @@ const DEFAULTS = {
   user: {
     nome: '',
     dataNascimento: '',
+    sexo: 'm',
     altura: 170,
     pesoAtual: 80,
     pesoMeta: 70,

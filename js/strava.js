@@ -59,13 +59,13 @@
     const a = status.athlete || {};
     const name = esc(`${a.firstname || ''} ${a.lastname || ''}`.trim() || a.username || 'Atleta');
     const totalAct = Number(status.totalActivities || 0);
-    const sync = fmtSyncParts(status.lastSyncAt);
-    const syncLabel = sync.hora ? `${esc(sync.hora)} · último sync` : 'último sync';
+    const syncMeta = fmtSyncParts(status.lastSyncAt);
+    const syncLabel = syncMeta.hora ? `${esc(syncMeta.hora)} · último sync` : 'último sync';
 
     bodyEl.innerHTML =
       '<div class="strava-stats">' +
         `<div class="strava-stat"><div class="strava-stat-val">${totalAct}</div><div class="strava-stat-label">atividades</div></div>` +
-        `<div class="strava-stat"><div class="strava-stat-val">${esc(sync.data)}</div><div class="strava-stat-label">${syncLabel}</div></div>` +
+        `<div class="strava-stat"><div class="strava-stat-val">${esc(syncMeta.data)}</div><div class="strava-stat-label">${syncLabel}</div></div>` +
       '</div>' +
       `<div class="conn-athlete">Atleta: <strong>${name}</strong></div>` +
       '<div class="strava-actions">' +
@@ -127,7 +127,7 @@
     try {
       const res = await window.Api.post('/strava/sync', { days: 90 });
       const msg = `${res.imported} importadas · ${res.updated} atualizadas · ${res.daysMarked} dias marcados`;
-      if (window.toast) window.toast(msg, 'success');
+      if (window.toast) window.toast(msg, { kind: 'success' });
       // Recarrega training_log no cache local p/ refletir badges no calendario
       try {
         if (window.Storage && Storage.loadAll) await Storage.loadAll();
@@ -137,7 +137,7 @@
       await load();
     } catch (err) {
       console.error('[strava] sync', err);
-      if (window.toast) window.toast('Falha ao sincronizar: ' + (err.message || err), 'error');
+      if (window.toast) window.toast('Falha ao sincronizar: ' + (err.message || err), { kind: 'error' });
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Sincronizar últimos 90 dias';
