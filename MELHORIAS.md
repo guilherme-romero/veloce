@@ -71,8 +71,9 @@ estimado: **baixo** / **médio** / **alto**.
 
 ## Correção fina de domínio — nutrição (nutritionist)
 
-- **[baixo] `js/ferramentas.js:451`** — reduzir o `carbCap` de **120 → 90 g/h**; 120 g/h excede a
-  absorção intestinal máxima suportada pela literatura mesmo com mix glicose:frutose.
+- ~~**[baixo] `js/ferramentas.js:451`** — reduzir o `carbCap` de **120 → 90 g/h**~~ — **revisado
+  (nutritionist, 2026-07-07): manter.** 120 g/h é o limite superior aceitável para nível avançado
+  com *gut training* dedicado (Jeukendrup 2017); só se aplica ao nível `advanced`.
 - **[médio] `js/ferramentas.js:417-563`** — normalizar carboidrato por **g/kg/h** (hoje o peso só
   ajusta sudorese), e adicionar salvaguardas para inputs extremos (peso <40 kg, duração >10 h,
   "max" + >35 °C por horas) com aviso de plausibilidade.

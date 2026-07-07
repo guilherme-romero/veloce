@@ -48,7 +48,9 @@
     return h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m}min`;
   };
   const fmtElev  = (m) => (m == null ? '—' : Math.round(m) + ' m');
-  const fmtDate  = (iso) => { try { return new Date(iso).toLocaleDateString('pt-BR'); } catch { return iso; } };
+  // parseDT normaliza o timestamp p/ meio-dia local, evitando recuo de dia em
+  // pedais de madrugada (start_date_local vem com "Z"). parseDT é hoisted.
+  const fmtDate  = (iso) => { try { return parseDT(iso).toLocaleDateString('pt-BR'); } catch { return iso; } };
 
   function delta(curr, prev, fmt) {
     if (prev === 0 && curr === 0) return { txt: '—', cls: '' };

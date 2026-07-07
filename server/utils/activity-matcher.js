@@ -17,28 +17,12 @@ const DIST_TOL_M = 100;
 const TIME_TOL_S = 300;
 const SCORE_THRESHOLD = 1.0; // < soma normalizada (1.0 = limite tolerancia)
 
-function parseIso(s) {
-  if (!s) return 0;
-  // Normaliza: Strava usa "2026-03-14T13:48:30Z" (UTC com Z)
-  // Garmin local usa "2026-03-14 12:23:44" (sem Z, horario local)
-  // Garmin GMT  usa "2026-03-14 15:23:44" (sem Z, UTC)
-  const str = String(s).trim();
-  // Se tem T e nao tem Z nem +, assume UTC
-  if (str.includes('T') && !str.match(/[Z+\-]\d*$/)) {
-    const t = Date.parse(str + 'Z');
-    return isFinite(t) ? t : 0;
-  }
-  // Se tem espaco (sem T), e sem sufixo de timezone: trata como UTC
-  if (str.includes(' ') && !str.match(/[Z+\-]\d+$/)) {
-    const t = Date.parse(str.replace(' ', 'T') + 'Z');
-    return isFinite(t) ? t : 0;
-  }
-  const t = Date.parse(str);
-  return isFinite(t) ? t : 0;
-}
-
 function parseLocal(s) {
-  // Interpreta string como horario local (sem conversao de fuso)
+  // Compara wall-clock local (sem conversao de fuso). Isto e CORRETO aqui: o
+  // `inicio_iso` do Strava guarda `start_date_local` (ver routes/strava.js) —
+  // rotulado com "Z" mas ja em horario local — e a Garmin manda `inicio_local`.
+  // Como ambos os lados sao parseados igual, o offset do servidor se cancela na
+  // subtracao; TZ do servidor nao afeta o diff.
   // Strava: "2026-03-14T13:48:30Z" -> trata como local removendo Z
   // Garmin local: "2026-03-14 13:53:26" -> normaliza T
   if (!s) return 0;

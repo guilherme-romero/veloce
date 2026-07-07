@@ -35,11 +35,32 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
 - `js/backup.js:919` — CSV export com quoting + neutralização de fórmula (CSV injection).
 
 **Pendentes (não incluídos neste lote):**
-- Fusos horários (`js/activities.js:54,63`, `server/utils/activity-matcher.js`): o matcher já assume UTC
-  corretamente (referência do relatório desatualizada); requer reanálise dedicada antes de mexer no `parseDT`.
-- Nutrição (`js/ferramentas.js:375-376` kcal da rota e `:433` duração via distância virtual): alteram
-  fórmulas fisiológicas — deixar para uma passada com o subagent `nutritionist`.
 - Demais MENORES abaixo permanecem em aberto.
+
+---
+
+## ✔ Corrigidos em v2.1.7 (2026-07-07) — pendências da revisão
+
+**Fusos horários:**
+- `js/activities.js:51` — `fmtDate` usava `new Date(iso)` e recuava a data em pedais de madrugada
+  (start_date_local vem com "Z"); passou a usar o normalizador `parseDT()` já existente no módulo.
+- `server/utils/activity-matcher.js` — **não era bug:** `inicio_iso` guarda `start_date_local`
+  (horário local rotulado com "Z"), então `parseLocal` comparar wall-clock local vs local está
+  correto (o offset do servidor se cancela na subtração). Removido o `parseIso` (código morto) e
+  esclarecido o comentário.
+
+**Nutrição (validado com subagent `nutritionist`):**
+- `js/ferramentas.js` — extraído helper `estimateRideTimeMin` (plano + penalidade de subida),
+  reusado por `calcRoute` e `calcNutri`.
+- `calcRoute` — kcal agora via `estimateRideCalories` normalizado pelo **peso do perfil**
+  (`Storage.getUser().pesoAtual`, atualizado pela sync Garmin) + energia de subida fisiológica
+  (`elev·peso·0,0098`), no lugar de `elev*0.08` (~6–8× baixo).
+- `calcRoute` — faixas `flatKcalPerKm` corrigidas de 3,5–8 para **20/25/30/37 kcal/km** (base 72 kg,
+  derivadas de METs ACSM); as antigas subestimavam o gasto plano ~4–5×. Apontado pelo `nutritionist`.
+- `calcNutri` — duração via modelo de penalidade de subida (não mais distância virtual ÷ velocidade
+  plana), corrigindo carbo/sódio inflados em rotas montanhosas.
+- `calcNutri` (segurança, endossado pelo `nutritionist`): cap de sódio p/ *heavy sweater* em
+  **1400 mg/h**; aviso de mix glicose+frutose passa a disparar a partir de **2h** (antes 4h).
 
 ---
 

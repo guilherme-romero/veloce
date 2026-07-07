@@ -359,6 +359,30 @@ async function tryLoadDB() {
 }
 
 // ─── ROUTE CALCULATOR ─────────────────────────────────────────────────────────
+// Modelo de tempo compartilhado (calcRoute + calcNutri): plano + penalidade de
+// subida, evitando divergência entre as duas calculadoras.
+function estimateRideTimeMin({ dist, speed, elev = 0, wind = 0, profile = 1.0, stops = 0 }) {
+  const adjSpeed    = Math.max(speed + wind, 10);
+  const elevEquivKm = elev / 100;
+  const climbPenMin = Math.round((elevEquivKm / adjSpeed * 60) / (profile || 1.0));
+  const flatTimeMin = (dist / adjSpeed) * 60;
+  const movTimeMin  = flatTimeMin + climbPenMin;
+  return { flatTimeMin, climbPenMin, movTimeMin, totalTimeMin: movTimeMin + stops };
+}
+
+// Estimativa de kcal normalizada pelo peso do ciclista.
+//  - Plano: faixa por velocidade (arrasto) escalada pelo peso (ref. 72 kg).
+//  - Subida: trabalho contra a gravidade ÷ eficiência mecânica ~24%
+//    (elev·peso·9,81 / 4184 / 0,24 ≈ elev·peso·0,0098 kcal por metro de ganho).
+function estimateRideCalories({ dist, elev = 0, speed = 25, weight = 75 }) {
+  // kcal/km no plano p/ 72 kg, derivado de METs de ciclismo (ACSM/Ainsworth):
+  // MET·peso/velocidade. Escalado por peso/72. (Faixas antigas 3,5–8 subestimavam ~4–5×.)
+  const flatKcalPerKm = speed < 20 ? 20 : speed < 25 ? 25 : speed < 30 ? 30 : 37;
+  const flat  = flatKcalPerKm * dist * (weight / 72);
+  const climb = elev * weight * 0.0098;
+  return Math.round(flat + climb);
+}
+
 function calcRoute() {
   const dist    = parseFloat(document.getElementById('route-dist').value) || 60;
   const speed   = parseFloat(document.getElementById('route-speed').value) || 28;
@@ -367,17 +391,14 @@ function calcRoute() {
   const stops   = parseFloat(document.getElementById('route-stops').value) || 0;
   const wind    = parseFloat(document.getElementById('route-wind').value) || 0;
 
-  const adjSpeed    = Math.max(speed + wind, 10);
   const elevEquivKm = elev / 100;
   const virtDist    = dist + elevEquivKm;
-  const basePenMin  = elevEquivKm / adjSpeed * 60;
-  const climbPenMin = Math.round(basePenMin / profile);
-  const flatTimeMin = (dist / adjSpeed) * 60;
-  const movTimeMin  = flatTimeMin + climbPenMin;
-  const totalTimeMin= movTimeMin + stops;
+  const { flatTimeMin, climbPenMin, movTimeMin, totalTimeMin } =
+    estimateRideTimeMin({ dist, speed, elev, wind, profile, stops });
   const avgSpeedAdj = dist / (movTimeMin / 60);
-  const kcalPerKm   = speed < 20 ? 3.5 : speed < 25 ? 5.0 : speed < 30 ? 6.5 : 8.0;
-  const calories    = Math.round(kcalPerKm * dist + elev * 0.08);
+  // Peso do perfil (atualizado pela sync Garmin); fallback se ausente.
+  const peso        = (window.Storage && Storage.getUser && Storage.getUser().pesoAtual) || 75;
+  const calories    = estimateRideCalories({ dist, elev, speed, weight: peso });
   const pace        = movTimeMin / dist;
 
   const fmt = (min) => {
@@ -432,9 +453,9 @@ function calcNutri() {
   const gelCarb = parseFloat(document.getElementById('n-gel-carb').value) || 25;
   const gelSod  = parseFloat(document.getElementById('n-gel-sodium').value) || 100;
 
-  const elevEquivKm = elev / 100;
-  const virtDist    = dist + elevEquivKm;
-  const duration_h  = virtDist / speed;
+  // Duração pelo mesmo modelo de penalidade de subida do calcRoute — evita
+  // inflar carbo/sódio em rotas montanhosas (antes: distância virtual ÷ velocidade plana).
+  const duration_h  = estimateRideTimeMin({ dist, speed, elev }).movTimeMin / 60;
 
   let sweat = temp < 20 ? 500 : temp < 28 ? 650 : temp < 35 ? 875 : 1100;
   const iMult = { easy:0.7, mod:1.0, hard:1.3, max:1.6 }[intens];
@@ -458,7 +479,7 @@ function calcNutri() {
   const carb_per_kg = carb_gh / weight;
 
   let sodium_mgh = temp < 20 ? 400 : temp < 28 ? 600 : temp < 35 ? 850 : 1200;
-  if (heavy) sodium_mgh = Math.round(sodium_mgh * 1.3);
+  if (heavy) sodium_mgh = Math.min(Math.round(sodium_mgh * 1.3), 1400); // cap conservador
   const sodium_total = Math.round(sodium_mgh * duration_h);
 
   const gel_per_h = Math.ceil(carb_gh / gelCarb);
@@ -494,8 +515,8 @@ function calcNutri() {
     tip = `<div class="tip"><i class="fa-solid fa-sun" style="color:#f5d523"></i><div><strong style="color:var(--text)">Calor moderado-alto:</strong> Prefira bebidas com eletrólitos no lugar de água pura. Gel a cada 30 min é ideal para manter glicemia estável.</div></div>`;
   } else if (temp < 15) {
     tip = `<div class="tip"><i class="fa-solid fa-snowflake" style="color:#4e9ef5"></i><div><strong style="color:var(--text)">Tempo frio:</strong> A sensação de sede diminui no frio mas a perda de suor persiste. Beba mesmo sem sentir sede. Carboidratos são ainda mais importantes para manter o calor.</div></div>`;
-  } else if (duration_h > 4) {
-    tip = `<div class="tip"><i class="fa-solid fa-clock" style="color:var(--teal)"></i><div><strong style="color:var(--text)">Pedal longo (${duration_h.toFixed(1)}h):</strong> Para >3h considere mix de glicose + frutose (2:1) — permite absorção de até 90g carbo/h. Não dependa apenas de géis; inclua comida real (bananas, barras).</div></div>`;
+  } else if (duration_h > 2) {
+    tip = `<div class="tip"><i class="fa-solid fa-clock" style="color:var(--teal)"></i><div><strong style="color:var(--text)">Pedal de ${duration_h.toFixed(1)}h:</strong> Acima de ~2h o carbo passa de 60 g/h — use mix de glicose + frutose (2:1), que eleva a absorção intestinal até ~90 g/h. Não dependa só de géis; inclua comida real (bananas, barras).</div></div>`;
   }
   document.getElementById('nutri-tip').innerHTML = tip;
 
