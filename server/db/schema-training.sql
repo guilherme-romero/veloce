@@ -256,7 +256,7 @@ CREATE TABLE IF NOT EXISTS garmin_daily_health (
 
 -- ── Vinculo Strava ⇄ Garmin (Fase 4.6b) ──────────────────────────────
 -- Mesma ride pode aparecer em ambos (Garmin auto-publica no Strava).
--- Matching por data + distancia(+/-100m) + tempo(+/-60s).
+-- Matching por data + distancia(+/-100m) + tempo(+/-300s). Ver activity-matcher.js.
 CREATE TABLE IF NOT EXISTS activity_links (
   strava_id   INTEGER NOT NULL,
   garmin_id   INTEGER NOT NULL,

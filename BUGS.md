@@ -49,6 +49,28 @@ Revisados no diff pelo `code-reviewer` antes do merge.
   sempre contêm o resultado clampado (fim do "12 psi" sob rótulo "15–35 psi").
 - *(BUG-049, `esc()` na nota do testes.js, também aplicado nesta onda.)*
 
+## ✔ Corrigidos em v2.2.2 (2026-07-11) — Onda B2 (MENORES)
+
+Revisados no diff pelo `code-reviewer` (regressões/XSS) e pelo `nutritionist` (BUG-047/050/054).
+
+- **[BUG-046] `js/insights.js`** — fallback do peso semanal do TRIMP/kg usa o último dia da
+  própria semana (`fimIncl = fim − 1`), não mais o domingo da semana seguinte (fim exclusivo).
+- **[BUG-047] `js/ferramentas.js`** — alerta de calor extremo dispara por `temp > 35` em
+  qualquer intensidade (o suor/sódio já escalavam nessa faixa); a frase "reduza a intensidade"
+  só aparece p/ hard/max. Títulos/frases são strings literais fixas (sem dado do usuário).
+- **[BUG-048] `js/activities.js`** — delta de Endurance sufixa "(dia)" quando há 2+ atividades
+  no mesmo dia (o ganho é diário, não por pedal) — deixa de parecer dobrado.
+- **[BUG-050] `js/ferramentas.js`** — piso de 45 g/h de carbo p/ hard/max acima de 45 min
+  (validado pelo `nutritionist`: dentro de 30–60 g/h, Jeukendrup 2014; `carbCap` ainda limita).
+- **[BUG-051] `js/ferramentas.js`** — nota de terreno rugoso usa `mult <= 0.85` (antes `<`,
+  deixava "Asfalto em mau estado" com `mult 0.85` sem nota alguma).
+- **[BUG-052] `js/insights.js`** — `calcFCMax` reusa `_age()`/`Profile.calcAge` (ano-mês-dia)
+  em vez de dividir por 365,25 — some a divergência de ±1 bpm perto de aniversários.
+- **[BUG-053] `server/db/schema-training.sql`** — comentário do matcher corrigido para
+  `tempo(+/-300s)` (batia com `activity-matcher.js:TIME_TOL_S = 300`, dizia 60s).
+- **[BUG-054] `js/ferramentas.js`** — pedal mais curto que o intervalo de gel gera um evento
+  de ingestão na metade do tempo (antes: um único evento "beba tudo ao terminar").
+
 ---
 
 ## CRÍTICO

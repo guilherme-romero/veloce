@@ -140,7 +140,7 @@ function calcPSI() {
   let notes = `<strong style="color:var(--text)">${typeLabel}</strong> · ${width}mm · ${tData.label} · Dist. peso ${distribRaw}<br>`;
   notes += `Peso total: ${totalKg.toFixed(1)} kg (ciclista ${rider}kg + bike ${bike}kg + equip ${equip}kg). `;
   if (type === 'tubeless') notes += 'Tubeless: −15% de pressão vs clincher. ';
-  if (tData.mult < 0.85) notes += 'Superfície muito rugosa — pressão mais baixa reduz as perdas por impedância (teoria SILCA). ';
+  if (tData.mult <= 0.85) notes += 'Superfície muito rugosa — pressão mais baixa reduz as perdas por impedância (teoria SILCA). ';
   if (tData.mult >= 1.03) notes += 'Superfície lisa — pressão mais alta é ótima para minimizar Crr. ';
   document.getElementById('psi-notes').innerHTML = notes;
 
@@ -477,7 +477,12 @@ function calcNutri() {
   const water_total = Math.round(water_mlh * duration_h);
 
   let carb_gh = duration_h <= 1 ? 25 : duration_h <= 2 ? 45 : duration_h <= 3 ? 67 : duration_h <= 5 ? 75 : 90;
-  if (intens === 'hard' || intens === 'max') carb_gh += 10;
+  if (intens === 'hard' || intens === 'max') {
+    carb_gh += 10;
+    // Piso p/ esforço intenso de 45+ min: a rampa só por duração deixava 45 min
+    // hard em 35 g/h, abaixo do consenso 45–60 g/h (Jeukendrup 2014) — BUG-050.
+    if (duration_h >= 0.75) carb_gh = Math.max(carb_gh, 45);
+  }
   const carbCap = { beginner:60, inter:90, advanced:120 }[level];
   carb_gh = Math.min(carb_gh, carbCap);
   const carb_total  = Math.round(carb_gh * duration_h);
@@ -514,8 +519,13 @@ function calcNutri() {
     </div>`;
 
   let tip = '';
-  if (temp > 35 && (intens === 'hard' || intens === 'max')) {
-    tip = `<div class="tip" style="border-color:rgba(236,58,139,.35);background:rgba(236,58,139,.08);margin-bottom:0"><i class="fa-solid fa-triangle-exclamation" style="color:#ec3a8b"></i><div><strong style="color:var(--text)">Alerta calor extremo + alta intensidade:</strong> Hidrate ANTES de sentir sede. Risco de hiponatremia se beber apenas água sem sódio. Priorize isotônicos. Considere reduzir a intensidade.</div></div>`;
+  // Alerta de calor extremo dispara por temp > 35 em QUALQUER intensidade — o suor/
+  // sódio já escalam nessa faixa; só o aviso de reduzir esforço é p/ hard/max (BUG-047).
+  if (temp > 35) {
+    const hardMax = (intens === 'hard' || intens === 'max');
+    const titulo  = hardMax ? 'Alerta calor extremo + alta intensidade:' : 'Alerta calor extremo:';
+    const reduzir = hardMax ? ' Considere reduzir a intensidade.' : '';
+    tip = `<div class="tip" style="border-color:rgba(236,58,139,.35);background:rgba(236,58,139,.08);margin-bottom:0"><i class="fa-solid fa-triangle-exclamation" style="color:#ec3a8b"></i><div><strong style="color:var(--text)">${titulo}</strong> Hidrate ANTES de sentir sede. Risco de hiponatremia se beber apenas água sem sódio. Priorize isotônicos.${reduzir}</div></div>`;
   } else if (temp > 30) {
     tip = `<div class="tip"><i class="fa-solid fa-sun" style="color:#f5d523"></i><div><strong style="color:var(--text)">Calor moderado-alto:</strong> Prefira bebidas com eletrólitos no lugar de água pura. Gel a cada 30 min é ideal para manter glicemia estável.</div></div>`;
   } else if (temp < 15) {
@@ -534,7 +544,9 @@ function calcNutri() {
 
   const eventTimes = [];
   for (let t = gelInterval; t <= totalMin; t += gelInterval) eventTimes.push(t);
-  if (eventTimes.length === 0) eventTimes.push(totalMin);
+  // Pedal mais curto que o intervalo de gel: um único evento na METADE do tempo
+  // (em vez de "tudo ao terminar") — mantém a ingestão no meio do esforço (BUG-054).
+  if (eventTimes.length === 0) eventTimes.push(Math.max(1, Math.round(totalMin / 2)));
   const nEvents = eventTimes.length;
 
   const waterEach  = Math.round(water_total  / nEvents);

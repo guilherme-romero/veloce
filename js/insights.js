@@ -54,8 +54,10 @@
   function calcFCMax(user) {
     if (user.fcMax) return user.fcMax;
     if (!user.dataNascimento) return null;
-    const anos = (Date.now() - new Date(user.dataNascimento).getTime()) / (365.25 * 86400_000);
-    return Math.round(220 - anos);
+    // Mesma idade ano-mês-dia do Perfil (BUG-052) — evita divergir ±1 bpm perto
+    // de aniversários por causa do cálculo em 365,25 dias.
+    const anos = _age(user.dataNascimento);
+    return anos ? Math.round(220 - anos) : null;
   }
 
   // TRIMP simplificado: duração (min) × fator de intensidade², onde
@@ -231,6 +233,10 @@
       const fim    = new Date(inicio); fim.setDate(fim.getDate() + 7);
       const isoIni = inicio.toISOString().slice(0, 10);
       const isoFim = fim.toISOString().slice(0, 10);
+      // Último dia da PRÓPRIA semana (fim é exclusivo = domingo seguinte) — evita
+      // que uma pesagem do domingo da semana seguinte vaze para esta média (BUG-046).
+      const fimIncl = new Date(fim); fimIncl.setDate(fimIncl.getDate() - 1);
+      const isoFimIncl = fimIncl.toISOString().slice(0, 10);
 
       const acts = activities.filter(a => a.data >= isoIni && a.data < isoFim);
       let trimpFC = 0, trimpEst = 0, pesoMed = null, pesoSum = 0, pesoN = 0;
@@ -241,7 +247,7 @@
         if (p) { pesoSum += p; pesoN++; }
       });
       const trimpTotal = trimpFC + trimpEst;
-      pesoMed = pesoN ? pesoSum / pesoN : pesoDoDia(isoFim) || null;
+      pesoMed = pesoN ? pesoSum / pesoN : pesoDoDia(isoFimIncl) || null;
 
       const trimpKg = (trimpTotal > 0 && pesoMed) ? trimpTotal / pesoMed : 0;
       semanas.push({

@@ -698,11 +698,15 @@
     }
   }
   function enduranceMetaHtml(dateStr) {
-    const d = _enduranceDelta[(dateStr || '').slice(0, 10)];
+    const day = (dateStr || '').slice(0, 10);
+    const d = _enduranceDelta[day];
     if (d == null || d === 0) return '';
     const sign = d > 0 ? '+' : '−';
     const cls  = d > 0 ? 'up' : 'down';
-    return ` · <span class="last5-endurance ${cls}">${sign}${Math.abs(d)} Endurance</span>`;
+    // O delta é diário (uma leitura Garmin/dia); com 2+ atividades no mesmo dia o
+    // ganho é do dia inteiro, não de cada pedal — sufixa "(dia)" p/ não parecer dobrado (BUG-048).
+    const multiDia = (_last5Data || []).filter(a => a && (a.data || '').slice(0, 10) === day).length > 1;
+    return ` · <span class="last5-endurance ${cls}">${sign}${Math.abs(d)} Endurance${multiDia ? ' (dia)' : ''}</span>`;
   }
 
   function l5Km(v)    { return (v == null || !isFinite(v)) ? '—' : v.toFixed(1).replace('.', ',') + ' km'; }
