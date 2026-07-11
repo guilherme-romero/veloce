@@ -47,6 +47,13 @@ async function routes(fastify) {
     }
     const fonteFinal = ['manual', 'garmin'].includes(fonte) ? fonte : 'manual';
 
+    // Regra "manual vence" nos dois sentidos (BUG-044): o sync do Garmin já
+    // respeita pesagem manual do dia; aqui a manual substitui a do Garmin,
+    // evitando duas linhas na mesma data.
+    if (fonteFinal === 'manual') {
+      fastify.db.prepare("DELETE FROM weights WHERE data = ? AND fonte = 'garmin'").run(data);
+    }
+
     const info = fastify.db
       .prepare('INSERT INTO weights (data, peso, tipo, fonte) VALUES (?, ?, ?, ?)')
       .run(data, pesoNum, tipo, fonteFinal);

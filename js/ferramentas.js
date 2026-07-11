@@ -122,14 +122,19 @@ function calcPSI() {
   rearPSI  = Math.round(Math.max(tData.safeMin, Math.min(tData.safeMax, rearPSI)));
 
   const avgPSI = (frontPSI + rearPSI) / 2;
-  const barPct = Math.max(3, Math.min(97, Math.round(((avgPSI - tData.minPsi) / (tData.maxPsi - tData.minPsi)) * 100)));
+  // A faixa exibida sempre contém o resultado: o clamp usa safeMin/safeMax,
+  // que pode ficar fora da faixa "típica" minPsi–maxPsi em setups extremos
+  // (ciclista leve + pneu largo + terreno macio). BUG-045.
+  const rangeMin = Math.min(tData.minPsi, frontPSI, rearPSI);
+  const rangeMax = Math.max(tData.maxPsi, frontPSI, rearPSI);
+  const barPct = Math.max(3, Math.min(97, Math.round(((avgPSI - rangeMin) / (rangeMax - rangeMin)) * 100)));
 
   document.getElementById('psi-front-val').textContent = frontPSI;
   document.getElementById('psi-rear-val').textContent  = rearPSI;
   document.getElementById('psi-diff').textContent      = '+' + (rearPSI - frontPSI);
   document.getElementById('psi-bar-fill').style.width  = barPct + '%';
-  document.getElementById('psi-range-min').textContent = tData.minPsi + ' psi';
-  document.getElementById('psi-range-max').textContent = tData.maxPsi + ' psi';
+  document.getElementById('psi-range-min').textContent = rangeMin + ' psi';
+  document.getElementById('psi-range-max').textContent = rangeMax + ' psi';
 
   const typeLabel = { clincher:'Clincher (câmara)', tubeless:'Tubeless', tubular:'Tubular' }[type];
   let notes = `<strong style="color:var(--text)">${typeLabel}</strong> · ${width}mm · ${tData.label} · Dist. peso ${distribRaw}<br>`;

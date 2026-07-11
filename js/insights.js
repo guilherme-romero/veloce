@@ -91,16 +91,11 @@
     return tempoH * intensity * intensity * 100;
   }
 
-  // Média exponencial decaída: TC(hoje) = TC(ontem) + (TSS - TC(ontem)) / tau
+  // Média exponencial decaída: TC(hoje) = TC(ontem) + (TSS - TC(ontem)) / tau.
+  // Delegada a emaSeries — card e banner do topo usam a MESMA matemática (BUG-040).
   function calcEMA(serieDiaria, tau) {
-    if (!serieDiaria.length) return 0;
-    // Warm-up a partir de 0: com carga zero antes da janela, evita que o
-    // primeiro dia infle CTL/ATL no início do histórico (só converge após ~tau dias).
-    let ema = 0;
-    for (let i = 1; i < serieDiaria.length; i++) {
-      ema = ema + (serieDiaria[i] - ema) / tau;
-    }
-    return ema;
+    const s = emaSeries(serieDiaria, tau);
+    return s.length ? s[s.length - 1] : 0;
   }
 
   function fmtDate(iso) {
@@ -759,10 +754,11 @@
     return a > 0 ? a : 0;
   }
 
-  // Linha da tabela para o sexo/idade informados (null se sem idade).
+  // Linha da tabela para o sexo/idade informados (null se faltar idade OU sexo —
+  // sem sexo definido não assume masculino; cai no fallback da classificação Garmin. BUG-041).
   function enduranceRow(sexo, idade) {
-    if (!idade) return null;
-    const rows = ENDURANCE_TABLE[sexo === 'f' ? 'f' : 'm'];
+    if (!idade || (sexo !== 'f' && sexo !== 'm')) return null;
+    const rows = ENDURANCE_TABLE[sexo];
     for (const r of rows) if (idade <= r[1]) return r;
     return rows[rows.length - 1];
   }
@@ -881,7 +877,10 @@
     } else if (eVal != null && eTier) {
       $('endurance-meta').textContent = 'Nível máximo — Elite';
     } else {
-      $('endurance-meta').textContent = CLASS_LABELS[eClass] || '';
+      const parts = [];
+      if (CLASS_LABELS[eClass]) parts.push(CLASS_LABELS[eClass]);
+      if (eVal != null && !eRow) parts.push('Defina sexo e nascimento no perfil para ver a faixa por idade.');
+      $('endurance-meta').textContent = parts.join(' · ');
     }
     const eTip = $('endurance-tip');
     if (eTip) eTip.textContent = eVal != null ? (ENDURANCE_TIPS[eClass] || ENDURANCE_TIPS[0]) : '';
@@ -924,10 +923,13 @@
   // ───────────────────────────────────────────────────────────────
   // TOPO Hi-Vis — banner + KPIs + carga×fadiga×forma + zona + recomendações
   // ───────────────────────────────────────────────────────────────
+  // EMA com warm-up a partir de 0 (carga zero antes da janela): evita que o
+  // primeiro dia infle CTL/ATL no início do histórico (converge após ~tau dias).
+  // Única implementação de EMA do módulo — calcEMA usa o último ponto (BUG-040).
   function emaSeries(serie, tau) {
-    if (!serie.length) return [];
-    const out = [serie[0]];
-    for (let i = 1; i < serie.length; i++) out.push(out[i - 1] + (serie[i] - out[i - 1]) / tau);
+    const out = [];
+    let ema = 0;
+    for (let i = 0; i < serie.length; i++) { ema = ema + (serie[i] - ema) / tau; out.push(ema); }
     return out;
   }
 

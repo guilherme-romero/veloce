@@ -1,12 +1,174 @@
 # BUGS — treino_bike
 
-Registro de bugs encontrados na revisão. Gerado pela rotina de revisão multi-agente
-(subagents `code-reviewer` + `nutritionist` + `personal-trainer`) em **2026-07-06** sobre a
-versão **2.1.5**. Itens marcados **✓ verificado** foram confirmados manualmente lendo o código;
+Registro de bugs encontrados na revisão. Rotina de revisão multi-agente
+(subagents `code-reviewer` + `nutritionist` + `personal-trainer`).
+Auditorias: **2026-07-06** sobre a **v2.1.5** e **2026-07-11** sobre a **v2.2.0**.
+Itens marcados **✓ verificado** foram confirmados manualmente lendo o código;
 os demais vêm do relatório dos agentes e devem ser confirmados antes da correção.
 
 Convenção de severidade: **CRÍTICO** (segurança/quebra funcional), **IMPORTANTE** (bug real com
 impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
+
+---
+
+# Auditoria 2026-07-11 (v2.2.0)
+
+Escopo: projeto completo, com foco nas features pós-2.1.5 (Endurance por atividade, TESTES
+de zonas, guia do Endurance Score, nutrição recalibrada) + fluxo de dados backend.
+Planejamento da correção: **FASE 22** do roadmap (BUG-040…054).
+
+## ✔ Corrigidos em v2.2.1 (2026-07-11) — Onda B1 (IMPORTANTES)
+
+Revisados no diff pelo `code-reviewer` antes do merge.
+
+- **✓ [CRÍTICO] [BUG-055] `js/garmin.js:63`** — botão "Sincronizar" da seção CONEXÕES **não
+  fazia nada** (só o de INÍCIO funcionava). Dentro de `render()`, `const sync = fmtSyncParts(...)`
+  sombreava a `async function sync()` do módulo; em `addEventListener('click', sync)` (linha 81)
+  o handler recebia o objeto `{ data, hora }` (sem `handleEvent`) em vez da função. **É o mesmo
+  bug já corrigido no Strava em v2.1.6** — passou despercebido no Garmin (a auditoria revisou
+  `sync()` isolado, sem cruzar com o shadowing no `render()`). **Fix:** renomear a local para
+  `syncMeta` (linhas 63-69). *(Reportado pelo usuário.)*
+  Também: label do botão no caminho de erro voltou a "Sincronizar" (era "…últimos 90 dias").
+
+- **[BUG-040] `js/insights.js`** — EMA unificada: `emaSeries` passou a ser a única
+  implementação (warm-up a partir de 0, inclui `serie[0]`) e `calcEMA` delega a ela
+  (`.at(-1)`). Card 7.2 e banner do topo agora exibem CTL/ATL/TSB idênticos.
+- **[BUG-041] `js/insights.js`** — `enduranceRow` retorna `null` sem sexo definido (não
+  assume masculino); a meta abaixo da barra pede o preenchimento de sexo/nascimento e o
+  botão "Guia score" fica oculto até haver perfil completo.
+- **[BUG-042] `js/testes.js`** — "FCM hoje" agora segue a precedência de
+  `insights.js:calcFCMax` (`user.fcMax` → pico Garmin 120–230 via `/activities/unified` →
+  220−idade), com a fonte exibida na nota. *(Nota: `user.fcMax` ainda não é populado por
+  formulário — ramo mantido por paridade com insights.js; hoje resolve para Garmin/220−idade.)*
+- **[BUG-043] `js/testes.js`** — Karvonen passou a usar faixas próprias de %FCR
+  (`PCTS_FCR = [.50,.60,.70,.80,.90]`, ~10 p.p. abaixo de %FCM); tabela mostra as duas
+  faixas e a nota explica que são zonas equivalentes.
+- **[BUG-044] `server/routes/weights.js`** — `POST` remove a linha `fonte='garmin'` do
+  mesmo dia antes de inserir a manual (regra "manual vence" nos dois sentidos).
+- **[BUG-045] `js/ferramentas.js`** — barra e rótulos de PSI usam `rangeMin/rangeMax` que
+  sempre contêm o resultado clampado (fim do "12 psi" sob rótulo "15–35 psi").
+- *(BUG-049, `esc()` na nota do testes.js, também aplicado nesta onda.)*
+
+---
+
+## CRÍTICO
+
+*Nenhum encontrado.* (Sem vulnerabilidade de segurança nova, sem quebra funcional.)
+
+## IMPORTANTE
+
+- **✓ [IMPORTANTE] [BUG-040] `js/insights.js:95` vs `:927`** — **duas implementações de EMA
+  divergentes para CTL/ATL/TSB.** `calcEMA` (card 7.2 "TSS/CTL/ATL/TSB", linhas 189-190) usa
+  semente `0` e começa em `i=1` — descarta `serie[0]` por completo; `emaSeries` (banner do topo,
+  linhas 1064-1065) usa semente `serie[0]`. Ambas consomem a MESMA série de 60 dias construída
+  do mesmo jeito (confirmado: 174-187 ≡ 1059-1063). Efeito: banner pode dizer "Em equilíbrio"
+  enquanto o card diz "Carregado" para os mesmos dados, com CTL/ATL numericamente diferentes
+  nos dois lugares. **Fix:** uma única função (semente 0 com warm-up, incluindo `serie[0]` no
+  loop) usada por ambos; `calcEMA` vira `emaSeries(...).at(-1)`.
+
+- **✓ [IMPORTANTE] [BUG-041] `js/insights.js:765,815,867`** — sexo ausente no perfil é tratado
+  silenciosamente como masculino: `ENDURANCE_TABLE[sexo === 'f' ? 'f' : 'm']` e
+  `sexoTxt = user.sexo === 'f' ? 'feminina' : 'masculina'`. Usuária sem o campo preenchido é
+  classificada pelos limiares masculinos (mais altos) e o guia afirma "(masculina)" como se
+  fosse dado confirmado — tier artificialmente inferior. **Fix:** sem sexo definido, retornar
+  `null` de `enduranceRow` (ocultar tier/guia) ou pedir o preenchimento no próprio card.
+
+- **✓ [IMPORTANTE] [BUG-042] `js/testes.js:103`** — a comparação usa `Profile.calcFCMax(idade)`
+  (sempre `220 − idade`) como "FCM hoje", ignorando a precedência real do app
+  (`user.fcMax` manual → pico Garmin via `refineFcMaxFromGarmin` → `220 − idade`). Quem tem FCM
+  manual/refinada vê uma coluna "Hoje" que não corresponde às zonas reais do Perfil, e a nota
+  afirma "(220−idade)" sem ressalva. **Fix:** usar a mesma precedência de `insights.js:calcFCMax`
+  (ou a FCM final exibida no Perfil) e ajustar a nota.
+
+- **✓ [IMPORTANTE/treino] [BUG-043] `js/testes.js:20,29`** — Karvonen reaproveita o vetor
+  `PCTS` de **%FCM** sobre a **FC de reserva**: `fcRep + p×(fcmTanaka − fcRep)` com p = 0.60…1.00.
+  Fisiologicamente, %FCR equivale a ~%FCM − 10 a 15 p.p. (Swain & Leutholtz 1997); usar os
+  mesmos percentuais infla sistematicamente as zonas "Karvonen" no gráfico e induz a conclusão
+  errada de que "as zonas atuais estão baixas". **Fix:** vetor próprio `PCTS_FCR` por zona
+  (ex.: Z1 <50, Z2 50-60, Z3 60-70, Z4 70-80, Z5 80-90% FCR) ou nota explícita de que a
+  comparação é didática entre bases diferentes. *(Achado do `personal-trainer`, confirmado no código.)*
+
+- **✓ [IMPORTANTE] [BUG-044] `server/routes/weights.js:35-52`** — `POST /api/weights` sempre
+  INSERE; não trata o caso de já existir linha `fonte='garmin'` na mesma `data`. Sequência
+  sync Garmin → pesagem manual no mesmo dia cria **duas linhas** para a data (o inverso é
+  tratado: o sync respeita linha manual existente). Histórico duplicado e "peso do dia" ambíguo.
+  **Fix:** no POST, remover/atualizar a linha `garmin` do mesmo dia antes de inserir a manual
+  (regra "manual vence" aplicada nos dois sentidos).
+
+- **✓ [IMPORTANTE] [BUG-045] `js/ferramentas.js:120-131`** — o PSI final é clampado por
+  `safeMin/safeMax`, mas os rótulos da barra (`psi-range-min/max`, index.html:1156) mostram
+  `minPsi/maxPsi` (faixa típica, mais estreita). Combinações reais (ex.: ciclista leve + pneu
+  largo + Cascalho Cat 4: resultado 12 psi vs rótulo "15–35 psi") exibem valor fora da faixa
+  anunciada; `barPct` também pode estourar (clamp 3-97 disfarça). **Fix:** rótulos e barra
+  usarem a mesma faixa do clamp (ou expandir a faixa exibida para conter o resultado).
+
+## MENOR
+
+- **✓ [MENOR] [BUG-046] `js/insights.js:249`** — fallback do peso semanal no TRIMP/kg usa
+  `pesoDoDia(isoFim)`, e `isoFim` é o domingo da semana SEGUINTE (fim exclusivo) — uma pesagem
+  feita exatamente nesse dia "vaza" para a média da semana anterior. Janela de 1 dia, efeito
+  pequeno. **Fix:** usar o último dia da própria semana (`isoFim − 1`).
+
+- **✓ [MENOR/nutrição] [BUG-047] `js/ferramentas.js:512`** — o alerta de calor extremo
+  (hiponatremia, isotônicos) só dispara com `temp > 35 && (hard||max)`, mas o cálculo de
+  suor/sódio já escala para `temp > 35` em QUALQUER intensidade — quem pedala easy/mod a 38 °C
+  vê números de risco sem o aviso correspondente. **Fix:** disparar por `temp > 35` sozinho e
+  mencionar "reduza a intensidade" apenas quando hard/max.
+
+- **✓ [MENOR] [BUG-048] `js/activities.js:700-706`** — delta de Endurance é indexado por
+  data (`_enduranceDelta['YYYY-MM-DD']`); com 2+ atividades no mesmo dia, o MESMO ganho do dia
+  aparece em todas as linhas (parece dobrado). O comentário documenta a limitação da API, mas a
+  UI não. **Fix:** exibir só na primeira atividade do dia ou sufixar "(dia)" quando houver mais
+  de uma.
+
+- **✔ [MENOR/sec] [BUG-049] `js/testes.js:59-61`** — *(corrigido em v2.2.1, Onda B1)*
+  `note.innerHTML` interpola `fcRepFonte` (contém `arr[i].data` vindo de `/garmin/health`) sem
+  `esc()`. Hoje é sempre `YYYY-MM-DD` gerado pelo backend (não explorável), mas quebra a regra
+  do projeto. **Fix aplicado:** `esc(fcRepFonte)` (e `esc(fcmFonte)`).
+
+- **✓ [MENOR/nutrição] [BUG-050] `js/ferramentas.js:474`** — rampa de carbo é só por duração
+  com `+10 g/h` fixo por intensidade: treino de 45 min hard/max recebe 35 g/h, abaixo do
+  consenso p/ exercício intenso de 45-60+ min (30-60 g/h, Jeukendrup 2014). Efeito absoluto
+  pequeno em pedais curtos. **Fix:** escalar o ajuste de intensidade com a faixa de duração
+  (ou piso de 45-60 g/h p/ hard/max acima de ~1h).
+
+- **✓ [MENOR] [BUG-051] `js/ferramentas.js:138`** — nota contextual usa `tData.mult < 0.85`
+  (estrito), e "Asfalto em mau estado" tem `mult: 0.85` exato — único terreno rugoso que não
+  recebe nenhuma nota (nem a de liso, `>= 1.03`). **Fix:** `<= 0.85`.
+
+- **✓ [MENOR] [BUG-052] `js/insights.js:56-58`** — `calcFCMax` local calcula idade via
+  `365.25 dias` (float) em vez de `Profile.calcAge` (ano-mês-dia); perto de aniversários a FCM
+  pode divergir ±1 bpm da mostrada no Perfil. **Fix:** reusar `Profile.calcAge`/`_age()`.
+
+- **✓ [MENOR] [BUG-053] `server/db/schema-training.sql:259`** — comentário do matcher diz
+  `tempo(+/-60s)`, mas `activity-matcher.js:17` usa `TIME_TOL_S = 300`. **Fix:** atualizar comentário.
+
+- **✓ [MENOR/nutrição] [BUG-054] `js/ferramentas.js:530-533`** — pedal mais curto que o
+  intervalo de gel gera cronograma com UM evento no fim do percurso ("beba tudo ao terminar").
+  **Fix:** evento intermediário na metade do tempo, ou suprimir o cronograma abaixo de ~20 min
+  com mensagem simples.
+
+## Pendências da auditoria anterior — resolvidas nesta rodada
+
+- **`recovery_time_h` (unidade)** — **RESOLVIDO/confirmado:** a lib `garminconnect`
+  (`typed.py:330`) documenta que `recoveryTime` vem em **minutos**. A exibição
+  (`insights.js:537`, `/60` → horas) está CORRETA e o comentário no código já avisa. Fica
+  como melhoria opcional renomear a coluna para `recovery_time_min` (migração idempotente).
+
+## Falsos-positivos desta auditoria (não corrigir)
+
+- **`js/ferramentas.js:551` `gelsThisEvent` negativo** — não ocorre: `Math.round((i+1)·g/n)` é
+  não-decrescente em `i`, logo as diferenças acumuladas são sempre ≥ 0.
+- **`server/scheduler.js:16-20` `slotKey` mistura data UTC + hora local** — sem efeito de dado;
+  o Set só deduplica slots dentro do mesmo processo.
+- **`server/utils/training-log-helper.js:83-88` retorno de `autoFillBike`** — semanticamente
+  correto hoje; a fragilidade do fluxo de controle virou item de MELHORIAS.md.
+- **`GET /activities/unified` × `runMatching` concorrente** — duplicata apenas transitória entre
+  polls do frontend; autocorrige no próximo fetch. Registrado como melhoria (lock de sync).
+
+---
+
+# Auditoria 2026-07-06 (v2.1.5)
 
 ---
 
@@ -131,6 +293,8 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
   sufixo `h`. O nome do campo (schema `recovery_time_h INTEGER`, vindo de `r.recoveryTime`) sugere
   **horas** — se for horas, a divisão dá valor 60× menor. **Verificar** a unidade real que a Garmin
   retorna em `recoveryTime` e alinhar nome/cálculo.
+  *→ Resolvido na auditoria 2026-07-11: a unidade é MINUTOS (lib `garminconnect`); a divisão está
+  correta. Renomear a coluna é melhoria opcional.*
 
 - **[IMPORTANTE] `js/ferramentas.js:94`** — parsing de `psi-distrib` ("40/60") sem validação: entrada
   vazia/malformada gera `NaN` e exibe "NaN psi". **Fix:** validar 2 partes numéricas somando 100,
@@ -217,6 +381,10 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
 ---
 
 ## Falsos-positivos investigados (não corrigir)
+
+- **⚠ Lição (BUG-055):** ao revisar handlers, cruzar a definição da função com o `render()` que
+  registra o listener — o shadowing de `sync` só é visível olhando os dois juntos. Padrão a
+  varrer em toda conexão nova: `const <nome> = ...` com o mesmo nome de uma função de módulo.
 
 - **`js/activities.js:242` `fmtKm(act.distanciaKm * 1000)`** — **não é bug.** `fmtKm` local
   (`activities.js:44`) espera metros e divide por 1000; a multiplicação por 1000 apenas desfaz a

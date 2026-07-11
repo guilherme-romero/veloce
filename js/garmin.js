@@ -60,13 +60,15 @@
 
     const name = esc(status.fullName || status.email || 'Atleta');
     const totalAct = Number(status.totalActivities || 0);
-    const sync = fmtSyncParts(status.lastSyncAt);
-    const syncLabel = sync.hora ? `${esc(sync.hora)} · último sync` : 'último sync';
+    // syncMeta (não `sync`): evita sombrear a função sync() do módulo, senão o
+    // addEventListener abaixo liga um objeto no lugar da função e o botão não faz nada.
+    const syncMeta = fmtSyncParts(status.lastSyncAt);
+    const syncLabel = syncMeta.hora ? `${esc(syncMeta.hora)} · último sync` : 'último sync';
 
     bodyEl.innerHTML =
       '<div class="strava-stats">' +
         `<div class="strava-stat"><div class="strava-stat-val">${totalAct}</div><div class="strava-stat-label">atividades</div></div>` +
-        `<div class="strava-stat"><div class="strava-stat-val">${esc(sync.data)}</div><div class="strava-stat-label">${syncLabel}</div></div>` +
+        `<div class="strava-stat"><div class="strava-stat-val">${esc(syncMeta.data)}</div><div class="strava-stat-label">${syncLabel}</div></div>` +
       '</div>' +
       '<div class="conn-athlete">Sincroniza atividades, peso, sono, HRV e readiness. Auto-sync a cada 30 min.</div>' +
       '<div class="strava-actions">' +
@@ -243,7 +245,7 @@
     } catch (err) {
       console.error('[garmin] sync', err);
       if (window.toast) window.toast('Falha ao sincronizar: ' + (err.message || err), { kind: 'error' });
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Sincronizar últimos 90 dias'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Sincronizar'; }
     }
   }
 
