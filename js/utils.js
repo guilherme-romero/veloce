@@ -58,3 +58,52 @@ window.FC_ZONES = [
   { id: 'z5', label: 'Z5', min: 0.90, max: 1.00, color: '#a855f7', colorDim: 'rgba(168,85,247,0.25)',  desc: 'VO2 Máx' },
   { id: 'z6', label: 'Z6', min: 1.00, max: Infinity, color: '#ec4899', colorDim: 'rgba(236,72,153,0.25)', desc: 'Neuromuscular' },
 ];
+
+/* ── Streak de treino — fonte única (home.js × heatmap.js) ──────────────
+   Recebe lista de datas ISO (YYYY-MM-DD) de dias com treino. Uma semana
+   "vale" com ≥ 2 dias DISTINTOS ativos; retorna { current, record } em nº
+   de semanas consecutivas (domingo = início da semana). A semana atual em
+   andamento não quebra a sequência enquanto ainda não qualifica.
+═════════════════════════════════════════════════════════════════════════ */
+function calcTrainingStreak(activeISODates) {
+  const MIN_DIAS = 2;
+  const _wkStart = (iso) => {
+    const d = new Date(iso + 'T12:00:00');
+    if (isNaN(d)) return null;
+    d.setDate(d.getDate() - d.getDay()); // getDay(): 0=dom
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  };
+  const _prevWk = (wk) => {
+    const d = new Date(wk + 'T12:00:00'); d.setDate(d.getDate() - 7);
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  };
+
+  const semanas = {}; // weekISO -> Set de datas ativas distintas
+  (activeISODates || []).forEach(iso => {
+    if (!iso) return;
+    const wk = _wkStart(iso);
+    if (wk) (semanas[wk] || (semanas[wk] = new Set())).add(iso);
+  });
+  const qualifica = (wk) => (semanas[wk] ? semanas[wk].size : 0) >= MIN_DIAS;
+
+  // RECORDE — maior nº de semanas consecutivas qualificadas no histórico.
+  const wks = Object.keys(semanas).filter(qualifica).sort();
+  let record = 0, run = 0, prev = null;
+  for (const wk of wks) {
+    run = (prev && _prevWk(wk) === prev) ? run + 1 : 1;
+    record = Math.max(record, run);
+    prev = wk;
+  }
+
+  // ATUAL — conta para trás a partir da semana corrente (local). Se ainda
+  // não qualifica, começa pela anterior (não quebra a sequência em curso).
+  const now = new Date();
+  const todayISO = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+  let cursor = _wkStart(todayISO);
+  if (!qualifica(cursor)) cursor = _prevWk(cursor);
+  let current = 0;
+  while (qualifica(cursor)) { current++; cursor = _prevWk(cursor); }
+
+  return { current, record };
+}
+window.Utils = Object.assign(window.Utils || {}, { calcTrainingStreak });

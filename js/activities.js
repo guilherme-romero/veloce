@@ -102,29 +102,6 @@
     };
   }
 
-  function bucketByMonth(activities, months = 6) {
-    const buckets = [];
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
-    for (let i = 0; i < months; i++) {
-      const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-      buckets.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-                     label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
-                     km: 0, count: 0, elev: 0 });
-    }
-    const byKey = Object.fromEntries(buckets.map(b => [b.key, b]));
-    activities.forEach(x => {
-      const d = parseDT(x.inicio);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (byKey[key]) {
-        byKey[key].km    += (x.distanciaKm || 0);
-        byKey[key].count += 1;
-        byKey[key].elev  += (x.elevacaoM || 0);
-      }
-    });
-    return buckets;
-  }
-
   // 12 meses (Jan–Dez) somando TODOS os anos: jan/2026 + jan/2024 = jan total.
   // Usado no filtro "Tudo" para consolidar o histórico inteiro por mês do calendário.
   function bucketByCalendarMonth(activities) {
@@ -147,7 +124,7 @@
     return buckets;
   }
 
-  // 12 meses (Jan–Dez) de um ano específico, mesmo formato de bucketByMonth.
+  // 12 meses (Jan–Dez) de um ano específico, mesmo formato de bucketByCalendarMonth.
   function bucketMonthsOfYear(activities, year) {
     const buckets = [];
     for (let m = 0; m < 12; m++) {
@@ -526,6 +503,7 @@
 
   // ── Volume de treino (Fase 5c) ──────────────────────────────────
   let _weeklyChart = null, _zoneChart = null;
+  let _zoneToken = 0; // cancela respostas de fetches antigos (padrão _last5Token)
 
   function renderVolumeTraining(acts) {
     const card = $('volume-training-card');
@@ -643,8 +621,10 @@
     ];
     const ZONES = (window.FC_ZONES || FC_ZONES_FALLBACK).filter(z => z.max !== Infinity); // Z1..Z5
 
+    const myToken = ++_zoneToken;
     let dist = null;
     try { dist = await window.Api.get('/garmin/zone-distribution?days=84'); } catch (_) {}
+    if (myToken !== _zoneToken) return; // um render mais novo já assumiu
     const seg   = (dist && dist.segundosPorZona) || [];
     const total = (dist && dist.totalSegundos) || 0;
 

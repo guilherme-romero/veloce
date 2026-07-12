@@ -22,13 +22,6 @@
     return isNaN(d) ? null : d;
   }
 
-  function toLocalISODate(d) {
-    return [
-      d.getFullYear(),
-      String(d.getMonth() + 1).padStart(2, '0'),
-      String(d.getDate()).padStart(2, '0'),
-    ].join('-');
-  }
 
   function fmtDate(iso) {
     try {
@@ -102,53 +95,14 @@
     }
   }
 
-  // Domingo (início da semana) da data informada, em ISO local.
-  function weekStartISO(d) {
-    const s = new Date(d); s.setHours(0,0,0,0);
-    s.setDate(s.getDate() - s.getDay()); // getDay(): 0=dom
-    return toLocalISODate(s);
-  }
-
-  // Sequência por SEMANAS treinando: uma semana "vale" com ≥ 2 dias ativos.
-  // Retorna { current, record } em número de semanas consecutivas.
-  // A semana atual em andamento não quebra a sequência enquanto não atinge o
-  // critério (espelha a antiga lógica de "se não treinou hoje, conta de ontem").
+  // Sequência por SEMANAS treinando (fonte única em Utils.calcTrainingStreak):
+  // uma semana "vale" com ≥ 2 dias ativos; a semana atual em andamento não
+  // quebra a sequência enquanto ainda não atinge o critério.
   function calcStreak() {
-    if (!window.Storage) return { current: 0, record: 0 };
-    const MIN_DIAS = 2;
+    if (!window.Storage || !window.Utils) return { current: 0, record: 0 };
     const log = Storage.getTrainingLog ? Storage.getTrainingLog() : [];
-    // Dias ativos distintos por semana (chave = domingo da semana).
-    const semanas = {}; // weekISO -> Set de datas ativas
-    log.forEach(e => {
-      if (!e.data) return;
-      const d = new Date(e.data + 'T12:00:00');
-      if (isNaN(d)) return;
-      const wk = weekStartISO(d);
-      (semanas[wk] || (semanas[wk] = new Set())).add(e.data);
-    });
-    const qualifica = (wk) => (semanas[wk] ? semanas[wk].size : 0) >= MIN_DIAS;
-    const prevWeek = (wk) => {
-      const d = new Date(wk + 'T12:00:00'); d.setDate(d.getDate() - 7);
-      return toLocalISODate(d);
-    };
-
-    // RECORDE — maior nº de semanas consecutivas qualificadas no histórico.
-    const wks = Object.keys(semanas).filter(qualifica).sort();
-    let record = 0, run = 0, prev = null;
-    for (const wk of wks) {
-      run = (prev && prevWeek(wk) === prev) ? run + 1 : 1;
-      record = Math.max(record, run);
-      prev = wk;
-    }
-
-    // ATUAL — conta para trás a partir da semana corrente. Se a semana atual
-    // ainda não qualifica, começa pela semana anterior (não quebra).
-    let cursor = weekStartISO(new Date());
-    if (!qualifica(cursor)) cursor = prevWeek(cursor);
-    let current = 0;
-    while (qualifica(cursor)) { current++; cursor = prevWeek(cursor); }
-
-    return { current, record };
+    // Fonte única do cálculo (compartilhada com heatmap.js): Utils.calcTrainingStreak.
+    return Utils.calcTrainingStreak(log.map(e => e.data));
   }
 
   async function loadLastActivities() {

@@ -20,7 +20,22 @@ function isConfigured() {
   return !!(process.env.GARMIN_EMAIL && process.env.GARMIN_PASSWORD);
 }
 
-function runCli(args, { timeoutMs = DEFAULT_TIMEOUT_MS, noCache = false } = {}) {
+// Serializa chamadas PESADAS ao garmin_cli.py: sync automático (scheduler) e
+// manual não competem pelo rate-limit da Garmin (dois subprocess ao mesmo
+// tempo era só desperdício — upserts são idempotentes). Fila simples em
+// memória; status/login/logout NÃO usam exclusive e ficam sempre responsivos.
+let _cliChain = Promise.resolve();
+function _runExclusive(task) {
+  const run = _cliChain.then(task, task); // roda mesmo se a anterior falhou
+  _cliChain = run.then(() => {}, () => {});
+  return run;
+}
+
+function runCli(args, opts = {}) {
+  return opts.exclusive ? _runExclusive(() => _spawnCli(args, opts)) : _spawnCli(args, opts);
+}
+
+function _spawnCli(args, { timeoutMs = DEFAULT_TIMEOUT_MS, noCache = false } = {}) {
   return new Promise((resolve, reject) => {
     const env = {
       ...process.env,
@@ -81,12 +96,12 @@ async function login(mfaCode) {
 async function logout() { return runCli(['logout']); }
 
 async function listActivities(days = 90, { noCache = false } = {}) {
-  const res = await runCli(['activities', '--days', String(days)], { timeoutMs: 120_000, noCache });
+  const res = await runCli(['activities', '--days', String(days)], { timeoutMs: 120_000, noCache, exclusive: true });
   return res.items || [];
 }
 
 async function listWeighIns(days = 365, { noCache = false } = {}) {
-  const res = await runCli(['weighins', '--days', String(days)], { timeoutMs: 60_000, noCache });
+  const res = await runCli(['weighins', '--days', String(days)], { timeoutMs: 60_000, noCache, exclusive: true });
   return res.items || [];
 }
 
@@ -99,37 +114,37 @@ function isBikeActivity(a) {
 }
 
 async function listDailyHealth(days = 30, { noCache = false } = {}) {
-  const res = await runCli(['daily-health', '--days', String(days)], { timeoutMs: 120_000, noCache });
+  const res = await runCli(['daily-health', '--days', String(days)], { timeoutMs: 120_000, noCache, exclusive: true });
   return res.items || [];
 }
 
 async function listTrainingReadiness(days = 7, { noCache = false } = {}) {
-  const res = await runCli(['training-readiness', '--days', String(days)], { timeoutMs: 60_000, noCache });
+  const res = await runCli(['training-readiness', '--days', String(days)], { timeoutMs: 60_000, noCache, exclusive: true });
   return res.items || [];
 }
 
 async function listTrainingStatus(days = 1, { noCache = false } = {}) {
-  const res = await runCli(['training-status', '--days', String(days)], { timeoutMs: 60_000, noCache });
+  const res = await runCli(['training-status', '--days', String(days)], { timeoutMs: 60_000, noCache, exclusive: true });
   return res.items || [];
 }
 
 async function listPersonalRecords({ noCache = false } = {}) {
-  const res = await runCli(['personal-records'], { timeoutMs: 60_000, noCache });
+  const res = await runCli(['personal-records'], { timeoutMs: 60_000, noCache, exclusive: true });
   return res.items || [];
 }
 
 async function listFitnessScores(days = 7, { noCache = false } = {}) {
-  const res = await runCli(['hill-score', '--days', String(days)], { timeoutMs: 60_000, noCache });
+  const res = await runCli(['hill-score', '--days', String(days)], { timeoutMs: 60_000, noCache, exclusive: true });
   return res.items || [];
 }
 
 async function getActivityPolyline(activityId) {
-  const res = await runCli(['activity-polyline', String(activityId)], { timeoutMs: 60_000 });
+  const res = await runCli(['activity-polyline', String(activityId)], { timeoutMs: 60_000, exclusive: true });
   return res.polyline || null;
 }
 
 async function getActivityHrZones(activityId) {
-  const res = await runCli(['hr-zones', String(activityId)], { timeoutMs: 60_000 });
+  const res = await runCli(['hr-zones', String(activityId)], { timeoutMs: 60_000, exclusive: true });
   return Array.isArray(res.zones) ? res.zones : [];
 }
 

@@ -43,49 +43,11 @@
     return arr[0];
   }
 
-  function addDaysISO(iso, delta) {
-    const d = new Date(iso + 'T12:00:00');
-    d.setDate(d.getDate() + delta);
-    return d.toISOString().slice(0, 10);
-  }
-
-  // Domingo (início da semana) da data ISO informada.
-  function weekStartISO(iso) {
-    const d = new Date(iso + 'T12:00:00');
-    return addDaysISO(iso, -d.getDay()); // getDay(): 0=dom
-  }
-
-  function calcStreaks(days, dayMap) {
-    // Sequência por SEMANAS treinando: uma semana "vale" com ≥ 2 dias ativos.
-    // Visão histórica: percorre TODAS as datas do training_log (não apenas a
-    // janela de 91 dias exibida no grid).
-    const MIN_DIAS = 2;
-    const semanas = {}; // weekISO -> nº de dias ativos
-    for (const iso of Object.keys(dayMap)) {
-      const wk = weekStartISO(iso);
-      semanas[wk] = (semanas[wk] || 0) + 1;
-    }
-    const qualifica = (wk) => (semanas[wk] || 0) >= MIN_DIAS;
-    const prevWeek = (wk) => addDaysISO(wk, -7);
-
-    // RECORDE — maior nº de semanas consecutivas qualificadas no histórico.
-    const wks = Object.keys(semanas).filter(qualifica).sort();
-    let record = 0, run = 0, prev = null;
-    for (const wk of wks) {
-      run = (prev && prevWeek(wk) === prev) ? run + 1 : 1;
-      record = Math.max(record, run);
-      prev = wk;
-    }
-
-    // SEQ. ATUAL — conta para trás a partir da semana corrente. Se a semana
-    // atual ainda não qualifica, começa pela anterior (não quebra).
-    const todayISO = new Date(); todayISO.setHours(12, 0, 0, 0);
-    let cursor = weekStartISO(todayISO.toISOString().slice(0, 10));
-    if (!qualifica(cursor)) cursor = prevWeek(cursor);
-    let current = 0;
-    while (qualifica(cursor)) { current++; cursor = prevWeek(cursor); }
-
-    return { current, record };
+  // Sequência por SEMANAS treinando (fonte única em Utils.calcTrainingStreak,
+  // compartilhada com home.js): percorre TODAS as datas do training_log, não
+  // só a janela de 91 dias exibida no grid.
+  function calcStreaks(dayMap) {
+    return window.Utils ? Utils.calcTrainingStreak(Object.keys(dayMap)) : { current: 0, record: 0 };
   }
 
   function render() {
@@ -109,7 +71,7 @@
 
     const ativos = days.filter(d => dayMap[d]).length;
     const pct    = Math.round((ativos / days.length) * 100);
-    const { current, record } = calcStreaks(days, dayMap);
+    const { current, record } = calcStreaks(dayMap);
 
     if (ativos === 0) { card.style.display = 'none'; return; }
     card.style.display = '';

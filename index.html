@@ -15,11 +15,11 @@
              worker-src 'self';"
   >
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.2.2">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.2.2">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.2.2">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.2.2">
-  <link rel="manifest" href="manifest.json?v=2.2.2">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.2.3">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.2.3">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.2.3">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.2.3">
+  <link rel="manifest" href="manifest.json?v=2.2.3">
 
   <title>Treino Bike</title>
 
@@ -38,11 +38,11 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.2.2">
-  <link rel="stylesheet" href="css/rides.css?v=2.2.2">
-  <link rel="stylesheet" href="css/routes.css?v=2.2.2">
-  <link rel="stylesheet" href="css/bikes.css?v=2.2.2">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.2.2">
+  <link rel="stylesheet" href="css/style.css?v=2.2.3">
+  <link rel="stylesheet" href="css/rides.css?v=2.2.3">
+  <link rel="stylesheet" href="css/routes.css?v=2.2.3">
+  <link rel="stylesheet" href="css/bikes.css?v=2.2.3">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.2.3">
 </head>
 <body>
 
@@ -805,7 +805,7 @@
       <div class="ins-top-charts">
         <div class="card">
           <div class="card-label">Carga × Fadiga × Forma · 8 semanas
-            <button class="insight-info-btn" data-info="Carga (CTL) = condicionamento de base, média móvel exponencial de ~42 dias. Fadiga (ATL) = carga aguda, média móvel exponencial de ~7 dias. Forma (TSB) = Carga − Fadiga: positiva indica frescor; negativa, fadiga acumulada."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="Carga (CTL) = condicionamento de base, média móvel exponencial de ~42 dias. Fadiga (ATL) = carga aguda, média móvel exponencial de ~7 dias. Forma (TSB) = Carga − Fadiga: positiva indica frescor; negativa, fadiga acumulada. Os limiares de TSB seguem a convenção do Performance Manager (TrainingPeaks/Coggan), aqui um pouco mais conservadores."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <div class="chart-wrap" style="height:240px;"><canvas id="insLoadChart"></canvas></div>
         </div>
@@ -826,7 +826,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Índice de Fadiga</div>
-            <button class="insight-info-btn" data-info="Combina Body Battery (energia gasta vs. capacidade), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio dos últimos 7 dias. Escala 0–100, onde MAIOR = mais fadiga: abaixo de 45 = Recuperado (apto a treino intenso); 45–65 = Moderado (treino normal, evite volume alto); acima de 65 = Fadigado (recomenda-se descanso ou atividade leve)."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" data-info="Combina Body Battery (energia gasta vs. capacidade), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio dos últimos 7 dias. Escala 0–100, onde MAIOR = mais fadiga: abaixo de 45 = Recuperado (apto a treino intenso); 45–65 = Moderado (treino normal, evite volume alto); acima de 65 = Fadigado (recomenda-se descanso ou atividade leve). É um índice heurístico deste app (curvas calibradas pelo projeto), não uma métrica clínica validada — use como tendência, não como diagnóstico."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="fadiga-status">—</span>
         </div>
@@ -1545,33 +1545,33 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.2.2"></script>
-<script src="js/utils.js?v=2.2.2"></script>
-<script src="js/router.js?v=2.2.2"></script>
-<script src="js/defaults.js?v=2.2.2"></script>
-<script src="js/api.js?v=2.2.2"></script>
-<script src="js/storage.js?v=2.2.2"></script>
-<script src="js/profile.js?v=2.2.2"></script>
-<script src="js/charts.js?v=2.2.2"></script>
-<script src="js/modals.js?v=2.2.2"></script>
-<script src="js/workouts.js?v=2.2.2"></script>
-<script src="js/rides.js?v=2.2.2"></script>
-<script src="js/bikes.js?v=2.2.2"></script>
-<script src="js/training-log.js?v=2.2.2"></script>
-<script src="js/home-workout.js?v=2.2.2"></script>
-<script src="js/backup.js?v=2.2.2"></script>
-<script src="js/gpx.js?v=2.2.2"></script>
-<script src="js/routes.js?v=2.2.2"></script>
-<script src="js/heatmap.js?v=2.2.2"></script>
-<script src="js/strava.js?v=2.2.2"></script>
-<script src="js/garmin.js?v=2.2.2"></script>
-<script src="js/activities.js?v=2.2.2"></script>
-<script src="js/insights.js?v=2.2.2"></script>
-<script src="js/testes.js?v=2.2.2"></script>
-<script src="js/ferramentas.js?v=2.2.2"></script>
-<script src="js/home.js?v=2.2.2"></script>
-<script src="js/app.js?v=2.2.2"></script>
-<script src="js/pwa.js?v=2.2.2"></script>
+<script src="js/version.js?v=2.2.3"></script>
+<script src="js/utils.js?v=2.2.3"></script>
+<script src="js/router.js?v=2.2.3"></script>
+<script src="js/defaults.js?v=2.2.3"></script>
+<script src="js/api.js?v=2.2.3"></script>
+<script src="js/storage.js?v=2.2.3"></script>
+<script src="js/profile.js?v=2.2.3"></script>
+<script src="js/charts.js?v=2.2.3"></script>
+<script src="js/modals.js?v=2.2.3"></script>
+<script src="js/workouts.js?v=2.2.3"></script>
+<script src="js/rides.js?v=2.2.3"></script>
+<script src="js/bikes.js?v=2.2.3"></script>
+<script src="js/training-log.js?v=2.2.3"></script>
+<script src="js/home-workout.js?v=2.2.3"></script>
+<script src="js/backup.js?v=2.2.3"></script>
+<script src="js/gpx.js?v=2.2.3"></script>
+<script src="js/routes.js?v=2.2.3"></script>
+<script src="js/heatmap.js?v=2.2.3"></script>
+<script src="js/strava.js?v=2.2.3"></script>
+<script src="js/garmin.js?v=2.2.3"></script>
+<script src="js/activities.js?v=2.2.3"></script>
+<script src="js/insights.js?v=2.2.3"></script>
+<script src="js/testes.js?v=2.2.3"></script>
+<script src="js/ferramentas.js?v=2.2.3"></script>
+<script src="js/home.js?v=2.2.3"></script>
+<script src="js/app.js?v=2.2.3"></script>
+<script src="js/pwa.js?v=2.2.3"></script>
 
 </body>
 </html>

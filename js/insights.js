@@ -712,6 +712,9 @@
   // categoria 6 (Elite) = score >= t6. As cores acompanham a paleta do
   // projeto (mapeadas de endurance_score_color.txt). Traduzido de
   // melhorias/endurance_score/ (dados originais da Garmin).
+  // FONTE/VERSÃO: capturada da Garmin Connect em 2026-07 (revisão do app v2.2.x).
+  // A Garmin ajusta esses limiares periodicamente — revisar ~1×/ano e re-capturar
+  // se os tiers exibidos divergirem do app oficial.
   const ENDURANCE_TIERS = [
     { label: 'Recreativo',    color: 'var(--red)'    }, // RED
     { label: 'Intermediário', color: 'var(--orange)' }, // ORANGE
@@ -1010,7 +1013,7 @@
     ],
     intensidade: [
       { when: c => c.hrvDelta != null && c.hrvDelta < -6,  cls: 'magenta', icon: 'fa-heart-pulse', title: 'HRV em queda',           msg: 'Sua HRV noturna caiu na última semana — sinal de fadiga. Inclua um dia leve ou de descanso.' },
-      { when: c => c.pctAlto < 0.10,                       cls: 'magenta', icon: 'fa-mountain',    title: 'Adicione subidas',       msg: 'Pouco volume em Z4–Z5 nas últimas 2 semanas. Inclua intervalados em rampa para ganhar potência.' },
+      { when: c => c.pctAlto < 0.10,                       cls: 'magenta', icon: 'fa-mountain',    title: 'Adicione subidas',       msg: 'Pouco volume em esforço vigoroso (≥85% FCM) nas últimas 2 semanas. Inclua intervalados em rampa para ganhar potência.' },
       { when: c => c.pctAlto > 0.30,                       cls: 'lime',    icon: 'fa-arrow-down-wide-short', title: 'Equilibre com base', msg: 'Muito volume em alta intensidade — adicione pedais longos em Z2 para consolidar a base aeróbica.' },
       { when: c => true,                                   cls: 'amber',   icon: 'fa-bolt',        title: 'Boa dose de intensidade', msg: 'Distribuição de zonas equilibrada — mantenha a mescla de base e intensidade.' },
     ],
@@ -1031,7 +1034,8 @@
     const sonoVals = healthArr.filter(h => h.sono_total_s != null).slice(0, 7).map(h => h.sono_total_s);
     const sonoMedH = sonoVals.length ? (sonoVals.reduce((s, v) => s + v, 0) / sonoVals.length) / 3600 : null;
 
-    // Volume em alta intensidade (Z4–Z5 ≈ fcMedia ≥ 85% FCM) nas últimas 2 semanas
+    // Volume em esforço vigoroso (fcMedia ≥ 85% FCM = topo de Z4 + Z5) nas
+    // últimas 2 semanas. ≥85% é meio de Z4, por isso o rótulo evita dizer "Z4–Z5".
     const duasSem = Date.now() - 14 * 86400_000;
     let altoTempo = 0, totalTempo = 0;
     (activities || []).forEach(a => {

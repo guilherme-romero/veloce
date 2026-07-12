@@ -476,6 +476,8 @@ function calcNutri() {
   const water_mlh   = Math.min(Math.round(sweat * 0.9), 1000);
   const water_total = Math.round(water_mlh * duration_h);
 
+  // Rampa de carbo por duração (guideline de Jeukendrup 2014: até ~1h ≈ 30 g/h,
+  // 1–2h ≈ 30–60, 2–3h ≈ 60, >2,5h intenso ≈ 90 com mix glicose+frutose 2:1).
   let carb_gh = duration_h <= 1 ? 25 : duration_h <= 2 ? 45 : duration_h <= 3 ? 67 : duration_h <= 5 ? 75 : 90;
   if (intens === 'hard' || intens === 'max') {
     carb_gh += 10;
@@ -533,6 +535,16 @@ function calcNutri() {
   } else if (duration_h > 2) {
     tip = `<div class="tip"><i class="fa-solid fa-clock" style="color:var(--teal)"></i><div><strong style="color:var(--text)">Pedal de ${duration_h.toFixed(1)}h:</strong> Acima de ~2h o carbo passa de 60 g/h — use mix de glicose + frutose (2:1), que eleva a absorção intestinal até ~90 g/h. Não dependa só de géis; inclua comida real (bananas, barras).</div></div>`;
   }
+
+  // Gut training: 75–120 g/h exigem intestino adaptado (Jeukendrup 2017;
+  // Thomas et al. 2016) — não estrear taxa alta no dia da prova.
+  if (carb_gh >= 75) {
+    tip += `<div class="tip" style="border-color:rgba(245,213,35,.35);background:rgba(245,213,35,.06)"><i class="fa-solid fa-flask" style="color:#f5d523"></i><div><strong style="color:var(--text)">Treine o intestino:</strong> ${Math.round(carb_gh)} g/h exige adaptação intestinal prévia (semanas treinando com carbo alto). Não estreie essa taxa no dia da prova — risco de desconforto gástrico.</div></div>`;
+  }
+
+  // Nota sempre visível: as taxas de suor/sódio são médias populacionais.
+  tip += `<div style="color:var(--muted2);font-size:11px;line-height:1.4;margin-top:8px">As taxas de suor/sódio são médias populacionais (o real varia ~0,5–2,5 L/h; Sawka et al.). Use como orientação inicial e ajuste pela sede e pela perda de peso após o pedal.</div>`;
+
   document.getElementById('nutri-tip').innerHTML = tip;
 
   const gelInterval = intens === 'max' ? 25 : intens === 'hard' ? 30 : intens === 'mod' ? 40 : 45;

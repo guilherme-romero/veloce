@@ -27,21 +27,23 @@
 
   const round = (n) => Math.round(n);
 
-  function renderCompare({ idade, fcmHoje, fcmFonte, fcmTanaka, fcRep, fcRepFonte }) {
+  function renderCompare({ idade, fcmHoje, fcmFonte, fcmTanaka, fcRep, fcRepFonte, fcRepEstimada }) {
     // Topo de cada zona: hoje = %FCM; Karvonen = FCrep + %FCR·(FCM_tanaka − FCrep).
     const topHoje = PCTS_FCM.map(p => round(fcmHoje * p));
     const topKarv = PCTS_FCR.map(p => round(fcRep + p * (fcmTanaka - fcRep)));
+    // Piso de cada zona = topo da zona anterior; Z1 exibida como "≤ topo".
+    const band = (tops, i) => i === 0 ? `≤${tops[0]}` : `${tops[i - 1]}–${tops[i]}`;
 
-    // Tabela
+    // Tabela — mostra a FAIXA (min–max bpm) de cada zona, não só o topo.
     const rows = ZLABELS.map((z, i) => {
-      const delta = topKarv[i] - topHoje[i];
+      const delta = topKarv[i] - topHoje[i]; // Δ comparado no topo da zona
       const sign  = delta > 0 ? '+' : (delta < 0 ? '−' : '');
       const dcls  = delta > 0 ? 'up' : (delta < 0 ? 'down' : '');
       return `<tr>
         <td><strong>${z}</strong></td>
         <td>${ZFAIXA[i]} · ${ZFAIXA_FCR[i]} FCR</td>
-        <td>${topHoje[i]}</td>
-        <td>${topKarv[i]}</td>
+        <td>${band(topHoje, i)}</td>
+        <td>${band(topKarv, i)}</td>
         <td class="t-zones-delta ${dcls}">${sign}${Math.abs(delta)}</td>
       </tr>`;
     }).join('');
@@ -51,7 +53,7 @@
       tbl.innerHTML = `
         <table class="t-zones-tbl">
           <thead><tr>
-            <th>Zona</th><th>% FCM · % FCR</th><th>Hoje</th><th>Tanaka/Karvonen</th><th>Δ bpm</th>
+            <th>Zona</th><th>% FCM · % FCR</th><th>Hoje (bpm)</th><th>Tanaka/Karvonen (bpm)</th><th>Δ topo</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
@@ -60,12 +62,22 @@
     const note = $('t-zones-note');
     if (note) {
       const esc = window.esc || (s => String(s == null ? '' : s));
+      // Destaca quando a FC de repouso é o fallback estimado (sem dado Garmin):
+      // Karvonen depende dela, então o valor merece um aviso visível.
+      const fcRepTxt = fcRepEstimada
+        ? `<strong style="color:#f5d523">${esc(fcRepFonte)}</strong>`
+        : esc(fcRepFonte);
+      const avisoEst = fcRepEstimada
+        ? ` <strong style="color:#f5d523">As zonas Karvonen são aproximadas</strong> — ` +
+          `sincronize a FC de repouso no Garmin para valores reais.`
+        : '';
       note.innerHTML =
         `Idade ${idade} · FCM hoje <strong>${fcmHoje}</strong> (${esc(fcmFonte)}) · ` +
         `FCM Tanaka <strong>${fcmTanaka}</strong> (208−0,7×idade) · ` +
-        `FC repouso <strong>${fcRep}</strong> bpm (${esc(fcRepFonte)}). ` +
+        `FC repouso <strong>${fcRep}</strong> bpm (${fcRepTxt}). ` +
         `Karvonen usa a FC de reserva (FCM−FCrep) com faixas próprias de %FCR, ` +
-        `~10 p.p. abaixo das de %FCM — zonas fisiologicamente equivalentes.`;
+        `~10 p.p. abaixo das de %FCM — zonas fisiologicamente equivalentes.` +
+        avisoEst;
     }
 
     // Gráfico de barras agrupadas (topo por zona)
@@ -124,17 +136,17 @@
       const fcmTanaka = Math.round(208 - 0.7 * idade);     // Tanaka
 
       // FC de repouso: campo mais recente do Garmin; fallback 60 bpm.
-      let fcRep = 60, fcRepFonte = 'estimada (sem dado Garmin)';
+      let fcRep = 60, fcRepFonte = 'estimada (sem dado Garmin)', fcRepEstimada = true;
       try {
         const health = await window.Api.get('/garmin/health?days=30').catch(() => []);
         const arr = Array.isArray(health) ? [...health].sort((a, b) => a.data.localeCompare(b.data)) : [];
         for (let i = arr.length - 1; i >= 0; i--) {
-          if (arr[i] && arr[i].fc_repouso != null) { fcRep = arr[i].fc_repouso; fcRepFonte = 'Garmin, ' + arr[i].data; break; }
+          if (arr[i] && arr[i].fc_repouso != null) { fcRep = arr[i].fc_repouso; fcRepFonte = 'Garmin, ' + arr[i].data; fcRepEstimada = false; break; }
         }
       } catch (_) {}
 
       if (empty) empty.hidden = true;
-      renderCompare({ idade, fcmHoje, fcmFonte, fcmTanaka, fcRep, fcRepFonte });
+      renderCompare({ idade, fcmHoje, fcmFonte, fcmTanaka, fcRep, fcRepFonte, fcRepEstimada });
     } catch (err) {
       console.error('[testes]', err);
       if (empty) { empty.hidden = false; empty.textContent = 'Falha ao montar a comparação de zonas.'; }

@@ -11,6 +11,14 @@ estimado: **baixo** / **médio** / **alto**.
 
 ## Auditoria 2026-07-11 (v2.2.0) — novos itens
 
+> **Status (FASE 22.1):** implementados em **v2.2.3** — remoção de `bucketByMonth`, streak
+> único (`Utils.calcTrainingStreak`), tokens de cancelamento em charts, simplificação do
+> `autoFillBike`, lock de sync (mutex em `garmin.runCli`), `refineFcMaxFromGarmin` com `Math.max`,
+> rótulo "esforço vigoroso" no card de intensidade, disclaimer do índice de fadiga + citação TSB,
+> data/versão da `ENDURANCE_TABLE`, faixas min–max nas zonas de TESTES, aviso de *gut training* e
+> nota de suor populacional. **Adiados p/ v2.2.4** (infra sensível): renomear
+> `recovery_time_h` → `recovery_time_min` e paginação opt-in no `GET /unified` (marcados abaixo).
+
 ### Consistência / manutenibilidade
 
 - **[baixo] `js/activities.js:105-126`** — `bucketByMonth` é código morto (nenhum caller);

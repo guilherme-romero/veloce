@@ -83,8 +83,10 @@ function autoFillBike(db, dataISO, bike, fonte, fonteId, idPrefix = 'tl') {
   if (row) {
     db.prepare('UPDATE training_log SET tipos = ?, payload = ? WHERE id = ?')
       .run(tiposJson, payloadJson, row.id);
-    if (payload.manual === true && !hadBikeTipo) return 'updated'; // so adicionou tipo
-    return bikeWritten ? 'updated' : (hadBikeTipo ? 'noop' : 'updated');
+    // Mudou algo se gravou a bike OU se acabou de adicionar o tipo "bike".
+    // (No caminho manual, bikeWritten é sempre false → decide só pelo tipo.)
+    const changed = bikeWritten || !hadBikeTipo;
+    return changed ? 'updated' : 'noop';
   } else {
     const id = `${idPrefix}_${fonte}_${dataISO.replace(/-/g, '')}`;
     db.prepare('INSERT INTO training_log (id, data, tipos, notas, payload) VALUES (?, ?, ?, ?, ?)')

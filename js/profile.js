@@ -173,7 +173,12 @@ async function refineFcMaxFromGarmin(idade, nome) {
     });
     // Usa o pico observado apenas se for plausível (descarta zeros/ruído).
     // Faixa plausível: descarta zeros/ruído (piso 120) e artefatos de sensor (teto 230).
-    if (maxObs >= 120 && maxObs <= 230) updateFcmZones(Math.round(maxObs), idade, nome, true);
+    // NUNCA reduz a FCM estimada: um pico submáximo (quem nunca fez esforço
+    // máximo) subestima a FCM real, então usamos o MAIOR entre fórmula e pico.
+    if (maxObs >= 120 && maxObs <= 230) {
+      const fcm = Math.max(calcFCMax(idade), Math.round(maxObs));
+      updateFcmZones(fcm, idade, nome, true);
+    }
   } catch (_) { /* mantém a FCM estimada já renderizada */ }
 }
 

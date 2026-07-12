@@ -21,6 +21,7 @@ if (window.Chart) {
 let weightChart    = null;
 let intensityChart = null;
 let _intensityTotal = 0;
+let _intensityToken = 0; // cancela respostas de fetches antigos (padrão _last5Token)
 
 /* ── Init dos gráficos (estrutura vazia, dados vêm depois) ──────────── */
 function initCharts() {
@@ -173,11 +174,14 @@ function renderIntensity() {
     if (emptyEl) { emptyEl.textContent = msg; emptyEl.style.display = ''; }
   };
 
+  const myToken = ++_intensityToken;
   (async () => {
     let dist = null;
     try {
       if (window.Api) dist = await window.Api.get('/garmin/zone-distribution?days=90');
     } catch (_) { /* trata como vazio abaixo */ }
+
+    if (myToken !== _intensityToken) return; // um render mais novo já assumiu
 
     const seg   = (dist && Array.isArray(dist.segundosPorZona)) ? dist.segundosPorZona : [];
     const total = (dist && dist.totalSegundos) || 0;
