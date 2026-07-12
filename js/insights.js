@@ -534,8 +534,8 @@
       $('readiness-fill').style.background = color;
     }
     $('readiness-sleep').textContent = latest.sleep_score != null ? `${latest.sleep_score}` : '—';
-    // NB: apesar do nome, `recovery_time_h` guarda MINUTOS (Garmin `recoveryTime`); /60 → horas.
-    $('readiness-recovery').textContent = latest.recovery_time_h != null ? `${Math.round(latest.recovery_time_h / 60)}h` : '—';
+    // `recovery_time_min` guarda MINUTOS (Garmin `recoveryTime`); /60 → horas na UI.
+    $('readiness-recovery').textContent = latest.recovery_time_min != null ? `${Math.round(latest.recovery_time_min / 60)}h` : '—';
     $('readiness-hrv').textContent = latest.hrv_weekly_avg != null ? `${latest.hrv_weekly_avg} ms` : '—';
     $('readiness-msg').textContent = msg;
 

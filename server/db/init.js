@@ -49,6 +49,17 @@ for (const sql of migrations) {
   catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
 }
 
+// Renomeia recovery_time_h → recovery_time_min (unidade real da Garmin é
+// MINUTOS; o nome antigo enganava). RENAME COLUMN não é idempotente com o
+// catch acima (erro seria "no such column", não "duplicate"), então guardamos
+// por PRAGMA table_info: só renomeia se a coluna antiga existir e a nova não.
+try {
+  const cols = db.prepare("PRAGMA table_info(garmin_training_readiness)").all().map(c => c.name);
+  if (cols.includes('recovery_time_h') && !cols.includes('recovery_time_min')) {
+    db.exec('ALTER TABLE garmin_training_readiness RENAME COLUMN recovery_time_h TO recovery_time_min');
+  }
+} catch (e) { /* tabela ainda não existe em banco novo — o schema já cria com o nome novo */ }
+
 // PRAGMA integrity_check — aborta o boot se o banco estiver corrompido.
 // simple:false retorna array de linhas; banco íntegro = 1 linha "ok".
 const integrityRows = db.pragma('integrity_check', { simple: false });

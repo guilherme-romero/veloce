@@ -178,7 +178,7 @@ CREATE TABLE IF NOT EXISTS garmin_training_readiness (
   feedback_long   TEXT,
   sleep_score     INTEGER,
   sleep_factor_pct INTEGER,
-  recovery_time_h INTEGER,
+  recovery_time_min INTEGER,   -- Garmin recoveryTime vem em MINUTOS (não horas)
   recovery_factor_pct INTEGER,
   acwr_factor_pct INTEGER,
   hrv_factor_pct  INTEGER,

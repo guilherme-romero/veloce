@@ -79,12 +79,24 @@ async function routes(fastify) {
 
     const totalLinks = fastify.db.prepare('SELECT COUNT(*) AS n FROM activity_links').get().n || 0;
 
+    const all = [...garmin, ...strava].sort((a, b) => String(b.inicio).localeCompare(String(a.inicio)));
+
+    // Paginação OPT-IN e não-quebrável: sem ?limit, retorna tudo (comportamento
+    // atual — os gráficos dependem da janela completa por ?days). Com ?limit, capa
+    // em [offset, offset+limit) para consumidores que só querem as primeiras N.
+    const rawLimit  = parseInt(req.query?.limit, 10);
+    const rawOffset = parseInt(req.query?.offset, 10);
+    const limit  = (Number.isFinite(rawLimit) && rawLimit > 0) ? Math.min(rawLimit, 1000) : null;
+    const offset = (Number.isFinite(rawOffset) && rawOffset > 0) ? rawOffset : 0;
+    const items  = limit != null ? all.slice(offset, offset + limit) : all;
+
     return {
-      items: [...garmin, ...strava].sort((a, b) => String(b.inicio).localeCompare(String(a.inicio))),
+      items,
       counts: {
         strava: strava.length,
         garmin: garmin.length,
         links: totalLinks,
+        total: all.length,   // total antes da paginação (novo, aditivo)
       },
     };
   });

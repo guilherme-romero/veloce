@@ -16,8 +16,14 @@ estimado: **baixo** / **médio** / **alto**.
 > `autoFillBike`, lock de sync (mutex em `garmin.runCli`), `refineFcMaxFromGarmin` com `Math.max`,
 > rótulo "esforço vigoroso" no card de intensidade, disclaimer do índice de fadiga + citação TSB,
 > data/versão da `ENDURANCE_TABLE`, faixas min–max nas zonas de TESTES, aviso de *gut training* e
-> nota de suor populacional. **Adiados p/ v2.2.4** (infra sensível): renomear
-> `recovery_time_h` → `recovery_time_min` e paginação opt-in no `GET /unified` (marcados abaixo).
+> nota de suor populacional.
+>
+> **Implementados em v2.2.4** (infra sensível): renomear `recovery_time_h` →
+> `recovery_time_min` (migração idempotente guardada por `PRAGMA table_info` na tabela
+> `garmin_training_readiness`; migração testada em sqlite isolado — preserva dados e é
+> idempotente) e paginação opt-in (`limit`/`offset`) no `GET /activities/unified` (sem
+> `limit`, comportamento idêntico ao atual). O streak também foi unificado em `js/backup.js`
+> (3ª cópia) via `Utils.calcTrainingStreak`.
 
 ### Consistência / manutenibilidade
 
