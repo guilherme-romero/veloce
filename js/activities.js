@@ -41,7 +41,8 @@
   }
 
   // ── Formatadores ────────────────────────────────────────────────
-  const fmtKm    = (m) => (m == null ? '—' : (m / 1000).toFixed(1).replace('.', ',') + ' km');
+  // Recebe km (mesmo contrato de l5Km); '—' quando ausente.
+  const fmtKm    = (km) => (km == null ? '—' : km.toFixed(1).replace('.', ',') + ' km');
   const fmtTime  = (s) => {
     if (s == null) return '—';
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
@@ -218,7 +219,7 @@
       `<div class="last-activity-title">${esc(act.nome || 'Atividade')} ${fonteBadge}</div>` +
       `<div class="last-activity-meta">${esc(fmtDate(act.inicio))} · ${esc(act.tipo || 'Ride')}</div>` +
       '<div class="last-activity-stats">' +
-        `<div><span class="lv">${fmtKm(act.distanciaKm * 1000)}</span><span class="ll">distância</span></div>` +
+        `<div><span class="lv">${fmtKm(act.distanciaKm)}</span><span class="ll">distância</span></div>` +
         `<div><span class="lv">${fmtTime(act.tempoMovS)}</span><span class="ll">movimento</span></div>` +
         `<div><span class="lv">${fmtElev(act.elevacaoM)}</span><span class="ll">elevação</span></div>` +
         `<div><span class="lv">${act.velMediaKmh != null ? act.velMediaKmh.toFixed(1).replace('.', ',') + ' km/h' : '—'}</span><span class="ll">vel. média</span></div>` +

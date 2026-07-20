@@ -40,27 +40,7 @@ function rowToActivity(r) {
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
 
-  const upsertStmt = fastify.db.prepare(`
-    INSERT INTO garmin_activities (
-      id_garmin, nome, tipo, data_inicio, inicio_local, inicio_gmt, distancia_m,
-      tempo_mov_s, tempo_total_s, elevacao_m, fc_media, fc_max,
-      watts_avg, watts_max, cadencia_avg, velocidade_avg, velocidade_max,
-      calorias, device_id, payload
-    ) VALUES (
-      @id_garmin, @nome, @tipo, @data_inicio, @inicio_local, @inicio_gmt, @distancia_m,
-      @tempo_mov_s, @tempo_total_s, @elevacao_m, @fc_media, @fc_max,
-      @watts_avg, @watts_max, @cadencia_avg, @velocidade_avg, @velocidade_max,
-      @calorias, @device_id, @payload
-    )
-    ON CONFLICT(id_garmin) DO UPDATE SET
-      nome=excluded.nome, tipo=excluded.tipo, distancia_m=excluded.distancia_m,
-      tempo_mov_s=excluded.tempo_mov_s, tempo_total_s=excluded.tempo_total_s,
-      elevacao_m=excluded.elevacao_m, fc_media=excluded.fc_media, fc_max=excluded.fc_max,
-      watts_avg=excluded.watts_avg, watts_max=excluded.watts_max,
-      cadencia_avg=excluded.cadencia_avg, velocidade_avg=excluded.velocidade_avg,
-      velocidade_max=excluded.velocidade_max, calorias=excluded.calorias,
-      device_id=excluded.device_id, payload=excluded.payload
-  `);
+  const upsertStmt = fastify.db.prepare(garmin.ACTIVITY_UPSERT_SQL);
 
   function markBikeDay(dataISO, bikeMetrics, fonteId) {
     return autoFillBike(fastify.db, dataISO, bikeMetrics, 'garmin', fonteId);

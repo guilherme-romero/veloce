@@ -107,6 +107,64 @@ function confirmModal({ title, message = '', confirmLabel = 'Confirmar', cancelL
   });
 }
 
+/**
+ * Prompt via modal (substitui window.prompt). Retorna Promise<string|null>
+ * (null = cancelado/fechado). Valida em `validate(valor) -> string|null`
+ * (mensagem de erro ou null se ok).
+ * @param {Object}   opts
+ * @param {string}   opts.title
+ * @param {string}   [opts.tag]
+ * @param {string}   [opts.message]
+ * @param {string}   [opts.placeholder]
+ * @param {string}   [opts.confirmLabel]
+ * @param {string}   [opts.cancelLabel]
+ * @param {string}   [opts.inputMode]     — ex.: 'numeric'
+ * @param {number}   [opts.maxlength]
+ * @param {Function} [opts.validate]      — (valor) => string|null
+ */
+function promptModal({ title, tag = 'Código', message = '', placeholder = '', confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', inputMode = '', maxlength = null, validate = null }) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (val) => { if (settled) return; settled = true; resolve(val); };
+
+    const submit = (el) => {
+      const inp = el.querySelector('#__prompt_input');
+      const errEl = el.querySelector('#__prompt_err');
+      const val = (inp && inp.value || '').trim();
+      const msg = validate ? validate(val) : (val ? null : 'Campo obrigatório');
+      if (msg) { if (errEl) { errEl.textContent = msg; errEl.hidden = false; } if (inp) inp.focus(); return; }
+      closeModal(); finish(val);
+    };
+
+    openModal({
+      tag, title,
+      bodyHTML:
+        `${message ? `<p class="modal-confirm-text">${esc(message)}</p>` : ''}` +
+        `<input type="text" id="__prompt_input" class="field-input"` +
+        `${inputMode ? ` inputmode="${escAttr(inputMode)}"` : ''}` +
+        `${placeholder ? ` placeholder="${escAttr(placeholder)}"` : ''}` +
+        `${maxlength ? ` maxlength="${maxlength}"` : ''} autocomplete="one-time-code" />` +
+        `<p class="modal-confirm-text" id="__prompt_err" hidden style="color:var(--red)"></p>`,
+      actions: [
+        { label: cancelLabel,  kind: 'ghost',   onClick: () => { closeModal(); finish(null); } },
+        { label: confirmLabel, kind: 'primary', onClick: (el) => submit(el) },
+      ],
+      onMount: (el) => {
+        const inp = el.querySelector('#__prompt_input');
+        if (inp) {
+          inp.focus();
+          inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(el); } });
+        }
+        // Fechar pelo X/ESC/backdrop = cancelar (resolve null uma única vez).
+        const obs = new MutationObserver(() => {
+          if (!document.body.contains(el)) { obs.disconnect(); finish(null); }
+        });
+        obs.observe(document.body, { childList: true });
+      },
+    });
+  });
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    TOAST — feedback rápido
 ═══════════════════════════════════════════════════════════════════════ */
@@ -135,5 +193,5 @@ function toast(message, { kind = 'success', duration = 2400 } = {}) {
 }
 
 /* expor */
-window.Modals = { open: openModal, close: closeModal, confirm: confirmModal };
+window.Modals = { open: openModal, close: closeModal, confirm: confirmModal, prompt: promptModal };
 window.toast  = toast;

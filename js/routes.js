@@ -342,16 +342,7 @@ function calcularTempo() {
 }
 
 /* ── Previsão do tempo (Open-Meteo) — modal expandido ───────────────── */
-const WMO_ICON_ROUTE = {
-  0:'fa-sun', 1:'fa-sun', 2:'fa-cloud-sun', 3:'fa-cloud',
-  45:'fa-smog', 48:'fa-smog',
-  51:'fa-cloud-sun-rain', 53:'fa-cloud-sun-rain', 55:'fa-cloud-sun-rain',
-  61:'fa-cloud-rain', 63:'fa-cloud-rain', 65:'fa-cloud-showers-heavy',
-  71:'fa-snowflake', 73:'fa-snowflake', 75:'fa-snowflake',
-  80:'fa-cloud-rain', 81:'fa-cloud-rain', 82:'fa-cloud-showers-heavy',
-  95:'fa-cloud-bolt', 96:'fa-cloud-bolt', 99:'fa-cloud-bolt',
-};
-function wmoIconRoute(code) { return WMO_ICON_ROUTE[code] || 'fa-cloud-sun'; }
+function wmoIconRoute(code) { return window.Utils.wmoIcon(code); }
 
 function calcularEsforco(tMax, vento, chuva) {
   if (tMax > 38 || chuva > 60 || vento > 40) return { label: 'Alto',        color: 'var(--red)' };

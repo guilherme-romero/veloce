@@ -32,6 +32,12 @@ module.exports = {
   COOKIE_NAME:     process.env.COOKIE_NAME || 'tb_session',
   COOKIE_PATH:     process.env.COOKIE_PATH || '/',
 
+  // Origens permitidas pelo CORS (hardening — mesmo servindo same-origin via
+  // nginx). Lista separada por virgula no .env; default cobre producao + dev.
+  ALLOWED_ORIGINS: (process.env.ALLOWED_ORIGINS ||
+    'https://bike.arkhamcloud.net,http://localhost:8000,http://127.0.0.1:8000')
+    .split(',').map(s => s.trim()).filter(Boolean),
+
   // Strava (opcional — se nao configurado, /api/strava/* retorna disconnected)
   STRAVA_CLIENT_ID:     process.env.STRAVA_CLIENT_ID || '',
   STRAVA_CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET || '',

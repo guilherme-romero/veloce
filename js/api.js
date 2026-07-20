@@ -54,9 +54,12 @@ const Api = (() => {
     }
 
     if (!resp.ok) {
-      const err = new Error(
-        (data && data.error) ? data.error : `Erro ${resp.status} em ${path}`
-      );
+      // Preferência: {error} do JSON → corpo texto (truncado) → genérico.
+      let msg;
+      if (data && data.error) msg = data.error;
+      else if (typeof data === 'string' && data.trim()) msg = data.trim().slice(0, 300);
+      else msg = `Erro ${resp.status} em ${path}`;
+      const err = new Error(msg);
       err.status = resp.status;
       err.body = data;
       throw err;

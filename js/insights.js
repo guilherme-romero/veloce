@@ -93,13 +93,6 @@
     return tempoH * intensity * intensity * 100;
   }
 
-  // Média exponencial decaída: TC(hoje) = TC(ontem) + (TSS - TC(ontem)) / tau.
-  // Delegada a emaSeries — card e banner do topo usam a MESMA matemática (BUG-040).
-  function calcEMA(serieDiaria, tau) {
-    const s = emaSeries(serieDiaria, tau);
-    return s.length ? s[s.length - 1] : 0;
-  }
-
   function fmtDate(iso) {
     try { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }); }
     catch { return iso; }
@@ -164,28 +157,33 @@
   // ───────────────────────────────────────────────────────────────
   // 7.4 — TSS / ATL / CTL / TSB
   // ───────────────────────────────────────────────────────────────
-  function renderTSS(activities, fcMax) {
-    if (!activities.length || !fcMax) return false;
-
-    // Agrupa TSS por dia (últimos 60 dias) — preenche dias sem atividade com 0
+  // Fonte única de CTL/ATL/TSB — usada pelo card 7.4 e pelo banner do topo,
+  // garantindo que os dois exibam exatamente os mesmos números. Série diária de
+  // 60 dias (mais antigo → recente); EMA de 42d (crônica) e 7d (aguda).
+  function calcTSBMetrics(activities, fcMax) {
+    if (!activities.length || !fcMax) return { ctl: 0, atl: 0, tsb: 0, ctlSerie: [], atlSerie: [] };
     const tssDia = {};
     activities.forEach(a => {
       const tss = tssDeAtividade(a, fcMax);
       if (tss > 0) tssDia[a.data] = (tssDia[a.data] || 0) + tss;
     });
-
-    // Série diária 60 dias (mais antigo → mais recente)
     const serie = [];
     const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
     for (let i = 59; i >= 0; i--) {
       const d = new Date(hoje); d.setDate(d.getDate() - i);
-      const iso = d.toISOString().slice(0, 10);
-      serie.push(tssDia[iso] || 0);
+      serie.push(tssDia[d.toISOString().slice(0, 10)] || 0);
     }
+    const ctlSerie = emaSeries(serie, 42);
+    const atlSerie = emaSeries(serie, 7);
+    const ctl = ctlSerie[ctlSerie.length - 1] || 0;
+    const atl = atlSerie[atlSerie.length - 1] || 0;
+    return { ctl, atl, tsb: ctl - atl, ctlSerie, atlSerie };
+  }
 
-    const ctl = calcEMA(serie, 42); // crônica
-    const atl = calcEMA(serie, 7);  // aguda
-    const tsb = ctl - atl;
+  function renderTSS(activities, fcMax) {
+    if (!activities.length || !fcMax) return false;
+
+    const { ctl, atl, tsb } = calcTSBMetrics(activities, fcMax);
 
     let status, color, msg;
     if (tsb > 10)       { status = 'Fresco';     color = COLORS.green; msg = 'TSB positivo — momento ideal para sessão intensa ou prova.'; }
@@ -934,7 +932,7 @@
   // ───────────────────────────────────────────────────────────────
   // EMA com warm-up a partir de 0 (carga zero antes da janela): evita que o
   // primeiro dia infle CTL/ATL no início do histórico (converge após ~tau dias).
-  // Única implementação de EMA do módulo — calcEMA usa o último ponto (BUG-040).
+  // Única implementação de EMA do módulo — usada por calcTSBMetrics (card + banner).
   function emaSeries(serie, tau) {
     const out = [];
     let ema = 0;
@@ -1066,19 +1064,7 @@
     const top = $('insights-top');
     if (!top) return;
 
-    let ctl = 0, atl = 0, tsb = 0, ctlSerie = [], atlSerie = [];
-    if (activities.length && fcMax) {
-      const tssDia = {};
-      activities.forEach(a => { const t = tssDeAtividade(a, fcMax); if (t > 0) tssDia[a.data] = (tssDia[a.data] || 0) + t; });
-      const serie = [];
-      const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
-      for (let i = 59; i >= 0; i--) { const d = new Date(hoje); d.setDate(d.getDate() - i); serie.push(tssDia[d.toISOString().slice(0, 10)] || 0); }
-      ctlSerie = emaSeries(serie, 42);
-      atlSerie = emaSeries(serie, 7);
-      ctl = ctlSerie[ctlSerie.length - 1] || 0;
-      atl = atlSerie[atlSerie.length - 1] || 0;
-      tsb = ctl - atl;
-    }
+    const { ctl, atl, tsb, ctlSerie, atlSerie } = calcTSBMetrics(activities, fcMax);
     top.hidden = false;
 
     // Banner

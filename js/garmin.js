@@ -172,8 +172,17 @@
       await load();
     } catch (err) {
       if (err.status === 409) {
-        // MFA — pede o codigo
-        const code = prompt('Digite o código de verificação (MFA) enviado pela Garmin:');
+        // MFA — pede o codigo via modal (valida 6–8 dígitos, igual ao backend)
+        const code = await window.Modals.prompt({
+          tag: 'Garmin',
+          title: 'Verificação em duas etapas',
+          message: 'Digite o código (MFA) enviado pela Garmin.',
+          placeholder: '000000',
+          confirmLabel: 'Confirmar',
+          inputMode: 'numeric',
+          maxlength: 8,
+          validate: (v) => /^\d{6,8}$/.test(v) ? null : 'Informe um código de 6 a 8 dígitos.',
+        });
         if (!code) {
           if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-plug"></i> Conectar'; }
           return;

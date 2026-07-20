@@ -341,19 +341,27 @@ function renderGearMatrix() {
   });
 }
 
-function loadScript(src) {
+function loadScript(src, integrity) {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = src; s.onload = resolve; s.onerror = reject;
+    s.src = src;
+    if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
+    s.onload = resolve; s.onerror = reject;
     document.head.appendChild(s);
   });
 }
 
+// sql.js via cdnjs — versão + SRI num único ponto (ao atualizar, trocar os dois
+// juntos). Se a CDN servir bytes diferentes o script é recusado e cai no
+// fallback embutido (dados JS).
+const SQLJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/';
+const SQLJS_SRI  = 'sha384-6F5mEvGKGAoGW98OnEAEY4JnkwYPkPMeAGAutPVeS92W2yTWeqBcYAX+1SkXYkPM';
+
 async function tryLoadDB() {
   try {
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.min.js');
+    await loadScript(`${SQLJS_BASE}sql-wasm.min.js`, SQLJS_SRI);
     if (!window.initSqlJs) return;
-    const SQL = await window.initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+    const SQL = await window.initSqlJs({ locateFile: f => `${SQLJS_BASE}${f}` });
     const resp = await fetch('data/cassetes.db');
     if (!resp.ok) return;
     const buf = await resp.arrayBuffer();

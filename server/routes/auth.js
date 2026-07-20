@@ -4,7 +4,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const password = require('../utils/password');
-const { requireAuth, COOKIE_NAME } = require('../middleware/auth');
+const { requireAuth, COOKIE_NAME, invalidateLogoutCache } = require('../middleware/auth');
 
 // Hash bcrypt fixo de uma senha aleatória — usado para igualar o custo de
 // verify() quando o username não confere, evitando timing attack.
@@ -19,7 +19,10 @@ const cookieOptions = () => ({
 });
 
 async function routes(fastify) {
-  fastify.post('/api/auth/login', async (req, reply) => {
+  fastify.post('/api/auth/login', {
+    // Rate-limit contra forca bruta (bcrypt encarece, mas nao substitui limite).
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+  }, async (req, reply) => {
     const { user, pass } = req.body || {};
     if (!user || !pass) {
       return reply.code(400).send({ error: 'Usuario e senha sao obrigatorios' });
@@ -52,6 +55,7 @@ async function routes(fastify) {
     // rejeitados pelo requireAuth, mesmo se exfiltrados.
     const now = Math.floor(Date.now() / 1000);
     fastify.db.prepare('UPDATE auth_state SET last_logout_at = ? WHERE id = 1').run(now);
+    invalidateLogoutCache(); // revogação vale já na próxima request (não espera o TTL)
     reply.clearCookie(COOKIE_NAME, { path: config.COOKIE_PATH });
     return { ok: true };
   });

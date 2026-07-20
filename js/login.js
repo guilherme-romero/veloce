@@ -15,10 +15,14 @@
   document.getElementById('login-version').textContent = 'v' + (window.APP_VERSION || '?');
   document.getElementById('login-year').textContent    = new Date().getFullYear();
 
-  // Se ja autenticado, vai direto pro app
-  fetch('/api/auth/me', { credentials: 'same-origin' })
+  // Se ja autenticado, vai direto pro app. Timeout curto: se o backend demorar,
+  // não trava a tela de login — o usuário segue podendo digitar as credenciais.
+  const _meCtrl = new AbortController();
+  const _meTimer = setTimeout(() => _meCtrl.abort(), 3000);
+  fetch('/api/auth/me', { credentials: 'same-origin', signal: _meCtrl.signal })
     .then(r => { if (r.ok) window.location.replace('/index.html'); })
-    .catch(() => {});
+    .catch(() => {})
+    .finally(() => clearTimeout(_meTimer));
 
   function showError(msg) {
     errEl.textContent = msg;

@@ -87,51 +87,65 @@ estimado: **baixo** / **médio** / **alto**.
 
 ## Segurança preventiva
 
-- **[baixo] `js/modals.js`** — Fazer de `openModal`/`toast` a barreira final de escape (escapar
-  `tag`/`title`/`label`/`message` por padrão), em vez de confiar nos callers. *(Ver BUGS.md — hoje
-  é um bug real de XSS no `toast`.)*
-- **[baixo] `server/index.js`** — Adicionar **rate-limit** (`@fastify/rate-limit`, ex.: 5 req/min por
-  IP) no `/api/auth/login`. O bcrypt encarece, mas não substitui rate-limit contra força bruta.
-- **[baixo] `server/index.js`** — Configurar **CORS** explicitamente (`@fastify/cors` com origem
-  restrita) como hardening, mesmo servindo na mesma origem via nginx.
-- **[baixo] `js/ferramentas.js:343`** — sql.js (`sql-wasm`) é carregado de CDN externo sem
-  `integrity` (SRI). Adicionar SRI ou hospedar localmente.
-- **[baixo] `server/routes/profile.js:69`** — `PUT /api/profile` persiste qualquer objeto JSON sem
-  validação de campos (inofensivo em single-user, mas sem guarda). Validar campos conhecidos.
+> **Status (FASE 23.1):** implementada em **v2.3.0** — rate-limit no login, CORS restrito,
+> validação do `PUT /api/profile` e SRI no sql.js. Code-review sem achados críticos.
+
+- **✔ [baixo] `js/modals.js`** — *(já resolvido em v2.1.6, ver BUGS.md)* `openModal`/`toast` como
+  barreira final de escape (`tag`/`title`/`label`/`message`).
+- **✔ [baixo] `server/index.js`** — *(v2.3.0)* **rate-limit** via `@fastify/rate-limit` (opt-in,
+  5 req/min por IP) só em `POST /api/auth/login` (`routes/auth.js`); validado por `fastify.inject`
+  (429 após 5).
+- **✔ [baixo] `server/index.js`** — *(v2.3.0)* **CORS** via `@fastify/cors` com origem restrita a
+  `config.ALLOWED_ORIGINS` (`.env` opcional; default cobre produção + dev), `credentials:true`.
+- **✔ [baixo] `js/ferramentas.js`** — *(v2.3.0)* SRI `sha384` no `sql-wasm.min.js` (cdnjs) +
+  `crossOrigin=anonymous`; versão/URL centralizadas em `SQLJS_BASE`/`SQLJS_SRI`; fallback embutido
+  cobre falha de checksum. *(Nota: o `.wasm` carregado por `initSqlJs` não tem SRI — limitação da
+  lib; o JS principal está protegido.)*
+- **✔ [baixo] `server/routes/profile.js`** — *(v2.3.0)* `PUT /api/profile` filtra por whitelist
+  `ALLOWED_PROFILE_KEYS`, rejeita array, teto de 16 KB e loga chaves descartadas.
 
 ## Robustez / resiliência
 
-- **[baixo] `server/services/garmin.js:23`** — `runCli` acumula stdout/stderr sem limite; resposta
-  Garmin muito grande cresce em memória. Adicionar teto de bytes e rejeitar.
-- **[baixo] `server/middleware/auth.js:10`** — `lastLogoutAt()` consulta o banco a cada request
-  autenticado; cachear por ~1s (invalidando no logout) elimina a query.
-- **[baixo] `js/pwa.js:44`** — `controllerchange` chama `location.reload()` automaticamente ao SW
-  assumir controle, podendo interromper o usuário. Condicionar ao banner "Atualizar" já existente.
-- **[baixo] `js/rides.js:499`** — `saveRide` não valida data real (`"9999-99-99"` passa). Adicionar
-  `isNaN(new Date(data))`.
-- **[baixo] `js/api.js:56`** — quando a resposta de erro não é JSON, a mensagem vira genérica
-  `Erro <status>`; incluir o corpo texto quando disponível.
-- **[baixo] `js/login.js:19`** — check de auth no load é fire-and-forget com `.catch(()=>{})`;
-  adicionar timeout curto para não redirecionar por lentidão do backend.
+> **Status (FASE 23.2 + 23.4):** itens de robustez implementados em **v2.3.0**. O `exportJSON`
+> → endpoint `/bikes/export` foi deixado para uma fase futura (ver Manutenibilidade).
+
+- **✔ [baixo] `server/services/garmin.js`** — *(v2.3.0)* `runCli` aborta (SIGKILL + `OUTPUT_LIMIT`)
+  se stdout+stderr do subprocess passar de 8 MB.
+- **✔ [baixo] `server/middleware/auth.js`** — *(v2.3.0)* `lastLogoutAt()` com cache in-memory (TTL
+  1s) + `invalidateLogoutCache()` chamado no logout (revogação imediata para o dono).
+- **✔ [baixo] `js/pwa.js`** — *(v2.3.0)* `controllerchange` só recarrega se o usuário clicou
+  "Atualizar" (`userTriggeredUpdate`); o SW faz skipWaiting, então sem isso a nova versão
+  recarregava sozinha. Caso contrário, mostra o banner.
+- **✔ [baixo] `js/rides.js`** — *(v2.3.0)* `saveRide` rejeita data inválida (`isNaN(new Date(...))`).
+- **✔ [baixo] `js/api.js`** — *(v2.3.0)* erro não-JSON usa o corpo texto (truncado em 300) antes do
+  genérico `Erro <status>`.
+- **✔ [baixo] `js/login.js`** — *(v2.3.0)* check de auth com `AbortController` + timeout de 3s (não
+  trava a tela se o backend demorar).
 
 ## Manutenibilidade / duplicação
 
-- **[baixo] `js/routes.js:345` + `js/rides.js:588`** — dois mapeamentos `WMO_ICONS` idênticos.
-  Extrair para helper compartilhado em `utils.js`.
-- **[médio] `server/routes/garmin.js:43` + `server/scheduler.js:24`** — `upsertStmt` de
-  `garmin_activities` duplicado (~20 linhas). Centralizar em `services/garmin.js`.
-- **[baixo] `js/activities.js:242`** — unificar o contrato de `fmtKm` (metros) vs `l5Km` (km);
-  documentar a unidade esperada e remover a dupla conversão `distanciaKm * 1000`.
-- **[médio] `js/insights.js`** — `renderTSS` e `renderInsightsTop` recalculam TSS/CTL/ATL por
-  caminhos separados; centralizar num único cálculo `{ ctl, atl, tsb, ctlSerie, atlSerie }` para
-  evitar divergência futura entre card e gráfico.
+> **Status (FASE 23.3):** WMO_ICONS, upsert do Garmin, cálculo de TSS/CTL/ATL e contrato de `fmtKm`
+> unificados em **v2.3.0**. O endpoint `/bikes/export` fica adiado.
+
+- **✔ [baixo] `js/routes.js` + `js/rides.js`** — *(v2.3.0)* `WMO_ICONS` único em
+  `Utils.wmoIcon` (`js/utils.js`); os dois helpers locais delegam a ele.
+- **✔ [médio] `server/routes/garmin.js` + `server/scheduler.js`** — *(v2.3.0)* SQL de upsert de
+  `garmin_activities` centralizado em `services/garmin.js` (`ACTIVITY_UPSERT_SQL`); os dois callers
+  preparam a partir dele.
+- **✔ [baixo] `js/activities.js`** — *(v2.3.0)* `fmtKm` passou a receber **km** (mesmo contrato de
+  `l5Km`), eliminando o round-trip `distanciaKm * 1000` (único caller). Data ausente agora mostra
+  "—" em vez de "0,0 km".
+- **✔ [médio] `js/insights.js`** — *(v2.3.0)* `calcTSBMetrics(activities, fcMax)` é a fonte única de
+  `{ ctl, atl, tsb, ctlSerie, atlSerie }`; card 7.4 e banner do topo consomem dela. `calcEMA` órfão
+  removido. **Números idênticos** (ambos já usavam `emaSeries`).
 - **[médio] `js/backup.js:397`** — `exportJSON` faz várias chamadas por bike (componentes +
   manutenções + retirados). Um endpoint `/bikes/export` no backend reduziria round-trips.
+  *(Adiado — fora do escopo da FASE 23 para manter as ondas enxutas.)*
 
 ## UX
 
-- **[médio] `js/garmin.js:174`** — substituir `prompt()` do código MFA por um modal do próprio
-  sistema `Modals`, com validação de 6 dígitos.
+- **✔ [médio] `js/garmin.js`** — *(v2.3.0)* `prompt()` do MFA substituído por `Modals.prompt`
+  (novo helper reutilizável em `modals.js`), com validação de 6–8 dígitos espelhando o backend.
 
 ## Correção fina de domínio — treino (personal-trainer)
 

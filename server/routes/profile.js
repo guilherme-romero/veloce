@@ -5,6 +5,15 @@ const path = require('path');
 const fs   = require('fs');
 const { requireAuth } = require('../middleware/auth');
 
+// Campos conhecidos do perfil (singleton). PUT /api/profile descarta chaves
+// fora desta lista — um cliente autenticado nao injeta payload arbitrario.
+const ALLOWED_PROFILE_KEYS = new Set([
+  'nome', 'dataNascimento', 'sexo', 'altura', 'pesoAtual', 'pesoMeta',
+  'bikePeso', 'bikeModelo', 'dataInicioPlano', 'fcMax',
+  'hasAvatar', 'avatarUpdatedAt',
+]);
+const MAX_PROFILE_BYTES = 16 * 1024; // perfil e pequeno; teto generoso
+
 const AVATAR_DIR  = path.resolve(__dirname, '..', '..', 'data', 'avatars');
 const AVATAR_JPG  = path.join(AVATAR_DIR, 'avatar.jpg');
 const AVATAR_PNG  = path.join(AVATAR_DIR, 'avatar.png');
@@ -68,15 +77,29 @@ async function routes(fastify) {
 
   fastify.put('/api/profile', async (req, reply) => {
     const body = req.body;
-    if (!body || typeof body !== 'object') {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return reply.code(400).send({ error: 'payload invalido' });
     }
-    const json = JSON.stringify(body);
+    // Mantem apenas campos conhecidos; loga chaves descartadas p/ nao mascarar
+    // um campo novo do frontend que ficou de fora da whitelist.
+    const clean = {};
+    const dropped = [];
+    for (const k of Object.keys(body)) {
+      if (ALLOWED_PROFILE_KEYS.has(k)) clean[k] = body[k];
+      else dropped.push(k);
+    }
+    if (dropped.length) {
+      fastify.log.warn({ dropped }, 'PUT /api/profile: campos desconhecidos descartados');
+    }
+    const json = JSON.stringify(clean);
+    if (Buffer.byteLength(json, 'utf8') > MAX_PROFILE_BYTES) {
+      return reply.code(413).send({ error: 'perfil muito grande' });
+    }
     fastify.db
       .prepare(`INSERT INTO user_profile (id, payload, updated_at) VALUES (1, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = CURRENT_TIMESTAMP`)
       .run(json);
-    return body;
+    return clean;
   });
 
   // ── GET /api/user/avatar — serve a foto (publico-ish; precisa de auth) ──

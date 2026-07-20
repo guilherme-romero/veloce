@@ -385,12 +385,14 @@ Revisados no diff pelo `code-reviewer` (regressões/XSS) e pelo `nutritionist` (
 
 - **[MENOR] `js/storage.js:474`** — `importJSON` faz `JSON.parse` sem try/catch (erro escapa ao caller).
 
-- **[MENOR/perf] `server/scheduler.js:55,246`** — `db.prepare('SELECT 1 ...')` dentro do loop da
-  transação recompila o statement a cada item. **Fix:** preparar uma vez fora da transação.
+- **✔ [MENOR/perf] `server/scheduler.js:55,246`** — *(corrigido em v2.3.0, FASE 23.2)*
+  `db.prepare('SELECT 1 ...')` era recompilado a cada item da transação. **Fix aplicado:** statement
+  `exists` preparado uma vez fora da transação (Garmin e Strava).
 
-- **[MENOR] `server/routes/bikes.js:124-155`** — `EXCLUDED_*_TYPES` são fragmentos SQL interpolados
-  (`tipo NOT IN ${const}`). Não é exploitável (constantes de módulo) mas é padrão errado.
-  **Fix:** `IN (?,?,...)` com array de parâmetros.
+- **✔ [MENOR] `server/routes/bikes.js:124-155`** — *(corrigido em v2.3.0, FASE 23.2)*
+  `EXCLUDED_*_TYPES` eram fragmentos SQL interpolados (`tipo NOT IN ${const}`). **Fix aplicado:**
+  constantes viraram arrays; queries usam `NOT IN (?,?,...)` com bind por parâmetros (SQL
+  equivalente ao anterior, verificado).
 
 - **[MENOR/nutrição] `js/profile.js:32`** e **`js/insights.js:16 vs 81-92`** — `220−idade` é a fórmula
   menos acurada (Tanaka `208−0.7×idade` é melhor para adultos); e o comentário do cabeçalho ("1h em

@@ -497,6 +497,7 @@ function saveRide(modal, rideId) {
 
   if (!data.destino) { toast('Informe o destino', { kind: 'error' }); return; }
   if (!data.data)    { toast('Informe a data',    { kind: 'error' }); return; }
+  if (isNaN(new Date(data.data).getTime())) { toast('Data inválida', { kind: 'error' }); return; }
 
   if (rideId) {
     Storage.updateRide(rideId, data);
@@ -585,21 +586,8 @@ let _weatherCacheTs  = 0;
 let _weatherPage     = 0;   // página atual da faixa (7 dias por página)
 const WEATHER_TTL_MS = 60 * 60 * 1000; // 1 hora (dados diários mudam pouco após 06h)
 
-const WMO_ICONS = {
-  0:  'fa-sun',
-  1:  'fa-sun',
-  2:  'fa-cloud-sun',
-  3:  'fa-cloud',
-  45: 'fa-smog', 48: 'fa-smog',
-  51: 'fa-cloud-sun-rain', 53: 'fa-cloud-sun-rain', 55: 'fa-cloud-sun-rain',
-  61: 'fa-cloud-rain', 63: 'fa-cloud-rain', 65: 'fa-cloud-showers-heavy',
-  71: 'fa-snowflake', 73: 'fa-snowflake', 75: 'fa-snowflake',
-  80: 'fa-cloud-rain', 81: 'fa-cloud-rain', 82: 'fa-cloud-showers-heavy',
-  95: 'fa-cloud-bolt', 96: 'fa-cloud-bolt', 99: 'fa-cloud-bolt',
-};
-
 function wmoIcon(code) {
-  return WMO_ICONS[code] || 'fa-cloud-sun';
+  return window.Utils.wmoIcon(code);
 }
 
 // Mapa dateISO → previsão (a partir do cache do strip), usado para colocar

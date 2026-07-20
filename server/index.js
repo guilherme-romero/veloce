@@ -13,6 +13,20 @@ fastify.register(require('@fastify/cookie'), {
   secret: config.JWT_SECRET, // assinatura opcional, nao usada (JWT ja assina)
 });
 
+// CORS — restrito as origens conhecidas (hardening). Same-origin (nginx) nem
+// precisa dos headers; requisicoes de outras origens sao recusadas.
+fastify.register(require('@fastify/cors'), {
+  origin: config.ALLOWED_ORIGINS,
+  credentials: true,
+});
+
+// Rate-limit — registrado como opt-in (global:false). Só rotas que declaram
+// `config.rateLimit` sao limitadas (hoje: POST /api/auth/login), para nao
+// estrangular a API do app single-user.
+fastify.register(require('@fastify/rate-limit'), {
+  global: false,
+});
+
 // DB — abre/cria training.db e expoe em fastify.db
 const db = require('./db/init');
 fastify.decorate('db', db);

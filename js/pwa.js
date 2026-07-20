@@ -39,10 +39,15 @@
     }
   });
 
-  // Quando o SW assume controle, recarrega a página (após o usuário aceitar)
+  // O SW faz skipWaiting()+clients.claim(), então 'controllerchange' pode
+  // disparar sozinho (nova versão assume em background). Só recarregamos se o
+  // usuário pediu (botão "Atualizar"); caso contrário, mostramos o banner e
+  // deixamos ele recarregar quando quiser — sem interromper o uso.
   let refreshing = false;
+  let userTriggeredUpdate = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return;
+    if (!userTriggeredUpdate) { showUpdateBanner(); return; }
     refreshing = true;
     window.location.reload();
   });
@@ -66,9 +71,10 @@
     document.body.appendChild(banner);
 
     banner.querySelector('[data-update]').onclick = () => {
+      userTriggeredUpdate = true;
       if (registration && registration.waiting) {
         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        // o controllerchange acima vai recarregar
+        // o controllerchange acima vai recarregar (userTriggeredUpdate=true)
       } else {
         window.location.reload();
       }
