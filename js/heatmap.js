@@ -118,6 +118,13 @@
       html += `<div class="heatmap-cell${isToday ? ' heatmap-today' : ''}" data-tipo="${tipo}" title="${esc(tip)}"></div>`;
     });
 
+    // Células vazias DEPOIS do último dia — completa a última semana (coluna),
+    // senão os dias futuros da semana atual ficam como buracos no grid.
+    const trailing = (7 - ((startDow + days.length) % 7)) % 7;
+    for (let p = 0; p < trailing; p++) {
+      html += '<div class="heatmap-cell heatmap-cell-pad"></div>';
+    }
+
     grid.innerHTML = html;
   }
 

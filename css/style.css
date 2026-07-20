@@ -1562,7 +1562,9 @@ body.edit-mode .exercise-actions { display: flex; }
   cursor: default;
   transition: opacity 0.1s;
 }
-.heatmap-cell-pad { background: transparent; }
+/* Padding (dias fora da janela de 91d / futuros da semana atual): quadrado
+   opaco porém apagado — visível como os demais, sem sumir do grid. */
+.heatmap-cell-pad { background: var(--surface2); opacity: 0.35; border: none; }
 .heatmap-cell:hover { opacity: 0.75; }
 .heatmap-cell[data-tipo="bike"]        { background: var(--teal-dim);   border: 1px solid var(--teal);   }
 .heatmap-cell[data-tipo="fisico"]      { background: var(--amber-dim);  border: 1px solid var(--amber);  }
