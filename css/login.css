@@ -119,18 +119,18 @@ html, body {
   width: 36px; height: 36px;
   background: transparent;
   border: none;
-  color: var(--lime);
+  color: var(--muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px;
   transition: color 0.15s, opacity 0.15s;
 }
-/* Mantém o lima em hover/focus (antes virava branco e "sumia" no fundo). */
+/* Cinza escuro; hover/focus clareia p/ feedback (antes virava branco e sumia). */
 .login-eye:hover,
 .login-eye:focus,
-.login-eye:active { color: var(--lime); opacity: 0.8; }
-.login-eye:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+.login-eye:active { color: var(--muted2); opacity: 1; }
+.login-eye:focus-visible { outline: 2px solid var(--muted); outline-offset: 2px; }
 
 /* ── Botao ──────────────────────────────────────────────────────────── */
 .login-btn {
