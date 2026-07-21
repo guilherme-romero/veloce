@@ -508,6 +508,7 @@ function saveRide(modal, rideId) {
   }
 
   renderRides();
+  window.Notifications?.load();  // "próximo passeio" pode ter mudado
   Modals.close();
 }
 

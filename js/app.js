@@ -512,11 +512,15 @@ async function boot() {
   if (Array.isArray(window.LOAD_ERRORS) && window.LOAD_ERRORS.length) {
     const labels = window.LOAD_ERRORS.map(f => f.label).join(', ');
     console.error('[boot] Falhas ao carregar dados:', window.LOAD_ERRORS);
+    const msg = `Falha ao carregar: ${labels}. Recarregue a página antes de modificar dados.`;
     try {
+      // Erro crítico — toast de erro com duração longa (não some rápido);
+      // modal do sistema como fallback. Sem alert() nativo.
       if (typeof window.toast === 'function') {
-        window.toast(`Falha ao carregar: ${labels}. Recarregue a página.`, { kind: 'error' });
-      } else {
-        alert(`Falha ao carregar dados: ${labels}\n\nRecarregue a página antes de modificar qualquer informação.`);
+        window.toast(msg, { kind: 'error', duration: 8000 });
+      } else if (window.Modals && Modals.open) {
+        Modals.open({ tag: 'Erro', title: 'Falha ao carregar',
+          bodyHTML: `<p class="modal-confirm-text">${esc(msg)}</p>` });
       }
     } catch (_) {}
   }

@@ -9,7 +9,8 @@
   const SEEN_KEY = 'tb_notif_seen';
   const DAY_MS   = 86400000;
 
-  let _cache = []; // últimas notificações computadas: {id, icon, color, title, text}
+  let _cache = [];      // últimas notificações computadas: {id, icon, color, title, text}
+  let _loading = null;  // promise de load() em andamento (coalesce chamadas concorrentes)
 
   function _todayISO() {
     const d = new Date();
@@ -129,35 +130,68 @@
     else { el.hidden = true; }
   }
 
-  // Recalcula todas as fontes e atualiza o badge (fire-and-forget no boot).
-  async function load() {
-    try {
-      const grupos = await Promise.all([
-        _recordes(), Promise.resolve(_proximoPasseio()), _climaHoje(), _ultimaAtividade(),
-      ]);
-      _cache = grupos.flat();
-    } catch { _cache = []; }
+  // Recalcula todas as fontes e atualiza o badge. Chamadas concorrentes (ex.:
+  // sync Garmin + Strava em paralelo, ou clique no sino durante o load do boot)
+  // reusam a mesma promise em andamento — evita disparar as 4 rotas em dobro.
+  function load() {
+    if (_loading) return _loading;
+    _loading = (async () => {
+      try {
+        const grupos = await Promise.all([
+          _recordes(), Promise.resolve(_proximoPasseio()), _climaHoje(), _ultimaAtividade(),
+        ]);
+        _cache = grupos.flat();
+      } catch { _cache = []; }
+      _updateBadge();
+    })().finally(() => { _loading = null; });
+    return _loading;
+  }
+
+  // HTML da lista (a partir do _cache atual). CONTRATO: `title` é escapado aqui,
+  // mas `text` é inserido cru — cada coletor DEVE escapar (_esc) os campos vindos
+  // de dados externos ao montar `text`.
+  function _itemsHTML() {
+    if (!_cache.length) return '<div class="notif-empty">Nada novo por aqui. 🚴</div>';
+    const seen = _seen();
+    return _cache.map(x => {
+      const novo = !seen.has(x.id);
+      return `<div class="notif-item${novo ? ' notif-unseen' : ''}">` +
+        `<span class="notif-ico" style="color:${x.color}"><i class="fa-solid ${x.icon}"></i></span>` +
+        `<div class="notif-body"><div class="notif-title">${_esc(x.title)}</div>` +
+        `<div class="notif-text">${x.text}</div></div></div>`;
+    }).join('');
+  }
+
+  // Painel ainda aberto? (usado para re-render/marca visto após load tardio)
+  function _listEl() { return document.querySelector('.modal-body .notif-list'); }
+
+  // Marca o que está no cache como visto e zera o badge.
+  function _consumir() {
+    if (!_cache.length) return;       // nada a marcar: não "consome" notificação futura
+    _markSeen(_cache.map(x => x.id));
     _updateBadge();
   }
 
   function open() {
     if (!window.Modals || !Modals.open) return;
-    const seen = _seen();
-    const body = _cache.length
-      ? _cache.map(x => {
-          const novo = !seen.has(x.id);
-          return `<div class="notif-item${novo ? ' notif-unseen' : ''}">` +
-            `<span class="notif-ico" style="color:${x.color}"><i class="fa-solid ${x.icon}"></i></span>` +
-            `<div class="notif-body"><div class="notif-title">${_esc(x.title)}</div>` +
-            `<div class="notif-text">${x.text}</div></div></div>`;
-        }).join('')
-      : '<div class="notif-empty">Nada novo por aqui. 🚴</div>';
+    const carregando = !_cache.length; // pode ser que o load do boot ainda não terminou
+    const body = carregando
+      ? '<div class="notif-empty"><i class="fa-solid fa-spinner fa-spin"></i> Carregando…</div>'
+      : _itemsHTML();
 
     Modals.open({ tag: 'Notificações', title: 'Novidades', bodyHTML: `<div class="notif-list">${body}</div>` });
 
-    // Marca tudo como visto e zera o badge.
-    _markSeen(_cache.map(x => x.id));
-    _updateBadge();
+    if (carregando) {
+      // Tenta carregar; só re-renderiza/marca se o painel ainda estiver aberto.
+      load().then(() => {
+        const el = _listEl();
+        if (!el) { _updateBadge(); return; } // usuário fechou antes: não consome
+        el.innerHTML = _itemsHTML();
+        _consumir();
+      });
+    } else {
+      _consumir();
+    }
   }
 
   window.Notifications = { load, open };

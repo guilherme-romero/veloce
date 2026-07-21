@@ -251,6 +251,7 @@
         if (window.Activities && Activities.load) await Activities.load();
       } catch (e) { console.warn('[garmin] refresh local falhou', e); }
       await load();
+      window.Notifications?.load();  // atualiza o sino sem recarregar a página
     } catch (err) {
       console.error('[garmin] sync', err);
       if (window.toast) window.toast('Falha ao sincronizar: ' + (err.message || err), { kind: 'error' });

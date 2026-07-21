@@ -11,13 +11,14 @@ estimado: **baixo** / **médio** / **alto**.
 
 ## Sino de notificações (v2.4.0) — follow-ups do code-review
 
-Nitpicks não-bloqueantes do sino in-app (IDEIA-6 Nível A); registrados p/ depois:
+Nitpicks não-bloqueantes do sino in-app (IDEIA-6 Nível A):
 
-- **[baixo] `js/notifications.js`** — `load()` só roda no boot; se o usuário sincronizar
-  Garmin/Strava ou cadastrar um passeio na mesma sessão, o sino/badge não reflete até recarregar.
-  Considerar re-chamar `Notifications.load()` após os eventos de sync e no salvar de passeio.
-- **[baixo] `js/notifications.js`** — se clicar no sino antes do `load()` fire-and-forget terminar
-  (rede lenta), o painel abre "Nada novo" sem estado de carregando/retry. Cosmético.
+- **✔ [baixo] `js/notifications.js`** — *(v2.4.1)* `Notifications.load()` agora é re-chamado após o
+  sync Garmin/Strava (`js/garmin.js`, `js/strava.js`) e ao salvar passeio (`js/rides.js`), então o
+  badge reflete sem recarregar.
+- **✔ [baixo] `js/notifications.js`** — *(v2.4.1)* abrir o sino antes do `load()` terminar mostra
+  "Carregando…" e re-renderiza ao concluir; não marca como visto com cache vazio nem se o painel
+  for fechado antes de carregar.
 
 ---
 

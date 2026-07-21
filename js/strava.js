@@ -135,6 +135,7 @@
         if (window.renderMiniReport) renderMiniReport();
       } catch (e) { console.warn('[strava] refresh local falhou', e); }
       await load();
+      window.Notifications?.load();  // atualiza o sino sem recarregar a página
     } catch (err) {
       console.error('[strava] sync', err);
       if (window.toast) window.toast('Falha ao sincronizar: ' + (err.message || err), { kind: 'error' });
