@@ -566,6 +566,7 @@ async function boot() {
     document.getElementById('btn-edit-profile-2')?.addEventListener('click', openProfileModal);
     document.getElementById('btn-backup')?.addEventListener('click', () => Backup && Backup.open && Backup.open());
     document.getElementById('btn-logout')?.addEventListener('click', doLogout);
+    document.getElementById('btn-notif')?.addEventListener('click', () => window.Notifications && Notifications.open());
 
     // Plano de treino — export/import isolado
     document.getElementById('btn-export-plan')?.addEventListener('click', () => Workouts.exportPlan());
@@ -596,6 +597,9 @@ async function boot() {
     const u = Storage.getUser();
     if (!u.nome) setTimeout(() => openOnboardingModal(), 400);
   });
+
+  // 12. Notificações (sino) — computa em background, não bloqueia o boot.
+  window.Notifications?.load();
 
   console.log('[Treino Bike] Boot concluído');
 }

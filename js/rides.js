@@ -663,6 +663,26 @@ function ridesEsforco(day) {
   return                                               { label: '✅ Ideal',   color: 'var(--green)', alert: '' };
 }
 
+// Avaliação de ciclismo para uma data (usada pelo sino de Notificações).
+// Reusa o cache de previsão + buildWeatherDay + ridesEsforco; busca a previsão
+// se o cache estiver frio. Devolve { label, color, alert, tMax, chuva } ou null.
+async function dayRating(dateISO) {
+  if (!window.Api) return null;
+  if (!_weatherCache || (Date.now() - _weatherCacheTs) >= WEATHER_TTL_MS) {
+    try {
+      const daily = await window.Api.get('/weather/forecast');
+      if (daily && daily.time) { _weatherCache = daily; _weatherCacheTs = Date.now(); }
+    } catch (_) { /* mantém cache anterior, se houver */ }
+  }
+  const daily = _weatherCache;
+  if (!daily || !daily.time) return null;
+  const i = daily.time.indexOf(dateISO);
+  if (i < 0) return null;
+  const day = buildWeatherDay(daily, i);
+  const esf = ridesEsforco(day);
+  return { label: esf.label, color: esf.color, alert: esf.alert, tMax: day.tMax, chuva: day.chuva };
+}
+
 const WEEKDAY_PT = ['dom','seg','ter','qua','qui','sex','sáb'];
 const MONTH_SHORT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
@@ -840,4 +860,5 @@ window.Rides = {
   render:        renderRides,
   openRideModal: openRideModal,
   loadWeather:   fetchRidesWeather,
+  dayRating:     dayRating,
 };
