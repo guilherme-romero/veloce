@@ -455,11 +455,14 @@ def cmd_hill_score(args):
             endur = client.get_endurance_score(cdate)
         except Exception:
             pass
-        # Pode haver VO2max via max_metrics tb
+        # Pode haver VO2max via max_metrics tb. A Garmin separa em "cycling"
+        # (baseado em potencia/FC no pedal) e "generic" (corrida). Preferimos
+        # cycling; caindo para generic quando o de ciclismo nao existe.
         try:
             mm = client.get_max_metrics(cdate)
             if mm and isinstance(mm, list) and mm:
-                vo2_max = (mm[0].get("generic") or {}).get("vo2MaxValue")
+                vo2_max = ((mm[0].get("cycling") or {}).get("vo2MaxValue")
+                           or (mm[0].get("generic") or {}).get("vo2MaxValue"))
         except Exception:
             pass
         if not (hill or endur or vo2_max):

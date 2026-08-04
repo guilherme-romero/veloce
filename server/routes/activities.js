@@ -101,6 +101,52 @@ async function routes(fastify) {
     };
   });
 
+  // GET /api/activities/weekly-records
+  // Maior distância e maior elevação SEMANAL (semana começando no domingo),
+  // considerando só atividades de ciclismo, sobre todo o histórico. Usa a mesma
+  // regra de dedup do /unified (Garmin + Strava sem link — Garmin vence).
+  fastify.get('/api/activities/weekly-records', async () => {
+    const CYCLING = ['cycling', 'road_biking', 'mountain_biking', 'gravel_cycling'];
+    const ph = CYCLING.map(() => '?').join(',');
+
+    const garmin = fastify.db.prepare(
+      `SELECT data_inicio AS d, distancia_m AS dist, elevacao_m AS elev
+         FROM garmin_activities WHERE tipo IN (${ph})`
+    ).all(...CYCLING);
+
+    const strava = fastify.db.prepare(
+      `SELECT s.data_inicio AS d, s.distancia_m AS dist, s.elevacao_m AS elev
+         FROM strava_activities s
+         LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+        WHERE l.strava_id IS NULL AND s.tipo IN (${ph})`
+    ).all(...CYCLING);
+
+    // Início da semana (domingo) para uma data YYYY-MM-DD, em UTC (evita desvio de fuso).
+    const weekStart = (iso) => {
+      const dt = new Date(iso + 'T12:00:00Z');
+      if (isNaN(dt.getTime())) return null;
+      dt.setUTCDate(dt.getUTCDate() - dt.getUTCDay()); // getUTCDay(): 0 = domingo
+      return dt.toISOString().slice(0, 10);
+    };
+
+    const weeks = new Map(); // weekStartISO -> { dist, elev }
+    for (const a of [...garmin, ...strava]) {
+      const wk = a.d ? weekStart(a.d) : null;
+      if (!wk) continue;
+      const cur = weeks.get(wk) || { dist: 0, elev: 0 };
+      cur.dist += a.dist || 0;
+      cur.elev += a.elev || 0;
+      weeks.set(wk, cur);
+    }
+
+    let distancia = null, elevacao = null;
+    for (const [wk, v] of weeks) {
+      if (v.dist > 0 && (!distancia || v.dist > distancia.value)) distancia = { value: v.dist, weekStart: wk };
+      if (v.elev > 0 && (!elevacao || v.elev > elevacao.value)) elevacao = { value: v.elev, weekStart: wk };
+    }
+    return { distancia, elevacao };
+  });
+
   fastify.post('/api/activities/match', async () => {
     const res = runMatching(fastify.db);
     return { ok: true, ...res };

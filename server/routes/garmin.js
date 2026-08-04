@@ -428,7 +428,9 @@ async function routes(fastify) {
           endurance_classification=excluded.endurance_classification,
           endurance_gauge_lower=excluded.endurance_gauge_lower,
           endurance_gauge_upper=excluded.endurance_gauge_upper,
-          vo2_max=excluded.vo2_max
+          -- preserva o VO2max já gravado quando o sync recente vem sem valor
+          -- (a Garmin não retorna max_metrics todo dia); evita apagar o histórico
+          vo2_max=COALESCE(excluded.vo2_max, vo2_max)
       `);
 
       const trx = fastify.db.transaction(() => {
@@ -511,6 +513,22 @@ async function routes(fastify) {
     return fastify.db.prepare(
       'SELECT * FROM garmin_fitness_scores WHERE data >= ? ORDER BY data DESC'
     ).all(cutoff);
+  });
+
+  // VO2max: resumo sobre todo o historico (nao so a janela recente). A Garmin
+  // deste usuario so registra VO2max de corrida ("generic") ate ~2024; nao ha
+  // valor recente. Por isso devolvemos o maximo historico (para o card de
+  // Recordes) e o ultimo medido com a data (para o card "atual" de Insights).
+  fastify.get('/api/garmin/vo2max', async () => {
+    const max = fastify.db.prepare(
+      `SELECT vo2_max AS value, data AS date FROM garmin_fitness_scores
+       WHERE vo2_max IS NOT NULL ORDER BY vo2_max DESC, data DESC LIMIT 1`
+    ).get();
+    const latest = fastify.db.prepare(
+      `SELECT vo2_max AS value, data AS date FROM garmin_fitness_scores
+       WHERE vo2_max IS NOT NULL ORDER BY data DESC LIMIT 1`
+    ).get();
+    return { max: max || null, latest: latest || null };
   });
 }
 

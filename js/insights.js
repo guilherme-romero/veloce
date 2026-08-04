@@ -568,31 +568,37 @@
   }
 
   // 7.8 — Personal Records (Garmin)
-  function renderPRs(items) {
+  function renderPRs(items, vo2max, weeklyRec) {
     const card = $('card-prs');
     if (!card) return;
-    if (!items || items.length === 0) { card.hidden = true; return; }
+    const hasSynth = (weeklyRec && (weeklyRec.elevacao || weeklyRec.distancia))
+                  || (vo2max && vo2max.max);
+    if ((!items || items.length === 0) && !hasSynth) { card.hidden = true; return; }
     card.hidden = false;
 
     const esc = window.esc || (s => String(s || ''));
 
+    // Rótulos por type_id de PR da Garmin, confirmados cruzando os valores do DB
+    // com as atividades e com o próprio usuário. Só os type_ids em ALLOWED_PR_TYPES
+    // (8,9,11) são exibidos como PRs nativos. Os recordes semanais e o VO2máx são
+    // injetados à parte (linhas sintéticas). Os demais type_ids não foram confirmados.
     const TYPE_LABELS = {
-      1:  '1 km mais rápido',
-      2:  'Maior distância',
-      3:  'Maior elevação acumulada',
+      1:  '1 km mais rápido',          // corrida (tempo)
+      2:  '1 milha mais rápida',       // corrida (tempo)
+      3:  'Recorde de corrida',        // não confirmado — não exibido
       4:  'Maior duração',
       5:  'Velocidade máxima',
       6:  '5 km mais rápido',
-      7:  '10 km mais rápido',
-      8:  'Meia-maratona mais rápida',
-      9:  'Maratona mais rápida',
+      7:  'Corrida mais longa',        // não confirmado — não exibido
+      8:  'Maior distância',           // ciclismo → ver CYCLING_LABEL_OVERRIDE
+      9:  'Maior elevação',            // ciclismo → ver CYCLING_LABEL_OVERRIDE
       10: 'Maior cadência média',
-      11: 'Maior subida acumulada em 1h',
-      12: 'Maior potência média em 1h',
-      13: 'Melhor VO2max estimado',
-      14: 'Maior distância semanal',
-      15: 'Maior elevação semanal',
-      16: 'Maior carga de treino',
+      11: '40 km mais rápido (pedal)', // tempo
+      12: 'Mais passos num dia',
+      13: 'Mais passos numa semana',
+      14: 'Mais passos num mês',
+      15: 'Recorde semanal',           // não identificado — não exibido
+      16: 'Recorde de carga',          // não identificado — não exibido
     };
 
     const ACTIVITY_TYPE_LABELS = {
@@ -632,18 +638,15 @@
       if (typeId === 5) return (value * 3.6).toFixed(1).replace('.', ',') + ' km/h';
       // Cadência
       if (typeId === 10) return Math.round(value) + ' rpm';
-      // Maior subida acumulada em 1h (metros)
-      if (typeId === 11) return Math.round(value).toLocaleString('pt-BR') + ' m';
-      // Maior potência média em 1h — Garmin armazena em centiwatts (÷100 para W)
-      if (typeId === 12) return (value > 1000 ? Math.round(value / 100) : Math.round(value)).toLocaleString('pt-BR') + ' W';
-      // VO2max (Garmin armazena × 1000 internamente)
-      if (typeId === 13) return (value > 1000 ? value / 1000 : value).toFixed(1) + ' mL/kg/min';
-      // Maior distância semanal (metros → km)
-      if (typeId === 14) return (value / 1000).toFixed(1).replace('.', ',') + ' km';
-      // Maior elevação semanal (metros)
-      if (typeId === 15) return Math.round(value).toLocaleString('pt-BR') + ' m';
-      // Carga de treino (score)
-      if (typeId === 16) return Math.round(value) + ' pts';
+      // type 11 = 40 km mais rápido pedalando (segundos → h:mm:ss)
+      if (typeId === 11) {
+        const hh = Math.floor(value / 3600), mm = Math.floor((value % 3600) / 60), ss = Math.floor(value % 60);
+        return `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+      }
+      // Passos (dia/semana/mês)
+      if ([12, 13, 14].includes(typeId)) return Math.round(value).toLocaleString('pt-BR') + ' passos';
+      // type_ids 15/16 não identificados — número cru
+      if (typeId === 15 || typeId === 16) return Math.round(value).toLocaleString('pt-BR');
       return value.toFixed(1).replace('.', ',');
     };
 
@@ -653,11 +656,16 @@
       9: 'Maior elevação num pedal',
     };
 
-    // Mostra apenas os recordes selecionados:
-    // 14=dist. semanal · 8=dist. ciclismo · 15=elev. semanal · 9=elev. num pedal · 13=VO2max
-    const ALLOWED_PR_TYPES = new Set([14, 8, 15, 9, 13]);
-    const visible = items.filter(p => ALLOWED_PR_TYPES.has(p.type_id) && TYPE_LABELS[p.type_id] != null);
-    $('prs-count').textContent = visible.length;
+    // Recordes exibidos (PRs nativos da Garmin): 8=dist. num pedal · 9=elev. num
+    // pedal · 11=40 km mais rápido. Os semanais (dist./elev.) e o VO2max são
+    // injetados à parte — calculados/derivados, não são PRs nativos confiáveis.
+    const ALLOWED_PR_TYPES = new Set([8, 9, 11]);
+    const visible = items.filter(p =>
+      ALLOWED_PR_TYPES.has(p.type_id) &&
+      TYPE_LABELS[p.type_id] != null &&
+      // type 8/9 só fazem sentido para ciclismo neste app; um PR 8/9 de corrida
+      // cairia no formato de tempo (linha do array [1,4,6,7,8,9]) sob rótulo de distância.
+      ((p.type_id !== 8 && p.type_id !== 9) || CYCLING_TYPES.has(p.activity_type)));
 
     const now = Date.now();
     const DAYS_30 = 30 * 86400_000;
@@ -671,7 +679,44 @@
       return isNaN(d.getTime()) ? null : d;
     };
 
-    $('prs-list').innerHTML = visible.map(p => {
+    // Linhas sintéticas (não são PRs nativos da Garmin): recordes semanais de
+    // ciclismo (calculados no backend a partir das atividades) e o VO2max (máximo
+    // histórico; o Garmin deste usuário só registra VO2max de corrida).
+    const fmtDataBr = raw => {
+      const d = parseIsoDate(raw);
+      return d && isFinite(d)
+        ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '—';
+    };
+    const synthRow = (label, valStr, metaStr) => `
+        <div class="pr-item">
+          <div class="pr-info">
+            <div class="pr-label">${esc(label)}</div>
+            <div class="pr-meta">${esc(metaStr)}</div>
+          </div>
+          <div class="pr-value">${esc(valStr)}</div>
+        </div>`;
+
+    const synthRows = [];
+    const wElev = weeklyRec && weeklyRec.elevacao;
+    if (wElev && wElev.value != null) {
+      synthRows.push(synthRow('Maior elevação semanal',
+        Math.round(wElev.value).toLocaleString('pt-BR') + ' m',
+        'Semana de ' + fmtDataBr(wElev.weekStart)));
+    }
+    const wDist = weeklyRec && weeklyRec.distancia;
+    if (wDist && wDist.value != null) {
+      synthRows.push(synthRow('Maior distância semanal',
+        (wDist.value / 1000).toFixed(1).replace('.', ',') + ' km',
+        'Semana de ' + fmtDataBr(wDist.weekStart)));
+    }
+    if (vo2max && vo2max.max && vo2max.max.value != null) {
+      synthRows.push(synthRow('Melhor VO2máx estimado',
+        Math.round(vo2max.max.value) + ' mL/kg/min',
+        fmtDataBr(vo2max.max.date)));
+    }
+
+    const rows = visible.map(p => {
       const isCyc = CYCLING_TYPES.has(p.activity_type);
       const label = (isCyc && CYCLING_LABEL_OVERRIDE[p.type_id]) || TYPE_LABELS[p.type_id];
       const val   = formatValue(p.type_id, p.valor, p.activity_type);
@@ -693,7 +738,9 @@
           </div>
           <div class="pr-value">${esc(val)}</div>
         </div>`;
-    }).join('');
+    });
+    $('prs-list').innerHTML = synthRows.join('') + rows.join('');
+    $('prs-count').textContent = visible.length + synthRows.length;
 
     const hasNew = visible.some(p => {
       const d = parseIsoDate(p.pr_date || p.activity_date);
@@ -1060,7 +1107,7 @@
     ).join('');
   }
 
-  function renderInsightsTop(activities, healthArr, prs, fcMax) {
+  function renderInsightsTop(activities, healthArr, prs, fcMax, vo2max) {
     const top = $('insights-top');
     if (!top) return;
 
@@ -1083,10 +1130,20 @@
     $('ins-kpi-ctl').textContent = ctl.toFixed(0);
     $('ins-kpi-atl').textContent = atl.toFixed(0);
     $('ins-kpi-atl-sub').textContent = atl <= ctl ? 'em equilíbrio' : 'fadiga elevada';
-    let vo2 = null;
-    (prs || []).forEach(p => { if (p.type_id === 13) vo2 = p.valor > 1000 ? p.valor / 1000 : p.valor; });
-    $('ins-kpi-vo2').textContent = vo2 ? vo2.toFixed(0) : '—';
-    $('ins-kpi-vo2-sub').textContent = vo2 ? 'estimado pelo Garmin' : 'sincronize o Garmin';
+    // VO2max "atual" = último valor conhecido (a Garmin deste usuário só registra
+    // VO2max de corrida, sem medição recente — mostramos o último com a data).
+    const vo2Latest = vo2max && vo2max.latest;
+    if (vo2Latest && vo2Latest.value != null) {
+      const d = new Date(vo2Latest.date + 'T12:00:00');
+      const quando = isNaN(d.getTime())
+        ? vo2Latest.date
+        : d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+      $('ins-kpi-vo2').textContent = Math.round(vo2Latest.value);
+      $('ins-kpi-vo2-sub').textContent = 'medido em ' + quando;
+    } else {
+      $('ins-kpi-vo2').textContent = '—';
+      $('ins-kpi-vo2-sub').textContent = 'sem medição recente';
+    }
     const hrvVals = healthArr.filter(h => h.hrv_noite_avg != null).slice(0, 7).map(h => h.hrv_noite_avg);
     const hrv = hrvVals.length ? hrvVals.reduce((s, v) => s + v, 0) / hrvVals.length : null;
     $('ins-kpi-hrv').textContent = hrv ? Math.round(hrv) : '—';
@@ -1116,12 +1173,14 @@
     if (!empty || !content) return;
 
     try {
-      const [unified, health, readiness, prs, scores] = await Promise.all([
+      const [unified, health, readiness, prs, scores, vo2max, weeklyRec] = await Promise.all([
         window.Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
         window.Api.get('/garmin/health?days=60').catch(() => []),
         window.Api.get('/garmin/training-readiness?days=14').catch(() => []),
         window.Api.get('/garmin/personal-records').catch(() => []),
         window.Api.get('/garmin/fitness-scores?days=14').catch(() => []),
+        window.Api.get('/garmin/vo2max').catch(() => null),
+        window.Api.get('/activities/weekly-records').catch(() => null),
       ]);
 
       const activities = (unified && unified.items) || [];
@@ -1141,7 +1200,7 @@
       content.hidden = false;
 
       // Roda cada insight individualmente — falha em um não derruba os outros
-      try { renderInsightsTop(activities, healthArr, prs, fcMax); } catch (e) { console.error('[insights] topo', e); }
+      try { renderInsightsTop(activities, healthArr, prs, fcMax, vo2max); } catch (e) { console.error('[insights] topo', e); }
       try { renderFadiga(healthArr); }                              catch (e) { console.error('[insights] 7.1', e); }
       try { renderTSS(activities, fcMax); }                         catch (e) { console.error('[insights] 7.4', e); }
       try { renderTrimpSemanal(activities, weights, fcMax); }       catch (e) { console.error('[insights] 7.3', e); }
@@ -1149,7 +1208,7 @@
       try { renderHrvMA(healthArr); }                               catch (e) { console.error('[insights] hrv-ma', e); }
       try { renderCustoMetabolico(activities); }                    catch (e) { console.error('[insights] 7.5', e); }
       try { renderReadiness(readiness); }                            catch (e) { console.error('[insights] 7.7', e); }
-      try { renderPRs(prs); }                                        catch (e) { console.error('[insights] 7.8', e); }
+      try { renderPRs(prs, vo2max, weeklyRec); }                     catch (e) { console.error('[insights] 7.8', e); }
       try { renderScores(scores); }                                  catch (e) { console.error('[insights] 7.9', e); }
     } catch (err) {
       console.error('[insights]', err);
