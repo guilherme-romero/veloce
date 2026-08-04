@@ -93,6 +93,26 @@
     return 'green';
   }
 
+  // Vida útil por tempo: unidades e conversão para dias (médias).
+  const TIME_UNITS = {
+    dia: { label: 'dias',  singular: 'dia', dias: 1 },
+    mes: { label: 'meses', singular: 'mês', dias: 30.44 },
+    ano: { label: 'anos',  singular: 'ano', dias: 365.25 },
+  };
+
+  // Progresso de vida por tempo de um componente. Retorna null se não configurado
+  // (sem valor/unidade válidos ou sem data de início). pct = decorrido / limite.
+  function timeLifeOf(c) {
+    const u = TIME_UNITS[c.vidaTempoUnidade];
+    if (!u || !(c.vidaTempoValor > 0) || !c.dataInstall) return null;
+    const inicio = new Date(c.dataInstall + 'T12:00:00');
+    if (isNaN(inicio.getTime())) return null;
+    const decorridoDias = Math.max(0, (Date.now() - inicio.getTime()) / 86400000);
+    const limiteDias = c.vidaTempoValor * u.dias;
+    const pct = limiteDias > 0 ? (decorridoDias / limiteDias) * 100 : 0;
+    return { pct, decorridoU: Math.floor(decorridoDias / u.dias), limiteU: c.vidaTempoValor, unidade: u };
+  }
+
   // Pressão recomendada só faz sentido para pneus.
   function isTireType(tipo) {
     return tipo === 'pneu_dianteiro' || tipo === 'pneu_traseiro';
@@ -103,6 +123,8 @@
   function compNeedsAttention(c) {
     const wearPct = c.vidaUtilKm > 0 ? (c.kmDesgastado / c.vidaUtilKm) * 100 : 0;
     if (wearPct >= 80) return true;
+    const tl = timeLifeOf(c);
+    if (tl && tl.pct >= 80) return true;
     if (c.temLimpeza && c.intervaloLimpezaKm > 0) {
       const cleanPct = ((c.kmDesdeUltimaLimpeza ?? 0) / c.intervaloLimpezaKm) * 100;
       if (cleanPct >= 80) return true;
@@ -328,7 +350,12 @@
   }
 
   function renderComponent(c) {
-    const pct = c.vidaUtilKm > 0 ? Math.min(150, (c.kmDesgastado / c.vidaUtilKm) * 100) : 0;
+    const hasKm = c.vidaUtilKm > 0;
+    const kmPct = hasKm ? Math.min(150, (c.kmDesgastado / c.vidaUtilKm) * 100) : null;
+    const tl = timeLifeOf(c);
+    const timePct = tl ? Math.min(150, tl.pct) : null;
+    // Pior das dimensões configuradas (km/tempo) define o status geral.
+    const pct = Math.max(kmPct != null ? kmPct : 0, timePct != null ? timePct : 0);
     const sev = severityFor(pct);
     const status = pct >= 100
       ? '⚠ VENCIDO'
@@ -340,6 +367,17 @@
       ? renderCleanBlock(c)
       : '';
 
+    const kmBlock = hasKm ? `
+            <div class="bike-comp-stats">${esc(fmtKm(c.kmDesgastado))} / ${esc(fmtKm(c.vidaUtilKm))}</div>
+            <div class="bike-comp-progress">
+              <div class="bike-comp-progress-fill ${severityFor(kmPct)}" style="width:${Math.min(100, kmPct)}%"></div>
+            </div>` : '';
+    const timeBlock = tl ? `
+            <div class="bike-comp-stats">${tl.decorridoU} / ${tl.limiteU} ${esc(tl.limiteU === 1 ? tl.unidade.singular : tl.unidade.label)}</div>
+            <div class="bike-comp-progress">
+              <div class="bike-comp-progress-fill ${severityFor(timePct)}" style="width:${Math.min(100, timePct)}%"></div>
+            </div>` : '';
+
     return `
       <div class="bike-comp-item ${sev === 'red' ? 'danger' : sev === 'amber' ? 'warn' : ''}">
         <div class="bike-comp-row">
@@ -349,14 +387,10 @@
               ${esc(typeLabel(c.tipo))}
               <i class="fa-solid fa-chevron-right bike-comp-name-caret"></i>
             </div>
-            <div class="bike-comp-stats">
-              ${esc(fmtKm(c.kmDesgastado))} / ${esc(fmtKm(c.vidaUtilKm))}
-            </div>
-            ${c.pressao ? `<div class="bike-comp-pressao"><i class="fa-solid fa-gauge-high"></i> ${esc(c.pressao)}</div>` : ''}
             <div class="bike-comp-status ${sev}">${esc(status)}</div>
-            <div class="bike-comp-progress">
-              <div class="bike-comp-progress-fill ${sev}" style="width:${Math.min(100, pct)}%"></div>
-            </div>
+            ${kmBlock}
+            ${timeBlock}
+            ${c.pressao ? `<div class="bike-comp-pressao"><i class="fa-solid fa-gauge-high"></i> ${esc(c.pressao)}</div>` : ''}
             ${cleanBlock}
             ${renderIntervalsBlock(c)}
           </div>
@@ -704,9 +738,10 @@
   ─────────────────────────────────────────────────────────────────── */
   function openComponentModal(bike, comp) {
     const isEdit = !!comp;
-    const c = comp || { tipo: 'pneu_dianteiro', vidaUtilKm: 3000, kmAtInstall: 0, temLimpeza: false, intervaloLimpezaKm: 300 };
+    const c = comp || { tipo: 'pneu_dianteiro', vidaUtilKm: 3000, kmAtInstall: 0, temLimpeza: false, intervaloLimpezaKm: 300, dataInstall: todayISO() };
 
-    const builtinOptions = COMPONENT_TYPES.map(ct => `
+    // "Outro" builtin removido da lista (substituído por "＋ Outro (novo)…").
+    const builtinOptions = COMPONENT_TYPES.filter(ct => ct.key !== 'outro').map(ct => `
       <option value="${escAttr(ct.key)}" data-vida="${ct.vidaUtil}" data-limpeza="${ct.temLimpeza ? 1 : 0}"
               data-intervalo="${ct.intervaloLimpezaKm || 300}" ${c.tipo === ct.key ? 'selected' : ''}>
         ${esc(ct.label)}
@@ -716,7 +751,17 @@
               data-intervalo="300" data-custom="1" ${c.tipo === 'custom:' + t.id ? 'selected' : ''}>
         ${esc(t.nome)}
       </option>`).join('');
-    const tipoOptions = builtinOptions
+    // Blindagem: ao editar um componente cujo tipo não está mais na lista
+    // (ex.: 'outro' legado, ou um tipo custom deletado), preserva o valor atual
+    // numa opção própria — senão o select cairia no 1º item e trocaria o tipo
+    // silenciosamente ao salvar.
+    const knownBuiltin = COMPONENT_TYPES.some(ct => ct.key !== 'outro' && ct.key === c.tipo);
+    const cid = customTypeId(c.tipo);
+    const knownCustom = cid && _customTypes.some(t => t.id === cid);
+    const legacyOption = (isEdit && c.tipo && !knownBuiltin && !knownCustom)
+      ? `<option value="${escAttr(c.tipo)}" selected>${esc(typeLabel(c.tipo))} (atual)</option>`
+      : '';
+    const tipoOptions = legacyOption + builtinOptions
       + (customOptions ? `<optgroup label="Meus componentes">${customOptions}</optgroup>` : '')
       + `<option value="__new__">＋ Outro (novo)…</option>`;
 
@@ -759,22 +804,49 @@
         ${datalistHTML('dl-modelos', _brands.modelos)}
 
         <div class="field">
-          <label class="field-label" for="c-vida">Vida útil estimada (km)</label>
-          <input id="c-vida" class="field-input" type="number" min="100" step="100"
-                 value="${escAttr(c.vidaUtilKm)}" />
+          <label class="field-label" for="c-vida">Vida útil por km (opcional)</label>
+          <input id="c-vida" class="field-input" type="number" min="0" step="100"
+                 value="${escAttr(c.vidaUtilKm || '')}" placeholder="Ex.: 3000" />
           <small style="display:block;font-size:11px;color:var(--muted2);margin-top:4px;">
             Sugestão: Pneu ≈ 3.000 · Corrente ≈ 3.000 · Pastilha ≈ 2.000 · Disco ≈ 5.000 · Cassete ≈ 8.000
           </small>
         </div>
 
-        <div class="field">
-          <label class="field-label" for="c-km-install">Km da bike ao instalar</label>
-          <input id="c-km-install" class="field-input" type="number" min="0" step="1"
-                 value="${escAttr(c.kmAtInstall)}" />
-          <small style="display:block;font-size:11px;color:var(--muted2);margin-top:4px;">
-            Use 0 se é um componente novo na bike hoje, ou os km da bike no momento da instalação.
-          </small>
+        <div class="bike-form-row">
+          <div class="field">
+            <label class="field-label" for="c-vida-tempo">Vida útil por tempo (opcional)</label>
+            <input id="c-vida-tempo" class="field-input" type="number" min="1" step="1"
+                   value="${escAttr(c.vidaTempoValor || '')}" placeholder="Ex.: 2" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="c-vida-unidade">Unidade</label>
+            <select id="c-vida-unidade" class="field-select">
+              <option value="" ${!c.vidaTempoUnidade ? 'selected' : ''}>—</option>
+              <option value="dia" ${c.vidaTempoUnidade === 'dia' ? 'selected' : ''}>Dias</option>
+              <option value="mes" ${c.vidaTempoUnidade === 'mes' ? 'selected' : ''}>Meses</option>
+              <option value="ano" ${c.vidaTempoUnidade === 'ano' ? 'selected' : ''}>Anos</option>
+            </select>
+          </div>
         </div>
+        <small style="display:block;font-size:11px;color:var(--muted2);margin-top:-6px;margin-bottom:4px;">
+          Informe km, tempo ou ambos. Com ambos, o que vencer primeiro sinaliza a troca.
+        </small>
+
+        <div class="bike-form-row">
+          <div class="field">
+            <label class="field-label" for="c-km-install">Km da bike ao instalar</label>
+            <input id="c-km-install" class="field-input" type="number" min="0" step="1"
+                   value="${escAttr(c.kmAtInstall)}" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="c-data-inicio">Data de início</label>
+            <input id="c-data-inicio" class="field-input" type="date"
+                   value="${escAttr(c.dataInstall || '')}" />
+          </div>
+        </div>
+        <small style="display:block;font-size:11px;color:var(--muted2);margin-top:-6px;margin-bottom:4px;">
+          Km ao instalar: base do desgaste por km (0 = novo hoje). Data de início: base da contagem por tempo.
+        </small>
 
         <div class="field">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -875,8 +947,19 @@
 
   async function saveComponent(modal, bike, existingId) {
     let tipo = modal.querySelector('#c-tipo').value;
-    const vidaUtilKm = parseFloat(modal.querySelector('#c-vida').value) || 0;
-    if (vidaUtilKm <= 0) { toast('Vida útil deve ser > 0', { kind: 'error' }); return; }
+    const vidaUtilKm       = parseFloat(modal.querySelector('#c-vida').value) || 0;
+    const vidaTempoValor   = parseInt(modal.querySelector('#c-vida-tempo').value, 10) || 0;
+    const vidaTempoUnidade = modal.querySelector('#c-vida-unidade').value || '';
+    const dataInicio       = modal.querySelector('#c-data-inicio').value || '';
+    const hasTempo = vidaTempoValor > 0 && ['dia', 'mes', 'ano'].includes(vidaTempoUnidade);
+
+    // Vida útil por km OU por tempo (ou ambos) — ao menos uma é obrigatória.
+    if (vidaTempoValor > 0 && !vidaTempoUnidade) {
+      toast('Selecione a unidade da vida útil por tempo', { kind: 'error' }); return;
+    }
+    if (vidaUtilKm <= 0 && !hasTempo) {
+      toast('Informe a vida útil por km ou por tempo', { kind: 'error' }); return;
+    }
 
     // "Outro (novo)": cria o tipo custom (reutilizável) antes de salvar o componente.
     if (tipo === '__new__') {
@@ -893,6 +976,8 @@
     const data = {
       tipo,
       vidaUtilKm,
+      vidaTempoValor:     hasTempo ? vidaTempoValor : null,
+      vidaTempoUnidade:   hasTempo ? vidaTempoUnidade : null,
       kmAtInstall:        parseFloat(modal.querySelector('#c-km-install').value) || 0,
       temLimpeza:         modal.querySelector('#c-tem-limpeza').checked,
       intervaloLimpezaKm: parseFloat(modal.querySelector('#c-intervalo').value) || null,
@@ -903,6 +988,8 @@
       modelo:             modal.querySelector('#c-modelo').value.trim(),
       observacao:         modal.querySelector('#c-observacao').value.trim(),
     };
+    // Data de início (base da contagem por tempo); inválida → backend usa hoje/atual.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dataInicio)) data.dataInstall = dataInicio;
 
     try {
       if (existingId) {
@@ -1313,9 +1400,19 @@
     const comp = (_componentsByBike.get(bike.id) || []).find(c => c.id === compId);
     if (!comp) return;
 
-    const pct = comp.vidaUtilKm > 0 ? (comp.kmDesgastado / comp.vidaUtilKm) * 100 : 0;
+    const hasKm = comp.vidaUtilKm > 0;
+    const kmPct = hasKm ? (comp.kmDesgastado / comp.vidaUtilKm) * 100 : null;
+    const tl = timeLifeOf(comp);
+    const timePct = tl ? tl.pct : null;
+    const pct = Math.max(kmPct != null ? kmPct : 0, timePct != null ? timePct : 0);
     const sev = severityFor(pct);
     const statusTxt = pct >= 100 ? '⚠ Vida útil vencida' : `${Math.round(pct)}% da vida útil consumida`;
+    const kmDetailHTML = hasKm ? `
+          <div class="bike-detail-row"><span>Desgaste (km)</span><strong class="${severityFor(kmPct)}">${esc(fmtKm(comp.kmDesgastado))} / ${esc(fmtKm(comp.vidaUtilKm))}</strong></div>
+          <div class="bike-comp-progress" style="margin:4px 0 8px;"><div class="bike-comp-progress-fill ${severityFor(kmPct)}" style="width:${Math.min(100, kmPct)}%"></div></div>` : '';
+    const timeDetailHTML = tl ? `
+          <div class="bike-detail-row"><span>Desgaste (tempo)</span><strong class="${severityFor(timePct)}">${tl.decorridoU} / ${tl.limiteU} ${esc(tl.limiteU === 1 ? tl.unidade.singular : tl.unidade.label)}</strong></div>
+          <div class="bike-comp-progress" style="margin:4px 0 8px;"><div class="bike-comp-progress-fill ${severityFor(timePct)}" style="width:${Math.min(100, timePct)}%"></div></div>` : '';
 
     const intervalsHTML = (comp.intervals || []).length
       ? `<div class="bike-detail-section"><div class="bike-detail-h">Serviços recorrentes</div>
@@ -1332,12 +1429,10 @@
       bodyHTML: `
         <div class="bike-detail-stats">
           ${(comp.marca || comp.modelo) ? `<div class="bike-detail-row"><span>Peça atual</span><strong>${esc([comp.marca, comp.modelo].filter(Boolean).join(' '))}</strong></div>` : ''}
-          <div class="bike-detail-row"><span>Desgaste</span><strong class="${sev}">${esc(fmtKm(comp.kmDesgastado))} / ${esc(fmtKm(comp.vidaUtilKm))}</strong></div>
-          <div class="bike-comp-progress" style="margin:4px 0 8px;">
-            <div class="bike-comp-progress-fill ${sev}" style="width:${Math.min(100, pct)}%"></div>
-          </div>
+          ${kmDetailHTML}
+          ${timeDetailHTML}
           <div class="bike-detail-status ${sev}">${esc(statusTxt)}</div>
-          ${comp.dataInstall ? `<div class="bike-detail-row"><span>Instalado em</span><strong>${esc(fmtDate(comp.dataInstall))}</strong></div>` : ''}
+          ${comp.dataInstall ? `<div class="bike-detail-row"><span>Início / instalação</span><strong>${esc(fmtDate(comp.dataInstall))}</strong></div>` : ''}
           ${comp.pressao ? `<div class="bike-detail-row"><span>Pressão</span><strong>${esc(comp.pressao)}</strong></div>` : ''}
           ${cleanHTML}
           ${comp.observacao ? `<div class="bike-detail-obs">${esc(comp.observacao)}</div>` : ''}

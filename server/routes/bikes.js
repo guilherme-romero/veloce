@@ -43,6 +43,8 @@ function rowToComponent(c) {
     modelo:             c.modelo || '',
     observacao:         c.observacao || '',
     dataInstall:        c.data_install || null,
+    vidaTempoValor:     c.vida_tempo_valor ?? null,
+    vidaTempoUnidade:   c.vida_tempo_unidade || null,
     createdAt:          c.created_at,
   };
 }
@@ -312,6 +314,9 @@ function normalizeComponent(input) {
     marca:              String(c.marca || '').trim(),
     modelo:             String(c.modelo || '').trim(),
     observacao:         String(c.observacao || '').trim(),
+    vidaTempoValor:     (isFinite(parseInt(c.vidaTempoValor, 10)) && parseInt(c.vidaTempoValor, 10) > 0)
+                          ? parseInt(c.vidaTempoValor, 10) : null,
+    vidaTempoUnidade:   ['dia', 'mes', 'ano'].includes(c.vidaTempoUnidade) ? c.vidaTempoUnidade : null,
   };
 }
 
@@ -463,7 +468,10 @@ async function routes(fastify) {
     const body = req.body || {};
     if (!body.id || !body.tipo) return reply.code(400).send({ error: 'id e tipo obrigatorios' });
     const n = normalizeComponent(body);
-    if (n.vidaUtilKm <= 0) return reply.code(400).send({ error: 'vida_util_km > 0 obrigatoria' });
+    const hasTempo = n.vidaTempoValor > 0 && n.vidaTempoUnidade;
+    if (n.vidaUtilKm <= 0 && !hasTempo) {
+      return reply.code(400).send({ error: 'informe vida util por km ou por tempo' });
+    }
 
     // Se kmAtLastClean não veio, usa kmAtInstall (limpeza fresca = sem desgaste)
     const kmAtLastClean = isFinite(parseFloat(body.kmAtLastClean))
@@ -477,9 +485,9 @@ async function routes(fastify) {
 
     try {
       fastify.db.prepare(`INSERT INTO bike_components
-        (id, bike_id, tipo, vida_util_km, km_at_install, tem_limpeza, intervalo_limpeza_km, km_at_last_clean, pressao, marca, modelo, observacao, data_install)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(body.id, id, n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, kmAtLastClean, n.pressao, n.marca, n.modelo, n.observacao, dataInstall);
+        (id, bike_id, tipo, vida_util_km, km_at_install, tem_limpeza, intervalo_limpeza_km, km_at_last_clean, pressao, marca, modelo, observacao, data_install, vida_tempo_valor, vida_tempo_unidade)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(body.id, id, n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, kmAtLastClean, n.pressao, n.marca, n.modelo, n.observacao, dataInstall, n.vidaTempoValor, n.vidaTempoUnidade);
     } catch (e) {
       return reply.code(409).send({ error: 'componente ja existe' });
     }
@@ -494,11 +502,15 @@ async function routes(fastify) {
     if (!cur) return reply.code(404).send({ error: 'componente nao encontrado' });
     const merged = { ...rowToComponent(cur), ...(req.body || {}) };
     const n = normalizeComponent(merged);
+    const dataInstall = /^\d{4}-\d{2}-\d{2}$/.test(String(merged.dataInstall || ''))
+      ? String(merged.dataInstall).slice(0, 10)
+      : (cur.data_install || null);
     fastify.db.prepare(`UPDATE bike_components SET
       tipo = ?, vida_util_km = ?, km_at_install = ?, tem_limpeza = ?,
       intervalo_limpeza_km = ?, km_at_last_clean = ?, pressao = ?,
-      marca = ?, modelo = ?, observacao = ? WHERE id = ?`)
-      .run(n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, n.kmAtLastClean, n.pressao, n.marca, n.modelo, n.observacao, cid);
+      marca = ?, modelo = ?, observacao = ?, data_install = ?,
+      vida_tempo_valor = ?, vida_tempo_unidade = ? WHERE id = ?`)
+      .run(n.tipo, n.vidaUtilKm, n.kmAtInstall, n.temLimpeza, n.intervaloLimpezaKm, n.kmAtLastClean, n.pressao, n.marca, n.modelo, n.observacao, dataInstall, n.vidaTempoValor, n.vidaTempoUnidade, cid);
     return rowToComponent(fastify.db.prepare('SELECT * FROM bike_components WHERE id = ?').get(cid));
   });
 

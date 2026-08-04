@@ -47,6 +47,10 @@ const migrations = [
   // pedal" livre no form; a coluna legada `duracao` permanece sem uso).
   'ALTER TABLE rides ADD COLUMN hora_inicio TEXT',
   'ALTER TABLE rides ADD COLUMN tempo_estimado TEXT',
+  // v2.6.2: vida útil por tempo (opcional, complementa a vida por km). Conta a
+  // partir de data_install; unidade ∈ {dia,mes,ano}.
+  'ALTER TABLE bike_components ADD COLUMN vida_tempo_valor INTEGER',
+  'ALTER TABLE bike_components ADD COLUMN vida_tempo_unidade TEXT',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }
