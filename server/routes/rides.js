@@ -17,6 +17,8 @@ function rowToRide(r) {
     distancia:   r.distancia ?? 0,
     altitude:    r.altitude ?? 0,
     duracao:     r.duracao || '',
+    horaInicio:  r.hora_inicio || '',
+    tempoEstimado: r.tempo_estimado || '',
     dificuldade: r.dificuldade || 'media',
     nota:        r.nota ?? 0,
     notas:       r.notas || '',
@@ -32,6 +34,8 @@ function normalize(input) {
     distancia:   isFinite(parseFloat(r.distancia)) ? parseFloat(r.distancia) : 0,
     altitude:    isFinite(parseInt(r.altitude, 10)) ? parseInt(r.altitude, 10) : 0,
     duracao:     String(r.duracao || ''),
+    horaInicio:  String(r.horaInicio || ''),
+    tempoEstimado: String(r.tempoEstimado || ''),
     dificuldade: DIFICULDADES.includes(r.dificuldade) ? r.dificuldade : 'media',
     nota:        Math.max(0, Math.min(5, parseInt(r.nota, 10) || 0)),
     notas:       String(r.notas || ''),
@@ -54,9 +58,9 @@ async function routes(fastify) {
     const n = normalize(body);
     try {
       fastify.db.prepare(`INSERT INTO rides
-        (id, data, destino, distancia, altitude, duracao, dificuldade, nota, notas)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(body.id, n.data, n.destino, n.distancia, n.altitude, n.duracao, n.dificuldade, n.nota, n.notas);
+        (id, data, destino, distancia, altitude, duracao, hora_inicio, tempo_estimado, dificuldade, nota, notas)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(body.id, n.data, n.destino, n.distancia, n.altitude, n.duracao, n.horaInicio, n.tempoEstimado, n.dificuldade, n.nota, n.notas);
     } catch (e) {
       return reply.code(409).send({ error: 'ride ja existe' });
     }
@@ -72,8 +76,8 @@ async function routes(fastify) {
     const n = normalize(merged);
     fastify.db.prepare(`UPDATE rides SET
       data = ?, destino = ?, distancia = ?, altitude = ?, duracao = ?,
-      dificuldade = ?, nota = ?, notas = ? WHERE id = ?`)
-      .run(n.data, n.destino, n.distancia, n.altitude, n.duracao, n.dificuldade, n.nota, n.notas, id);
+      hora_inicio = ?, tempo_estimado = ?, dificuldade = ?, nota = ?, notas = ? WHERE id = ?`)
+      .run(n.data, n.destino, n.distancia, n.altitude, n.duracao, n.horaInicio, n.tempoEstimado, n.dificuldade, n.nota, n.notas, id);
     return rowToRide(fastify.db.prepare('SELECT * FROM rides WHERE id = ?').get(id));
   });
 

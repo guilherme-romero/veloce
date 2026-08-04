@@ -43,6 +43,10 @@ const migrations = [
   'ALTER TABLE bikes ADD COLUMN tempo_base INTEGER DEFAULT 0',
   'ALTER TABLE bikes ADD COLUMN elev_base INTEGER DEFAULT 0',
   'ALTER TABLE bikes ADD COLUMN atividades_base INTEGER DEFAULT 0',
+  // v2.6.0: passeio ganha hora de início e tempo estimado (substituem "tempo de
+  // pedal" livre no form; a coluna legada `duracao` permanece sem uso).
+  'ALTER TABLE rides ADD COLUMN hora_inicio TEXT',
+  'ALTER TABLE rides ADD COLUMN tempo_estimado TEXT',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }

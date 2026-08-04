@@ -9,6 +9,24 @@ estimado: **baixo** / **médio** / **alto**.
 
 ---
 
+## Lote v2.6.0 — itens deixados para depois
+
+- **[médio] Rename interno TREINOBIKE → VELOCELABS.** O v2.6.0 trocou só o nome **visível**
+  (títulos, header, login, boas-vindas, PDF, `manifest.json`). Os identificadores **internos**
+  seguem como `treino-bike`/`treino_bike`: serviço systemd `treino-bike-api`, `server/package.json`
+  (`name`), `server/index.js`, prefixos de backup `treino-bike-data-*.zip` (backend + `js/backup.js`),
+  `README.md` e o slash command `/deploy-treino-bike`. Renomear isso exige mexer em systemd/nginx e
+  migrar os backups existentes — fazer num **plano focado e revisado** à parte, com janela de deploy.
+
+- **[baixo/investigação] Garmin PR `type_id` 15 e 16.** Em `garmin_personal_records` há só **1
+  amostra de cada**, ambas com valor **229** (2026-08-02), sem atividade vinculada — não
+  identificável com um único ponto. 12/13/14 já mapeados como passos dia/semana/mês. Revisitar
+  quando (a) mais amostras acumularem em syncs futuros, ou (b) confirmarmos o enum oficial
+  `personalRecordTypeId` (lib `garminconnect`/docs Garmin). Seguem **ocultos** em
+  `ALLOWED_PR_TYPES` (`js/insights.js`) até lá.
+
+---
+
 ## Sino de notificações (v2.4.0) — follow-ups do code-review
 
 Nitpicks não-bloqueantes do sino in-app (IDEIA-6 Nível A):

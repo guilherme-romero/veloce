@@ -59,13 +59,24 @@ CREATE TABLE IF NOT EXISTS rides (
   destino     TEXT,
   distancia   REAL,
   altitude    REAL,
-  duracao     TEXT,
+  duracao     TEXT,                -- legado (substituído por hora_inicio + tempo_estimado)
+  hora_inicio TEXT,                -- HH:MM planejado de largada
+  tempo_estimado TEXT,             -- estimativa auto (ex.: "2h 39min")
   dificuldade TEXT CHECK (dificuldade IN ('baixa','media','alta')),
-  nota        REAL CHECK (nota >= 0 AND nota <= 5),
+  nota        REAL CHECK (nota >= 0 AND nota <= 5),  -- legado (não mais no form)
   notas       TEXT,
   created_at  TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_rides_data ON rides(data);
+
+-- Tipos de componente custom do usuário (opção "Outro (novo)"), reutilizáveis
+-- entre bikes; editar o nome corrige em todos os componentes que referenciam.
+CREATE TABLE IF NOT EXISTS custom_component_types (
+  id           TEXT PRIMARY KEY,
+  nome         TEXT NOT NULL,
+  vida_util_km REAL,
+  created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
 -- ── Training log (registro diario) ────────────────────────────────────
 -- payload (opcional, JSON): {

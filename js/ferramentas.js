@@ -372,16 +372,9 @@ async function tryLoadDB() {
 }
 
 // ─── ROUTE CALCULATOR ─────────────────────────────────────────────────────────
-// Modelo de tempo compartilhado (calcRoute + calcNutri): plano + penalidade de
-// subida, evitando divergência entre as duas calculadoras.
-function estimateRideTimeMin({ dist, speed, elev = 0, wind = 0, profile = 1.0, stops = 0 }) {
-  const adjSpeed    = Math.max(speed + wind, 10);
-  const elevEquivKm = elev / 100;
-  const climbPenMin = Math.round((elevEquivKm / adjSpeed * 60) / (profile || 1.0));
-  const flatTimeMin = (dist / adjSpeed) * 60;
-  const movTimeMin  = flatTimeMin + climbPenMin;
-  return { flatTimeMin, climbPenMin, movTimeMin, totalTimeMin: movTimeMin + stops };
-}
+// Modelo de tempo compartilhado (calcRoute + calcNutri + Passeios): plano +
+// penalidade de subida. Fonte única em Utils (js/utils.js) — reusado por rides.js.
+const estimateRideTimeMin = (opts) => window.Utils.estimateRideTimeMin(opts);
 
 // Estimativa de kcal normalizada pelo peso do ciclista.
 //  - Plano: faixa por velocidade (arrasto) escalada pelo peso (ref. 72 kg).

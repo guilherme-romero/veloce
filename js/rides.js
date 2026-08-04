@@ -20,6 +20,47 @@ const MONTH_NAMES = [
 
 const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
+// Velocidade de planejamento (km/h) por dificuldade, p/ estimar o tempo de pedal.
+const PLAN_SPEED = { baixa: 22, media: 25, alta: 20 };
+
+// Tempo estimado formatado (ex.: "2h 39min" / "45min") de dist + altimetria +
+// dificuldade. Reusa o modelo compartilhado Utils.estimateRideTimeMin.
+function computeRideEstimate(distKm, elevM, dificuldade) {
+  if (!distKm || distKm <= 0) return '';
+  const speed = PLAN_SPEED[dificuldade] || 25;
+  const { movTimeMin } = window.Utils.estimateRideTimeMin({ dist: distKm, speed, elev: elevM });
+  const total = Math.round(movTimeMin);
+  const h = Math.floor(total / 60), m = total % 60;
+  return h ? `${h}h ${String(m).padStart(2, '0')}min` : `${m}min`;
+}
+
+// Limita o nº de semanas de recorrência a [1, 52].
+function clampWeeks(v) {
+  const n = parseInt(v, 10);
+  return Math.max(1, Math.min(52, isFinite(n) ? n : 1));
+}
+
+// Datas ISO (YYYY-MM-DD) das N semanas seguintes a partir de baseISO (exclui a
+// base). Usa meio-dia local para não rolar o dia ao converter fuso.
+function weeklyDates(baseISO, n) {
+  const base = new Date(baseISO + 'T12:00:00');
+  if (isNaN(base.getTime())) return [];
+  const out = [];
+  for (let k = 1; k <= clampWeeks(n); k++) {
+    const d = new Date(base);
+    d.setDate(d.getDate() + 7 * k);
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+// "DD/MM" a partir de ISO local.
+function fmtDayMonth(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return isNaN(d.getTime()) ? iso
+    : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    INIT — chamado uma vez no boot do app
 ═══════════════════════════════════════════════════════════════════════ */
@@ -233,16 +274,7 @@ function buildRideCard(r, isPast) {
   const mes = MONTH_NAMES[d.getMonth()].slice(0, 3).toUpperCase();
   const ano = d.getFullYear();
   const dif = DIFFICULTY[r.dificuldade] || DIFFICULTY.media;
-
-  // Estrelas (só renderiza se nota > 0)
-  let starsHTML = '';
-  if (r.nota > 0) {
-    starsHTML = '<div class="ride-stars" title="Nota">';
-    for (let i = 1; i <= 5; i++) {
-      starsHTML += `<i class="fa-${i <= r.nota ? 'solid' : 'regular'} fa-star"></i>`;
-    }
-    starsHTML += '</div>';
-  }
+  const tempo = r.tempoEstimado || r.duracao || '';   // duracao = legado
 
   return `
     <div class="ride-card ${isPast ? 'ride-past' : ''}" data-ride-id="${escAttr(r.id)}" data-action="edit">
@@ -256,13 +288,13 @@ function buildRideCard(r, isPast) {
         <div class="ride-meta">
           <span><i class="fa-solid fa-route"></i>${r.distancia ? r.distancia.toString().replace('.', ',') : '—'} km</span>
           <span><i class="fa-solid fa-mountain"></i>${r.altitude || '—'} m</span>
-          <span><i class="fa-solid fa-clock"></i>${esc(r.duracao || '—')}</span>
+          ${r.horaInicio ? `<span><i class="fa-solid fa-flag-checkered"></i>${esc(r.horaInicio)}</span>` : ''}
+          <span><i class="fa-solid fa-clock"></i>${esc(tempo || '—')}</span>
           <span class="ride-dif" style="color:${dif.color}">
             <i class="fa-solid fa-signal"></i>${dif.label}
           </span>
         </div>
         ${r.notas ? `<div class="ride-notes">${esc(r.notas)}</div>` : ''}
-        ${starsHTML}
       </div>
       <div class="ride-actions">
         <button class="btn btn-sm btn-ghost" type="button" data-action="edit" data-ride-id="${escAttr(r.id)}" title="Editar">
@@ -325,7 +357,8 @@ function openDayRidesModal(dateISO, dayRides) {
               <div class="day-ride-stats">
                 <span><i class="fa-solid fa-route"></i>${r.distancia ? r.distancia.toString().replace('.', ',') : '—'} km</span>
                 <span><i class="fa-solid fa-mountain"></i>${r.altitude || '—'} m</span>
-                <span><i class="fa-solid fa-clock"></i>${esc(r.duracao || '—')}</span>
+                ${r.horaInicio ? `<span><i class="fa-solid fa-flag-checkered"></i>${esc(r.horaInicio)}</span>` : ''}
+                <span><i class="fa-solid fa-clock"></i>${esc(r.tempoEstimado || r.duracao || '—')}</span>
               </div>
               ${r.notas ? `<p class="day-ride-notes">${esc(r.notas)}</p>` : ''}
               <div class="day-ride-actions">
@@ -377,14 +410,14 @@ function openDayRidesModal(dateISO, dayRides) {
 function openRideModal(ride, presetDate) {
   const isEdit = !!ride;
   const r = ride || {
-    data:        presetDate || tbToday(),
-    destino:     '',
-    distancia:   '',
-    altitude:    '',
-    duracao:     '',
-    dificuldade: 'media',
-    nota:        0,
-    notas:       '',
+    data:         presetDate || tbToday(),
+    destino:      '',
+    distancia:    '',
+    altitude:     '',
+    horaInicio:   '',
+    tempoEstimado:'',
+    dificuldade:  'media',
+    notas:        '',
   };
 
   Modals.open({
@@ -403,9 +436,8 @@ function openRideModal(ride, presetDate) {
           <input id="r-data" class="field-input" type="date" value="${escAttr(r.data)}" />
         </div>
         <div class="field">
-          <label class="field-label" for="r-duracao">Tempo de pedal</label>
-          <input id="r-duracao" class="field-input" type="text" value="${escAttr(r.duracao)}"
-                 placeholder="Ex.: 2h 30min" />
+          <label class="field-label" for="r-hora">Hora início</label>
+          <input id="r-hora" class="field-input" type="time" value="${escAttr(r.horaInicio)}" />
         </div>
       </div>
 
@@ -432,18 +464,10 @@ function openRideModal(ride, presetDate) {
           </select>
         </div>
         <div class="field">
-          <label class="field-label">Nota (0–5)</label>
-          <div class="ride-rating-input" id="r-rating">
-            ${[1,2,3,4,5].map(i => `
-              <button type="button" class="ride-star ${i <= r.nota ? 'active' : ''}" data-value="${i}" aria-label="${i} estrela${i > 1 ? 's' : ''}">
-                <i class="fa-solid fa-star"></i>
-              </button>
-            `).join('')}
-            <button type="button" class="ride-star-clear" data-value="0" title="Limpar">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-          <input type="hidden" id="r-nota" value="${r.nota || 0}" />
+          <label class="field-label" for="r-tempo-est">Tempo estimado</label>
+          <input id="r-tempo-est" class="field-input" type="text" readonly
+                 value="${escAttr(r.tempoEstimado)}" placeholder="—"
+                 title="Calculado de distância + altimetria + dificuldade" />
         </div>
       </div>
 
@@ -452,6 +476,18 @@ function openRideModal(ride, presetDate) {
         <textarea id="r-notas" class="field-textarea"
                   placeholder="Roteiro, parada para água, parceiros…">${esc(r.notas)}</textarea>
       </div>
+      ${isEdit ? '' : `
+      <div class="field">
+        <label class="ride-recur-check">
+          <input type="checkbox" id="r-recur" />
+          <span>Repetir semanalmente</span>
+        </label>
+        <div id="r-recur-weeks" class="ride-recur-weeks" hidden>
+          <label class="field-label" for="r-recur-n">Por quantas semanas</label>
+          <input id="r-recur-n" class="field-input" type="number" min="1" max="52" value="4" />
+          <p class="ride-recur-info" id="r-recur-info"></p>
+        </div>
+      </div>`}
     `,
     actions: [
       { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
@@ -461,18 +497,43 @@ function openRideModal(ride, presetDate) {
     onMount: (modal) => {
       modal.querySelector('#r-destino').focus();
 
-      // Wire das estrelas
-      const ratingEl = modal.querySelector('#r-rating');
-      const ratingHidden = modal.querySelector('#r-nota');
-      ratingEl.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-value]');
-        if (!btn) return;
-        const v = parseInt(btn.dataset.value, 10);
-        ratingHidden.value = v;
-        ratingEl.querySelectorAll('.ride-star').forEach((s, i) => {
-          s.classList.toggle('active', i < v);
+      // Tempo estimado (auto): recalcula de distância + altimetria + dificuldade.
+      const estEl  = modal.querySelector('#r-tempo-est');
+      const distEl = modal.querySelector('#r-distancia');
+      const altEl  = modal.querySelector('#r-altitude');
+      const difEl  = modal.querySelector('#r-dificuldade');
+      const recalcEstimate = () => {
+        estEl.value = computeRideEstimate(
+          parseFloat(distEl.value) || 0,
+          parseFloat(altEl.value) || 0,
+          difEl.value
+        );
+      };
+      [distEl, altEl, difEl].forEach(el => el.addEventListener('input', recalcEstimate));
+      recalcEstimate();
+
+      // Recorrência (só no modo criar).
+      const recur     = modal.querySelector('#r-recur');
+      const weeksWrap = modal.querySelector('#r-recur-weeks');
+      if (recur) {
+        const nEl   = modal.querySelector('#r-recur-n');
+        const info  = modal.querySelector('#r-recur-info');
+        const dataEl = modal.querySelector('#r-data');
+        const updateInfo = () => {
+          const n = clampWeeks(nEl.value);
+          const dates = weeklyDates(dataEl.value, n).slice(0, 6)
+            .map(iso => fmtDayMonth(iso));
+          info.textContent = dates.length
+            ? `Cria ${n} cópia${n > 1 ? 's' : ''}: ${dates.join(', ')}${n > 6 ? '…' : ''} — cada uma editável sozinha.`
+            : '';
+        };
+        recur.addEventListener('change', () => {
+          weeksWrap.hidden = !recur.checked;
+          if (recur.checked) updateInfo();
         });
-      });
+        nEl.addEventListener('input', updateInfo);
+        dataEl.addEventListener('input', () => { if (recur.checked) updateInfo(); });
+      }
     },
   });
 }
@@ -485,14 +546,14 @@ function saveRide(modal, rideId) {
   };
 
   const data = {
-    data:        v('r-data'),
-    destino:     v('r-destino'),
-    distancia:   num('r-distancia'),
-    altitude:    Math.round(num('r-altitude')),
-    duracao:     v('r-duracao'),
-    dificuldade: v('r-dificuldade'),
-    nota:        parseInt(modal.querySelector('#r-nota').value, 10) || 0,
-    notas:       v('r-notas'),
+    data:          v('r-data'),
+    destino:       v('r-destino'),
+    distancia:     num('r-distancia'),
+    altitude:      Math.round(num('r-altitude')),
+    horaInicio:    v('r-hora'),
+    tempoEstimado: v('r-tempo-est'),
+    dificuldade:   v('r-dificuldade'),
+    notas:         v('r-notas'),
   };
 
   if (!data.destino) { toast('Informe o destino', { kind: 'error' }); return; }
@@ -504,7 +565,16 @@ function saveRide(modal, rideId) {
     toast('Passeio atualizado');
   } else {
     Storage.addRide(data);
-    toast('Passeio adicionado');
+    // Recorrência semanal: cópias independentes nas semanas seguintes.
+    const recur = modal.querySelector('#r-recur');
+    if (recur && recur.checked) {
+      const n = clampWeeks(modal.querySelector('#r-recur-n').value);
+      const extras = weeklyDates(data.data, n);
+      extras.forEach(iso => Storage.addRide({ ...data, data: iso }));
+      toast(`Passeio + ${extras.length} recorrência${extras.length > 1 ? 's' : ''} adicionados`);
+    } else {
+      toast('Passeio adicionado');
+    }
   }
 
   renderRides();

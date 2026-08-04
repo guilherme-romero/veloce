@@ -90,6 +90,8 @@ function normalizeRide(raw) {
   r.distancia   = isFinite(parseFloat(r.distancia)) ? parseFloat(r.distancia) : 0;
   r.altitude    = isFinite(parseInt(r.altitude, 10)) ? parseInt(r.altitude, 10) : 0;
   r.duracao     = String(r.duracao || '');
+  r.horaInicio    = String(r.horaInicio || '');
+  r.tempoEstimado = String(r.tempoEstimado || '');
   r.dificuldade = ['baixa', 'media', 'alta'].includes(r.dificuldade) ? r.dificuldade : 'media';
   r.nota        = Math.max(0, Math.min(5, parseInt(r.nota, 10) || 0));
   r.notas       = String(r.notas || '');

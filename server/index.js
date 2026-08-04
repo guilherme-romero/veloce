@@ -47,6 +47,7 @@ fastify.register(require('./routes/strava'));
 fastify.register(require('./routes/garmin'));
 fastify.register(require('./routes/activities'));
 fastify.register(require('./routes/bikes'));
+fastify.register(require('./routes/component-types'));
 fastify.register(require('./routes/weather'));
 fastify.register(require('./routes/backup'));
 

@@ -36,18 +36,6 @@
 }
 .ride-dif i { font-size: 10px; }
 
-/* ── Estrelas de avaliação (display) ────────────────────────────────── */
-.ride-stars {
-  display: inline-flex; gap: 3px; margin-top: 6px;
-}
-.ride-stars i {
-  font-size: 12px;
-  color: var(--amber);
-}
-.ride-stars .fa-regular {
-  color: var(--border2);
-}
-
 /* ── Estado vazio ───────────────────────────────────────────────────── */
 .rides-empty-state {
   background: var(--surface);
@@ -115,45 +103,26 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   MODAL DE FORMULÁRIO: estrelas de avaliação (input)
+   MODAL DE FORMULÁRIO: recorrência semanal
 ═══════════════════════════════════════════════════════════════════════ */
-.ride-rating-input {
-  display: flex; gap: 4px;
-  padding: 8px 0 4px;
-  align-items: center;
+.ride-recur-check {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none;
+  font-size: 14px; color: var(--text);
 }
-.ride-star {
-  background: transparent;
-  border: none;
-  color: var(--border2);
-  font-size: 22px;
+.ride-recur-check input {
+  width: 18px; height: 18px;
+  accent-color: var(--teal);
   cursor: pointer;
-  padding: 4px;
-  transition: transform 0.15s, color 0.15s;
 }
-.ride-star:hover {
-  color: var(--amber);
-  transform: scale(1.1);
+.ride-recur-weeks {
+  margin-top: 12px;
 }
-.ride-star.active {
-  color: var(--amber);
-}
-.ride-star-clear {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--muted);
-  width: 22px; height: 22px;
-  font-size: 10px;
-  cursor: pointer;
-  margin-left: 8px;
-  display: inline-flex;
-  align-items: center; justify-content: center;
-  transition: all 0.15s;
-}
-.ride-star-clear:hover {
-  color: var(--red);
-  border-color: var(--red);
+.ride-recur-info {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--teal);
+  line-height: 1.4;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -161,8 +130,6 @@
 ═══════════════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
   .day-ride-stats { gap: 10px; font-size: 12px; }
-  .ride-rating-input { flex-wrap: wrap; }
-  .ride-star { font-size: 20px; padding: 3px; }
 }
 
 /* ── Faixa de previsão do tempo 7 dias ───────────────────────────────── */

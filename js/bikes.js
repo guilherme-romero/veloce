@@ -33,12 +33,24 @@
   let _componentsByBike = new Map();   // bikeId → array<component>
   let _filterByBike = new Map();       // bikeId → 'todos' | 'atencao'
   let _brands = { marcas: [], modelos: [] };   // cache p/ datalist (Fase 16.1)
+  let _customTypes = [];                        // v2.6.0: tipos "Outro (novo)"
 
   /* ──────────────────────────────────────────────────────────────────
      Helpers
   ─────────────────────────────────────────────────────────────────── */
   function genId(prefix) {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  // Componentes custom têm tipo = 'custom:<id>'; resolve o nome pela lista.
+  function customTypeId(tipo) {
+    return typeof tipo === 'string' && tipo.startsWith('custom:') ? tipo.slice(7) : null;
+  }
+  function typeLabel(tipo) {
+    if (TYPE_LABEL[tipo]) return TYPE_LABEL[tipo];
+    const id = customTypeId(tipo);
+    if (id) { const t = _customTypes.find(x => x.id === id); if (t) return t.nome; }
+    return tipo;
   }
 
   function todayISO() {
@@ -171,6 +183,8 @@
       _bikes = [];
     }
     loadBrands();   // fire-and-forget: alimenta o datalist de marcas/modelos
+    try { _customTypes = await window.Api.get('/component-types') || []; }
+    catch (e) { console.warn('[Bikes] tipos custom falharam', e); _customTypes = []; }
     _componentsByBike.clear();
     // Carrega componentes em paralelo para cada bike
     await Promise.all(_bikes.map(async b => {
@@ -332,7 +346,7 @@
           <div class="bike-comp-info">
             <div class="bike-comp-name bike-comp-name-link" data-act="comp-detail" data-bike="${escAttr(c.bikeId)}" data-comp="${escAttr(c.id)}" title="Ver detalhes e histórico">
               <i class="fa-solid fa-circle bike-comp-icon ${sev}"></i>
-              ${esc(TYPE_LABEL[c.tipo] || c.tipo)}
+              ${esc(typeLabel(c.tipo))}
               <i class="fa-solid fa-chevron-right bike-comp-name-caret"></i>
             </div>
             <div class="bike-comp-stats">
@@ -692,20 +706,41 @@
     const isEdit = !!comp;
     const c = comp || { tipo: 'pneu_dianteiro', vidaUtilKm: 3000, kmAtInstall: 0, temLimpeza: false, intervaloLimpezaKm: 300 };
 
-    const tipoOptions = COMPONENT_TYPES.map(ct => `
-      <option value="${ct.key}" data-vida="${ct.vidaUtil}" data-limpeza="${ct.temLimpeza ? 1 : 0}"
+    const builtinOptions = COMPONENT_TYPES.map(ct => `
+      <option value="${escAttr(ct.key)}" data-vida="${ct.vidaUtil}" data-limpeza="${ct.temLimpeza ? 1 : 0}"
               data-intervalo="${ct.intervaloLimpezaKm || 300}" ${c.tipo === ct.key ? 'selected' : ''}>
-        ${ct.label}
-      </option>
-    `).join('');
+        ${esc(ct.label)}
+      </option>`).join('');
+    const customOptions = _customTypes.map(t => `
+      <option value="custom:${escAttr(t.id)}" data-vida="${t.vidaUtilKm || 2000}" data-limpeza="0"
+              data-intervalo="300" data-custom="1" ${c.tipo === 'custom:' + t.id ? 'selected' : ''}>
+        ${esc(t.nome)}
+      </option>`).join('');
+    const tipoOptions = builtinOptions
+      + (customOptions ? `<optgroup label="Meus componentes">${customOptions}</optgroup>` : '')
+      + `<option value="__new__">＋ Outro (novo)…</option>`;
 
     Modals.open({
       tag: isEdit ? 'Editar componente' : 'Adicionar componente',
-      title: isEdit ? esc(TYPE_LABEL[c.tipo] || c.tipo) : `Componente — ${esc(bike.nome)}`,
+      title: isEdit ? esc(typeLabel(c.tipo)) : `Componente — ${esc(bike.nome)}`,
       bodyHTML: `
         <div class="field">
           <label class="field-label" for="c-tipo">Tipo de componente</label>
-          <select id="c-tipo" class="field-select">${tipoOptions}</select>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="c-tipo" class="field-select" style="flex:1;">${tipoOptions}</select>
+            <button type="button" id="c-edit-type" class="btn btn-ghost btn-sm"
+                    title="Corrigir nome deste componente" style="display:none;">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+          </div>
+          <div class="field" id="c-newname-row" style="display:none;margin-top:10px;">
+            <label class="field-label" for="c-newname">Nome do novo componente</label>
+            <input id="c-newname" class="field-input" type="text" maxlength="60"
+                   placeholder="Ex.: Guidão, Selim, Rolamento…" />
+            <small style="display:block;font-size:11px;color:var(--muted2);margin-top:4px;">
+              Fica salvo para reutilizar nas próximas vezes.
+            </small>
+          </div>
         </div>
 
         <div class="bike-form-row">
@@ -780,42 +815,94 @@
         const limpChk    = m.querySelector('#c-tem-limpeza');
         const limpRow    = m.querySelector('#c-limpeza-row');
         const intervalEl = m.querySelector('#c-intervalo');
-
         const pressaoRow = m.querySelector('#c-pressao-row');
+        const newNameRow = m.querySelector('#c-newname-row');
+        const newNameEl  = m.querySelector('#c-newname');
+        const editBtn    = m.querySelector('#c-edit-type');
 
-        // Ao trocar tipo: sugere vida útil e estado de limpeza; pressão só p/ pneu
+        // Mostra o campo de nome (Outro novo) e o lápis (tipo custom existente).
+        const syncTypeUI = () => {
+          const opt = tipoSel.selectedOptions[0];
+          const isNew    = tipoSel.value === '__new__';
+          const isCustom = opt && opt.dataset.custom === '1';
+          newNameRow.style.display = isNew ? '' : 'none';
+          editBtn.style.display    = isCustom ? '' : 'none';
+          if (isNew) setTimeout(() => newNameEl.focus(), 0);
+        };
+
+        // Ao trocar tipo: sugere vida útil e estado de limpeza; pressão só p/ pneu.
+        // "Outro (novo)" não tem data-vida/intervalo — mantém os valores atuais
+        // (o usuário informa a vida útil manualmente no campo abaixo).
         tipoSel.addEventListener('change', () => {
           const opt = tipoSel.selectedOptions[0];
-          vidaInput.value = opt.dataset.vida;
-          const temLimp = opt.dataset.limpeza === '1';
+          if (opt && opt.dataset.vida) vidaInput.value = opt.dataset.vida;
+          const temLimp = opt && opt.dataset.limpeza === '1';
           limpChk.checked = temLimp;
           limpRow.style.display = temLimp ? '' : 'none';
-          intervalEl.value = opt.dataset.intervalo;
+          if (opt && opt.dataset.intervalo) intervalEl.value = opt.dataset.intervalo;
           if (pressaoRow) pressaoRow.style.display = isTireType(tipoSel.value) ? '' : 'none';
+          syncTypeUI();
+        });
+
+        // Lápis: corrige o nome de um tipo custom (reflete em todos que o usam).
+        editBtn.addEventListener('click', async () => {
+          const id = customTypeId(tipoSel.value);
+          if (!id) return;
+          const atual = _customTypes.find(x => x.id === id);
+          const novo = await Modals.prompt({
+            title: 'Corrigir nome do componente', tag: 'Componente',
+            placeholder: 'Novo nome', maxlength: 60,
+            validate: (v) => v && v.trim() ? null : 'Informe um nome',
+          });
+          if (novo == null) return;
+          const nome = novo.trim();
+          try {
+            await window.Api.put(`/component-types/${id}`, { nome });
+            if (atual) atual.nome = nome;
+            tipoSel.selectedOptions[0].textContent = nome;
+            toast('Nome atualizado');
+          } catch (e) { console.error('[Bikes] edit type', e); toast('Erro ao renomear', { kind: 'error' }); }
         });
 
         limpChk.addEventListener('change', () => {
           limpRow.style.display = limpChk.checked ? '' : 'none';
         });
+
+        syncTypeUI();
       },
     });
   }
 
   async function saveComponent(modal, bike, existingId) {
+    let tipo = modal.querySelector('#c-tipo').value;
+    const vidaUtilKm = parseFloat(modal.querySelector('#c-vida').value) || 0;
+    if (vidaUtilKm <= 0) { toast('Vida útil deve ser > 0', { kind: 'error' }); return; }
+
+    // "Outro (novo)": cria o tipo custom (reutilizável) antes de salvar o componente.
+    if (tipo === '__new__') {
+      const nome = modal.querySelector('#c-newname').value.trim();
+      if (!nome) { toast('Informe o nome do novo componente', { kind: 'error' }); return; }
+      const typeId = genId('ctype');
+      try {
+        await window.Api.post('/component-types', { id: typeId, nome, vidaUtilKm });
+        _customTypes.push({ id: typeId, nome, vidaUtilKm });
+      } catch (e) { console.error('[Bikes] novo tipo', e); toast('Erro ao criar componente', { kind: 'error' }); return; }
+      tipo = 'custom:' + typeId;
+    }
+
     const data = {
-      tipo:               modal.querySelector('#c-tipo').value,
-      vidaUtilKm:         parseFloat(modal.querySelector('#c-vida').value) || 0,
+      tipo,
+      vidaUtilKm,
       kmAtInstall:        parseFloat(modal.querySelector('#c-km-install').value) || 0,
       temLimpeza:         modal.querySelector('#c-tem-limpeza').checked,
       intervaloLimpezaKm: parseFloat(modal.querySelector('#c-intervalo').value) || null,
       // Pressão só persiste para pneus
-      pressao:            isTireType(modal.querySelector('#c-tipo').value)
+      pressao:            isTireType(tipo)
                             ? modal.querySelector('#c-pressao').value.trim() : '',
       marca:              modal.querySelector('#c-marca').value.trim(),
       modelo:             modal.querySelector('#c-modelo').value.trim(),
       observacao:         modal.querySelector('#c-observacao').value.trim(),
     };
-    if (data.vidaUtilKm <= 0) { toast('Vida útil deve ser > 0', { kind: 'error' }); return; }
 
     try {
       if (existingId) {
@@ -841,7 +928,7 @@
     if (!comp) return;
     Modals.open({
       tag: 'Remover componente',
-      title: `Remover ${esc(TYPE_LABEL[comp.tipo] || comp.tipo)}?`,
+      title: `Remover ${esc(typeLabel(comp.tipo))}?`,
       bodyHTML: `<p style="font-size:14px;color:var(--muted);">
                    O histórico de manutenções deste componente também será removido.
                  </p>`,
@@ -867,7 +954,7 @@
     if (!comp) return;
     Modals.open({
       tag: 'Registrar limpeza',
-      title: `Limpar ${esc(TYPE_LABEL[comp.tipo] || comp.tipo)}`,
+      title: `Limpar ${esc(typeLabel(comp.tipo))}`,
       bodyHTML: `
         <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
           ${esc(bike.nome)} · km atual: <strong>${esc(fmtKm(bike.kmTotal))}</strong>
@@ -903,7 +990,7 @@
     const comp = (_componentsByBike.get(bike.id) || []).find(c => c.id === compId);
     if (!comp) return;
 
-    const tipoLabel = esc(TYPE_LABEL[comp.tipo] || comp.tipo);
+    const tipoLabel = esc(typeLabel(comp.tipo));
     const saiNome = [comp.marca, comp.modelo].filter(Boolean).join(' ').trim();
     const kmRodado = comp.kmDesgastado != null ? comp.kmDesgastado : null;
 
@@ -1008,7 +1095,7 @@
     const iv = interval || { nome: '', base: 'km', intervalo: '' };
     Modals.open({
       tag: isEdit ? 'Editar serviço' : 'Novo serviço recorrente',
-      title: esc(TYPE_LABEL[comp.tipo] || comp.tipo),
+      title: esc(typeLabel(comp.tipo)),
       bodyHTML: `
         <div class="field">
           <label class="field-label" for="iv-nome">Nome do serviço *</label>
@@ -1182,7 +1269,7 @@
 
   // Timeline de gerações retiradas de um componente (Fase 16.4)
   function renderRetiredItem(r) {
-    const nome = [r.marca, r.modelo].filter(Boolean).join(' ').trim() || (TYPE_LABEL[r.tipo] || r.tipo);
+    const nome = [r.marca, r.modelo].filter(Boolean).join(' ').trim() || (typeLabel(r.tipo));
     const vidaPct = (r.vidaUtilKm > 0 && r.kmRodado != null)
       ? Math.round((r.kmRodado / r.vidaUtilKm) * 100) : null;
     const meta = [
@@ -1206,7 +1293,7 @@
     if (!aggregates || aggregates.length === 0) return '';
     const showTipo = !opts || opts.showTipo !== false;
     const rows = aggregates.map(a => {
-      const nome = [showTipo ? (TYPE_LABEL[a.tipo] || a.tipo) : null,
+      const nome = [showTipo ? (typeLabel(a.tipo)) : null,
         [a.marca, a.modelos[0]].filter(Boolean).join(' ') || (a.marca ? '' : 'sem marca')]
         .filter(Boolean).join(' · ');
       const facts = [
@@ -1241,7 +1328,7 @@
 
     Modals.open({
       tag: 'Componente',
-      title: esc(TYPE_LABEL[comp.tipo] || comp.tipo),
+      title: esc(typeLabel(comp.tipo)),
       bodyHTML: `
         <div class="bike-detail-stats">
           ${(comp.marca || comp.modelo) ? `<div class="bike-detail-row"><span>Peça atual</span><strong>${esc([comp.marca, comp.modelo].filter(Boolean).join(' '))}</strong></div>` : ''}
@@ -1418,7 +1505,7 @@
     }[l.tipoEvento] || { cls: 'fa-circle', label: l.tipoEvento };
 
     const compLabel = l.componentTipo
-      ? ` — ${esc(TYPE_LABEL[l.componentTipo] || l.componentTipo)}`
+      ? ` — ${esc(typeLabel(l.componentTipo))}`
       : '';
 
     return `

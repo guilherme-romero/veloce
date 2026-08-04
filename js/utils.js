@@ -119,4 +119,17 @@ const WMO_ICONS = {
 };
 function wmoIcon(code) { return WMO_ICONS[code] || 'fa-cloud-sun'; }
 
-window.Utils = Object.assign(window.Utils || {}, { calcTrainingStreak, wmoIcon });
+// Estimativa de tempo de pedal (min): tempo no plano + penalidade de subida.
+// Compartilhado por Ferramentas (ferramentas.js) e Passeios (rides.js).
+// speed em km/h, elev em metros de ganho, wind em km/h (+ a favor), profile
+// multiplica a eficiência na subida, stops = parada fixa (min).
+function estimateRideTimeMin({ dist, speed, elev = 0, wind = 0, profile = 1.0, stops = 0 }) {
+  const adjSpeed    = Math.max((speed || 0) + wind, 10);
+  const elevEquivKm = (elev || 0) / 100;
+  const climbPenMin = Math.round((elevEquivKm / adjSpeed * 60) / (profile || 1.0));
+  const flatTimeMin = ((dist || 0) / adjSpeed) * 60;
+  const movTimeMin  = flatTimeMin + climbPenMin;
+  return { flatTimeMin, climbPenMin, movTimeMin, totalTimeMin: movTimeMin + stops };
+}
+
+window.Utils = Object.assign(window.Utils || {}, { calcTrainingStreak, wmoIcon, estimateRideTimeMin });

@@ -83,7 +83,7 @@
     });
 
     // Atualiza título da página
-    document.title = `${route.label} · Treino Bike`;
+    document.title = `${route.label} · VELOCELABS`;
 
     // Rola para o topo da seção
     window.scrollTo({ top: 0, behavior: 'auto' });
