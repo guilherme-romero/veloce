@@ -448,7 +448,7 @@ async function buildRelatorioPDF(daysWindow) {
   pdf.setTextColor(255);
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(28);
-  pdf.text('VELOCELABS', PAD, 60);
+  pdf.text('VELOCE LABS', PAD, 60);
   pdf.setFontSize(14);
   pdf.setFont('helvetica', 'normal');
   pdf.text('Relatório de evolução', PAD, 90);
@@ -656,7 +656,7 @@ async function buildRelatorioPDF(daysWindow) {
     pdf.setPage(i);
     pdf.setFontSize(8);
     pdf.setTextColor(150);
-    pdf.text(`VELOCELABS · ${todayLong}`, PAD, H - 20);
+    pdf.text(`VELOCE LABS · ${todayLong}`, PAD, H - 20);
     pdf.text(`Página ${i} de ${total}`, W - PAD - 60, H - 20);
   }
 

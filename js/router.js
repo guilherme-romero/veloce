@@ -83,7 +83,7 @@
     });
 
     // Atualiza título da página
-    document.title = `${route.label} · VELOCELABS`;
+    document.title = `${route.label} · VELOCE LABS`;
 
     // Rola para o topo da seção
     window.scrollTo({ top: 0, behavior: 'auto' });

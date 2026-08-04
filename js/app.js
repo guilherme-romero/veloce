@@ -240,7 +240,7 @@ function saveProfile(modal) {
 function openOnboardingModal() {
   Modals.open({
     tag: 'Bem-vindo',
-    title: 'Bem-vindo ao VELOCELABS',
+    title: 'Bem-vindo ao VELOCE LABS',
     bodyHTML: `
       <p style="color:var(--muted2);font-size:13px;line-height:1.6;margin-bottom:20px;">
         Vamos configurar seu perfil para personalizar as zonas de treino e a projeção de peso.
@@ -487,7 +487,7 @@ async function doLogout() {
    BOOT
 ═══════════════════════════════════════════════════════════════════════ */
 async function boot() {
-  console.log(`%c[VELOCELABS] Boot v${window.APP_VERSION || '?'}`, 'color:#14d9b8;font-weight:bold');
+  console.log(`%c[VELOCE LABS] Boot v${window.APP_VERSION || '?'}`, 'color:#14d9b8;font-weight:bold');
 
   // 0. Gate de autenticação — redireciona pra /login.html se não há sessão
   const authed = await ensureAuthenticated();
@@ -605,7 +605,7 @@ async function boot() {
   // 12. Notificações (sino) — computa em background, não bloqueia o boot.
   window.Notifications?.load();
 
-  console.log('[VELOCELABS] Boot concluído');
+  console.log('[VELOCE LABS] Boot concluído');
 }
 
 document.addEventListener('DOMContentLoaded', boot);
