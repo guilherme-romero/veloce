@@ -20,7 +20,8 @@ estimado: **baixo** / **médio** / **alto**.
 
 - **[baixo/investigação] Garmin PR `type_id` 15 e 16.** Em `garmin_personal_records` há só **1
   amostra de cada**, ambas com valor **229** (2026-08-02), sem atividade vinculada — não
-  identificável com um único ponto. 12/13/14 já mapeados como passos dia/semana/mês. Revisitar
+  identificável com um único ponto. Rechecado em **2026-08-05**: segue 1 amostra de cada, sem
+  novidade. 12/13/14 já mapeados como passos dia/semana/mês. Revisitar
   quando (a) mais amostras acumularem em syncs futuros, ou (b) confirmarmos o enum oficial
   `personalRecordTypeId` (lib `garminconnect`/docs Garmin). Seguem **ocultos** em
   `ALLOWED_PR_TYPES` (`js/insights.js`) até lá.
