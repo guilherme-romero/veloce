@@ -18,6 +18,13 @@ estimado: **baixo** / **médio** / **alto**.
   `README.md` e o slash command `/deploy-treino-bike`. Renomear isso exige mexer em systemd/nginx e
   migrar os backups existentes — fazer num **plano focado e revisado** à parte, com janela de deploy.
 
+  Inclui também o **rename do subdomínio** para **`veloce.arkhamcloud.net`** (hoje `bike.arkhamcloud.net`):
+    - **Cloudflare** — criar/ajustar o registro DNS + regra do subdomínio novo.
+    - **Tunnel no gateway** (`192.168.15.10`) — atualizar a config do cloudflared (ingress do hostname).
+    - **Proxy reverso no nginx** — atualizar `server_name`/vhost para o novo hostname.
+    - Manter `bike.arkhamcloud.net` como redirect/alias durante a transição (evitar link quebrado + PWA já instalado).
+    - **Cloudflare cacheia por 7 dias** (ver memória) — validar cache/purge após o corte.
+
 - **[baixo/investigação] Garmin PR `type_id` 15 e 16.** Em `garmin_personal_records` há só **1
   amostra de cada**, ambas com valor **229** (2026-08-02), sem atividade vinculada — não
   identificável com um único ponto. Rechecado em **2026-08-05**: segue 1 amostra de cada, sem
