@@ -25,6 +25,11 @@ estimado: **baixo** / **médio** / **alto**.
     - Manter `bike.arkhamcloud.net` como redirect/alias durante a transição (evitar link quebrado + PWA já instalado).
     - **Cloudflare cacheia por 7 dias** (ver memória) — validar cache/purge após o corte.
 
+  Inclui também o **rename do repositório no GitHub** (`guilherme1985/treino_bike` → nome novo):
+    - Renomear pelo GitHub (mantém redirect automático do path antigo, mas não é eterno).
+    - Atualizar o `origin` local: `git remote set-url origin git@github.com:guilherme1985/<novo>.git`.
+    - Conferir referências ao slug antigo (README, docs, CI/webhooks se houver).
+
 - **[baixo/investigação] Garmin PR `type_id` 15 e 16.** Em `garmin_personal_records` há só **1
   amostra de cada**, ambas com valor **229** (2026-08-02), sem atividade vinculada — não
   identificável com um único ponto. Rechecado em **2026-08-05**: segue 1 amostra de cada, sem
