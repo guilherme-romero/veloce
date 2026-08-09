@@ -64,13 +64,23 @@
   // intensidade = FC média ÷ FC máxima teórica. É uma aproximação quadrática
   // para comparação relativa entre semanas — não é a exponencial de Banister
   // nem a zonal de Edwards, e não usa a reserva de FC de Karvonen.
-  // Sem FC média, usa 0,70 (≈ Zona 2) como estimativa conservadora.
+  // Sem FC média, estima a intensidade pela DURAÇÃO do esforço (a modalidade em
+  // act.tipo — cycling/gravel/mtb — não informa intensidade). Pedais curtos
+  // tendem a ser mais intensos; longos, mais leves. Faixas conservadoras
+  // ancoradas no antigo padrão fixo de 0,70 (≈ Z2), validadas pelo personal-trainer:
+  //   < 45 min → 0,75   ·   > 3 h → 0,65   ·   demais → 0,70
   const INTENSITY_FALLBACK = 0.70;
+  function intensityFallback(act) {
+    const min = (act && act.tempoMovS) ? act.tempoMovS / 60 : 0;
+    if (min > 0 && min < 45)  return 0.75;
+    if (min > 180)            return 0.65;
+    return INTENSITY_FALLBACK;
+  }
 
   function trimpDeAtividade(act, fcMax) {
     if (!act || !fcMax || !act.tempoMovS) return 0;
     const tempoMin = act.tempoMovS / 60;
-    let intensity  = INTENSITY_FALLBACK;
+    let intensity  = intensityFallback(act);
     if (act.fcMedia) {
       const raw = act.fcMedia / fcMax;
       if (raw > 1.0) console.warn(`[TRIMP] FC média (${act.fcMedia}) > FCMax (${fcMax}) em ${act.data}`);
@@ -83,7 +93,7 @@
   function tssDeAtividade(act, fcMax) {
     if (!act || !fcMax || !act.tempoMovS) return 0;
     const tempoH = act.tempoMovS / 3600;
-    let intensity = INTENSITY_FALLBACK;
+    let intensity = intensityFallback(act);
     if (act.fcMedia) {
       const raw = act.fcMedia / fcMax;
       if (raw > 1.0) console.warn(`[TSS] FC média (${act.fcMedia}) > FCMax (${fcMax}) em ${act.data}`);
@@ -264,11 +274,18 @@
     const ultima = semanas[idxAtual - 1]?.trimpKg ?? 0;   // última completa
     const penult = semanas[idxAtual - 2]?.trimpKg ?? 0;   // anterior à última completa
     let trendLabel = '—', trendColor = COLORS.muted2, msg = '';
-    if (penult > 0) {
+    // Piso de base: com semana anterior muito baixa (ex.: retomada pós-descanso),
+    // o % relativo explode e dispararia "subindo rápido" indevidamente. Abaixo do
+    // piso, não classifica a tendência (mostra '—'). (personal-trainer)
+    if (penult > 3) {
       const delta = ((ultima - penult) / penult) * 100;
       const arrow = delta >= 0 ? '▲' : '▼';
       trendLabel = `${arrow} ${Math.abs(delta).toFixed(0)}%`;
-      if (delta > 10)       { trendColor = COLORS.green; msg = 'Volume crescendo — atenção à recuperação para sustentar o aumento.'; }
+      // Limiar de alerta calibrado p/ ciclismo: crescer até ~15–20 %/sem sobre
+      // uma base construída é sustentável; acima de ~20 % o alerta faz sentido
+      // (regra dos 10 %/sem é conservadora demais aqui). Validado pelo personal-trainer.
+      if (delta > 20)       { trendColor = COLORS.amber; msg = 'Volume subindo rápido (>20%/sem) — progrida mais gradual e cuide da recuperação.'; }
+      else if (delta > 5)   { trendColor = COLORS.green; msg = 'Volume crescendo de forma saudável — boa progressão.'; }
       else if (delta < -15) { trendColor = COLORS.amber; msg = 'Queda significativa — semana de recuperação ou previsto?'; }
       else                  { trendColor = COLORS.teal;  msg = 'Volume estável — boa consistência semanal.'; }
     }

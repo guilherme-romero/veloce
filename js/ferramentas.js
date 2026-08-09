@@ -474,6 +474,12 @@ function calcNutri() {
   if (humid > 70) sweat *= 1.1;
   if (sun) sweat += 150;
 
+  // Reposição = ~90% do suor estimado, capeada em 1000 ml/h: é o limite prático
+  // de esvaziamento gástrico no exercício para a maioria (Rehrer 2001; Rowlands
+  // 2015). A hiponatremia (EAH) vem do overdrinking CUMULATIVO — beber acima da
+  // perda real, sobretudo água sem sódio (Hew-Butler, EAH Consensus 2015) — não
+  // da taxa em si; o cap evita superestimar a necessidade e incentivar excesso.
+  // Em calor extremo, priorizar isotônicos com sódio em vez de subir o volume.
   const water_mlh   = Math.min(Math.round(sweat * 0.9), 1000);
   const water_total = Math.round(water_mlh * duration_h);
 
@@ -543,6 +549,18 @@ function calcNutri() {
     tip += `<div class="tip" style="border-color:rgba(245,213,35,.35);background:rgba(245,213,35,.06)"><i class="fa-solid fa-flask" style="color:#f5d523"></i><div><strong style="color:var(--text)">Treine o intestino:</strong> ${Math.round(carb_gh)} g/h exige adaptação intestinal prévia (semanas treinando com carbo alto). Não estreie essa taxa no dia da prova — risco de desconforto gástrico.</div></div>`;
   }
 
+  // Salvaguarda de plausibilidade: com inputs extremos as fórmulas extrapolam
+  // para números sem sentido fisiológico. Avisa (não bloqueia) para que o plano
+  // não seja lido como prescrição em cenários irreais.
+  const avisos = [];
+  if (weight < 40 || weight > 150)   avisos.push(`peso de ${weight} kg fora da faixa típica (40–150)`);
+  if (duration_h > 10)               avisos.push(`pedal de ${duration_h.toFixed(1)} h (ultra-endurance): o modelo não é calibrado para essa faixa — em provas longas a taxa de carbo tende a cair, não escalar`);
+  if (temp > 35 && (intens === 'hard' || intens === 'max') && duration_h > 3)
+    avisos.push('esforço intenso em calor extremo por várias horas');
+  if (avisos.length) {
+    tip = `<div class="tip" style="border-color:rgba(240,82,58,.4);background:rgba(240,82,58,.08)"><i class="fa-solid fa-circle-exclamation" style="color:var(--red)"></i><div><strong style="color:var(--text)">Confira os dados:</strong> ${avisos.join('; ')}. Nesse cenário os números abaixo são só ordem de grandeza — trate como estimativa grosseira, não prescrição.</div></div>` + tip;
+  }
+
   // Nota sempre visível: as taxas de suor/sódio são médias populacionais.
   tip += `<div style="color:var(--muted2);font-size:11px;line-height:1.4;margin-top:8px">As taxas de suor/sódio são médias populacionais (o real varia ~0,5–2,5 L/h; Sawka et al.). Use como orientação inicial e ajuste pela sede e pela perda de peso após o pedal.</div>`;
 
@@ -565,8 +583,14 @@ function calcNutri() {
   const waterEach  = Math.round(water_total  / nEvents);
   const sodiumEach = Math.round(sodium_total / nEvents);
 
+  // Pré-saída escala com a duração: em pedais longos (>3 h) a reserva de glicogênio
+  // pesa mais que o gel de 30 min → orienta carga de carbo nas 3–4 h anteriores
+  // (1–4 g/kg, ACSM/ISSN 2016; Jeukendrup 2014 — topo da faixa exige teste prévio).
+  const preRideMsg = duration_h > 3
+    ? '<span style="color:var(--muted)">Preparação:</span> refeição rica em carbo 3–4 h antes (~1–4 g/kg; teste o topo da faixa antes de uma prova) + 350 ml de líquido e 1 gel/banana ~30 min antes'
+    : '<span style="color:var(--muted)">Preparação:</span> 350 ml de líquido + 1 gel ou banana (~30 min antes)';
   schedHtml += `<tr><td class="td-time">Pré-saída</td>
-    <td><span style="color:var(--muted)">Preparação:</span> 350 ml de líquido + 1 gel ou banana (~30 min antes)</td>
+    <td>${preRideMsg}</td>
     <td class="td-total">${gelCarb}g</td>
     <td class="td-total">${gelSod}mg</td>
     <td class="td-total">350ml</td></tr>`;

@@ -9,6 +9,41 @@ estimado: **baixo** / **médio** / **alto**.
 
 ---
 
+## Onda de qualidade v2.7.1 (2026-08-09)
+
+Lote focado de correção fina, revisado por `code-reviewer` + `personal-trainer` + `nutritionist`
+(sem achados críticos/importantes). Antes de implementar, cada item foi **reconfirmado no código**.
+
+**Implementados em v2.7.1** (frontend-only, sem restart):
+- **[treino] `js/insights.js`** — TRIMP/TSS: fallback de intensidade sem FC agora varia pela
+  **duração** (`intensityFallback`: <45min≈0,75; >3h≈0,65; senão 0,70), em vez do fixo 0,70;
+  aprovado pelo `personal-trainer` (curva duração×intensidade).
+- **[treino] `js/insights.js`** — limiar de tendência de volume passou de `>10%` para faixas de
+  ciclismo (>20% alerta, 5–20% saudável, <−15% queda), + **piso de base** (`penult>3`) p/ não
+  disparar alerta na retomada pós-descanso. A "regra dos 10%" é da corrida (impacto), não do ciclismo.
+- **[nutrição] `js/ferramentas.js`** — salvaguardas de plausibilidade (peso <40/>150 kg, duração
+  >10 h, intenso+calor extremo por horas) exibem aviso "ordem de grandeza, não prescrição".
+- **[nutrição] `js/ferramentas.js`** — comentário do cap de hidratação de 1000 ml/h corrigido
+  (limite gástrico; hiponatremia = overdrinking cumulativo, não a taxa — Hew-Butler EAH 2015).
+- **[nutrição] `js/ferramentas.js`** — linha "Pré-saída" escala com a duração: pedais >3 h orientam
+  carga de carbo 3–4 h antes (~1–4 g/kg; ACSM/ISSN 2016; topo da faixa exige teste prévio).
+
+**Reconfirmados como JÁ RESOLVIDOS** (em ondas anteriores; o doc não fora marcado):
+- Token de cancelamento em `renderIntensity`/`renderZoneDist` (`charts.js:24` `_intensityToken`;
+  `activities.js:507` `_zoneToken`).
+- Índice de fadiga rotulado como heurístico + citação da convenção de TSB (popovers
+  `index.html:815/836`); data/versão da `ENDURANCE_TABLE` (`insights.js:760`); rótulo "esforço
+  vigoroso ≥85% FCM" em vez de "Z4–Z5" (`insights.js:1082`).
+- Nutrição: aviso de *gut training* ≥75 g/h (`ferramentas.js:542`), carbo exibido em **g/kg/h**
+  (`:511`), nota de suor populacional/Sawka (`:547`), origem da rampa de carbo/Jeukendrup (`:480`).
+
+**Cancelados pelo usuário:** Tanaka (FCM) e zonas Karvonen no Perfil.
+
+**Adiados** (registrados abaixo/nas seções originais): simplificar `autoFillBike` (correto hoje,
+refactor de risco por ganho nulo) e endpoint `/bikes/export` (backend, cabe em fase dedicada).
+
+---
+
 ## Lote v2.6.0 — itens deixados para depois
 
 - **[médio] Rename interno TREINOBIKE → VELOCELABS.** O v2.6.0 trocou só o nome **visível**
