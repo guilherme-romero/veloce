@@ -147,24 +147,6 @@
     return _loading;
   }
 
-  // HTML da lista (a partir do _cache atual). CONTRATO: `title` é escapado aqui,
-  // mas `text` é inserido cru — cada coletor DEVE escapar (_esc) os campos vindos
-  // de dados externos ao montar `text`.
-  function _itemsHTML() {
-    if (!_cache.length) return '<div class="notif-empty">Nada novo por aqui. 🚴</div>';
-    const seen = _seen();
-    return _cache.map(x => {
-      const novo = !seen.has(x.id);
-      return `<div class="notif-item${novo ? ' notif-unseen' : ''}">` +
-        `<span class="notif-ico" style="color:${x.color}"><i class="fa-solid ${x.icon}"></i></span>` +
-        `<div class="notif-body"><div class="notif-title">${_esc(x.title)}</div>` +
-        `<div class="notif-text">${x.text}</div></div></div>`;
-    }).join('');
-  }
-
-  // Painel ainda aberto? (usado para re-render/marca visto após load tardio)
-  function _listEl() { return document.querySelector('.modal-body .notif-list'); }
-
   // Marca o que está no cache como visto e zera o badge.
   function _consumir() {
     if (!_cache.length) return;       // nada a marcar: não "consome" notificação futura
@@ -172,27 +154,136 @@
     _updateBadge();
   }
 
-  function open() {
-    if (!window.Modals || !Modals.open) return;
-    const carregando = !_cache.length; // pode ser que o load do boot ainda não terminou
-    const body = carregando
-      ? '<div class="notif-empty"><i class="fa-solid fa-spinner fa-spin"></i> Carregando…</div>'
-      : _itemsHTML();
+  // ── Render do dropdown (Sino A+): Novas × Anteriores ──────────────────
+  // CONTRATO XSS: `title` é escapado aqui; `text` entra cru — cada coletor DEVE
+  // escapar (_esc) os campos vindos de dados externos ao montar `text`.
+  function _card(x, seen) {
+    const novo = !seen.has(x.id);
+    return `<div class="notif-item${novo ? ' notif-unseen' : ' notif-seen'}">` +
+      `<span class="notif-ico" style="color:${x.color}"><i class="fa-solid ${x.icon}"></i></span>` +
+      `<div class="notif-body"><div class="notif-title">${_esc(x.title)}</div>` +
+      `<div class="notif-text">${x.text}</div></div></div>`;
+  }
 
-    Modals.open({ tag: 'Notificações', title: 'Novidades', bodyHTML: `<div class="notif-list">${body}</div>` });
+  // `seenSnap`: snapshot do "visto" tirado na abertura. Assim os itens desta
+  // sessão ficam em "Novas" mesmo depois de o badge zerar (não "pulam" a lista).
+  function _bodyHTML(seenSnap) {
+    if (!_cache.length) {
+      return '<div class="notif-scroll"><div class="notif-empty">' +
+        '<i class="fa-solid fa-bell-slash"></i>Nada novo por aqui. 🚴</div></div>';
+    }
+    const novas   = _cache.filter(x => !seenSnap.has(x.id));
+    const antigas = _cache.filter(x =>  seenSnap.has(x.id));
+    let html = '';
+    if (novas.length) {
+      html += '<div class="notif-group-label is-novas">Novas ' +
+        `<span class="notif-group-n">${novas.length}</span>` +
+        '<span class="notif-group-rule"></span></div>' +
+        `<div class="notif-list">${novas.map(x => _card(x, seenSnap)).join('')}</div>`;
+    }
+    if (antigas.length) {
+      html += '<div class="notif-group-label is-antigas">Anteriores' +
+        '<span class="notif-group-rule"></span></div>' +
+        `<div class="notif-list">${antigas.map(x => _card(x, seenSnap)).join('')}</div>`;
+    }
+    return `<div class="notif-scroll">${html}</div>`;
+  }
+
+  function _headHTML(hasNovas) {
+    return '<div class="notif-head"><span class="notif-head-title">Novidades</span>' +
+      (hasNovas ? '<button type="button" class="notif-clear">Marcar todas como lidas</button>' : '') +
+      '</div>';
+  }
+
+  // ── Abertura/posicionamento/fechamento do dropdown ancorado ───────────
+  let _open = false;
+  const _pop = () => document.getElementById('notif-pop');
+  const _btn = () => document.getElementById('btn-notif');
+
+  // Posiciona sob o sino, alinhado à direita, limitado à janela (padrão do
+  // popover de Insights). A seta aponta o centro do botão.
+  function _position() {
+    const pop = _pop(), btn = _btn();
+    if (!pop || !btn) return;
+    const rect = btn.getBoundingClientRect();
+    const pw = Math.min(344, window.innerWidth - 24);
+    pop.style.width = pw + 'px';
+    let left = rect.right - pw;
+    if (left + pw > window.innerWidth - 12) left = window.innerWidth - pw - 12;
+    if (left < 12) left = 12;
+    pop.style.left = left + 'px';
+    pop.style.top  = (rect.bottom + 10) + 'px';
+    const arrow = rect.left + rect.width / 2 - left - 6;
+    pop.style.setProperty('--notif-arrow-x', Math.max(10, Math.min(pw - 22, arrow)) + 'px');
+  }
+
+  function _onKey(e) { if (e.key === 'Escape') close(); }
+  // Reposiciona ao rolar a página, mas ignora o scroll interno da própria lista
+  // (o sino não se moveu — só evita reescrever o estilo a cada frame).
+  function _onScroll(e) {
+    if (e.target instanceof Node && _pop()?.contains(e.target)) return;
+    _position();
+  }
+  function _onDocClick(e) {
+    const t = e.target;
+    if (t instanceof Element && (t.closest('#notif-pop') || t.closest('#btn-notif'))) return;
+    close();
+  }
+
+  function _renderPanel(seenSnap) {
+    const pop = _pop();
+    if (!pop) return;
+    const hasNovas = _cache.some(x => !seenSnap.has(x.id));
+    pop.innerHTML = _headHTML(hasNovas) + _bodyHTML(seenSnap);
+    const clear = pop.querySelector('.notif-clear');
+    // "Marcar todas como lidas": re-render com o visto atual (Novas → Anteriores).
+    if (clear) clear.addEventListener('click', () => { _renderPanel(_seen()); _position(); });
+  }
+
+  function close() {
+    const pop = _pop();
+    if (pop) { pop.hidden = true; pop.innerHTML = ''; }
+    _btn()?.classList.remove('active');
+    _open = false;
+    document.removeEventListener('keydown', _onKey, true);
+    document.removeEventListener('click', _onDocClick, true);
+    window.removeEventListener('resize', _position);
+    window.removeEventListener('scroll', _onScroll, true);
+  }
+
+  function open() {
+    if (_open) { close(); return; }        // toggle ao reclicar o sino
+    const pop = _pop();
+    if (!pop) return;
+    const seenSnap = _seen();               // snapshot ANTES de consumir
+    const carregando = !_cache.length;      // load do boot pode não ter terminado
+
+    pop.hidden = false;
+    _btn()?.classList.add('active');
+    _open = true;
+    document.addEventListener('keydown', _onKey, true);
+    // adia o clique-fora p/ não capturar o próprio clique que abriu o painel
+    setTimeout(() => { if (_open) document.addEventListener('click', _onDocClick, true); }, 0);
+    window.addEventListener('resize', _position);
+    window.addEventListener('scroll', _onScroll, true);
 
     if (carregando) {
-      // Tenta carregar; só re-renderiza/marca se o painel ainda estiver aberto.
+      pop.innerHTML = _headHTML(false) +
+        '<div class="notif-scroll"><div class="notif-empty">' +
+        '<i class="fa-solid fa-spinner fa-spin"></i>Carregando…</div></div>';
+      _position();
       load().then(() => {
-        const el = _listEl();
-        if (!el) { _updateBadge(); return; } // usuário fechou antes: não consome
-        el.innerHTML = _itemsHTML();
+        if (!_open) { _updateBadge(); return; }   // usuário fechou antes: não consome
+        _renderPanel(_seen());
+        _position();
         _consumir();
       });
     } else {
+      _renderPanel(seenSnap);
+      _position();
       _consumir();
     }
   }
 
-  window.Notifications = { load, open };
+  window.Notifications = { load, open, close };
 })();
