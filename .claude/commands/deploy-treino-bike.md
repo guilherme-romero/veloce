@@ -18,11 +18,16 @@ Antes de commitar, rode a rotina de revisão sobre **o que mudou** (não o proje
 
 - Dispare o subagent **`code-reviewer`** com o escopo do `git diff` (arquivos alterados),
   pedindo o formato padrão `## BUGS` / `## MELHORIAS` com `arquivo:linha` e severidade.
+- Se o diff tocar **segurança** (`server/routes/auth.js`, `server/middleware/`, `server/config.js`,
+  `server/index.js`, rotas que recebem body, ou qualquer JS que monte HTML dinâmico), dispare
+  também **`revisor-seguranca`**.
+- Se o diff tocar **caminho quente** (loop de query, rota muito chamada, `server/scheduler.js`,
+  sync Garmin/Strava), dispare **`revisor-performance`**.
 - Se o diff tocar **lógica de treino/fisiologia** (`js/profile.js`, `js/insights.js`,
-  `js/workouts.js` — FCM, zonas, TRIMP/TSS/CTL/ATL/TSB), dispare também **`personal-trainer`**
-  para checar correção das fórmulas.
-- Se o diff tocar **lógica nutricional** (calculadora em `js/ferramentas.js`), dispare
-  **`nutritionist`** para checar constantes/faixas seguras.
+  `js/workouts.js` — FCM, zonas, TRIMP/TSS/CTL/ATL/TSB), consulte a skill **`plano-de-treino`**
+  na conversa principal para checar correção das fórmulas.
+- Se o diff tocar **lógica nutricional** (calculadora em `js/ferramentas.js`), consulte a skill
+  **`orientacao-nutricional`** para checar constantes/faixas seguras.
 
 Consolide os achados: **verifique** cada item CRÍTICO/IMPORTANTE lendo o código antes de aceitar,
 corrija o que for barato agora e **registre o restante** em `BUGS.md` (bugs) e `MELHORIAS.md`
