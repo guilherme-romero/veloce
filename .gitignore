@@ -43,8 +43,12 @@ data/restore-tmp/*.db
 npm-debug.log*
 
 # Guias internos (não distribuídos)
-roadmap.txt
+ROADMAP.md
+HISTORICO.md
 CLAUDE.md
+
+# Quarentena de arquivos órfãos (ver CLAUDE.md)
+excluir/
 
 # Editor
 .vscode/

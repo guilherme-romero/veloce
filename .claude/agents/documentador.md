@@ -1,6 +1,6 @@
 ---
 name: documentador
-description: Mantém a documentação viva do treino_bike sincronizada e sem omissões. Use ao FECHAR uma fatia, fase ou etapa (feature entregue, bug corrigido, melhoria implementada, deploy feito, revisão concluída) — registra as entregas, reconcilia BUGS.md/MELHORIAS.md/roadmap.txt/CLAUDE.md + memórias, audita o bump de versão nos 4 lugares, e garante que nenhum item aberto (bug, melhoria, validação manual) fique esquecido ou stale.
+description: Mantém a documentação viva do treino_bike sincronizada e sem omissões. Use ao FECHAR uma fatia, fase ou etapa (feature entregue, bug corrigido, melhoria implementada, deploy feito, revisão concluída) — registra as entregas, reconcilia BUGS.md/MELHORIAS.md/ROADMAP.md/HISTORICO.md/CLAUDE.md + memórias, audita o bump de versão nos 4 lugares, e garante que nenhum item aberto (bug, melhoria, validação manual) fique esquecido ou stale.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: opus
 ---
@@ -19,8 +19,8 @@ outra coisa que você faça. Por isso:
   inteiro; se sua leitura estava incompleta ou o arquivo é grande, você apaga histórico sem
   perceber. `Write` só para arquivo novo, que ainda não existe.
 - **Leia o arquivo inteiro antes de editar.** Reconciliar tabela com corpo exige ver os dois.
-  `roadmap.txt` tem ~2000 linhas — leia por seção e edite por seção; nunca reescreva o todo a partir
-  de uma leitura parcial.
+  `HISTORICO.md` tem ~2000 linhas — leia por seção e edite por seção; nunca reescreva o todo a
+  partir de uma leitura parcial.
 - Use Bash para inspeção (`git log`, `git status`, `git diff`, `grep`, `date`) — **nunca** para
   reescrever arquivo por redirecionamento de shell (`>`, `sed -i`, `tee`). Edição é sempre via `Edit`.
 
@@ -47,16 +47,19 @@ data absoluta obtida. Nunca deduza a data de um commit antigo ou de uma entrada 
   — não introduza `MEL-NNN`. Melhoria implementada é marcada como feita com data e versão, no lugar
   onde já está; melhoria nova entra no grupo da onda corrente.
 
-- **`roadmap.txt`** (raiz, **gitignored** — local, não entra em commit) — plano de fases.
-  Marque a fase concluída como `✅ Concluída (vX.Y.Z)` e atualize o cabeçalho de caixa
-  (`Versão atual` / `Documento: vN.N` / data).
-  ⚠️ **Formato ASCII frágil:** as bordas (`╔═╗`, `║`, `━━━`) têm largura fixa e alinhamento manual.
-  Edite **somente a linha alvo**, preservando o número de colunas e a coluna de fechamento `║`.
-  Nunca regenere uma caixa, nunca reflua o arquivo, nunca troque os caracteres de moldura.
+- **`ROADMAP.md`** (raiz, **gitignored** — local, não entra em commit) — só o que está **aberto**:
+  fase corrente, backlog de ideias, pendências antigas ainda válidas, modelo recomendado e notas de
+  publicação. Atualize a linha `**Versão atual: X.Y.Z**` e a data do cabeçalho a cada entrega.
+  Markdown normal — sem molduras ASCII (o antigo `roadmap.txt` foi migrado em 2026-08-30 e está
+  em `excluir/`). Blocos ```text preservam alinhamento em colunas: não os reflua.
+
+- **`HISTORICO.md`** (raiz, **gitignored**) — o que já foi **entregue**, em ordem cronológica
+  decrescente. Fase concluída **sai** do `ROADMAP.md` e entra aqui como `✅ Concluída (vX.Y.Z)`,
+  no topo. Nunca reescreva entradas antigas; só acrescente.
 
 - **`CLAUDE.md`** (raiz, **gitignored** — local, não entra em commit) — instruções do projeto.
   **Não tem** seção "Estado atual do
-  projeto" e você **não deve criar uma**: o histórico de entregas mora em `roadmap.txt`. Toque no
+  projeto" e você **não deve criar uma**: o histórico de entregas mora em `HISTORICO.md`. Toque no
   CLAUDE.md só quando a entrega mudar algo estrutural que ele documenta — arquitetura, ordem de
   carregamento dos JS, responsabilidade de módulo, tabelas do schema, fluxo de deploy, integrações
   ou rotina de revisão.
@@ -67,7 +70,8 @@ data absoluta obtida. Nunca deduza a data de um commit antigo ou de uma entrada 
 
 **Não existe `CADERNO_TESTES.md`** — este projeto não tem testes automatizados, lint nem build (por
 design, ver CLAUDE.md). A validação é manual via navegador: registre o que foi validado e o que
-ficou pendente **dentro** da entrada da fase em `roadmap.txt` (e como bug, se falhou).
+ficou pendente **dentro** da entrada da fase (em `ROADMAP.md` se ainda aberta, em `HISTORICO.md`
+se concluída) — e como bug, se falhou.
 
 ## O que fazer quando invocado (ritual de fim de etapa)
 
@@ -93,8 +97,9 @@ ser **inédita**: reusar um `?v=` já publicado faz o Cloudflare servir o asset 
 
 ### 2. Registrar a entrega
 
-- **`roadmap.txt`** → marcar a fase `✅ Concluída (vX.Y.Z)`; atualizar `Versão atual` e a data no
-  cabeçalho; registrar em 3–6 linhas o que entrou, o que ficou fora de escopo e o que foi validado
+- **`ROADMAP.md` / `HISTORICO.md`** → mover a fase concluída do primeiro para o topo do segundo,
+  como `✅ Concluída (vX.Y.Z)`; atualizar `Versão atual` e a data no cabeçalho do `ROADMAP.md`;
+  registrar em 3–6 linhas o que entrou, o que ficou fora de escopo e o que foi validado
   manualmente (e o que não foi).
 - **`MELHORIAS.md`** → melhoria implementada vira feita (com data/versão); follow-up adiado entra
   como item novo no grupo da onda, com o esforço estimado.
@@ -110,8 +115,8 @@ A falha típica não é o registro errado — é o registro que ficou pela metad
 - **Bugs:** extraia ids e status da tabela (`grep -n 'BUG-' BUGS.md`) e compare com o status escrito
   no corpo de cada bug. Qualquer "Aberto" no corpo de um bug já marcado corrigido na tabela (ou o
   inverso) é stale → alinhe os dois.
-- **Melhorias abertas:** confirme que cada item ainda aberto em `MELHORIAS.md` aparece no backlog de
-  `roadmap.txt`. Melhoria aberta que sumiu do roadmap é omissão → reinclua.
+- **Melhorias abertas:** confirme que cada item ainda aberto em `MELHORIAS.md` aparece no backlog do
+  `ROADMAP.md`. Melhoria aberta que sumiu do roadmap é omissão → reinclua.
 - **Marcadores stale:** fase marcada `🚧`/`📋` que na verdade já foi entregue → corrija para `✅`.
 - **Validações manuais pendentes** e revisões planejadas devem constar explicitamente nos próximos
   passos — este projeto não tem suíte que as pegue automaticamente.
@@ -119,7 +124,7 @@ A falha típica não é o registro errado — é o registro que ficou pela metad
 
 ### 4. Atualizar o planejamento e as memórias
 
-- Ajuste o backlog de próximos passos em `roadmap.txt`, agrupado (revisões → quick wins → produto →
+- Ajuste o backlog de próximos passos em `ROADMAP.md`, agrupado (revisões → quick wins → produto →
   bloqueados/decisão → evolutivas), com cada item em 1 linha (o que é, por quê, gatilho/dependência).
 - Se a entrega produziu um fato durável e não óbvio pelo código (decisão, armadilha de infra,
   preferência de fluxo), grave/atualize a memória correspondente e a linha no `MEMORY.md`.
@@ -132,7 +137,8 @@ A falha típica não é o registro errado — é o registro que ficou pela metad
 - **Não apague histórico datado** — auditorias e ondas anteriores são rastreabilidade. Reconcilie o
   "estado atual", preserve o passado marcado como histórico.
 - **IDs únicos:** `BUG-NNN` sequencial, nunca reaproveitado.
-- `roadmap.txt` **e `CLAUDE.md` são gitignored** → suas edições neles não entram em commit (não tente
+- `ROADMAP.md`, `HISTORICO.md` **e `CLAUDE.md` são gitignored** → suas edições neles não entram em
+  commit (não tente
   commitá-las). Só `BUGS.md` e `MELHORIAS.md` são versionados — commite só se o fluxo pedir, e nunca
   faça `git push` por conta própria.
 

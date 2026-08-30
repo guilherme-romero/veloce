@@ -20,7 +20,7 @@ Escopo: projeto completo. Primeira rodada com os revisores especializados
 **conferidos manualmente no código** antes do registro. Achados de performance foram para
 [MELHORIAS.md](MELHORIAS.md) — aqui só o que é bug.
 
-Registrada no `roadmap.txt` como **FASE 24** (backlog priorizado + lição de processo).
+Registrada no `ROADMAP.md` como **FASE 24** (backlog priorizado + lição de processo).
 Status da leva: **levantamento** — só o BUG-059 foi corrigido (2026-08-30, commit `0c34637`) e as
 permissões do BUG-066 foram restauradas; o restante aguarda decisão e exige bump de versão.
 
