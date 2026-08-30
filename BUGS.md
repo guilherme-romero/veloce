@@ -1,13 +1,130 @@
 # BUGS — treino_bike
 
 Registro de bugs encontrados na revisão. Rotina de revisão multi-agente
-(subagents `code-reviewer` + `nutritionist` + `personal-trainer`).
-Auditorias: **2026-07-06** sobre a **v2.1.5** e **2026-07-11** sobre a **v2.2.0**.
+(subagents `code-reviewer` + `revisor-seguranca` + `revisor-performance`; até 2026-08-09 os
+agentes de domínio eram `nutritionist` + `personal-trainer`, hoje substituídos pelas skills
+`orientacao-nutricional` e `plano-de-treino`).
+Auditorias: **2026-07-06** (v2.1.5), **2026-07-11** (v2.2.0) e **2026-08-30** (v2.7.1).
 Itens marcados **✓ verificado** foram confirmados manualmente lendo o código;
 os demais vêm do relatório dos agentes e devem ser confirmados antes da correção.
 
 Convenção de severidade: **CRÍTICO** (segurança/quebra funcional), **IMPORTANTE** (bug real com
 impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
+
+---
+
+# Auditoria 2026-08-30 (v2.7.1)
+
+Escopo: projeto completo. Primeira rodada com os revisores especializados
+(`revisor-seguranca`, `revisor-performance`) adaptados ao stack. Todos os itens abaixo foram
+**conferidos manualmente no código** antes do registro. Achados de performance foram para
+[MELHORIAS.md](MELHORIAS.md) — aqui só o que é bug.
+
+## CRÍTICO
+
+- **✓ [CRÍTICO] [BUG-056] `js/app.js:80,98,115`** — XSS armazenado por quebra de atributo no modal
+  de perfil. Os três campos numéricos interpolam sem escape:
+  `value="${u.altura || ''}"`, idem `u.pesoMeta` e `u.bikePeso`. Os campos vizinhos do **mesmo
+  template** usam `esc()` corretamente (`f-nasc:78`, `f-bmodelo:111`), o que mostra que é omissão,
+  não decisão.
+  **Cadeia confirmada:** `validateBackupStructure` (`js/backup.js:719-723`) valida `nome`, `altura`
+  e `pesoAtual` — **não** valida `pesoMeta` nem `bikePeso`. `server/routes/profile.js:88` faz
+  `clean[k] = body[k]` sem coerção de tipo, gravando a string crua. O CSP tem
+  `script-src 'unsafe-inline'` (`index.html:10`), então o handler injetado executa.
+  Vetor: import de backup JSON malicioso ("importa esse backup pra recuperar teus dados").
+  **Correção:** `escAttr()` nos três valores **e** coerção numérica no backend
+  (`Number.isFinite`) para as chaves numéricas da `ALLOWED_PROFILE_KEYS`; incluir `pesoMeta`/
+  `bikePeso` no `validateBackupStructure`.
+
+- **✓ [CRÍTICO] [BUG-057] `js/workouts.js:334,342,345`** — mesmo vetor: `m.nome` é escapado
+  (`:336`), mas `m.id` não, em `data-mode-id`, `data-rename` e `data-delete-mode`. Hoje o id é
+  gerado no cliente (`js/storage.js:168`), porém `validateBackupStructure` (`js/backup.js:729`) só
+  exige `m.id` truthy e `server/routes/modes.js:55` só exige `m.id && m.nome` — um backup com
+  `id: 'x" onmouseover="…'` quebra o atributo ao abrir "Gerenciar modos de treino".
+  **Correção:** `escAttr(m.id)` nos três pontos + validar formato (`/^[\w:-]{1,64}$/`) no
+  `POST/PUT /api/modes`.
+
+## IMPORTANTE
+
+- **✓ [IMPORTANTE] [BUG-058] `server/index.js:7` + `server/routes/auth.js:24`** — rate limit do
+  login contornável por header. Confirmado ponta a ponta: `@fastify/rate-limit` 9.1.0 usa
+  `defaultKeyGenerator = (req) => req.ip` (index.js:27 do pacote); `trustProxy: true` faz o Fastify
+  derivar `req.ip` do `X-Forwarded-For`; e o nginx usa `$proxy_add_x_forwarded_for`
+  (`/etc/nginx/sites-available/treino_bike:27`), que **anexa** ao valor enviado pelo cliente.
+  Rotacionando `X-Forwarded-For: 1.2.3.<n>`, cada tentativa cai num bucket novo e o teto de 5/min
+  nunca é atingido — sobra só o custo do bcrypt como freio contra força bruta.
+  **Correção:** `trustProxy: 1` (o nginx é o único hop) ou `keyGenerator` fixo em
+  `req.socket.remoteAddress` na rota de login.
+
+- **✓ [IMPORTANTE] [BUG-059] `.gitignore` + `server/services/strava.js:18,29`** — segredo fora do
+  `.gitignore`. `writePersistedRefresh()` grava o refresh token rotacionado do Strava em
+  `data/strava_token.json`; `git check-ignore` confirma que o caminho **não** é ignorado. O arquivo
+  ainda não existe (rotação não ocorreu), então dá para corrigir antes do estrago — quando o Strava
+  rotacionar, um `git add data/` publica um refresh token vivo no repositório, que é público.
+  **Correção:** adicionar `data/strava_token.json` ao `.gitignore`. **Prioridade preventiva.**
+
+- **✓ [IMPORTANTE] [BUG-060] `js/rides.js:694`** — dedup do calendário descarta atividade real.
+  O `find` compara só `|Δdistância| < 0,5 km`, **sem checar horário e sem checar fonte** — apesar de
+  o comentário em `:682-684` afirmar que o dedup é para "fontes diferentes". O matcher server-side,
+  para a mesma decisão, exige ±100 m **e** ±300 s (`server/utils/activity-matcher.js:17,75`).
+  Cenário: dois trajetos no mesmo dia (10,0 km de manhã, 10,3 km à tarde) → o segundo some do badge
+  do calendário (`js/rides.js:189-200`). Só exibição, não corrompe dado persistido.
+  **Correção:** incluir `a.inicio` na comparação, ou não deduplicar aqui.
+
+## MENOR
+
+- **✓ [MENOR] [BUG-061] `server/services/garmin.js:43-47`** — o subprocess Python herda
+  `{ ...process.env }`, entregando `JWT_SECRET`, `ADMIN_PASS_HASH`, `STRAVA_CLIENT_SECRET` e
+  `STRAVA_REFRESH_TOKEN` ao `garmin_cli.py` e a toda a árvore de dependências (`garminconnect`,
+  `requests`, DiskCache), sem necessidade. Dependência comprometida ou traceback com dump de env
+  expõe a chave de assinatura de sessão. **Correção:** ambiente mínimo explícito (`PATH`, `HOME`,
+  `LANG` + as duas `GARMIN_*`).
+
+- **✓ [MENOR] [BUG-062] `server/routes/garmin.js:75`** — `reply.code(502).send({ error: err.message })`
+  devolve a primeira linha do stderr do Python ao cliente (pode conter URL interna, corpo de
+  resposta da Garmin ou trecho de traceback). `server/routes/strava.js:76` já faz o certo: mensagem
+  genérica + `req.log.error`. **Correção:** padronizar pelo comportamento do strava.js.
+
+- **✓ [MENOR] [BUG-063] `server/routes/backup.js:179,217` e `server/routes/profile.js:116`** —
+  rotas caras e destrutivas sem `config.rateLimit` (o limite é opt-in, `global:false` em
+  `server/index.js:26`). `POST /api/backup/restore` aceita 50 MB, roda unzip, troca o banco e
+  reinicia o serviço; `POST /api/backup/snapshot` faz zip nível 9; `POST /api/user/avatar` aceita
+  5 MB. Exigem sessão válida — cenário é pós-comprometimento (encadeado com BUG-056/057): um XSS
+  chama `/restore` em laço e deixa o serviço em ciclo de restart.
+
+- **✓ [MENOR] [BUG-064] `js/bikes.js:90-94`** — `severityFor(pct)` recebe `null` quando o componente
+  não tem vida útil configurada; `null >= 100` e `null >= 80` são `false`, então retorna `'green'`
+  (classe de "ok") em vez de estado neutro. Hoje inofensivo porque os call sites só renderizam a
+  barra quando `hasKm`/`hasTempo` é verdadeiro — é fragilidade latente, não defeito visível.
+
+- **✓ [MENOR] [BUG-065] `server/scheduler.js:34-44` e `server/routes/garmin.js:95`** — quando
+  `a.startTimeLocal` falta, `dataIso` cai para `startTimeGMT` (pode virar o dia errado em UTC-3
+  perto da meia-noite) e `inicio_local` fica `null`. Isso faz `parseLocal(null)` → `0` →
+  `timeDiffSeconds` retornar `Infinity`, e a atividade **nunca** casa com a Strava correspondente.
+  Raro (a API da Garmin normalmente traz `startTimeLocal`), registrado como nota.
+
+## Infraestrutura
+
+- **✓ [CRÍTICO] [BUG-066] Permissões do filesystem de produção — CORRIGIDO em 2026-08-30.**
+  Algo executou um `chmod -R 777` na árvore do projeto: 117 arquivos rastreados passaram de
+  `100644` para `100755`, 7727 arquivos ficaram world-writable, e **`server/.env` ficou `777`** —
+  world-readable e world-writable, contendo `JWT_SECRET`, `ADMIN_PASS_HASH` e os tokens reais de
+  Strava/Garmin. `data/training.db` ficou `775`.
+  **Corrigido:** `server/.env` → `600`; `data/training.db` (+WAL/SHM) → `660`; os 117 rastreados
+  restaurados ao modo que o HEAD registra; diretórios → `755`; zero world-writable restante. Os 3
+  scripts `.py` da skill seguem `755` (eram executáveis em HEAD).
+  **Pendente:** descobrir *o que* rodou o chmod — sem isso, volta. Suspeitos a investigar: script de
+  deploy/backup, extração de zip com permissões embutidas, ou operação manual. Os binários foram
+  verificados por hash contra o HEAD e estão íntegros.
+
+## Falsos-positivos desta auditoria (não corrigir)
+
+- **`CLAUDE.md` citando `personal-trainer`/`nutritionist`** — reportado pelo `code-reviewer` como
+  referência órfã. **Não procede:** o arquivo já havia sido corrigido na mesma sessão. O agente leu
+  o snapshot do `CLAUDE.md` presente no contexto da sessão dele (capturado no boot, antes da edição)
+  em vez de ler o arquivo do disco.
+  **⚠ Lição:** agente que recebe o CLAUDE.md no contexto pode reportar sobre a versão velha —
+  ao receber achado sobre arquivo de instruções, conferir no disco antes de aceitar.
 
 ---
 

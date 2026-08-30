@@ -2,10 +2,130 @@
 
 Oportunidades de melhoria (qualidade, segurança preventiva, manutenibilidade, correção fina de
 domínio) encontradas na rotina de revisão multi-agente (subagents `code-reviewer` +
-`nutritionist` + `personal-trainer`). Auditorias: **2026-07-06** (v2.1.5) e **2026-07-11** (v2.2.0).
+`revisor-seguranca` + `revisor-performance`; até 2026-08-09 os agentes de domínio eram
+`nutritionist` + `personal-trainer`). Auditorias: **2026-07-06** (v2.1.5), **2026-07-11** (v2.2.0)
+e **2026-08-30** (v2.7.1).
 
 Não são bugs com impacto imediato (esses estão em [BUGS.md](BUGS.md)). Cada item traz o esforço
 estimado: **baixo** / **médio** / **alto**.
+
+---
+
+## Auditoria de performance 2026-08-30 (v2.7.1)
+
+Primeira varredura com o `revisor-performance` adaptado ao stack. Todos os itens foram
+**reconfirmados no código e no banco** (via `EXPLAIN QUERY PLAN` em `sqlite3 -readonly`).
+
+**Contexto de escala — importante para priorizar:** o banco tem hoje **132 atividades Garmin, 107
+Strava, 1,5 MB**. O custo absoluto atual é baixo; nada aqui está causando dor perceptível. O valor
+destes itens é serem baratos agora e evitarem a dor quando o histórico crescer. A exceção é o
+cache do Garmin (23 MB), que já está desproporcional. Nenhum número abaixo é benchmark — são
+estimativas a partir do plano de execução e da contagem de operações.
+
+### Esforço baixo — ganho grande, risco quase zero
+
+- **`server/utils/training-log-helper.js:42,84,92`** — `autoFillBike` chama `db.prepare()` três
+  vezes (SELECT, UPDATE, INSERT) e é invocada **uma vez por atividade** nos quatro call sites de
+  sync (`scheduler.js:61`, `routes/garmin.js:127`, `routes/strava.js:128`). O `better-sqlite3` não
+  cacheia `prepare()` — cada chamada recompila o SQL. O scheduler roda a cada 30 min.
+  → Receber os três statements prontos, ou lazy-init por instância de `db`. **Maior ganho barato
+  do backend.**
+
+- **`server/routes/garmin.js:96` e `server/routes/strava.js:100`** — `prepare()` dentro do laço de
+  sync. É **regressão de paridade**, não escolha: `server/scheduler.js:26` faz exatamente a mesma
+  query já hoisted, com comentário explícito ("Preparado uma vez (fora da transação)"). As rotas
+  ficaram para trás. → Hoistar para junto de `upsertStmt` (`garmin.js:43`).
+
+- **`server/routes/activities.js:65,72` e `server/routes/garmin.js:348`** — `SELECT *` traz
+  `polyline` (média 3,1 KB, máx 8,2 KB), `payload` (~474 B) e `hr_zones`, que `garminRow()`/
+  `stravaRow()` descartam — usam ~15 colunas escalares. São ~0,7 MB lidos do disco e materializados
+  em JS por request, para nada; como o driver é síncrono, é tempo de event loop bloqueado.
+  → Listar as colunas explicitamente nas três queries.
+
+- **`js/router.js:95,102`** — `Bikes.load()` e `Insights.load()` re-executam a cada navegação de
+  hash, sem guarda. `Insights.load()` (`js/insights.js:1194-1200`) dispara **7 requests em
+  paralelo**, incluindo os dois mais caros do backend. O padrão correto já existe no projeto:
+  `js/ferramentas.js:681` usa `if (!_loaded) { _loaded = true; … }`.
+  → Aplicar o mesmo `_loaded`, invalidado após sync/mutação.
+
+- **`server/garmin/garmin_cli.py:54`** — `DiskCache(str(CACHE_DIR))` sem `size_limit` nem política
+  de cull. O cache está em **23 MB, ~15× o tamanho do banco de produção (1,5 MB)**, e é o que domina
+  o `_dirSize` do `/api/health`. Contraste: os snapshots têm retenção explícita
+  (`server/scripts/snapshot.js:24`, `server/routes/backup.js:82`). → Passar `size_limit` (o
+  `diskcache` faz cull automático) ou podar por idade num job.
+
+- **`server/index.js:86`** — `execFileSync('df', …)` com timeout de 1 s dentro de um handler
+  Fastify `async`: enquanto o `df` roda, o processo inteiro não atende mais nada. Some 7 `COUNT(*)`
+  com `prepare()` por chamada (`_safeCount`, `:95-97`). → Trocar por `execFile` assíncrono (a rota
+  já é `async`) e cachear o resultado por ~60 s.
+
+### Esforço médio
+
+- **`server/routes/activities.js:112-122` (`weekly-records`)** — `EXPLAIN QUERY PLAN` confirma
+  `SCAN garmin_activities`: não há índice em `tipo` e não há filtro de data, então varre **todo o
+  histórico, sempre**; o agrupamento por semana é feito com um `Map` em JS (`:132-146`) quando um
+  `GROUP BY` resolveria. Chamado em todo `Insights.load()`. → `GROUP BY` em SQL + índice em `tipo`;
+  candidato natural a memoização (o valor só muda após sync).
+
+- **`js/notifications.js:110` → `server/routes/activities.js:91`** — o sino pede
+  `?days=1825&limit=1` para mostrar "Última atividade", mas a paginação é `all.slice(offset, offset+limit)`
+  **depois** do `SELECT *` das duas tabelas inteiras + concat + sort. O caso que mais precisa ser
+  barato é o mais caro. → Endpoint `/activities/latest` com `ORDER BY … LIMIT 1` em SQL.
+
+- **`server/routes/bikes.js:142,151`** (e o mesmo padrão em `:184,193` e `:225,232`) —
+  `calcBikeStats` prepara os dois SELECTs a cada chamada, e `/api/bikes` (`:336`) chama uma vez por
+  bike; `calcBikeKm` é chamado de novo em `/components`, `/limpar`, `/substituir`, `/intervals` e
+  `/revisao-completa`. O `Bikes.load()` dispara `/bikes` + N × `/bikes/:id/components`, cada um
+  refazendo as agregações. → Hoistar os statements para o escopo do plugin (o SQL é fixo, as listas
+  de tipos excluídos são constantes) e calcular `kmBike` uma vez por request.
+
+- **Cache compartilhado de `/activities/unified`** — 8 módulos chamam com janelas diferentes
+  (`js/rides.js:706` e `js/notifications.js:110` com 1825d, `js/activities.js:350` 1095d,
+  `js/profile.js:168` e `js/testes.js:128` 365d, `js/insights.js:1194` 180d, `js/home.js:112` 30d),
+  cada um refazendo o `SELECT *` + sort. Uma sessão Home → Perfil → Passeios → Insights paga isso
+  4–5× com dados idênticos. Nota: `js/profile.js:168` puxa 365 dias inteiros só para extrair **um**
+  `MAX(fc_max)`. → Cache por janela em `Storage` (a maior janela serve as menores por filtro em
+  memória) + endpoint `/activities/max-hr`.
+
+### Esforço alto / delegado
+
+- **Índices — delegar a `db-architect`.** Cruzamento uso × índice confirmado em `sqlite_master`:
+
+  | Coluna | Usada em | Situação |
+  |---|---|---|
+  | `garmin_activities(tipo)` | `activities.js:114`, `bikes.js:149,191,230` | sem índice → SCAN |
+  | `strava_activities(tipo)` | `activities.js:121`, `bikes.js:160,202,239` | sem índice → SCAN |
+  | `garmin_activities(inicio_local)` | `ORDER BY` em `activities.js:65`, `garmin.js:348` | sem índice → `USE TEMP B-TREE` (confirmado) |
+  | `strava_activities(inicio_iso)` | `ORDER BY` em `activities.js:75` | idem |
+  | `bike_maintenance_log(component_id)` | `JOIN` em `bikes.js:766` | FK sem índice |
+  | `bike_retired_components(component_id)` | `WHERE` em `bikes.js:618` | FK sem índice |
+
+  Índices compostos `(data_inicio, tipo)` possivelmente cobrem dois casos de uma vez — a definição
+  do DDL fica para o `db-architect`. (`bike_service_intervals(component_id)` **já tem** índice.)
+
+- **`server/utils/activity-matcher.js:50-83`** — `runMatching` roda após todo sync e reexamina para
+  sempre as atividades que nunca vão casar: busca todas as Strava sem link e roda `candStmt` uma vez
+  por atividade. Hoje são só 3 não-linkadas (104 links / 107 Strava), mas o conjunto só cresce.
+  → Marcar `match_attempted_at` e reexaminar só o que entrou desde o último sync, ou trocar o laço
+  por um único `JOIN` com as tolerâncias no `ON`.
+
+- **CSP sem `'unsafe-inline'`** — `index.html:10` tem `script-src 'self' 'unsafe-inline' …`, que é
+  exatamente o que transforma BUG-056/057 em execução direta em vez de atributo inerte. Removê-lo
+  exige eliminar os `onclick=` inline (`js/workouts.js:134`, `js/home-workout.js:40`, entre outros).
+  Defesa em profundidade real, mas é refactor de superfície ampla.
+
+### Verificado e OK (não re-reportar)
+
+- sql.js e `data/cassetes.db` **já** são carregados sob demanda (`js/ferramentas.js:362-365`, atrás
+  do `_loaded` em `:681`).
+- `runCli` mantém teto de 8 MB e timeout (`server/services/garmin.js:21,54`); as chamadas pesadas ao
+  Python já são serializadas por `_runExclusive` (`:31-36`).
+- Os laços de escrita do scheduler e dos syncs já estão dentro de `db.transaction()`.
+- Gráficos recriados com `destroy()` + `new Chart()` em vez de `.update()` existem
+  (`js/insights.js:300,357,399,474,560`, `js/activities.js:276,551,632`, `js/routes.js:238,494`),
+  mas o impacto é baixo — só vale mexer nos que re-renderizam com frequência.
+- `js/bikes.js:451` — `intervalStmt.all(c.id)` por componente é N+1, mas o statement está
+  corretamente hoisted (`:442`) e N é minúsculo (7 componentes). Anotar, não agir.
 
 ---
 
