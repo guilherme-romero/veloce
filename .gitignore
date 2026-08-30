@@ -24,6 +24,9 @@ data/avatars/
 data/garmin_session/
 dados_garmin.txt
 
+# Tokens do Strava (refresh/access token vivos)
+data/strava_token.json
+
 # Cache do conector Garmin (DiskCache SQLite, garminconnect 0.3.6)
 data/garmin_cache/
 

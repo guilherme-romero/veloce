@@ -56,12 +56,13 @@ Escopo: projeto completo. Primeira rodada com os revisores especializados
   **Correção:** `trustProxy: 1` (o nginx é o único hop) ou `keyGenerator` fixo em
   `req.socket.remoteAddress` na rota de login.
 
-- **✓ [IMPORTANTE] [BUG-059] `.gitignore` + `server/services/strava.js:18,29`** — segredo fora do
+- **✅ CORRIGIDO (2026-08-30)** — **[IMPORTANTE] [BUG-059] `.gitignore` + `server/services/strava.js:18,29`** — segredo fora do
   `.gitignore`. `writePersistedRefresh()` grava o refresh token rotacionado do Strava em
   `data/strava_token.json`; `git check-ignore` confirma que o caminho **não** é ignorado. O arquivo
   ainda não existe (rotação não ocorreu), então dá para corrigir antes do estrago — quando o Strava
   rotacionar, um `git add data/` publica um refresh token vivo no repositório, que é público.
-  **Correção:** adicionar `data/strava_token.json` ao `.gitignore`. **Prioridade preventiva.**
+  **Correção aplicada:** `data/strava_token.json` adicionado ao `.gitignore` (linha 28), antes
+  de a rotação criar o arquivo.
 
 - **✓ [IMPORTANTE] [BUG-060] `js/rides.js:694`** — dedup do calendário descarta atividade real.
   O `find` compara só `|Δdistância| < 0,5 km`, **sem checar horário e sem checar fonte** — apesar de
