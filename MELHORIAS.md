@@ -15,6 +15,7 @@ estimado: **baixo** / **médio** / **alto**.
 
 Primeira varredura com o `revisor-performance` adaptado ao stack. Todos os itens foram
 **reconfirmados no código e no banco** (via `EXPLAIN QUERY PLAN` em `sqlite3 -readonly`).
+Resumida no `roadmap.txt`, FASE 24 — **nada aplicado**, é levantamento.
 
 **Contexto de escala — importante para priorizar:** o banco tem hoje **132 atividades Garmin, 107
 Strava, 1,5 MB**. O custo absoluto atual é baixo; nada aqui está causando dor perceptível. O valor
