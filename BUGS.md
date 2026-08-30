@@ -22,7 +22,7 @@ Escopo: projeto completo. Primeira rodada com os revisores especializados
 
 Registrada no `ROADMAP.md` como **FASE 24** (backlog priorizado + lição de processo).
 Status da leva: **fechada em 2026-08-30 (v2.7.2)** — BUG-056 a BUG-065 corrigidos e validados;
-do BUG-066 (infra) as permissões foram restauradas e resta a causa raiz do `chmod`.
+BUG-066 (infra) com permissões restauradas e causa raiz identificada. **Nenhum item aberto.**
 
 ## CRÍTICO
 
@@ -126,7 +126,8 @@ do BUG-066 (infra) as permissões foram restauradas e resta a causa raiz do `chm
 
 ## Infraestrutura
 
-- **✓ [CRÍTICO] [BUG-066] Permissões do filesystem de produção — CORRIGIDO em 2026-08-30.**
+- **✅ FECHADO (2026-08-30, causa raiz identificada)** — **[CRÍTICO] [BUG-066] Permissões do
+  filesystem de produção.**
   Algo executou um `chmod -R 777` na árvore do projeto: 117 arquivos rastreados passaram de
   `100644` para `100755`, 7727 arquivos ficaram world-writable, e **`server/.env` ficou `777`** —
   world-readable e world-writable, contendo `JWT_SECRET`, `ADMIN_PASS_HASH` e os tokens reais de
@@ -134,9 +135,15 @@ do BUG-066 (infra) as permissões foram restauradas e resta a causa raiz do `chm
   **Corrigido:** `server/.env` → `600`; `data/training.db` (+WAL/SHM) → `660`; os 117 rastreados
   restaurados ao modo que o HEAD registra; diretórios → `755`; zero world-writable restante. Os 3
   scripts `.py` da skill seguem `755` (eram executáveis em HEAD).
-  **Pendente:** descobrir *o que* rodou o chmod — sem isso, volta. Suspeitos a investigar: script de
-  deploy/backup, extração de zip com permissões embutidas, ou operação manual. Os binários foram
-  verificados por hash contra o HEAD e estão íntegros.
+  **Causa raiz (informada pelo usuário, 2026-08-30):** falha crítica no host Proxmox `.52` que
+  hospeda este LXC `.20`. Na recuperação dos LXCs os privilégios foram perdidos, e a restauração do
+  acesso exigiu uma **concessão genérica de permissões** — foi ela que espalhou o `777`. Não houve,
+  portanto, script do projeto nem comprometimento: foi operação de recuperação de infraestrutura.
+  Consistente com as evidências: os binários batiam por hash com o HEAD (só o modo mudou) e o
+  `/etc/nginx` ficou intacto — o alcance foi a árvore restaurada, não o sistema.
+  **Não há follow-up de código.** A prevenção é operacional: numa próxima recuperação, restaurar
+  permissões por alvo em vez de `-R 777`, e conferir `server/.env` (600) e `data/training.db` (660)
+  logo depois. Os binários foram verificados por hash contra o HEAD e estão íntegros.
 
 ## Falsos-positivos desta auditoria (não corrigir)
 
