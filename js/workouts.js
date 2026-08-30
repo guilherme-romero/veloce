@@ -331,7 +331,7 @@ function openModeMenu() {
     bodyHTML: `
       <div style="display:flex;flex-direction:column;gap:12px;">
         ${modes.map(m => `
-          <div class="mode-row" data-mode-id="${m.id}">
+          <div class="mode-row" data-mode-id="${escAttr(m.id)}">
             <div style="flex:1;">
               <div style="font-weight:700;font-size:14px;">${esc(m.nome)}</div>
               <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">
@@ -339,10 +339,10 @@ function openModeMenu() {
               </div>
             </div>
             <div style="display:flex;gap:6px;">
-              <button class="btn btn-sm btn-ghost" type="button" data-rename="${m.id}" title="Renomear">
+              <button class="btn btn-sm btn-ghost" type="button" data-rename="${escAttr(m.id)}" title="Renomear">
                 <i class="fa-solid fa-pen"></i>
               </button>
-              <button class="btn btn-sm btn-danger" type="button" data-delete-mode="${m.id}"
+              <button class="btn btn-sm btn-danger" type="button" data-delete-mode="${escAttr(m.id)}"
                       ${modes.length === 1 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}
                       title="${modes.length === 1 ? 'Não é possível excluir o único modo' : 'Excluir modo'}">
                 <i class="fa-solid fa-trash"></i>

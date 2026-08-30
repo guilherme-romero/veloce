@@ -176,7 +176,10 @@ async function routes(fastify) {
   });
 
   // Cria snapshot no filesystem (chamado por timer ou via UI manualmente)
-  fastify.post('/api/backup/snapshot', async (req, reply) => {
+  // Rate-limit: zip nivel 9 e' caro; o limite e' opt-in no server/index.js.
+  fastify.post('/api/backup/snapshot', {
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+  }, async (req, reply) => {
     ensureBackupsDir();
     const filename = `treino-bike-data-${todayISO()}.zip`;
     const fullPath = path.join(BACKUPS_DIR, filename);
@@ -214,7 +217,11 @@ async function routes(fastify) {
 
   // Restaura training.db (e avatars) a partir de um ZIP enviado.
   // Fluxo: valida → backup pré-restore → fecha banco → swap → reinicia.
-  fastify.post('/api/backup/restore', async (req, reply) => {
+  // Rate-limit apertado: a rota troca o banco e REINICIA o servico. Em laco
+  // (ex.: via XSS autenticado) deixaria a API em ciclo de restart.
+  fastify.post('/api/backup/restore', {
+    config: { rateLimit: { max: 2, timeWindow: '5 minutes' } },
+  }, async (req, reply) => {
     const buf = req.body;
     if (!Buffer.isBuffer(buf) || buf.length === 0) {
       return reply.code(400).send({ error: 'corpo vazio — envie um .zip' });

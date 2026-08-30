@@ -37,6 +37,22 @@ function rowToActivity(r) {
   };
 }
 
+// Traduz a falha do garmin_cli.py para uma mensagem util ao usuario, sem
+// vazar stderr. O detalhe completo vai para o log (req.log.error).
+function garminLoginMessage(err) {
+  const raw = String((err && err.message) || '').toLowerCase();
+  if (/senha|password|credential|unauthorized|401|invalid/.test(raw)) {
+    return 'Credenciais recusadas pela Garmin — confira e-mail e senha no .env.';
+  }
+  if (/too many|rate|429|blocked|forbidden|403/.test(raw)) {
+    return 'A Garmin bloqueou o acesso temporariamente (proteção de SSO). Tente de novo mais tarde.';
+  }
+  if (/timeout|timed out|etimedout/.test(raw)) {
+    return 'A Garmin demorou demais para responder. Tente de novo.';
+  }
+  return 'Falha ao conectar na Garmin. Veja o log do serviço para o detalhe.';
+}
+
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
 
@@ -73,7 +89,11 @@ async function routes(fastify) {
       if (err.code === 'MFA_REQUIRED') {
         return reply.code(409).send({ error: 'MFA_REQUIRED' });
       }
-      return reply.code(502).send({ error: err.message });
+      // Nao devolver err.message cru: e' a 1a linha do stderr do Python e pode
+      // trazer URL interna ou traceback (BUG-062). Traduz os modos de falha
+      // reais desta integracao e guarda o detalhe no log.
+      req.log.error({ err }, 'garmin login falhou');
+      return reply.code(502).send({ error: garminLoginMessage(err) });
     }
   });
 
@@ -92,6 +112,12 @@ async function routes(fastify) {
         for (const a of items) {
           const startLocal = a.startTimeLocal || a.startTimeGMT;
           if (!startLocal) continue;
+          // Ver nota em server/scheduler.js (BUG-065): sem startTimeLocal a
+          // atividade nunca casa com a da Strava; so registramos.
+          if (!a.startTimeLocal) {
+            req.log.warn({ activityId: a.activityId, startTimeGMT: a.startTimeGMT },
+              'garmin: atividade sem startTimeLocal — nao vai casar com a Strava');
+          }
           const dataIso = String(startLocal).slice(0, 10);
           const before = fastify.db.prepare('SELECT 1 FROM garmin_activities WHERE id_garmin = ?').get(a.activityId);
           upsertStmt.run({

@@ -77,7 +77,7 @@ function openProfileModal() {
         </div>
         <div class="field">
           <label class="field-label" for="f-altura">Altura (cm)</label>
-          <input id="f-altura" class="field-input" type="number" min="100" max="230" step="1" value="${u.altura || ''}" />
+          <input id="f-altura" class="field-input" type="number" min="100" max="230" step="1" value="${escAttr(u.altura || '')}" />
         </div>
       </div>
 
@@ -95,7 +95,7 @@ function openProfileModal() {
       <div class="field-row">
         <div class="field">
           <label class="field-label" for="f-meta">Peso meta (kg)</label>
-          <input id="f-meta" class="field-input" type="number" min="30" max="250" step="0.1" value="${u.pesoMeta || ''}" />
+          <input id="f-meta" class="field-input" type="number" min="30" max="250" step="0.1" value="${escAttr(u.pesoMeta || '')}" />
           <span class="field-hint">O peso atual vem automaticamente da balança Garmin.</span>
         </div>
         <div class="field">
@@ -112,7 +112,7 @@ function openProfileModal() {
         </div>
         <div class="field">
           <label class="field-label" for="f-bpeso">Peso da bike (kg)</label>
-          <input id="f-bpeso" class="field-input" type="number" min="3" max="30" step="0.1" value="${u.bikePeso || ''}" />
+          <input id="f-bpeso" class="field-input" type="number" min="3" max="30" step="0.1" value="${escAttr(u.bikePeso || '')}" />
         </div>
       </div>
     `,

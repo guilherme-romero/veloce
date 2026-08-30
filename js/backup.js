@@ -721,12 +721,24 @@ function validateBackupStructure(p) {
       throw new Error('user.altura fora do intervalo');
     if (u.pesoAtual !== undefined && (isNaN(u.pesoAtual) || u.pesoAtual < 10 || u.pesoAtual > 600))
       throw new Error('user.pesoAtual fora do intervalo');
+    // pesoMeta e bikePeso caem em value="" no modal de perfil — sem validacao
+    // aqui, um backup com string arbitraria quebrava o atributo (BUG-056).
+    if (u.pesoMeta !== undefined && u.pesoMeta !== '' &&
+        (isNaN(u.pesoMeta) || u.pesoMeta < 10 || u.pesoMeta > 600))
+      throw new Error('user.pesoMeta fora do intervalo');
+    if (u.bikePeso !== undefined && u.bikePeso !== '' &&
+        (isNaN(u.bikePeso) || u.bikePeso < 1 || u.bikePeso > 100))
+      throw new Error('user.bikePeso fora do intervalo');
   }
   if (p.modes !== undefined) {
     if (!Array.isArray(p.modes)) throw new Error('modes deve ser array');
     if (p.modes.length > 50) throw new Error('modes: número excessivo de registros');
     p.modes.forEach((m, i) => {
       if (!m.id || !m.nome) throw new Error(`modes[${i}]: id ou nome ausente`);
+      // Mesmo formato exigido pelo backend (MODE_ID_RE em routes/modes.js): o
+      // id vai para dentro de data-* na tela de modos (BUG-057).
+      if (!/^[\w:-]{1,64}$/.test(String(m.id)))
+        throw new Error(`modes[${i}]: id com formato invalido`);
     });
   }
   if (p.workouts !== undefined) {

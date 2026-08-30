@@ -41,8 +41,17 @@ function runCli(args, opts = {}) {
 
 function _spawnCli(args, { timeoutMs = DEFAULT_TIMEOUT_MS, noCache = false } = {}) {
   return new Promise((resolve, reject) => {
+    // Ambiente MINIMO e explicito. Antes espalhava `...process.env`, o que
+    // entregava JWT_SECRET, ADMIN_PASS_HASH e os segredos do Strava ao script
+    // Python e a toda a arvore de dependencias (BUG-061). O garmin_cli.py so
+    // le GARMIN_EMAIL/GARMIN_PASSWORD; a sessao SSO vem do caminho do script
+    // (SESSION_DIR), nao de HOME.
     const env = {
-      ...process.env,
+      PATH:            process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+      HOME:            process.env.HOME || '/tmp',
+      LANG:            process.env.LANG || 'C.UTF-8',
+      LC_ALL:          process.env.LC_ALL || 'C.UTF-8',
+      PYTHONIOENCODING: 'utf-8',
       GARMIN_EMAIL:    process.env.GARMIN_EMAIL    || '',
       GARMIN_PASSWORD: process.env.GARMIN_PASSWORD || '',
     };

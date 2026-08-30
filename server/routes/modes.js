@@ -8,6 +8,13 @@
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
 
+// Id de modo e' gerado no cliente ('mode_<base36>', js/storage.js) e vai parar
+// dentro de atributos HTML na tela "Gerenciar modos de treino". Sem formato
+// fixo, um backup importado com id contendo aspas quebrava o atributo
+// (BUG-057). Formato conservador: cobre todos os ids ja existentes.
+const MODE_ID_RE = /^[\w:-]{1,64}$/;
+const validModeId = (id) => typeof id === 'string' && MODE_ID_RE.test(id);
+
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
 
@@ -19,7 +26,7 @@ async function routes(fastify) {
 
   fastify.post('/api/modes', async (req, reply) => {
     const { id, nome, ordem } = req.body || {};
-    if (!id || typeof id !== 'string') return reply.code(400).send({ error: 'id obrigatorio' });
+    if (!validModeId(id)) return reply.code(400).send({ error: 'id invalido' });
     if (!nome || typeof nome !== 'string') return reply.code(400).send({ error: 'nome obrigatorio' });
     const ord = Number.isInteger(ordem) ? ordem : 0;
     try {
@@ -48,11 +55,16 @@ async function routes(fastify) {
     const arr = req.body;
     if (!Array.isArray(arr)) return reply.code(400).send({ error: 'esperado array' });
     if (arr.length === 0) return reply.code(400).send({ error: 'array nao pode ser vazio' });
+    // Valida ANTES da transacao: ela comeca com DELETE FROM modes, entao id
+    // invalido descartado no meio do laco apagaria o modo em silencio.
+    const ruim = arr.findIndex((m) => !m || !validModeId(m.id) || !m.nome);
+    if (ruim >= 0) {
+      return reply.code(400).send({ error: `modes[${ruim}]: id ou nome invalido` });
+    }
     const trx = fastify.db.transaction((modes) => {
       fastify.db.prepare('DELETE FROM modes').run();
       const stmt = fastify.db.prepare('INSERT INTO modes (id, nome, ordem) VALUES (?, ?, ?)');
       modes.forEach((m, i) => {
-        if (!m || !m.id || !m.nome) return;
         stmt.run(m.id, m.nome, Number.isInteger(m.ordem) ? m.ordem : i);
       });
     });

@@ -6,12 +6,38 @@ const fs   = require('fs');
 const { requireAuth } = require('../middleware/auth');
 
 // Campos conhecidos do perfil (singleton). PUT /api/profile descarta chaves
-// fora desta lista — um cliente autenticado nao injeta payload arbitrario.
-const ALLOWED_PROFILE_KEYS = new Set([
-  'nome', 'dataNascimento', 'sexo', 'altura', 'pesoAtual', 'pesoMeta',
-  'bikePeso', 'bikeModelo', 'dataInicioPlano', 'fcMax',
-  'hasAvatar', 'avatarUpdatedAt',
-]);
+// fora desta lista E valor com tipo/faixa invalidos — antes so a chave era
+// checada, entao uma string arbitraria chegava crua ao banco e voltava para
+// dentro de atributos HTML no frontend (BUG-056, XSS armazenado).
+// Cada validador devolve o valor NORMALIZADO ou undefined para descartar.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const num = (min, max) => (v) => {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) && n >= min && n <= max ? n : undefined;
+};
+const str = (max) => (v) =>
+  typeof v === 'string' && v.length <= max ? v : undefined;
+const isoDate = (v) =>
+  typeof v === 'string' && ISO_DATE.test(v) ? v : undefined;
+
+const PROFILE_FIELDS = {
+  nome:            str(120),
+  dataNascimento:  isoDate,
+  dataInicioPlano: isoDate,
+  sexo:            (v) => (v === 'm' || v === 'f' ? v : undefined),
+  altura:          num(50, 300),
+  pesoAtual:       num(10, 600),
+  pesoMeta:        num(10, 600),
+  bikePeso:        num(1, 100),
+  bikeModelo:      str(120),
+  fcMax:           num(80, 250),
+  hasAvatar:       (v) => (typeof v === 'boolean' ? v : undefined),
+  // ISO string vinda do proprio POST /api/user/avatar (nao e' numero); vai
+  // parar num ?ts= de cache-busting, entao basta ser string curta.
+  avatarUpdatedAt: str(40),
+};
+const ALLOWED_PROFILE_KEYS = new Set(Object.keys(PROFILE_FIELDS));
 const MAX_PROFILE_BYTES = 16 * 1024; // perfil e pequeno; teto generoso
 
 const AVATAR_DIR  = path.resolve(__dirname, '..', '..', 'data', 'avatars');
@@ -80,16 +106,26 @@ async function routes(fastify) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return reply.code(400).send({ error: 'payload invalido' });
     }
-    // Mantem apenas campos conhecidos; loga chaves descartadas p/ nao mascarar
-    // um campo novo do frontend que ficou de fora da whitelist.
+    // Mantem apenas campos conhecidos COM valor valido; loga o que caiu, para
+    // nao mascarar nem campo novo do frontend fora da whitelist nem valor que
+    // o cliente acha que salvou. Chave nula/vazia limpa o campo (o modal de
+    // perfil envia '' para "sem valor").
     const clean = {};
     const dropped = [];
+    const invalid = [];
     for (const k of Object.keys(body)) {
-      if (ALLOWED_PROFILE_KEYS.has(k)) clean[k] = body[k];
-      else dropped.push(k);
+      if (!ALLOWED_PROFILE_KEYS.has(k)) { dropped.push(k); continue; }
+      const raw = body[k];
+      if (raw === null || raw === undefined || raw === '') continue;
+      const val = PROFILE_FIELDS[k](raw);
+      if (val === undefined) invalid.push(k);
+      else clean[k] = val;
     }
     if (dropped.length) {
       fastify.log.warn({ dropped }, 'PUT /api/profile: campos desconhecidos descartados');
+    }
+    if (invalid.length) {
+      fastify.log.warn({ invalid }, 'PUT /api/profile: valores invalidos descartados');
     }
     const json = JSON.stringify(clean);
     if (Buffer.byteLength(json, 'utf8') > MAX_PROFILE_BYTES) {
@@ -113,7 +149,10 @@ async function routes(fastify) {
 
   // ── POST /api/user/avatar — upload base64 ────────────────────────
   // Body: { data: "<base64>", mime: "image/jpeg" | "image/png" }
-  fastify.post('/api/user/avatar', { bodyLimit: 5 * 1024 * 1024 }, async (req, reply) => {
+  fastify.post('/api/user/avatar', {
+    bodyLimit: 5 * 1024 * 1024,
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+  }, async (req, reply) => {
     const { data, mime } = req.body || {};
     if (!data || typeof data !== 'string') return reply.code(400).send({ error: 'data ausente' });
     if (mime !== 'image/jpeg' && mime !== 'image/png') {

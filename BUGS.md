@@ -21,12 +21,12 @@ Escopo: projeto completo. Primeira rodada com os revisores especializados
 [MELHORIAS.md](MELHORIAS.md) — aqui só o que é bug.
 
 Registrada no `ROADMAP.md` como **FASE 24** (backlog priorizado + lição de processo).
-Status da leva: **levantamento** — só o BUG-059 foi corrigido (2026-08-30, commit `0c34637`) e as
-permissões do BUG-066 foram restauradas; o restante aguarda decisão e exige bump de versão.
+Status da leva: **fechada em 2026-08-30 (v2.7.2)** — BUG-056 a BUG-065 corrigidos e validados;
+do BUG-066 (infra) as permissões foram restauradas e resta a causa raiz do `chmod`.
 
 ## CRÍTICO
 
-- **✓ [CRÍTICO] [BUG-056] `js/app.js:80,98,115`** — XSS armazenado por quebra de atributo no modal
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[CRÍTICO] [BUG-056] `js/app.js:80,98,115`** — XSS armazenado por quebra de atributo no modal
   de perfil. Os três campos numéricos interpolam sem escape:
   `value="${u.altura || ''}"`, idem `u.pesoMeta` e `u.bikePeso`. Os campos vizinhos do **mesmo
   template** usam `esc()` corretamente (`f-nasc:78`, `f-bmodelo:111`), o que mostra que é omissão,
@@ -40,7 +40,7 @@ permissões do BUG-066 foram restauradas; o restante aguarda decisão e exige bu
   (`Number.isFinite`) para as chaves numéricas da `ALLOWED_PROFILE_KEYS`; incluir `pesoMeta`/
   `bikePeso` no `validateBackupStructure`.
 
-- **✓ [CRÍTICO] [BUG-057] `js/workouts.js:334,342,345`** — mesmo vetor: `m.nome` é escapado
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[CRÍTICO] [BUG-057] `js/workouts.js:334,342,345`** — mesmo vetor: `m.nome` é escapado
   (`:336`), mas `m.id` não, em `data-mode-id`, `data-rename` e `data-delete-mode`. Hoje o id é
   gerado no cliente (`js/storage.js:168`), porém `validateBackupStructure` (`js/backup.js:729`) só
   exige `m.id` truthy e `server/routes/modes.js:55` só exige `m.id && m.nome` — um backup com
@@ -50,15 +50,23 @@ permissões do BUG-066 foram restauradas; o restante aguarda decisão e exige bu
 
 ## IMPORTANTE
 
-- **✓ [IMPORTANTE] [BUG-058] `server/index.js:7` + `server/routes/auth.js:24`** — rate limit do
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[IMPORTANTE] [BUG-058] `server/index.js:7` + `server/routes/auth.js:24`** — rate limit do
   login contornável por header. Confirmado ponta a ponta: `@fastify/rate-limit` 9.1.0 usa
   `defaultKeyGenerator = (req) => req.ip` (index.js:27 do pacote); `trustProxy: true` faz o Fastify
   derivar `req.ip` do `X-Forwarded-For`; e o nginx usa `$proxy_add_x_forwarded_for`
   (`/etc/nginx/sites-available/treino_bike:27`), que **anexa** ao valor enviado pelo cliente.
   Rotacionando `X-Forwarded-For: 1.2.3.<n>`, cada tentativa cai num bucket novo e o teto de 5/min
   nunca é atingido — sobra só o custo do bcrypt como freio contra força bruta.
-  **Correção:** `trustProxy: 1` (o nginx é o único hop) ou `keyGenerator` fixo em
-  `req.socket.remoteAddress` na rota de login.
+  **Correção aplicada:** `trustProxy: 1` em `server/index.js:7`.
+  ⚠ **Achado durante a correção:** a alternativa "lista de IPs confiáveis"
+  (`trustProxy: ['127.0.0.1','::1']`) **não funciona nesta topologia** e foi testada antes — como o
+  nginx roda no mesmo host, ele anexa `127.0.0.1` ao XFF; estando o loopback na lista, o
+  `proxy-addr` continua andando na cadeia e chega ao valor forjado. Verificado na prática:
+  `curl -H 'X-Forwarded-For: 9.9.9.9' localhost:8002/api/health` ainda produzia
+  `req.ip = 9.9.9.9`. Só a **contagem** de hops interrompe a caminhada.
+  **Validado:** com XFF forjado o `req.ip` passou a ser o peer real
+  (`127.0.0.1` / `192.168.15.20` conforme a origem), e 6 tentativas de login com
+  `X-Forwarded-For` rotacionado devolvem `401 401 401 401 401 429`.
 
 - **✅ CORRIGIDO (2026-08-30)** — **[IMPORTANTE] [BUG-059] `.gitignore` + `server/services/strava.js:18,29`** — segredo fora do
   `.gitignore`. `writePersistedRefresh()` grava o refresh token rotacionado do Strava em
@@ -68,45 +76,53 @@ permissões do BUG-066 foram restauradas; o restante aguarda decisão e exige bu
   **Correção aplicada:** `data/strava_token.json` adicionado ao `.gitignore` (linha 28), antes
   de a rotação criar o arquivo.
 
-- **✓ [IMPORTANTE] [BUG-060] `js/rides.js:694`** — dedup do calendário descarta atividade real.
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[IMPORTANTE] [BUG-060] `js/rides.js:694`** — dedup do calendário descarta atividade real.
   O `find` compara só `|Δdistância| < 0,5 km`, **sem checar horário e sem checar fonte** — apesar de
   o comentário em `:682-684` afirmar que o dedup é para "fontes diferentes". O matcher server-side,
   para a mesma decisão, exige ±100 m **e** ±300 s (`server/utils/activity-matcher.js:17,75`).
   Cenário: dois trajetos no mesmo dia (10,0 km de manhã, 10,3 km à tarde) → o segundo some do badge
   do calendário (`js/rides.js:189-200`). Só exibição, não corrompe dado persistido.
-  **Correção:** incluir `a.inicio` na comparação, ou não deduplicar aqui.
+  **Correção aplicada:** `a.inicio` entrou na comparação com tolerância de ±300 s, espelhando o
+  matcher do servidor. Detalhe que quase passou: o `inicio` do Strava é `start_date_local` rotulado
+  com `Z` (não é UTC) e o da Garmin usa espaço — sem a mesma normalização do `parseLocal`
+  (`replace('Z','').replace(' ','T')`), os dois lados ficariam deslocados pelo fuso e o dedup entre
+  serviços nunca casaria.
 
 ## MENOR
 
-- **✓ [MENOR] [BUG-061] `server/services/garmin.js:43-47`** — o subprocess Python herda
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[MENOR] [BUG-061] `server/services/garmin.js:43-47`** — o subprocess Python herda
   `{ ...process.env }`, entregando `JWT_SECRET`, `ADMIN_PASS_HASH`, `STRAVA_CLIENT_SECRET` e
   `STRAVA_REFRESH_TOKEN` ao `garmin_cli.py` e a toda a árvore de dependências (`garminconnect`,
   `requests`, DiskCache), sem necessidade. Dependência comprometida ou traceback com dump de env
   expõe a chave de assinatura de sessão. **Correção:** ambiente mínimo explícito (`PATH`, `HOME`,
   `LANG` + as duas `GARMIN_*`).
 
-- **✓ [MENOR] [BUG-062] `server/routes/garmin.js:75`** — `reply.code(502).send({ error: err.message })`
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[MENOR] [BUG-062] `server/routes/garmin.js:75`** — `reply.code(502).send({ error: err.message })`
   devolve a primeira linha do stderr do Python ao cliente (pode conter URL interna, corpo de
   resposta da Garmin ou trecho de traceback). `server/routes/strava.js:76` já faz o certo: mensagem
   genérica + `req.log.error`. **Correção:** padronizar pelo comportamento do strava.js.
 
-- **✓ [MENOR] [BUG-063] `server/routes/backup.js:179,217` e `server/routes/profile.js:116`** —
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[MENOR] [BUG-063] `server/routes/backup.js:179,217` e `server/routes/profile.js:116`** —
   rotas caras e destrutivas sem `config.rateLimit` (o limite é opt-in, `global:false` em
   `server/index.js:26`). `POST /api/backup/restore` aceita 50 MB, roda unzip, troca o banco e
   reinicia o serviço; `POST /api/backup/snapshot` faz zip nível 9; `POST /api/user/avatar` aceita
   5 MB. Exigem sessão válida — cenário é pós-comprometimento (encadeado com BUG-056/057): um XSS
   chama `/restore` em laço e deixa o serviço em ciclo de restart.
 
-- **✓ [MENOR] [BUG-064] `js/bikes.js:90-94`** — `severityFor(pct)` recebe `null` quando o componente
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[MENOR] [BUG-064] `js/bikes.js:90-94`** — `severityFor(pct)` recebe `null` quando o componente
   não tem vida útil configurada; `null >= 100` e `null >= 80` são `false`, então retorna `'green'`
   (classe de "ok") em vez de estado neutro. Hoje inofensivo porque os call sites só renderizam a
   barra quando `hasKm`/`hasTempo` é verdadeiro — é fragilidade latente, não defeito visível.
 
-- **✓ [MENOR] [BUG-065] `server/scheduler.js:34-44` e `server/routes/garmin.js:95`** — quando
+- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[MENOR] [BUG-065] `server/scheduler.js:34-44` e `server/routes/garmin.js:95`** — quando
   `a.startTimeLocal` falta, `dataIso` cai para `startTimeGMT` (pode virar o dia errado em UTC-3
   perto da meia-noite) e `inicio_local` fica `null`. Isso faz `parseLocal(null)` → `0` →
   `timeDiffSeconds` retornar `Infinity`, e a atividade **nunca** casa com a Strava correspondente.
   Raro (a API da Garmin normalmente traz `startTimeLocal`), registrado como nota.
+  **Correção aplicada:** `log.warn` nos dois pontos de sync — **de propósito não se preenche
+  `inicio_local` com o horário GMT**: rotular GMT como local seria falso e o desvio de 3 h
+  continuaria fora da tolerância de 300 s, ou seja, fabricar o dado não faria a atividade casar,
+  só esconderia o caso. A correção é de observabilidade.
 
 ## Infraestrutura
 

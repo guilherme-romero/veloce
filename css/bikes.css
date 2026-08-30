@@ -223,6 +223,8 @@
 .bike-comp-progress-fill.green { background: var(--green); }
 .bike-comp-progress-fill.amber { background: var(--amber); }
 .bike-comp-progress-fill.red   { background: var(--red); }
+/* Sem vida util configurada: estado desconhecido, nao 'ok' (BUG-064). */
+.bike-comp-progress-fill.neutral { background: var(--border); }
 
 .bike-comp-clean {
   font-size: 11px;

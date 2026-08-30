@@ -4,7 +4,17 @@
 const config = require('./config');
 const fastify = require('fastify')({
   logger: { level: 'info' },
-  trustProxy: true,   // confia em X-Forwarded-* (nginx)
+  // UM hop de proxy: o nginx local. Com `true`, o Fastify confiava na cadeia
+  // inteira e tirava o req.ip da PRIMEIRA entrada de X-Forwarded-For — que o
+  // nginx ANEXA ao valor mandado pelo cliente ($proxy_add_x_forwarded_for).
+  // Dava para rotacionar o header e cair num bucket novo do rate-limit a cada
+  // tentativa de login (BUG-058).
+  // Precisa ser a CONTAGEM, nao uma lista de IPs confiaveis: como o nginx roda
+  // no mesmo host, ele anexa 127.0.0.1: se o loopback estivesse na lista, o
+  // proxy-addr seguiria andando na cadeia e chegaria ao valor forjado
+  // (verificado na pratica). Com `1` ele para no primeiro hop, que e' o
+  // endereco que o nginx realmente enxergou — fora do controle do cliente.
+  trustProxy: 1,
   bodyLimit: 524288,  // 512 KB — avatar usa bodyLimit próprio de 5MB
 });
 

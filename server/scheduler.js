@@ -33,6 +33,14 @@ async function syncGarminActivities(db, log) {
     for (const a of items) {
       const startLocal = a.startTimeLocal || a.startTimeGMT;
       if (!startLocal) continue;
+      // Sem startTimeLocal, inicio_local fica null e o matcher com a Strava
+      // devolve Infinity — a atividade NUNCA casa (BUG-065). Nao inventamos o
+      // horario local a partir do GMT: rotular GMT como local seria errado e o
+      // desvio de 3h continuaria fora da tolerancia de 300s. Fica registrado.
+      if (!a.startTimeLocal) {
+        log.warn({ activityId: a.activityId, startTimeGMT: a.startTimeGMT },
+          'garmin: atividade sem startTimeLocal — nao vai casar com a Strava');
+      }
       const dataIso = String(startLocal).slice(0, 10);
       const before = exists.get(a.activityId);
       upsert.run({

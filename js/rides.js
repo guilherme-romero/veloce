@@ -679,8 +679,11 @@ function weatherByDate() {
 }
 
 // Mapa dateISO → atividades sincronizadas (Garmin/Strava). Deduplica por dia:
-// se houver atividades de fontes diferentes com distância ~igual, mantém a do
-// Garmin (preferência quando duplicado entre serviços).
+// se houver atividades de fontes diferentes com distância ~igual E horário
+// ~igual, mantém a do Garmin (preferência quando duplicado entre serviços).
+// O horário é obrigatório na comparação: só a distância fazia o 2º pedal do
+// dia sumir do badge quando tinha quilometragem parecida (BUG-060). Tolerância
+// espelha o matcher do servidor (server/utils/activity-matcher.js: ±300 s).
 function activitiesByDate() {
   const map = {};
   (_ridesActivities || []).forEach(a => {
@@ -690,8 +693,26 @@ function activitiesByDate() {
   });
   Object.keys(map).forEach(d => {
     const dedup = [];
+    const TIME_TOL_S = 300;
+    // Mesma normalização do parseLocal do servidor (activity-matcher.js): o
+    // `inicio` do Strava é `start_date_local` rotulado com "Z" (não é UTC) e o
+    // da Garmin vem com espaço. Sem tirar o Z, os dois lados ficariam
+    // deslocados pelo fuso e a dedup entre serviços nunca casaria.
+    const ts = (x) => {
+      const raw = x && x.inicio ? String(x.inicio).replace('Z', '').replace(' ', 'T') : '';
+      const t = Date.parse(raw);
+      return isFinite(t) ? t / 1000 : null;
+    };
     map[d].forEach(a => {
-      const dup = dedup.find(b => Math.abs((b.distanciaKm || 0) - (a.distanciaKm || 0)) < 0.5);
+      const ta = ts(a);
+      const dup = dedup.find(b => {
+        if (Math.abs((b.distanciaKm || 0) - (a.distanciaKm || 0)) >= 0.5) return false;
+        const tb = ts(b);
+        // Sem horário em algum dos lados, não dá para afirmar que é a mesma
+        // atividade — mantém as duas (erra para o lado de exibir a mais).
+        if (ta === null || tb === null) return false;
+        return Math.abs(ta - tb) <= TIME_TOL_S;
+      });
       if (!dup) { dedup.push(a); return; }
       if (a.fonte === 'garmin' && dup.fonte !== 'garmin') dedup[dedup.indexOf(dup)] = a;
     });

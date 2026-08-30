@@ -88,6 +88,11 @@
   }
 
   function severityFor(pct) {
+    // Sem vida util configurada, pct chega null: `null >= 100` e `null >= 80`
+    // sao ambos false e a funcao devolvia 'green' (classe de "ok") para um
+    // componente sobre o qual nao se sabe nada (BUG-064). Hoje os call sites
+    // so pedem a barra quando ha km/tempo, entao era fragilidade latente.
+    if (!Number.isFinite(pct)) return 'neutral';
     if (pct >= 100) return 'red';
     if (pct >= 80)  return 'amber';
     return 'green';
