@@ -21,7 +21,7 @@ confirmado em 20 larguras distintas.
 
 ## IMPORTANTE
 
-- **[IMPORTANTE] [BUG-067] `css/style.css` — a `nav` estoura horizontalmente entre 390px e 1433px**
+- **✅ CORRIGIDO (2026-08-31, v2.7.5)** — **[IMPORTANTE] [BUG-067] `css/style.css` — a `nav` estoura horizontalmente entre 390px e 1433px**
   A barra de navegação exige **1.422px** para caber. Abaixo disso ela empurra o documento para fora
   da janela e o app inteiro passa a rolar na horizontal. Medido no Chromium, com o banner de
   atualização do PWA suprimido para não contaminar:
@@ -55,11 +55,28 @@ confirmado em 20 larguras distintas.
   **Efeitos colaterais confirmados:** o modal de detalhe fica com **397px numa tela de 390px**, e o
   badge de fonte nos cards de atividade aparece cortado ("GARMI") nas capturas.
 
-  **Correção provável:** `min-width: 0` em `.nav-brand` e `.nav-right`, truncamento na marca, e
-  revisão do `padding: 0 28px` (56px dos 390px da tela são padding). **Não corrigido nesta sessão** —
-  a `nav` mobile deve ser redesenhada no trabalho de design em andamento, e uma correção pontual
-  agora seria refeita depois. Se o redesenho demorar, vale corrigir isoladamente: hoje há rolagem
-  horizontal em produção.
+  **Correção aplicada (v2.7.5).** Princípio: marca e ícones **nunca** encolhem — são identidade e
+  alvos de toque; quem absorve a falta de espaço é a faixa de links, que passa a rolar dentro de si
+  mesma em vez de estourar a página.
+
+  - `min-width: 0` + `flex: 0 0 auto` em `.nav-brand` e `.nav-right`.
+  - `.nav-links` ganhou `overflow-x: auto` (barra de rolagem oculta) e os botões, `flex: 0 0 auto`,
+    para rolarem em vez de espremer.
+  - `.nav-btn` com padding horizontal de 14px → **11px**. Sem isso os 11 botões somam 1040px e só
+    cabem 989px dentro do container de 1400px — ou seja, **eles transbordavam a faixa mesmo num
+    monitor grande**, o que passava despercebido porque o excesso vazava para a margem. Com 11px
+    somam 974px e cabem de verdade.
+  - No regime do drawer (≤700px): `.nav-inner` com padding 28→14px e gap 24→12px; abaixo de 430px o
+    letreiro da marca recolhe e fica só o símbolo.
+
+  **Verificado por medição em 13 larguras de 360px a 1600px: estouro zero em todas.** Além disso:
+  os 11 links continuam alcançáveis onde a faixa rola (último botão testado em cada largura); o
+  drawer abre, lista os 11 itens e fecha com Esc; e o modal de detalhe caiu de **397px para 334px**
+  numa tela de 390px. Em ≥1400px os links agora cabem inteiros no container, o que **não acontecia
+  antes** da correção.
+
+  **Não é o redesenho.** A nav mobile ainda será repensada no trabalho de design; isto apenas tira a
+  rolagem horizontal de produção enquanto isso não acontece.
 
 ---
 

@@ -102,6 +102,28 @@ nav {
   height: 66px;
   display: flex; align-items: center; justify-content: space-between; gap: 24px;
 }
+/* BUG-067 — a nav exigia 1451px (11 botoes de menu somam 1040px sozinhos) e,
+   abaixo disso, empurrava o DOCUMENTO para fora da janela: o app inteiro rolava
+   na horizontal. Em 720px o estouro chegava a +702px.
+   A causa era `min-width: auto` (padrao de item flex) em .nav-brand e
+   .nav-right, que impede encolher abaixo do proprio conteudo — o .nav-links ja
+   tinha `min-width: 0`, a correcao tinha sido aplicada a um filho so.
+   Estrategia: a marca e os icones NUNCA encolhem (sao alvos de toque e
+   identidade); quem absorve a falta de espaco e' a faixa de links, que passa a
+   rolar dentro de si mesma em vez de estourar a pagina. */
+.nav-brand { flex: 0 0 auto; min-width: 0; }
+.nav-right { flex: 0 0 auto; min-width: 0; }
+.nav-links {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* Edge legado */
+}
+.nav-links::-webkit-scrollbar { display: none; }
+.nav-links .nav-btn { flex: 0 0 auto; }   /* botao nao espreme, a faixa e' que rola */
+
 .nav-brand {
   display: flex; align-items: center; gap: 11px;
   font-family: var(--font-display);
@@ -119,11 +141,25 @@ nav {
 }
 .nav-links { display: flex; align-items: center; gap: 4px; }
 @media (max-width: 700px) { .nav-links { display: none; } }
+
+/* BUG-067, segundo regime: abaixo de ~450px nem a marca + os 4 icones cabem
+   (36 hamburguer + 38 icone + 90 texto + 168 icones + 56 padding = 436px para
+   uma tela de 390). Aperta o respiro e, em telas bem estreitas, recolhe o
+   letreiro mantendo o simbolo — a marca continua presente. */
+@media (max-width: 700px) {
+  .nav-inner { padding: 0 14px; gap: 12px; }
+}
+@media (max-width: 430px) {
+  .nav-brand span { display: none; }
+}
 .nav-btn {
   background: none; border: none; color: var(--muted);
   font-size: 13px; font-weight: 600;
   letter-spacing: 0.04em; text-transform: uppercase;
-  padding: 7px 14px; border-radius: 6px;
+  /* 11px (era 14px): os 11 botoes somavam 1040px e so cabem 989px dentro do
+     container de 1400px, entao eles transbordavam a faixa mesmo num monitor
+     grande. Com 11px somam 974px e cabem de verdade (BUG-067). */
+  padding: 7px 11px; border-radius: 6px;
   transition: all 0.18s;
 }
 .nav-btn:hover { color: var(--text); background: var(--surface2); }
