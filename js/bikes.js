@@ -359,14 +359,24 @@
     const kmPct = hasKm ? Math.min(150, (c.kmDesgastado / c.vidaUtilKm) * 100) : null;
     const tl = timeLifeOf(c);
     const timePct = tl ? Math.min(150, tl.pct) : null;
-    // Pior das dimensões configuradas (km/tempo) define o status geral.
-    const pct = Math.max(kmPct != null ? kmPct : 0, timePct != null ? timePct : 0);
+    // Pior das dimensões configuradas (km/tempo) define o status geral. Sem
+    // NENHUMA configurada, `pct` fica null de propósito: colapsar para 0 aqui
+    // faria a severityFor devolver 'green' e o componente aparecer como "0% da
+    // vida", ou seja, verde/ok para algo sobre o qual não se sabe nada — que é
+    // justamente o BUG-064. A guarda da severityFor não bastava, porque este
+    // call site resolvia o null ANTES de chamá-la.
+    const semVidaUtil = kmPct == null && timePct == null;
+    const pct = semVidaUtil
+      ? null
+      : Math.max(kmPct != null ? kmPct : 0, timePct != null ? timePct : 0);
     const sev = severityFor(pct);
-    const status = pct >= 100
-      ? '⚠ VENCIDO'
-      : pct >= 80
-        ? `⚠ ${Math.round(pct)}% — atenção`
-        : `${Math.round(pct)}% da vida`;
+    const status = semVidaUtil
+      ? 'vida útil não definida'
+      : pct >= 100
+        ? '⚠ VENCIDO'
+        : pct >= 80
+          ? `⚠ ${Math.round(pct)}% — atenção`
+          : `${Math.round(pct)}% da vida`;
 
     const cleanBlock = c.temLimpeza
       ? renderCleanBlock(c)
@@ -384,7 +394,7 @@
             </div>` : '';
 
     return `
-      <div class="bike-comp-item ${sev === 'red' ? 'danger' : sev === 'amber' ? 'warn' : ''}">
+      <div class="bike-comp-item ${sev === 'red' ? 'danger' : sev === 'amber' ? 'warn' : sev === 'neutral' ? 'unknown' : ''}">
         <div class="bike-comp-row">
           <div class="bike-comp-info">
             <div class="bike-comp-name bike-comp-name-link" data-act="comp-detail" data-bike="${escAttr(c.bikeId)}" data-comp="${escAttr(c.id)}" title="Ver detalhes e histórico">
@@ -1409,9 +1419,18 @@
     const kmPct = hasKm ? (comp.kmDesgastado / comp.vidaUtilKm) * 100 : null;
     const tl = timeLifeOf(comp);
     const timePct = tl ? tl.pct : null;
-    const pct = Math.max(kmPct != null ? kmPct : 0, timePct != null ? timePct : 0);
+    // Mesmo tratamento da lista (BUG-064): sem km nem tempo configurados, o
+    // estado é desconhecido — não 0%.
+    const semVidaUtil = kmPct == null && timePct == null;
+    const pct = semVidaUtil
+      ? null
+      : Math.max(kmPct != null ? kmPct : 0, timePct != null ? timePct : 0);
     const sev = severityFor(pct);
-    const statusTxt = pct >= 100 ? '⚠ Vida útil vencida' : `${Math.round(pct)}% da vida útil consumida`;
+    const statusTxt = semVidaUtil
+      ? 'Vida útil não definida — sem limite de km nem de tempo'
+      : pct >= 100
+        ? '⚠ Vida útil vencida'
+        : `${Math.round(pct)}% da vida útil consumida`;
     const kmDetailHTML = hasKm ? `
           <div class="bike-detail-row"><span>Desgaste (km)</span><strong class="${severityFor(kmPct)}">${esc(fmtKm(comp.kmDesgastado))} / ${esc(fmtKm(comp.vidaUtilKm))}</strong></div>
           <div class="bike-comp-progress" style="margin:4px 0 8px;"><div class="bike-comp-progress-fill ${severityFor(kmPct)}" style="width:${Math.min(100, kmPct)}%"></div></div>` : '';

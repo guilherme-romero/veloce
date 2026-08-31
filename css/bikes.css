@@ -223,8 +223,14 @@
 .bike-comp-progress-fill.green { background: var(--green); }
 .bike-comp-progress-fill.amber { background: var(--amber); }
 .bike-comp-progress-fill.red   { background: var(--red); }
-/* Sem vida util configurada: estado desconhecido, nao 'ok' (BUG-064). */
+/* Sem vida util configurada: estado desconhecido, nao 'ok' (BUG-064). Cinza
+   deliberadamente neutro — nao pode competir com verde/ambar/vermelho, que
+   carregam significado de estado. */
 .bike-comp-progress-fill.neutral { background: var(--border); }
+.bike-comp-item.unknown { border-left-color: var(--border); }
+.bike-comp-icon.neutral { color: var(--muted2); }
+.bike-comp-status.neutral { color: var(--muted2); font-weight: 500; }
+.bike-detail-status.neutral { color: var(--muted2); }
 
 .bike-comp-clean {
   font-size: 11px;

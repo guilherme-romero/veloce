@@ -29,8 +29,13 @@ valida. Feitas e OK as três que mexiam em validação de entrada, onde o risco 
 quebrar caminho legítimo: **perfil** (altura / peso meta / peso da bike persistem após reload — a
 coerção numérica nova não zera campo válido), **import de backup antigo** (não passou a ser
 rejeitado pelas chaves novas do `validateBackupStructure`) e **sync manual da Garmin** (o ambiente
-enxuto do subprocess Python não quebrou a sessão SSO). Sobram, de baixo risco: dedup do calendário
-de Passeios (BUG-060) e componente sem vida útil na garagem (BUG-064).
+enxuto do subprocess Python não quebrou a sessão SSO). As duas restantes foram validadas em 2026-08-31 rodando o
+código real contra o banco de produção (`sqlite3 -readonly`), o que cobre todo o histórico em vez
+de um dia escolhido a dedo: **BUG-060** confirmado — a regra antiga escondia **3 pedais** do
+calendário (três voltas de 1,92/1,69/1,46 km em 29/03/2024 e dois registros de 0 km em 01/04/2026,
+todos Garmin+Garmin, justamente o caso que a dedup não deveria tocar); 133 → 136 exibidos, sem
+nenhum par cross-fonte voltando a duplicar. **BUG-064** revelou correção incompleta, fechada na
+v2.7.4 (ver o item).
 
 ## CRÍTICO
 
@@ -117,10 +122,21 @@ de Passeios (BUG-060) e componente sem vida útil na garagem (BUG-064).
   5 MB. Exigem sessão válida — cenário é pós-comprometimento (encadeado com BUG-056/057): um XSS
   chama `/restore` em laço e deixa o serviço em ciclo de restart.
 
-- **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[MENOR] [BUG-064] `js/bikes.js:90-94`** — `severityFor(pct)` recebe `null` quando o componente
+- **✅ CORRIGIDO (2026-08-30, v2.7.2; completado em 2026-08-31, v2.7.4)** — **[MENOR] [BUG-064] `js/bikes.js:90-94`** — `severityFor(pct)` recebe `null` quando o componente
   não tem vida útil configurada; `null >= 100` e `null >= 80` são `false`, então retorna `'green'`
   (classe de "ok") em vez de estado neutro. Hoje inofensivo porque os call sites só renderizam a
   barra quando `hasKm`/`hasTempo` é verdadeiro — é fragilidade latente, não defeito visível.
+  **A primeira correção (v2.7.2) foi incompleta**, e isso só apareceu ao validar: a guarda
+  `!Number.isFinite(pct) → 'neutral'` estava certa, mas **inalcançável**. Os dois call sites que
+  decidem o status geral (`renderComponent` e o modal de detalhe) faziam
+  `Math.max(kmPct ?? 0, timePct ?? 0)`, resolvendo o `null` para `0` **antes** de chamar a função —
+  então um componente sem km nem tempo continuava exibindo bolinha verde e "0% da vida", que é
+  literalmente a queixa original. **v2.7.4:** `pct` permanece `null` quando nenhuma dimensão está
+  configurada, o status vira "vida útil não definida" e o item recebe a classe `unknown`
+  (cinza `--border`/`--muted2`, sem competir com verde/âmbar/vermelho). Verificado por simulação
+  dos 7 cenários: o caso não-configurado passou a `neutral` e **nenhum** caso configurado mudou.
+  **Lição:** guarda em função utilitária não vale nada se o call site normaliza a entrada antes —
+  a validação precisa começar pelo call site, não pela função.
 
 - **✅ CORRIGIDO (2026-08-30, v2.7.2)** — **[MENOR] [BUG-065] `server/scheduler.js:34-44` e `server/routes/garmin.js:95`** — quando
   `a.startTimeLocal` falta, `dataIso` cai para `startTimeGMT` (pode virar o dia errado em UTC-3
