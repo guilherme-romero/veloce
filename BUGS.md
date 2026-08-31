@@ -13,6 +13,56 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
 
 ---
 
+# Levantamento 2026-08-31 (v2.7.4) — medição de layout
+
+Origem: preparação do kit de design mobile (capturas do app em produção via Playwright). Não foi
+uma auditoria de código — o achado abaixo apareceu ao medir o layout real no navegador, e foi
+confirmado em 20 larguras distintas.
+
+## IMPORTANTE
+
+- **[IMPORTANTE] [BUG-067] `css/style.css` — a `nav` estoura horizontalmente entre 390px e 1433px**
+  A barra de navegação exige **1.422px** para caber. Abaixo disso ela empurra o documento para fora
+  da janela e o app inteiro passa a rolar na horizontal. Medido no Chromium, com o banner de
+  atualização do PWA suprimido para não contaminar:
+
+  | viewport | scrollWidth | estouro | `.nav-links` |
+  |---:|---:|---:|---|
+  | 1450 | 1450 | — | visíveis |
+  | 1400 | 1422 | +22px | visíveis |
+  | 1280 | 1422 | **+142px** | visíveis |
+  | 1024 | 1422 | **+398px** | visíveis |
+  |  720 | 1422 | **+702px** | visíveis |
+  |  700 |  700 | — | drawer |
+  |  480 |  480 | — | drawer |
+  |  390 |  450 | **+60px** | drawer |
+  |  360 |  450 | **+90px** | drawer |
+
+  **Dois regimes, uma causa.** Entre 701px e ~1433px os links do menu ainda estão visíveis e não
+  cabem — o pior caso é 720px, logo antes do breakpoint, com a página no dobro da largura da tela.
+  Abaixo de ~450px o drawer já assumiu, mas a marca e o cluster de ícones sozinhos ainda não cabem.
+  **1024 e 1280 são larguras de notebook comuns** — não é um caso de canto.
+
+  **Causa raiz (medida, não inferida):** a `nav` é flex `nowrap` com `padding: 0 28px` e
+  `gap: 24px`. Os filhos `.nav-brand` (200px) e `.nav-right` (200px) estão com
+  `min-width: auto` — o padrão de item flex, que impede encolher abaixo do conteúdo. Em 390px:
+  `28 + 200 + 24 + 200 + 28 = 480px` de demanda para 390px de tela.
+
+  **Detalhe revelador:** `.nav-links` **já tem** `min-width: 0` explícito. A correção foi aplicada a
+  um filho e não aos outros dois — sugere que o sintoma já foi encontrado uma vez e tratado só onde
+  doía naquele momento.
+
+  **Efeitos colaterais confirmados:** o modal de detalhe fica com **397px numa tela de 390px**, e o
+  badge de fonte nos cards de atividade aparece cortado ("GARMI") nas capturas.
+
+  **Correção provável:** `min-width: 0` em `.nav-brand` e `.nav-right`, truncamento na marca, e
+  revisão do `padding: 0 28px` (56px dos 390px da tela são padding). **Não corrigido nesta sessão** —
+  a `nav` mobile deve ser redesenhada no trabalho de design em andamento, e uma correção pontual
+  agora seria refeita depois. Se o redesenho demorar, vale corrigir isoladamente: hoje há rolagem
+  horizontal em produção.
+
+---
+
 # Auditoria 2026-08-30 (v2.7.1)
 
 Escopo: projeto completo. Primeira rodada com os revisores especializados
