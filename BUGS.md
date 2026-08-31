@@ -21,8 +21,16 @@ Escopo: projeto completo. Primeira rodada com os revisores especializados
 [MELHORIAS.md](MELHORIAS.md) — aqui só o que é bug.
 
 Registrada no `ROADMAP.md` como **FASE 24** (backlog priorizado + lição de processo).
-Status da leva: **fechada em 2026-08-30 (v2.7.2)** — BUG-056 a BUG-065 corrigidos e validados;
+Status da leva: **fechada em 2026-08-30 (v2.7.2)** — BUG-056 a BUG-065 corrigidos;
 BUG-066 (infra) com permissões restauradas e causa raiz identificada. **Nenhum item aberto.**
+
+**Validação manual no navegador (2026-08-31)** — o projeto não tem suíte, então é assim que se
+valida. Feitas e OK as três que mexiam em validação de entrada, onde o risco era apertar demais e
+quebrar caminho legítimo: **perfil** (altura / peso meta / peso da bike persistem após reload — a
+coerção numérica nova não zera campo válido), **import de backup antigo** (não passou a ser
+rejeitado pelas chaves novas do `validateBackupStructure`) e **sync manual da Garmin** (o ambiente
+enxuto do subprocess Python não quebrou a sessão SSO). Sobram, de baixo risco: dedup do calendário
+de Passeios (BUG-060) e componente sem vida útil na garagem (BUG-064).
 
 ## CRÍTICO
 
