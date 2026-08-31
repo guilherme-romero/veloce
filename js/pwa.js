@@ -8,6 +8,18 @@
   let registration = null;
   let updateBannerShown = false;
 
+  // BUG-068 — foto tirada ANTES de registrar o SW. Se a pagina nasceu sem
+  // controlador, a primeira tomada de controle e' INSTALACAO, nao atualizacao:
+  // o SW faz skipWaiting() no install e clients.claim() no activate, e o claim
+  // assume esta pagina ja aberta, emitindo 'controllerchange' sem que exista
+  // versao nova. Era isso que fazia o banner "Nova versao disponivel" aparecer
+  // na 1a visita, apos Shift+Reload, apos limpar dados, e — o caso mais comum
+  // no celular — depois de o iOS descartar o SW por ~7 dias sem uso.
+  // Precisa ser uma FOTO, nao leitura ao vivo: com skipWaiting() o claim pode
+  // ja ter ocorrido quando o statechange dispara, e a leitura ao vivo passaria
+  // a mentir justamente numa instalacao nova.
+  const paginaJaControlada = !!navigator.serviceWorker.controller;
+
   window.addEventListener('load', async () => {
     try {
       registration = await navigator.serviceWorker.register('./service-worker.js');
@@ -22,7 +34,7 @@
         if (!newWorker) return;
         console.log('[PWA] Nova versão do SW detectada — instalando…');
         newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          if (newWorker.state === 'installed' && paginaJaControlada) {
             // Nova versão instalada e pronta para ativar
             console.log('[PWA] Nova versão pronta — banner exibido');
             showUpdateBanner();
@@ -47,9 +59,18 @@
   let userTriggeredUpdate = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return;
-    if (!userTriggeredUpdate) { showUpdateBanner(); return; }
-    refreshing = true;
-    window.location.reload();
+    if (userTriggeredUpdate) {
+      refreshing = true;
+      window.location.reload();
+      return;
+    }
+    // Sem controlador na carga: este evento e' o claim da PRIMEIRA instalacao.
+    // Nao ha versao nova, entao nao pode aparecer banner (BUG-068).
+    if (!paginaJaControlada) {
+      console.log('[PWA] SW assumiu a pagina pela 1a vez — instalacao, nao atualizacao');
+      return;
+    }
+    showUpdateBanner();
   });
 
   function showUpdateBanner() {

@@ -13,6 +13,74 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
 
 ---
 
+# Levantamento 2026-08-31 (v2.7.5) — relato de uso
+
+Origem: relato direto do usuário — o popup "Nova versão disponível" aparecia repetidamente, no
+navegador e no PWA do celular, **sem que houvesse publicação nova**. Reproduzido e corrigido no
+mesmo dia.
+
+## IMPORTANTE
+
+- **✅ CORRIGIDO (2026-08-31, v2.7.6)** — **[IMPORTANTE] [BUG-068] `js/pwa.js:48-53`** — o banner
+  "Nova versão disponível" aparecia **sem existir versão nova**, sempre que a página carregava sem
+  service worker controlando.
+
+  **Reproduzido sem alterar nenhuma versão durante o teste:**
+
+  | carga | banner | página já controlada? |
+  |---|---|---|
+  | 1ª (SW ainda não instalado) | **SIM** | não |
+  | 2ª (SW já instalado) | não | sim |
+  | 3ª | não | sim |
+  | após remover o SW (simula expiração no iOS) | **SIM** | não |
+
+  **Causa raiz:** o listener de `controllerchange` mostrava o banner sempre que o controlador mudava
+  e o usuário não havia clicado em "Atualizar". Mas `controllerchange` **também dispara na primeira
+  instalação**: o `service-worker.js` faz `skipWaiting()` no install (`:88`) e `clients.claim()` no
+  activate (`:101`), e o `claim()` assume a página já aberta que ainda não tinha controlador —
+  emitindo o evento sem que exista atualização.
+
+  **A guarda já existia no caminho irmão.** O `updatefound` (`js/pwa.js:25`) checava
+  `navigator.serviceWorker.controller` justamente para separar instalação de atualização; o
+  `controllerchange` ficou sem o equivalente. **Mesmo formato do BUG-067** (`min-width: 0` aplicado a
+  um filho do flex e não aos outros dois) e do BUG-064 (guarda numa função utilitária que o call
+  site anulava). É um padrão recorrente neste código: a proteção certa aplicada num ponto só.
+
+  **Evidência que isolou o caminho:** na reprodução o console mostrou apenas `[PWA] SW registrado` —
+  **não** apareceu `[PWA] Nova versão pronta — banner exibido` (`js/pwa.js:27`, log do caminho
+  `updatefound`). Logo o banner vinha do `controllerchange`, que não logava nada.
+
+  **Por que aparecia tantas vezes no uso real:** primeira visita; Shift+Reload; limpar dados do
+  navegador; desinstalar/reinstalar o PWA; e o caso mais provável no celular — **o iOS/Safari
+  descartar o service worker após ~7 dias sem uso**, o que se encaixa num app pessoal aberto de
+  forma intermitente.
+
+  **Correção (v2.7.6):** uma foto do estado tirada **antes** de registrar o SW
+  (`const paginaJaControlada = !!navigator.serviceWorker.controller`), usada como fonte única de
+  verdade nos **dois** caminhos. No `controllerchange`, se a página nasceu sem controlador o evento é
+  instalação e não gera banner. No `updatefound`, a foto substitui a leitura ao vivo do controlador —
+  que era uma corrida: com `skipWaiting()`, o `claim()` pode já ter ocorrido quando o `statechange`
+  dispara, e a leitura ao vivo passaria a mentir justamente numa instalação nova.
+
+  **Verificado com dois testes, deliberadamente.** O negativo sozinho não provaria nada — uma
+  correção que simplesmente nunca mostrasse o banner passaria nele:
+  1. **Negativo:** as 4 cargas da tabela acima, agora todas `banner=nao`.
+  2. **Positivo:** com o `CACHE_VERSION` alterado para um valor inédito, o banner **aparece**, com o
+     texto correto, o botão "Atualizar" e o "×" funcionando.
+
+  **Não se mexeu no `service-worker.js`:** `skipWaiting` + `clients.claim` são deliberados
+  (documentados em `service-worker.js:84-87`) e existem para o usuário não ficar preso numa versão
+  velha. O defeito era a interpretação do evento no cliente, não a estratégia de ativação.
+
+  **Descartado na investigação:** Cloudflare servindo o `service-worker.js` em pingue-pongue — um SW
+  cacheado por CDN faria o navegador alternar entre cópias e disparar atualizações genuínas
+  repetidas. Não é o caso: o nginx serve `/service-worker.js` com `no-store, no-cache,
+  must-revalidate`, confirmado na resposta HTTP real e não só na configuração. (Observação sem
+  relação com o bug: a resposta traz dois cabeçalhos `Cache-Control` — o `max-age=0` do `expires 0` é
+  redundante ali.)
+
+---
+
 # Levantamento 2026-08-31 (v2.7.4) — medição de layout
 
 Origem: preparação do kit de design mobile (capturas do app em produção via Playwright). Não foi
