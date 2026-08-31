@@ -199,7 +199,18 @@ async function syncGarminWeights(db, log) {
 }
 
 // ── Strava: atividades ─────────────────────────────────────────────────
+// DESLIGADO no sync automatico desde 2026-08-30: o Strava mudou a politica de
+// uso das APIs e a integracao passou a responder 403 (Application Inactive).
+// A tentativa a cada 30 min so acumulava ruido no log (330 erros em uma semana)
+// sem tocar em dado nenhum. A Garmin atende o projeto; migrar o Strava para o
+// modelo novo esta no ROADMAP.md como evolutiva futura, sem previsao.
+// Para religar sem mexer no codigo: STRAVA_AUTO_SYNC=on no server/.env.
+// A rota MANUAL (POST /api/strava/sync) continua ativa de proposito — serve
+// para testar quando a migracao acontecer.
+const STRAVA_AUTO_SYNC = process.env.STRAVA_AUTO_SYNC === 'on';
+
 async function syncStravaActivities(db, log) {
+  if (!STRAVA_AUTO_SYNC) { log.info('[scheduler] strava: sync automatico desligado — pulando'); return; }
   if (!strava.isConfigured()) { log.info('[scheduler] strava não configurado — pulando'); return; }
 
   const days = 30;
