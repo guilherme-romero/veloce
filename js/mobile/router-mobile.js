@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   MOBILE ROUTER — hash router das 5 abas.
+   MOBILE ROUTER — hash router das 5 abas + das views que só existem
+   dentro da aba "Mais" (Perfil, Passeios).
 
    É um arquivo novo em vez de uma parametrização de js/router.js porque
    ~180 das 334 linhas de lá são o drawer (Popover API, backdrop, detecção
@@ -19,7 +20,8 @@
 (function () {
   const routes  = new Map();   // slug canônico → rota
   const aliases = new Map();   // slug alternativo → slug canônico
-  let current = null;
+  let current = null;      // slug canônico da view visível
+  let currentRaw = null;   // slug que o usuário pediu (difere no FALLBACK)
   let started = false;
 
   const DEFAULT = 'inicio';
@@ -30,6 +32,8 @@
    * @param {string}   r.slug      — slug canônico (igual ao do desktop)
    * @param {string[]} [r.aliases] — outros slugs que caem nesta view
    * @param {string}   r.viewId    — id da <section class="m-view">
+   * @param {string}   [r.tab]     — slug da tab que fica acesa (para views
+   *                                 sem tab própria, como Perfil/Passeios)
    * @param {string}   r.label     — vira o <title> da página
    * @param {Function} [r.onEnter] — chamado ao entrar (recebe { slug })
    * @param {Function} [r.onLeave] — chamado ao sair
@@ -43,9 +47,10 @@
   function resolve(slug) {
     if (routes.has(slug)) return slug;
     if (aliases.has(slug)) return aliases.get(slug);
-    // Slug de seção desktop-only (ferramentas, rotas, passeios, perfil…):
-    // cai na aba Mais em vez de 404. Não redireciona sozinho para o
-    // desktop — um redirect automático a partir de um deep link confunde.
+    // Slug de seção que a UI mobile não tem (treinos, rotas, ferramentas,
+    // conexoes, testes): cai na aba Mais em vez de 404. Não redireciona
+    // sozinho para o desktop — um redirect automático a partir de um deep
+    // link confunde.
     return routes.has(FALLBACK) ? FALLBACK : DEFAULT;
   }
 
@@ -58,7 +63,19 @@
     const slug = resolve(rawSlug);
     const route = routes.get(slug);
     if (!route) return;
-    if (current === slug) return;
+    // Dois slugs desktop-only diferentes resolvem ambos para 'mais', mas a
+    // tela precisa reagir ao que foi pedido (é ela que explica onde aquela
+    // seção mora). Mesma view + pedido novo = só re-executa o onEnter, sem
+    // refazer a troca de views nem o onLeave.
+    if (current === slug) {
+      if (currentRaw === rawSlug) return;
+      currentRaw = rawSlug;
+      if (typeof route.onEnter === 'function') {
+        try { route.onEnter({ slug: rawSlug }); }
+        catch (e) { console.error('[MRouter] onEnter', slug, e); }
+      }
+      return;
+    }
 
     const prev = current && routes.get(current);
     if (prev && typeof prev.onLeave === 'function') {
@@ -73,14 +90,18 @@
       el.setAttribute('aria-hidden', on ? 'false' : 'true');
     });
 
+    // Views sem tab própria (Perfil, Passeios) mantêm acesa a tab de onde
+    // se chega até elas — sem isso a barra fica sem nenhuma marcação.
+    const tabAtiva = route.tab || slug;
     document.querySelectorAll('.m-tab').forEach((tab) => {
-      const on = tab.dataset.slug === slug;
+      const on = tab.dataset.slug === tabAtiva;
       tab.classList.toggle('is-active', on);
       if (on) tab.setAttribute('aria-current', 'page');
       else tab.removeAttribute('aria-current');
     });
 
     current = slug;
+    currentRaw = rawSlug;
     document.title = route.label ? `${route.label} · VELOCE LABS` : 'VELOCE LABS';
     window.scrollTo(0, 0);
 

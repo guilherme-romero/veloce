@@ -7,14 +7,18 @@
   const esc = window.esc || (s => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+  // Igual ao utils.js: escAttr é o mesmo esc. O fallback nunca escapa menos.
+  const escAttr = window.escAttr || esc;
 
   /**
    * Troca o conteúdo do header. Duas formas:
    *   setHeader({ brand: true })                  → logo VELOCE LABS (Home)
    *   setHeader({ eyebrow: '…', title: '…' })     → cabeçalho de seção
    * `actions` é HTML já escapado pelo chamador (ícones, botões).
+   * `back` é o slug para onde a seta de voltar navega — as telas que não
+   * têm tab própria (Perfil, Passeios) voltam para 'mais'.
    */
-  function setHeader({ brand = false, eyebrow = '', title = '', actions = '' } = {}) {
+  function setHeader({ brand = false, eyebrow = '', title = '', actions = '', back = '' } = {}) {
     const left  = document.getElementById('m-header-left');
     const right = document.getElementById('m-header-actions');
     if (!left || !right) return;
@@ -25,10 +29,17 @@
            <span class="m-header-name">VELOCE <b>LABS</b></span>
          </div>`
       : `<div class="m-header-title">
-           ${eyebrow ? `<span class="m-eyebrow">${esc(eyebrow)}</span>` : ''}
-           <h1>${esc(title)}</h1>
+           ${back ? `<button class="m-back" type="button" data-back="${escAttr(back)}"
+                       aria-label="Voltar"><i class="fa-solid fa-chevron-left"></i></button>` : ''}
+           <div style="min-width:0">
+             ${eyebrow ? `<span class="m-eyebrow">${esc(eyebrow)}</span>` : ''}
+             <h1>${esc(title)}</h1>
+           </div>
          </div>`;
     right.innerHTML = actions || '';
+
+    left.querySelector('[data-back]')
+      ?.addEventListener('click', (e) => MRouter.navigate(e.currentTarget.dataset.back));
   }
 
   /** Iniciais para o avatar do header (mesma regra do desktop). */
@@ -84,7 +95,13 @@
       plugins: { legend: { display: false } },
       elements: { point: { radius: 0 } },
     };
-    cfg.options = Object.assign(base, cfg.options || {});
+    const opts = cfg.options || {};
+    cfg.options = Object.assign(base, opts, {
+      // Object.assign é raso: sem este merge explícito, um chamador que passa
+      // `plugins` (para um tooltip, p.ex.) apaga o legend:false do base e o
+      // Chart.js volta a desenhar a legenda dentro do canvas.
+      plugins: Object.assign({}, base.plugins, opts.plugins || {}),
+    });
     return new Chart(canvas.getContext('2d'), cfg);
   }
 

@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.7.9';
+const CACHE_VERSION = 'v2.9.0';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
@@ -63,12 +63,18 @@ const SHELL = [
   './js/pwa.js',
   './js/core/metrics.js',
   './js/core/activity-stats.js',
+  './js/core/weight-stats.js',
+  './js/core/fatigue.js',
+  './js/core/records.js',
+  './js/core/weather-rating.js',
   './js/mobile/router-mobile.js',
   './js/mobile/shell.js',
   './js/mobile/home-mobile.js',
   './js/mobile/activities-mobile.js',
   './js/mobile/insights-mobile.js',
   './js/mobile/bikes-mobile.js',
+  './js/mobile/profile-mobile.js',
+  './js/mobile/rides-mobile.js',
   './js/mobile/more-mobile.js',
   './js/mobile/boot.js',
   // dados_usuario.txt entra como cache opcional — não falha install se faltar

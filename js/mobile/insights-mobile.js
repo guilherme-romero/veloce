@@ -1,9 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════════
    INSIGHTS (tela 03 do handoff) — alerta de sobrecarga, CTL/ATL/VO₂/HRV,
-   curva carga×fadiga de 8 semanas e rosca de tempo por zona.
+   curva carga×fadiga de 8 semanas, Índice de Fadiga, Training Readiness,
+   rosca de tempo por zona e recordes pessoais.
 
-   Os números vêm de js/core/metrics.js — as MESMAS funções que o desktop
-   usa, então CTL/ATL/TSB batem dígito a dígito entre as duas telas.
+   Os números vêm de js/core/ — as MESMAS funções que o desktop usa, então
+   tudo bate dígito a dígito entre as duas telas: metrics.js (CTL/ATL/TSB),
+   fatigue.js (índice de fadiga e readiness) e records.js (recordes).
 
    Os gráficos são criados no onEnter (um canvas em view escondida nasce
    0×0) e destruídos no onLeave.
@@ -48,9 +50,20 @@
         <div class="m-chart"><canvas id="m-ins-load"></canvas></div>
       </div>
 
+      <div class="m-card" id="m-ins-fadiga"></div>
+      <div class="m-card" id="m-ins-readiness"></div>
+
       <div class="m-card">
         <div class="m-card-head"><span class="m-eyebrow">Tempo por zona · 30 dias</span></div>
         <div id="m-ins-zonas"></div>
+      </div>
+
+      <div class="m-card">
+        <div class="m-card-head">
+          <span class="m-eyebrow">Recordes pessoais</span>
+          <span class="m-sub" id="m-ins-prs-count"></span>
+        </div>
+        <div id="m-ins-prs"></div>
       </div>
     `;
   }
@@ -183,6 +196,86 @@
     if (c) charts.push(c);
   }
 
+  /* ── Índice de Fadiga e Training Readiness ───────────────────────── */
+
+  // Medidor 0–100 + linhas de apoio + recado. Os dois cards têm a mesma
+  // anatomia, mudam só os rótulos — daí um único construtor.
+  function medidorHTML({ titulo, badge, token, score, linhas, msg, vazio }) {
+    if (vazio) {
+      return `<div class="m-card-head"><span class="m-eyebrow">${esc(titulo)}</span></div>
+              <p class="m-sub">${esc(vazio)}</p>`;
+    }
+    const pct = Math.min(100, Math.max(0, Number(score) || 0));
+    return `
+      <div class="m-card-head">
+        <span class="m-eyebrow">${esc(titulo)}</span>
+        <span class="m-badge" data-token="${esc(token)}">${esc(badge)}</span>
+      </div>
+      <div class="m-gauge">
+        <span class="m-num m-num-lg" style="color:var(--${esc(token)})">${esc(score == null ? '—' : score)}</span>
+        <div class="m-bar"><span style="width:${pct}%;background:var(--${esc(token)})"></span></div>
+      </div>
+      <div class="m-break">
+        ${linhas.map(([k, v]) => `
+          <div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}
+      </div>
+      ${msg ? `<p class="m-sub" style="margin-top:10px">${esc(msg)}</p>` : ''}`;
+  }
+
+  function renderFadiga(health) {
+    const el = document.getElementById('m-ins-fadiga');
+    if (!el) return;
+    const f = Fatigue.fatigueIndex(health);
+    el.innerHTML = medidorHTML(f.ok ? {
+      titulo: 'Índice de fadiga', badge: f.status, token: f.token, score: f.score,
+      linhas: [['Body Battery', f.bb], ['HRV (tendência)', f.hrv], ['Stress médio', f.stress]],
+      msg: f.msg,
+    } : {
+      titulo: 'Índice de fadiga',
+      vazio: 'Precisa de Body Battery e stress do Garmin — sincronize para calcular.',
+    });
+  }
+
+  function renderReadiness(items) {
+    const el = document.getElementById('m-ins-readiness');
+    if (!el) return;
+    const r = Fatigue.readiness(items);
+    el.innerHTML = medidorHTML(r.ok ? {
+      titulo: 'Training readiness', badge: r.label, token: r.token, score: r.score,
+      linhas: [['Sono', r.sleep], ['Recuperação', r.recoveryH], ['HRV', r.hrv]],
+      msg: r.msg,
+    } : {
+      titulo: 'Training readiness',
+      vazio: 'Sem leitura de prontidão do Garmin nos últimos 14 dias.',
+    });
+  }
+
+  /* ── Recordes pessoais ───────────────────────────────────────────── */
+
+  function renderPRs(prs, vo2, weeklyRec) {
+    const el    = document.getElementById('m-ins-prs');
+    const count = document.getElementById('m-ins-prs-count');
+    if (!el) return;
+
+    const r = Records.personalRecords(prs, vo2, weeklyRec);
+    if (!r.ok) {
+      el.innerHTML = '<div class="m-empty">Nenhum recorde registrado ainda.</div>';
+      if (count) count.textContent = '';
+      return;
+    }
+
+    if (count) count.textContent = `${r.total}${r.temNovo ? ' · novo!' : ''}`;
+    el.innerHTML = r.linhas.map(l => `
+      <div class="m-pr">
+        <div style="min-width:0">
+          <div class="m-pr-label">${esc(l.label)}${
+            l.isNew ? '<span class="m-pr-new">Novo!</span>' : ''}</div>
+          <div class="m-micro">${esc(l.meta)}${l.sport ? ` · ${esc(l.sport)}` : ''}</div>
+        </div>
+        <div class="m-pr-val">${esc(l.valor)}</div>
+      </div>`).join('');
+  }
+
   async function load() {
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
@@ -192,11 +285,14 @@
     const user = (window.Storage && Storage.getUser && Storage.getUser()) || {};
     const fcMax = Metrics.calcFCMax(user);
 
-    const [acts, health, vo2, dist] = await Promise.all([
+    const [acts, health, vo2, dist, readiness, prs, weeklyRec] = await Promise.all([
       Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
       Api.get('/garmin/health?days=60').catch(() => []),
       Api.get('/garmin/vo2max').catch(() => null),
       Api.get('/garmin/zone-distribution?days=30').catch(() => null),
+      Api.get('/garmin/training-readiness?days=14').catch(() => []),
+      Api.get('/garmin/personal-records').catch(() => []),
+      Api.get('/activities/weekly-records').catch(() => null),
     ]);
 
     const items = (acts && acts.items) || [];
@@ -215,7 +311,10 @@
     renderAlerta(tsb);
     renderKpis({ ctl, atl, tsb, vo2, hrv });
     renderLoadChart(ctlSerie, atlSerie);
+    renderFadiga(health);
+    renderReadiness(readiness);
     renderZonas(dist);
+    renderPRs(prs, vo2, weeklyRec);
   }
 
   MRouter.register({

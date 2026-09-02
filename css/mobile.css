@@ -56,6 +56,8 @@
 
   /* Zonas de FC (handoff §2) */
   --z1: #3b82f6;  --z2: #e5c024;  --z3: #22c55e;  --z4: #ef4444;  --z5: #a855f7;
+  /* O desktop deixa a Z6 sem cor própria; na lista mobile ela precisa de uma. */
+  --z6: #ec3a8b;
 
   /* Layout mobile */
   --pad:          18px;
@@ -117,8 +119,15 @@ img { max-width: 100%; }
 .m-header-name { font-family: var(--font-display); font-size: 19px; letter-spacing: .04em; }
 .m-header-name b { color: var(--lime); font-weight: inherit; }
 /* Cabeçalho de seção interna (eyebrow + título), usado fora da Home */
-.m-header-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.m-header-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.m-header-title > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .m-header-title .m-eyebrow { color: var(--lime); }
+/* Seta de voltar das views sem tab própria (Perfil, Passeios) */
+.m-back {
+  width: 32px; height: 32px; flex: none; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
 .m-header-title h1 {
   font-family: var(--font-display); font-size: 26px; line-height: 1;
   letter-spacing: .02em; font-weight: 400;
@@ -247,15 +256,6 @@ img { max-width: 100%; }
 .m-kpi-value { display: flex; align-items: baseline; gap: 4px; }
 
 /* Carrossel horizontal de KPIs (Atividades) */
-.m-hs {
-  display: flex; gap: var(--gap-card); overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  margin-inline: calc(-1 * var(--pad)); padding-inline: var(--pad);
-  scrollbar-width: none;
-}
-.m-hs::-webkit-scrollbar { height: 0; }
-.m-hs > * { scroll-snap-align: start; flex: 0 0 auto; }
-
 /* Chips / filtros */
 .m-chiprow {
   display: flex; gap: 8px; overflow-x: auto;
@@ -318,8 +318,20 @@ img { max-width: 100%; }
 .m-alert .m-title { color: var(--bg); }
 
 /* Mapa de constância 15×4 */
-.m-grid15 { display: grid; grid-template-columns: repeat(15, 1fr); gap: 3px; }
+/* Mapa de constância: 7 linhas fixas (dom→sáb) e uma coluna por semana —
+   mesma estrutura do .heatmap-grid do desktop (css/style.css:1652). O
+   aspect-ratio do .m-cell é o que mantém o quadrado quadrado enquanto as
+   colunas se dividem em 1fr. */
+.m-hm { display: flex; gap: 4px; }
+.m-hm-wd { display: grid; grid-template-rows: repeat(7, auto); gap: 3px; }
+.m-hm-wd > div { font-size: 8px; color: var(--muted); display: flex; align-items: center; }
+.m-grid7 {
+  display: grid; grid-template-rows: repeat(7, auto);
+  grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; flex: 1;
+}
 .m-cell { aspect-ratio: 1; border-radius: 3px; background: var(--surface2); }
+/* Dias fora da janela: visíveis como os demais, porém apagados. */
+.m-cell-pad { opacity: .35; }
 .m-cell[data-lvl="1"] { background: rgba(198,241,53,.28); }
 .m-cell[data-lvl="2"] { background: rgba(198,241,53,.55); }
 .m-cell[data-lvl="3"] { background: var(--lime); }
@@ -354,6 +366,159 @@ img { max-width: 100%; }
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   PERFIL (js/mobile/profile-mobile.js)
+═══════════════════════════════════════════════════════════════════ */
+.m-pid { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; }
+.m-pid-avatar { width: 48px; height: 48px; font-size: 15px; }
+
+.m-prow {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 9px 0; border-top: 1px solid var(--border-soft);
+}
+.m-prow-key { font-size: 12px; color: var(--muted); }
+.m-prow-val { font-family: var(--font-display); font-size: 20px; line-height: 1; }
+
+.m-meta-row { display: flex; align-items: baseline; gap: 10px; }
+
+/* Zonas de FC — a faixa colorida à esquerda espelha a do desktop */
+.m-zone { padding: 10px 0 10px 12px; border-top: 1px solid var(--border-soft); position: relative; }
+.m-zone::before {
+  content: ''; position: absolute; left: 0; top: 12px; bottom: 12px;
+  width: 3px; border-radius: 999px; background: var(--muted);
+}
+.m-zone[data-z="z1"]::before { background: var(--z1); }
+.m-zone[data-z="z2"]::before { background: var(--z2); }
+.m-zone[data-z="z3"]::before { background: var(--z3); }
+.m-zone[data-z="z4"]::before { background: var(--z4); }
+.m-zone[data-z="z5"]::before { background: var(--z5); }
+.m-zone[data-z="z6"]::before { background: var(--z6); }
+.m-zone-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.m-zone-name { font-size: 12px; font-weight: 700; }
+.m-zone[data-z="z1"] .m-zone-name { color: var(--z1); }
+.m-zone[data-z="z2"] .m-zone-name { color: var(--z2); }
+.m-zone[data-z="z3"] .m-zone-name { color: var(--z3); }
+.m-zone[data-z="z4"] .m-zone-name { color: var(--z4); }
+.m-zone[data-z="z5"] .m-zone-name { color: var(--z5); }
+.m-zone[data-z="z6"] .m-zone-name { color: var(--z6); }
+.m-zone-bpm { font-family: var(--font-display); font-size: 15px; white-space: nowrap; }
+
+/* Checkbox da recorrência — o único da UI mobile */
+.m-check { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.m-check input { width: 18px; height: 18px; accent-color: var(--lime); flex: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PASSEIOS (js/mobile/rides-mobile.js)
+═══════════════════════════════════════════════════════════════════ */
+/* Faixa de previsão: 7 colunas fixas cabem em 390px porque cada uma só
+   carrega ícone + duas temperaturas. */
+.m-wx {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-card); padding: 10px 4px;
+}
+.m-wx-day {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 4px 2px; border-radius: var(--radius-sm); min-width: 0;
+  background: none; border: 0; color: inherit; font: inherit;
+}
+.m-wx-day.is-today { background: var(--lime-dim); }
+.m-wx-day > i { font-size: 14px; color: var(--lime); }
+.m-wx-t { font-family: var(--font-display); font-size: 15px; line-height: 1; }
+.m-wx-rain { color: var(--blue); min-height: 12px; }
+
+/* Card de passeio — mesma linguagem do .m-act, com acento na data */
+.m-ride {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--magenta);
+  border-radius: var(--radius-card); padding: 14px; margin-bottom: 10px;
+}
+.m-ride-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.m-ride-wx { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
+.m-ride-wx > i { font-size: 16px; color: var(--lime); }
+ /* Texto livre: caixa normal e corpo legível — não herda .m-micro, que é
+   caixa alta de 8,5px e serve para rótulo, não para frase. */
+.m-ride-notas {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-soft);
+  color: var(--muted2); font-size: 12px; line-height: 1.45;
+}
+.m-ride-acts {
+  display: flex; gap: 18px; margin-top: 12px;
+  padding-top: 10px; border-top: 1px solid var(--border-soft);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   INSIGHTS — medidores (fadiga / readiness) e recordes
+   (js/mobile/insights-mobile.js)
+═══════════════════════════════════════════════════════════════════ */
+.m-badge {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+  background: var(--surface2); color: var(--muted);
+}
+.m-badge[data-token="green"]  { background: var(--green-dim);  color: var(--green); }
+.m-badge[data-token="amber"]  { background: var(--amber-dim);  color: var(--amber); }
+.m-badge[data-token="red"]    { background: var(--red-dim);    color: var(--red); }
+.m-badge[data-token="teal"]   { background: var(--teal-dim);   color: var(--teal); }
+.m-badge[data-token="orange"] { background: var(--orange-dim); color: var(--orange); }
+
+/* Medidor 0–100: número grande + barra logo abaixo */
+.m-gauge { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 12px; }
+
+/* Linhas rótulo → valor (equivalente ao .insight-breakdown do desktop) */
+.m-break { display: flex; flex-direction: column; }
+.m-break > div {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-top: 1px solid var(--border-soft); font-size: 12px;
+}
+.m-break > div > span { color: var(--muted); }
+.m-break > div > b { font-family: var(--font-display); font-size: 15px; font-weight: 400; }
+
+/* Recordes pessoais */
+.m-pr {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 0; border-top: 1px solid var(--border-soft);
+}
+.m-pr:first-child { border-top: 0; }
+.m-pr-label { font-size: 12.5px; font-weight: 600; }
+.m-pr-val {
+  font-family: var(--font-display); font-size: 19px; color: var(--lime);
+  white-space: nowrap; flex: none;
+}
+.m-pr-new {
+  margin-left: 6px; padding: 2px 6px; border-radius: 999px;
+  background: var(--magenta); color: var(--bg);
+  font-size: 8.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PASSEIOS — condição para pedal (js/core/weather-rating.js)
+═══════════════════════════════════════════════════════════════════ */
+/* A barra carrega a condição na cor; o rótulo por extenso não cabe em ~40px
+   de coluna e vive no sheet que o toque abre. */
+.m-wx-esf { display: block; width: 100%; height: 3px; border-radius: 999px; margin-top: 2px; }
+.m-ride-wx .m-wx-esf { width: 22px; margin-top: 4px; }
+
+/* Cabeçalho do sheet de detalhe do clima */
+.m-cond {
+  border-left: 3px solid var(--muted); border-radius: var(--radius-sm);
+  background: var(--surface2); padding: 12px 14px; margin-bottom: 6px;
+}
+.m-cond[data-token="green"]  { border-left-color: var(--green);  }
+.m-cond[data-token="amber"]  { border-left-color: var(--amber);  }
+.m-cond[data-token="red"]    { border-left-color: var(--red);    }
+.m-cond[data-token="teal"]   { border-left-color: var(--teal);   }
+.m-cond[data-token="orange"] { border-left-color: var(--orange); }
+.m-cond-label { font-family: var(--font-display); font-size: 20px; letter-spacing: .02em; }
+.m-cond[data-token="green"]  .m-cond-label { color: var(--green);  }
+.m-cond[data-token="amber"]  .m-cond-label { color: var(--amber);  }
+.m-cond[data-token="red"]    .m-cond-label { color: var(--red);    }
+.m-cond[data-token="teal"]   .m-cond-label { color: var(--teal);   }
+.m-cond[data-token="orange"] .m-cond-label { color: var(--orange); }
 
 /* ── Tablet: 481–1023px ────────────────────────────────────────────── */
 @media (min-width: 481px) {

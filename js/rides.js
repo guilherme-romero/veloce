@@ -733,26 +733,14 @@ async function fetchRidesActivities() {
 }
 
 // Avalia condições e devolve label + cor + alerta para ciclismo.
+// A cascata de limiares e os alertas críticos vivem em
+// js/core/weather-rating.js, compartilhados com a aba Passeios mobile.
+// Aqui o token de cor vira a var() do desktop — o contrato de retorno
+// ({ label, color, alert }) segue idêntico para renderWeatherStrip,
+// openWeatherDetail e dayRating.
 function ridesEsforco(day) {
-  const tMax    = day.tMax;
-  const tSens   = day.tSens ?? day.tMax;
-  const vento   = day.vento;
-  const rajada  = day.rajada ?? day.vento;
-  const chuva   = day.chuva;
-  const chuvaMm = day.chuvaMm ?? 0;
-  const uv      = day.uv ?? 0;
-
-  // Alertas críticos (alta prioridade — sobrescrevem o esforço)
-  if (rajada > 50)   return { label: '⚠ Vento perigoso', color: 'var(--red)', alert: `Rajadas de ${Math.round(rajada)} km/h — pedalar não recomendado` };
-  if (chuvaMm > 10)  return { label: '🌧 Chuva forte',    color: 'var(--red)', alert: `${chuvaMm.toFixed(1)} mm de chuva previstos — considere adiar` };
-  if (tSens > 40)    return { label: '🌡 Calor extremo',  color: 'var(--red)', alert: `Sensação térmica ${Math.round(tSens)}°C — risco de golpe de calor` };
-
-  // Esforço regular
-  if (tMax > 38 || chuva > 60 || vento > 40) return { label: 'Alto',       color: 'var(--red)',   alert: uv >= 9 ? `UV ${Math.round(uv)} — protetor solar obrigatório` : '' };
-  if (tMax > 35 || (chuva > 30 && vento > 20)) return { label: 'Médio-Alto', color: '#f5923a',     alert: uv >= 8 ? `UV ${Math.round(uv)} — proteção solar necessária` : '' };
-  if (tMax > 30 || vento > 25 || chuva > 20)   return { label: 'Médio',      color: 'var(--amber)', alert: uv >= 8 ? `UV ${Math.round(uv)} — proteção solar necessária` : '' };
-  if (tMax > 25 || vento > 15)                  return { label: 'Baixo-Médio',color: 'var(--teal)',  alert: '' };
-  return                                               { label: '✅ Ideal',   color: 'var(--green)', alert: '' };
+  const r = WeatherRating.rating(day);
+  return { label: r.label, color: `var(--${r.token})`, alert: r.alert, nivel: r.nivel };
 }
 
 // Avaliação de ciclismo para uma data (usada pelo sino de Notificações).
@@ -774,9 +762,6 @@ async function dayRating(dateISO) {
   const esf = ridesEsforco(day);
   return { label: esf.label, color: esf.color, alert: esf.alert, tMax: day.tMax, chuva: day.chuva };
 }
-
-const WEEKDAY_PT = ['dom','seg','ter','qua','qui','sex','sáb'];
-const MONTH_SHORT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
 async function fetchRidesWeather() {
   const strip = document.getElementById('rides-weather-strip');
@@ -810,29 +795,9 @@ async function fetchRidesWeather() {
   }
 }
 
+// Normalização do dia da previsão: js/core/weather-rating.js.
 function buildWeatherDay(daily, i) {
-  const dateStr = daily.time[i];
-  const d       = new Date(dateStr + 'T12:00:00');
-  return {
-    dateStr,
-    wd:      WEEKDAY_PT[d.getDay()],
-    dm:      d.getDate(),
-    mon:     MONTH_SHORT[d.getMonth()],
-    tMax:    Math.round(daily.temperature_2m_max[i]),
-    tMin:    Math.round(daily.temperature_2m_min[i]),
-    tSens:   daily.apparent_temperature_max?.[i] != null ? Math.round(daily.apparent_temperature_max[i]) : null,
-    tSensMin:daily.apparent_temperature_min?.[i] != null ? Math.round(daily.apparent_temperature_min[i]) : null,
-    chuva:   daily.precipitation_probability_max?.[i] ?? 0,
-    chuvaMm: daily.precipitation_sum?.[i] ?? 0,
-    vento:   daily.wind_speed_10m_max?.[i] ?? 0,
-    rajada:  daily.windgusts_10m_max?.[i] ?? null,
-    uv:      daily.uv_index_max?.[i] ?? null,
-    sunrise: daily.sunrise?.[i] || null,
-    sunset:  daily.sunset?.[i] || null,
-    wmo:     daily.weathercode[i],
-    icon:    wmoIcon(daily.weathercode[i]),
-    isToday: i === 0,
-  };
+  return WeatherRating.buildDay(daily, i);
 }
 
 function renderWeatherStrip(strip, daily) {

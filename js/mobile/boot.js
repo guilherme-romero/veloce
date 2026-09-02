@@ -28,13 +28,19 @@
     catch (e) { console.error(`[boot mobile] ${label}:`, e); }
   }
 
-  // As telas mobile leem exatamente estas duas coleções, via Storage.getUser()
-  // e Storage.getTrainingLog(). As outras seis que loadAll() busca — modes,
-  // workouts, weights, rides, home-exercises e routes — não são lidas por
-  // nenhuma delas, e bikes.js fala direto com a API. Buscá-las custaria
-  // caminho crítico de boot por dado que ninguém consome.
-  // Ao criar uma tela que use outro getter do Storage, acrescente a coleção
-  // correspondente aqui.
+  // Coleções do CAMINHO CRÍTICO — as que a primeira tela (Início) lê, via
+  // Storage.getUser() e Storage.getTrainingLog().
+  //
+  // As demais são carregadas sob demanda, na primeira visita à tela que as
+  // usa, e não no boot:
+  //   weights → js/mobile/profile-mobile.js  (Storage.load(['weights']))
+  //   rides   → js/mobile/rides-mobile.js    (Storage.load(['rides']))
+  // modes, workouts, home-exercises e routes não são lidas por nenhuma tela
+  // mobile; bikes.js fala direto com a API.
+  //
+  // Ao criar uma tela nova: se ela for a primeira coisa que o usuário vê,
+  // acrescente a coleção aqui; se não, carregue-a no onEnter da view, como
+  // fazem Perfil e Passeios.
   const COLECOES = ['profile', 'training-log'];
 
   async function boot() {

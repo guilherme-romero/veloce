@@ -3,8 +3,10 @@
    horizontal, mapa de constância, última atividade e volume mensal.
 
    Mesma fonte do desktop (/activities/unified) e as mesmas somas
-   (ActivityStats.totals). O que muda: 4 KPIs espremidos viram carrossel, e
-   o heatmap de 90 dias vira um grid compacto de 15×4.
+   (ActivityStats.totals). O mapa de constância cobre a MESMA janela de 90
+   dias do heatmap desktop e também tem 7 linhas alinhadas por dia da semana;
+   o que muda é a escala do quadrado e a origem do dado (km da atividade, não
+   o tipo do training_log).
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const VIEW_ID = 'm-view-atividades';
@@ -23,7 +25,7 @@
       });
 
   function kpiCard(label, value, unit, sub) {
-    return `<div class="m-kpi" style="min-width:132px">
+    return `<div class="m-kpi">
       <span class="m-eyebrow">${esc(label)}</span>
       <div class="m-kpi-value">
         <span class="m-num">${esc(value)}</span>
@@ -36,14 +38,19 @@
   function skeleton() {
     return `
       <div class="m-chiprow" id="m-act-chips"></div>
-      <div class="m-hs" id="m-act-kpis"></div>
+      <div class="m-kpigrid" id="m-act-kpis"></div>
 
       <div class="m-card">
         <div class="m-card-head">
-          <span class="m-eyebrow">Constância · 60 dias</span>
+          <span class="m-eyebrow">Constância · 90 dias</span>
           <span class="m-sub" id="m-act-const-sub"></span>
         </div>
-        <div class="m-grid15" id="m-act-const"></div>
+        <div class="m-hm">
+          <div class="m-hm-wd" aria-hidden="true">
+            <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
+          </div>
+          <div class="m-grid7" id="m-act-const"></div>
+        </div>
       </div>
 
       <div class="m-section-head"><span class="m-eyebrow">Última atividade</span></div>
@@ -101,10 +108,13 @@
     const grid = document.getElementById('m-act-const');
     const sub  = document.getElementById('m-act-const-sub');
     if (!grid) return;
-    const { cells, ativos, dias, pct } = ActivityStats.consistencyGrid(_all, 60);
-    grid.innerHTML = cells.map(c =>
+    const { cells, ativos, dias, pct, padStart, padEnd } = ActivityStats.consistencyGrid(_all, 90);
+    // Quadrados vazios em volta: fecham a primeira e a última coluna para que
+    // cada LINHA do grid seja um dia da semana (ver .m-grid7 em mobile.css).
+    const pad = (n) => '<div class="m-cell m-cell-pad"></div>'.repeat(n);
+    grid.innerHTML = pad(padStart) + cells.map(c =>
       `<div class="m-cell" data-lvl="${c.lvl}" title="${esc(c.date)}: ${esc(fmtNum(c.km, 1))} km"></div>`
-    ).join('');
+    ).join('') + pad(padEnd);
     if (sub) sub.textContent = `${ativos}/${dias} dias · ${Math.round(pct)}%`;
   }
 

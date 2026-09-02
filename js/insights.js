@@ -76,55 +76,22 @@
   // 7.1 — ÍNDICE DE FADIGA
   // ───────────────────────────────────────────────────────────────
   function renderFadiga(health) {
-    if (!health.length) return false;
-    const recentes = health.slice(0, 7);   // últimos 7 dias
-    const semanaAnt = health.slice(7, 14); // semana anterior
+    // Heurística (pesos, cortes e mensagens) em js/core/fatigue.js,
+    // compartilhada com a aba Insights mobile.
+    const f = Fatigue.fatigueIndex(health);
+    if (!f.ok) return false;
 
-    const avg = (arr, key) => {
-      const vals = arr.map(d => d[key]).filter(v => v != null && isFinite(v));
-      return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
-    };
-
-    const bbDrainAvg = avg(recentes, 'body_battery_drain');
-    const bbMaxAvg   = avg(recentes, 'body_battery_max');
-    const stressAvg  = avg(recentes, 'stress_avg');
-    const hrvSem     = avg(recentes, 'hrv_noite_avg');
-    const hrvSemAnt  = avg(semanaAnt, 'hrv_noite_avg');
-
-    if (bbDrainAvg == null || stressAvg == null) return false;
-
-    // Componentes normalizados em 0-100 (maior = mais fadiga)
-    const hasBBI    = bbMaxAvg != null && bbDrainAvg != null;
-    const hasStress = stressAvg != null;
-    const hasHRV    = !!(hrvSem && hrvSemAnt);
-    const bbiScore    = hasBBI    ? Math.min(100, (bbDrainAvg / Math.max(bbMaxAvg, 1)) * 100) : 50;
-    const stressScore = hasStress ? Math.min(100, stressAvg * 1.5) : 50; // stress 50 → 75 no score
-    let hrvScore = 50;
-    if (hasHRV) {
-      const delta = (hrvSemAnt - hrvSem) / hrvSemAnt; // positivo = HRV caindo = fadiga subindo
-      hrvScore = Math.max(0, Math.min(100, 50 + delta * 200));
-    }
-
-    const fadiga     = Math.round(bbiScore * 0.40 + hrvScore * 0.35 + stressScore * 0.25);
-    const fonteCount = [hasBBI, hasStress, hasHRV].filter(Boolean).length;
-
-    let status, color, msg;
-    if (fadiga < 45)      { status = 'Recuperado';  color = COLORS.green; msg = 'Recuperação ótima — sessão intensa recomendada.'; }
-    else if (fadiga < 65) { status = 'Moderado';    color = COLORS.amber; msg = 'Carga acumulando — treino normal ok, evite muito volume.'; }
-    else                  { status = 'Fadigado';    color = COLORS.red;   msg = 'Sinais de fadiga — descanso ou atividade leve hoje.'; }
-
-    $('fadiga-score').textContent = fadiga;
-    $('fadiga-status').textContent = status;
+    const color = COLORS[f.token] || COLORS.muted2;
+    $('fadiga-score').textContent  = f.score;
+    $('fadiga-status').textContent = f.status;
     $('fadiga-status').style.background = color + '20';
     $('fadiga-status').style.color = color;
-    $('fadiga-fill').style.width = fadiga + '%';
+    $('fadiga-fill').style.width = f.score + '%';
     $('fadiga-fill').style.background = color;
-    $('fadiga-bb').textContent     = hasBBI    ? `${Math.round(bbDrainAvg)} / ${Math.round(bbMaxAvg)}` : '—';
-    $('fadiga-hrv').textContent    = hasHRV    ? `${Math.round(hrvSem)} ms` + (hrvSemAnt ? ` (${hrvSem > hrvSemAnt ? '+' : ''}${Math.round(hrvSem - hrvSemAnt)})` : '') : '—';
-    $('fadiga-stress').textContent = hasStress ? `${Math.round(stressAvg)}` : '—';
-    $('fadiga-msg').textContent    = fonteCount < 3
-      ? `${msg} (índice baseado em ${fonteCount}/3 fontes Garmin)`
-      : msg;
+    $('fadiga-bb').textContent     = f.bb;
+    $('fadiga-hrv').textContent    = f.hrv;
+    $('fadiga-stress').textContent = f.stress;
+    $('fadiga-msg').textContent    = f.msg;
     return true;
   }
 
@@ -453,40 +420,25 @@
   function renderReadiness(items) {
     const card = $('card-readiness');
     if (!card) return;
-    if (!items || items.length === 0) { card.hidden = true; return; }
+
+    // Níveis, rótulos e mensagens em js/core/fatigue.js.
+    const r = Fatigue.readiness(items);
+    if (!r.ok) { card.hidden = true; return; }
     card.hidden = false;
 
-    // Ordena asc por data para a sparkline; mais recente é o último
-    const ordered = [...items].sort((a, b) => a.data.localeCompare(b.data));
-    const latest = ordered[ordered.length - 1];
-
-    const score = latest.score ?? null;
-    const level = latest.level || '—';
-    // Garmin retorna níveis: POOR < LOW < MODERATE < HIGH < (VERY_HIGH/PRIME)
-    const READINESS_INFO = {
-      VERY_HIGH: { label: 'Máxima',     color: COLORS.green, msg: 'Prontidão máxima — ótimo dia para sua sessão mais forte.' },
-      PRIME:     { label: 'Máxima',     color: COLORS.green, msg: 'Prontidão máxima — ótimo dia para sua sessão mais forte.' },
-      HIGH:      { label: 'Alta',       color: COLORS.green, msg: 'Garmin diz: pronto para sessão intensa hoje.' },
-      MODERATE:  { label: 'Moderada',   color: COLORS.amber, msg: 'Recuperação moderada — treino normal ok.' },
-      LOW:       { label: 'Baixa',      color: COLORS.red,   msg: 'Baixa prontidão — priorize recuperação hoje.' },
-      POOR:      { label: 'Muito baixa',color: COLORS.red,   msg: 'Prontidão muito baixa — dia de descanso, evite treino intenso.' },
-    };
-    const info = READINESS_INFO[level] || { label: level, color: COLORS.muted2, msg: '' };
-    const color = info.color, msg = info.msg;
-
-    $('readiness-score').textContent = score ?? '—';
-    $('readiness-level').textContent = info.label;
+    const color = COLORS[r.token] || COLORS.muted2;
+    $('readiness-score').textContent = r.score ?? '—';
+    $('readiness-level').textContent = r.label;
     $('readiness-level').style.background = color + '20';
     $('readiness-level').style.color = color;
-    if (score != null) {
-      $('readiness-fill').style.width = Math.min(100, Math.max(0, score)) + '%';
+    if (r.score != null) {
+      $('readiness-fill').style.width = Math.min(100, Math.max(0, r.score)) + '%';
       $('readiness-fill').style.background = color;
     }
-    $('readiness-sleep').textContent = latest.sleep_score != null ? `${latest.sleep_score}` : '—';
-    // `recovery_time_min` guarda MINUTOS (Garmin `recoveryTime`); /60 → horas na UI.
-    $('readiness-recovery').textContent = latest.recovery_time_min != null ? `${Math.round(latest.recovery_time_min / 60)}h` : '—';
-    $('readiness-hrv').textContent = latest.hrv_weekly_avg != null ? `${latest.hrv_weekly_avg} ms` : '—';
-    $('readiness-msg').textContent = msg;
+    $('readiness-sleep').textContent    = r.sleep;
+    $('readiness-recovery').textContent = r.recoveryH;
+    $('readiness-hrv').textContent      = r.hrv;
+    $('readiness-msg').textContent      = r.msg;
 
     // Sparkline
     const canvas = $('readinessSparkChart');
@@ -495,9 +447,9 @@
       _readinessSparkChart = new Chart(canvas, {
         type: 'line',
         data: {
-          labels: ordered.map(r => r.data.slice(5)), // MM-DD
+          labels: r.serie.map(x => String(x.data).slice(5)), // MM-DD
           datasets: [{
-            data: ordered.map(r => r.score),
+            data: r.serie.map(x => x.score),
             borderColor: color,
             backgroundColor: color + '20',
             tension: 0.3,
@@ -518,186 +470,44 @@
     return true;
   }
 
-  // 7.8 — Personal Records (Garmin)
   function renderPRs(items, vo2max, weeklyRec) {
     const card = $('card-prs');
     if (!card) return;
-    const hasSynth = (weeklyRec && (weeklyRec.elevacao || weeklyRec.distancia))
-                  || (vo2max && vo2max.max);
-    if ((!items || items.length === 0) && !hasSynth) { card.hidden = true; return; }
+
+    // Filtro por type_id, rótulos, formatação por unidade e as linhas
+    // sintéticas (semanais + VO2máx) vivem em js/core/records.js,
+    // compartilhado com a aba Insights mobile.
+    const r = Records.personalRecords(items, vo2max, weeklyRec);
+    if (!r.ok) { card.hidden = true; return; }
     card.hidden = false;
 
-    const esc = window.esc || (s => String(s || ''));
+    const esc = window.esc || (s2 => String(s2 || ''));
 
-    // Rótulos por type_id de PR da Garmin, confirmados cruzando os valores do DB
-    // com as atividades e com o próprio usuário. Só os type_ids em ALLOWED_PR_TYPES
-    // (8,9,11) são exibidos como PRs nativos. Os recordes semanais e o VO2máx são
-    // injetados à parte (linhas sintéticas). Os demais type_ids não foram confirmados.
-    const TYPE_LABELS = {
-      1:  '1 km mais rápido',          // corrida (tempo)
-      2:  '1 milha mais rápida',       // corrida (tempo)
-      3:  'Recorde de corrida',        // não confirmado — não exibido
-      4:  'Maior duração',
-      5:  'Velocidade máxima',
-      6:  '5 km mais rápido',
-      7:  'Corrida mais longa',        // não confirmado — não exibido
-      8:  'Maior distância',           // ciclismo → ver CYCLING_LABEL_OVERRIDE
-      9:  'Maior elevação',            // ciclismo → ver CYCLING_LABEL_OVERRIDE
-      10: 'Maior cadência média',
-      11: '40 km mais rápido (pedal)', // tempo
-      12: 'Mais passos num dia',
-      13: 'Mais passos numa semana',
-      14: 'Mais passos num mês',
-      15: 'Recorde semanal',           // não identificado — não exibido
-      16: 'Recorde de carga',          // não identificado — não exibido
-    };
-
-    const ACTIVITY_TYPE_LABELS = {
-      cycling: 'Ciclismo', road_biking: 'Ciclismo estrada',
-      mountain_biking: 'MTB', gravel_cycling: 'Gravel',
-      running: 'Corrida', treadmill_running: 'Esteira',
-      trail_running: 'Trail', walking: 'Caminhada',
-      swimming: 'Natação', strength_training: 'Força',
-    };
-
-    const CYCLING_TYPES = new Set(['cycling', 'road_biking', 'mountain_biking', 'gravel_cycling']);
-
-    // Garmin reutiliza type_ids de corrida em atividades de ciclismo com semântica diferente.
-    // Confirmado cruzando os valores do DB com as colunas distancia_m / elevacao_m das atividades:
-    //   type 8 (cycling)     → distancia_m  → exibir como km
-    //   type 9 (road_biking) → elevacao_m   → exibir como metros
-    //   type 12              → armazenado em centiwatts (÷100 para W)
-    const formatValue = (typeId, value, actType) => {
-      if (value == null) return '—';
-      const isCycling = CYCLING_TYPES.has(actType);
-
-      // type 8 para ciclismo = distância máxima do pedal (metros → km)
-      if (typeId === 8 && isCycling) return (value / 1000).toFixed(1).replace('.', ',') + ' km';
-      // type 9 para ciclismo = maior ganho de elevação (metros)
-      if (typeId === 9 && isCycling) return Math.round(value).toLocaleString('pt-BR') + ' m';
-
-      // Tempos em segundos: 1km, 5km, 10km, meia, maratona, duração (apenas para corrida)
-      if ([1, 4, 6, 7, 8, 9].includes(typeId)) {
-        const h = Math.floor(value / 3600), m = Math.floor((value % 3600) / 60), s = Math.floor(value % 60);
-        return h > 0 ? `${h}h${String(m).padStart(2,'0')}m` : `${m}min ${String(s).padStart(2,'0')}s`;
-      }
-      // Distância máxima (metros → km)
-      if (typeId === 2) return (value / 1000).toFixed(1).replace('.', ',') + ' km';
-      // Elevação acumulada (metros)
-      if (typeId === 3) return Math.round(value).toLocaleString('pt-BR') + ' m';
-      // Velocidade m/s → km/h
-      if (typeId === 5) return (value * 3.6).toFixed(1).replace('.', ',') + ' km/h';
-      // Cadência
-      if (typeId === 10) return Math.round(value) + ' rpm';
-      // type 11 = 40 km mais rápido pedalando (segundos → h:mm:ss)
-      if (typeId === 11) {
-        const hh = Math.floor(value / 3600), mm = Math.floor((value % 3600) / 60), ss = Math.floor(value % 60);
-        return `${hh}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
-      }
-      // Passos (dia/semana/mês)
-      if ([12, 13, 14].includes(typeId)) return Math.round(value).toLocaleString('pt-BR') + ' passos';
-      // type_ids 15/16 não identificados — número cru
-      if (typeId === 15 || typeId === 16) return Math.round(value).toLocaleString('pt-BR');
-      return value.toFixed(1).replace('.', ',');
-    };
-
-    // Labels alternativos para type_ids cujo significado muda em ciclismo
-    const CYCLING_LABEL_OVERRIDE = {
-      8: 'Maior distância (ciclismo)',
-      9: 'Maior elevação num pedal',
-    };
-
-    // Recordes exibidos (PRs nativos da Garmin): 8=dist. num pedal · 9=elev. num
-    // pedal · 11=40 km mais rápido. Os semanais (dist./elev.) e o VO2max são
-    // injetados à parte — calculados/derivados, não são PRs nativos confiáveis.
-    const ALLOWED_PR_TYPES = new Set([8, 9, 11]);
-    const visible = items.filter(p =>
-      ALLOWED_PR_TYPES.has(p.type_id) &&
-      TYPE_LABELS[p.type_id] != null &&
-      // type 8/9 só fazem sentido para ciclismo neste app; um PR 8/9 de corrida
-      // cairia no formato de tempo (linha do array [1,4,6,7,8,9]) sob rótulo de distância.
-      ((p.type_id !== 8 && p.type_id !== 9) || CYCLING_TYPES.has(p.activity_type)));
-
-    const now = Date.now();
-    const DAYS_30 = 30 * 86400_000;
-
-    const parseIsoDate = raw => {
-      if (!raw) return null;
-      // Suporta "YYYY-MM-DD HH:MM:SS" e "YYYY-MM-DDTHH:MM:SS"
-      const iso = raw.split(/[T ]/)[0];
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
-      const d = new Date(iso + 'T12:00:00');
-      return isNaN(d.getTime()) ? null : d;
-    };
-
-    // Linhas sintéticas (não são PRs nativos da Garmin): recordes semanais de
-    // ciclismo (calculados no backend a partir das atividades) e o VO2max (máximo
-    // histórico; o Garmin deste usuário só registra VO2max de corrida).
-    const fmtDataBr = raw => {
-      const d = parseIsoDate(raw);
-      return d && isFinite(d)
-        ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-        : '—';
-    };
-    const synthRow = (label, valStr, metaStr) => `
+    // Linhas sintéticas nunca têm selo, então saem sem os placeholders — é o
+    // markup que o card sempre teve, e mantê-lo idêntico é o que permite
+    // provar a extração byte a byte contra a implementação anterior.
+    const linhaHTML = (l) => l.sintetica
+      ? `
         <div class="pr-item">
           <div class="pr-info">
-            <div class="pr-label">${esc(label)}</div>
-            <div class="pr-meta">${esc(metaStr)}</div>
+            <div class="pr-label">${esc(l.label)}</div>
+            <div class="pr-meta">${esc(l.meta)}</div>
           </div>
-          <div class="pr-value">${esc(valStr)}</div>
-        </div>`;
-
-    const synthRows = [];
-    const wElev = weeklyRec && weeklyRec.elevacao;
-    if (wElev && wElev.value != null) {
-      synthRows.push(synthRow('Maior elevação semanal',
-        Math.round(wElev.value).toLocaleString('pt-BR') + ' m',
-        'Semana de ' + fmtDataBr(wElev.weekStart)));
-    }
-    const wDist = weeklyRec && weeklyRec.distancia;
-    if (wDist && wDist.value != null) {
-      synthRows.push(synthRow('Maior distância semanal',
-        (wDist.value / 1000).toFixed(1).replace('.', ',') + ' km',
-        'Semana de ' + fmtDataBr(wDist.weekStart)));
-    }
-    if (vo2max && vo2max.max && vo2max.max.value != null) {
-      synthRows.push(synthRow('Melhor VO2máx estimado',
-        Math.round(vo2max.max.value) + ' mL/kg/min',
-        fmtDataBr(vo2max.max.date)));
-    }
-
-    const rows = visible.map(p => {
-      const isCyc = CYCLING_TYPES.has(p.activity_type);
-      const label = (isCyc && CYCLING_LABEL_OVERRIDE[p.type_id]) || TYPE_LABELS[p.type_id];
-      const val   = formatValue(p.type_id, p.valor, p.activity_type);
-      const d     = parseIsoDate(p.pr_date || p.activity_date);
-      const dataStr = d && isFinite(d)
-        ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-        : '—';
-      const isNew = d && isFinite(d) && (now - d.getTime()) < DAYS_30;
-      const newBadge = isNew ? '<span class="pr-new">Novo!</span>' : '';
-      const actBadge = p.activity_type
-        ? `<span class="pr-sport">${esc(ACTIVITY_TYPE_LABELS[p.activity_type] || p.activity_type)}</span>`
-        : '';
-      const meta = [p.activity_name, dataStr].filter(Boolean).join(' · ');
-      return `
+          <div class="pr-value">${esc(l.valor)}</div>
+        </div>`
+      : `
         <div class="pr-item">
           <div class="pr-info">
-            <div class="pr-label">${esc(label)} ${newBadge}</div>
-            <div class="pr-meta">${esc(meta)} ${actBadge}</div>
+            <div class="pr-label">${esc(l.label)} ${l.isNew ? '<span class="pr-new">Novo!</span>' : ''}</div>
+            <div class="pr-meta">${esc(l.meta)} ${l.sport ? `<span class="pr-sport">${esc(l.sport)}</span>` : ''}</div>
           </div>
-          <div class="pr-value">${esc(val)}</div>
+          <div class="pr-value">${esc(l.valor)}</div>
         </div>`;
-    });
-    $('prs-list').innerHTML = synthRows.join('') + rows.join('');
-    $('prs-count').textContent = visible.length + synthRows.length;
 
-    const hasNew = visible.some(p => {
-      const d = parseIsoDate(p.pr_date || p.activity_date);
-      return d && isFinite(d) && (now - d.getTime()) < DAYS_30;
-    });
-    $('prs-msg').textContent = hasNew ? 'Você bateu um recorde nos últimos 30 dias!' : '';
+    $('prs-list').innerHTML = r.linhas.map(linhaHTML).join('');
+
+    $('prs-count').textContent = r.total;
+    $('prs-msg').textContent = r.temNovo ? 'Você bateu um recorde nos últimos 30 dias!' : '';
     return true;
   }
 

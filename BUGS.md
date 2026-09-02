@@ -13,6 +13,63 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
 
 ---
 
+# Levantamento 2026-09-02 (v2.8.1) — ajustes na aba Atividades
+
+Origem: relato direto do usuário sobre a aba Atividades do mobile. Dois dos três pontos eram de
+layout; o terceiro (legenda no gráfico de Volume mensal) revelou um bug no helper compartilhado.
+
+## MENOR
+
+- **✅ CORRIGIDO (2026-09-02, v2.8.1)** — **[MENOR] [BUG-071] `js/mobile/shell.js`** — `MShell.mChart`
+  apagava o `legend: { display: false }` de qualquer gráfico que configurasse um tooltip.
+
+  **Causa raiz:** `cfg.options = Object.assign(base, cfg.options || {})` é um merge **raso**. Quem
+  passa `options.plugins` — mesmo que só para um `tooltip.callbacks` — substitui o objeto `plugins`
+  inteiro, e o `legend:false` do base vai junto. O Chart.js volta ao default e desenha a legenda
+  dentro do canvas. Presente desde a v2.7.7.
+
+  **Dois gráficos afetados:**
+
+  | Gráfico | Sintoma |
+  |---|---|
+  | Volume mensal (`activities-mobile.js:166`) | legenda com rótulo vazio (o que o usuário relatou) |
+  | Rosca de zonas (`insights-mobile.js:175`) | legenda Z1–Z5 duplicando a legenda HTML ao lado e comendo espaço de um canvas de 130×130 |
+
+  **Correção:** `plugins` passou a ser mesclado explicitamente
+  (`Object.assign({}, base.plugins, opts.plugins)`), preservando o base e o que o chamador pede.
+  Os tooltips dos dois gráficos continuam funcionando — é justamente o que o merge raso preservava
+  às custas da legenda.
+
+  **Nota:** `elements` tem a mesma fragilidade estrutural, mas hoje nenhum chamador o sobrescreve.
+
+---
+
+# Levantamento 2026-09-02 (v2.8.0) — telas Perfil e Passeios no mobile
+
+Origem: encontrado pela harness de validação das telas novas (`cdp-novas-telas.js`), ao checar que
+um slug desktop-only cai na aba "Mais" com o aviso correto.
+
+## MENOR
+
+- **✅ CORRIGIDO (2026-09-02, v2.8.0)** — **[MENOR] [BUG-070] `js/mobile/router-mobile.js`** —
+  navegar para um slug que a UI mobile não implementa **não fazia nada** quando o usuário já estava
+  na aba "Mais".
+
+  **Causa raiz:** `apply()` abria com `if (current === slug) return;`, comparando o slug **já
+  resolvido**. Como todos os slugs desktop-only resolvem para `mais` pelo FALLBACK, estando em
+  `#/mais` a ida para `#/rotas` batia nesse early-return: a URL mudava, o `onEnter` não rodava e a
+  tela não se atualizava. Presente desde a v2.7.7.
+
+  **Efeito antes da v2.8.0:** invisível, porque a aba "Mais" renderizava a mesma lista fosse qual
+  fosse o slug pedido. Passou a importar quando ela ganhou o aviso "esta seção existe só na versão
+  desktop", que depende do slug pedido.
+
+  **Correção:** o router passou a guardar também `currentRaw` (o slug **pedido**, antes do
+  FALLBACK). Mesma view com pedido diferente re-executa só o `onEnter`, sem refazer a troca de
+  views nem disparar o `onLeave` — que destruiria gráficos sem necessidade.
+
+---
+
 # Levantamento 2026-09-01 (v2.7.7) — relato de uso
 
 Origem: relato direto do usuário — no celular, o app abria a versão desktop e era preciso entrar no

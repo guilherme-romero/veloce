@@ -352,105 +352,30 @@ function renderWeightAnalysis() {
   const card = document.getElementById('weight-analysis');
   if (!card) return;
 
-  const user    = Storage.getUser();
-  // Consolida múltiplas pesagens do mesmo dia pela média — evita distorção
-  // na regressão linear quando há 2 registros em x=0 com pesos diferentes
-  const rawWeights = Storage.getWeights()
-    .filter(w => w.tipo === 'atual')
-    .sort((a, b) => a.data.localeCompare(b.data));
-  const byDay = {};
-  rawWeights.forEach(w => {
-    if (!byDay[w.data]) byDay[w.data] = [];
-    byDay[w.data].push(w.peso);
-  });
-  const allWeights = Object.entries(byDay)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([data, pesos]) => ({
-      data,
-      peso: pesos.reduce((s, p) => s + p, 0) / pesos.length,
-    }));
-
-  if (allWeights.length < 2 || !user.pesoMeta) {
-    card.style.display = 'none';
-    return;
-  }
-
-  // Janela da regressão: dataInicioPlano como primária (respeita o plano
-  // definido pelo usuário); fallback para 180/90 dias se houver < 3 pontos,
-  // evitando que dados muito antigos distorçam a tendência.
-  const planStart  = user.dataInicioPlano || null;
-  const cutoff180  = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
-  const cutoff90   = new Date(Date.now() - 90  * 86400_000).toISOString().slice(0, 10);
-  let weights = planStart ? allWeights.filter(w => w.data >= planStart) : [];
-  const planPts = weights.length; // pesagens registradas desde o início do plano
-  if (weights.length < 3) weights = allWeights.filter(w => w.data >= cutoff180);
-  if (weights.length < 3) weights = allWeights.filter(w => w.data >= cutoff90);
-  if (weights.length < 3) weights = allWeights;
-
-  const t0 = new Date(weights[0].data + 'T12:00:00').getTime();
-  const pts = weights.map(w => ({
-    x: (new Date(w.data + 'T12:00:00').getTime() - t0) / 86400_000,
-    y: w.peso,
-  }));
-  const n  = pts.length;
-  const sx = pts.reduce((s, p) => s + p.x, 0);
-  const sy = pts.reduce((s, p) => s + p.y, 0);
-  const sxy= pts.reduce((s, p) => s + p.x * p.y, 0);
-  const sx2= pts.reduce((s, p) => s + p.x * p.x, 0);
-  const denom = n * sx2 - sx * sx;
-  if (denom === 0) { card.style.display = 'none'; return; }
-  const slope = (n * sxy - sx * sy) / denom; // kg/dia
-  const taxaKgSem = +(slope * 7).toFixed(2);  // negativo = perda
-
-  const pesoAtual = allWeights[allWeights.length - 1].peso;
-  const faltam    = +(pesoAtual - user.pesoMeta).toFixed(1);
+  // Todo o cálculo (consolidação por dia, janela da regressão, previsão)
+  // vive em js/core/weight-stats.js, compartilhado com a tela Perfil mobile.
+  const a = WeightStats.weightAnalysis(Storage.getUser(), Storage.getWeights());
+  if (!a.ok) { card.style.display = 'none'; return; }
 
   card.style.display = '';
 
-  const sign = taxaKgSem <= 0 ? '' : '+';
+  const sign = a.taxaPositiva ? '+' : '';
   const taxaEl = document.getElementById('wa-taxa');
-  taxaEl.textContent = `${sign}${taxaKgSem.toString().replace('.', ',')}`;
+  taxaEl.textContent = `${sign}${a.taxaKgSem.toString().replace('.', ',')}`;
   // Perda (taxa negativa) é positiva para o objetivo → lime; ganho → magenta.
-  taxaEl.style.color = taxaKgSem <= 0 ? 'var(--lime)' : 'var(--magenta)';
+  taxaEl.style.color = a.taxaPositiva ? 'var(--magenta)' : 'var(--lime)';
 
   const faltamEl = document.getElementById('wa-faltam');
-  faltamEl.textContent = faltam > 0 ? `${faltam.toString().replace('.', ',')} kg` : '✓ Meta atingida';
+  faltamEl.textContent = a.metaAtingida
+    ? '✓ Meta atingida'
+    : `${a.faltam.toString().replace('.', ',')} kg`;
   // Ainda ter peso a perder é "negativo" → magenta; meta atingida → lime.
-  faltamEl.style.color = faltam > 0 ? 'var(--magenta)' : 'var(--lime)';
+  faltamEl.style.color = a.metaAtingida ? 'var(--lime)' : 'var(--magenta)';
 
-  let previsao = '—', semanas = '—', msg = '';
-  if (faltam <= 0) {
-    previsao = 'Meta atingida!';
-    semanas  = '—';
-    msg      = 'Parabéns! Você atingiu sua meta de peso.';
-  } else if (slope < 0) {
-    const diasNecessarios = faltam / Math.abs(slope);
-    const semsNec = Math.ceil(diasNecessarios / 7);
-    const dataEst = new Date(Date.now() + diasNecessarios * 86400_000);
-    previsao = dataEst.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
-    semanas  = semsNec.toString();
-    if (semsNec > 52) msg = 'Taxa atual lenta — considere ajustar plano.';
-    else if (semsNec > 26) msg = 'Progresso consistente — mantenha o ritmo!';
-    else msg = `Meta em ~${semsNec} semanas no ritmo atual.`;
-  } else if (planPts < 4) {
-    // Sem tendência de perda E poucos registros desde o início do plano:
-    // a regressão ainda não é confiável — explica em vez de mostrar zero.
-    previsao = '—';
-    semanas  = '—';
-    msg      = 'Poucos dados desde o início do plano — registre mais pesagens para estimar a previsão.';
-  } else if (Math.abs(slope) < 0.01) {
-    previsao = '—';
-    semanas  = '—';
-    msg      = 'Peso estável — sem tendência de perda no período.';
-  } else {
-    previsao = '—';
-    semanas  = '—';
-    msg      = 'Tendência de ganho — revise alimentação e treinos.';
-  }
-  document.getElementById('wa-previsao').textContent = previsao;
-  document.getElementById('wa-semanas').textContent  = semanas;
+  document.getElementById('wa-previsao').textContent = a.previsao;
+  document.getElementById('wa-semanas').textContent  = a.semanas;
   const msgEl = document.getElementById('wa-msg');
-  if (msgEl) { msgEl.textContent = msg; msgEl.style.display = msg ? '' : 'none'; }
+  if (msgEl) { msgEl.textContent = a.msg; msgEl.style.display = a.msg ? '' : 'none'; }
 }
 window.renderWeightAnalysis = renderWeightAnalysis;
 

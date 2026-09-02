@@ -83,11 +83,14 @@
   }
 
   /**
-   * Mapa de constância do handoff (§6.6): 15 colunas × 4 linhas.
-   * São 60 células e cada uma vale UM dia — os últimos 60 dias, portanto,
-   * e não 90 comprimidos: agregar 90 dias em 60 células daria 1,5 dia por
-   * quadrado, que ninguém consegue ler. O heatmap desktop (90 dias, um
-   * quadrado por dia) continua sendo a visão completa.
+   * Mapa de constância: uma célula por dia, os últimos `dias` dias.
+   *
+   * `padStart`/`padEnd` são as células VAZIAS que o chamador deve emitir
+   * antes e depois das reais para que o grid feche em semanas inteiras —
+   * com 7 linhas e fluxo por coluna, cada linha vira um dia da semana
+   * (dom→sáb), como no heatmap desktop. Mesmas fórmulas de js/heatmap.js:92
+   * e :123. Quem renderiza em fita corrida simplesmente ignora os dois.
+   *
    * Níveis por km no dia: 0 = nada, 1 = até 15, 2 = até 40, 3 = acima.
    */
   function consistencyGrid(items, dias = 60) {
@@ -111,7 +114,16 @@
       });
     }
     const ativos = cells.filter(c => c.km > 0).length;
-    return { cells, ativos, dias, pct: dias ? (ativos / dias) * 100 : 0 };
+
+    // Alinhamento por dia da semana: quantos quadrados vazios entram antes do
+    // dia mais antigo e depois de hoje para completar a primeira e a última
+    // coluna do grid de 7 linhas.
+    const primeiro = new Date(hoje);
+    primeiro.setDate(primeiro.getDate() - (dias - 1));
+    const padStart = primeiro.getDay();                    // dom=0 … sáb=6
+    const padEnd   = (7 - ((padStart + dias) % 7)) % 7;
+
+    return { cells, ativos, dias, pct: dias ? (ativos / dias) * 100 : 0, padStart, padEnd };
   }
 
   window.ActivityStats = {

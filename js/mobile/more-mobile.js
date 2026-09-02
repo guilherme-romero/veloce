@@ -1,41 +1,48 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   MAIS — aba que lista as seções que só existem na UI desktop e permite
-   voltar para ela. Os links levam ?ui=desktop justamente para PERSISTIR a
-   escolha: sem isso, variant.js jogaria o usuário de volta ao mobile na
-   carga do index.html.
+   MAIS — entrada para as views que existem na UI mobile mas não têm tab
+   própria (Perfil e Passeios), mais as ações de conta.
+
+   Até a v2.7.9 esta aba listava as seções desktop-only como links para
+   index.html. Na v2.8.0 Perfil e Passeios viraram telas mobile nativas e
+   as demais (Treinos, Rotas, Ferramentas, Conexões, Testes) saíram da
+   lista por decisão de escopo: no celular só o que foi desenhado para o
+   celular. Elas seguem alcançáveis pelo botão "Usar a versão desktop", e
+   um deep link para o slug delas continua caindo nesta tela (ver
+   FALLBACK em router-mobile.js).
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const VIEW_ID = 'm-view-mais';
 
-  // slug do desktop → rótulo e ícone. Os slugs vêm de ROUTES em js/router.js.
+  // Views mobile nativas alcançadas por aqui. O slug é o MESMO do desktop,
+  // então #/perfil e #/passeios funcionam nas duas variantes.
   const SECOES = [
-    { slug: 'perfil',      label: 'Perfil e pesagens', icon: 'fa-user' },
-    { slug: 'treinos',     label: 'Treinos',           icon: 'fa-dumbbell' },
-    { slug: 'passeios',    label: 'Passeios',          icon: 'fa-calendar-day' },
-    { slug: 'rotas',       label: 'Rotas',             icon: 'fa-map-location-dot' },
-    { slug: 'ferramentas', label: 'Ferramentas',       icon: 'fa-screwdriver-wrench' },
-    { slug: 'conexoes',    label: 'Conexões',          icon: 'fa-plug' },
+    { slug: 'perfil',   label: 'Perfil e pesagens', icon: 'fa-user' },
+    { slug: 'passeios', label: 'Passeios',          icon: 'fa-calendar-day' },
   ];
 
-  function itemHTML(s, destaque) {
-    const cls = destaque ? ' is-current' : '';
-    return `<a class="m-list-item${cls}" href="index.html?ui=desktop#/${s.slug}">
-      <i class="fa-solid ${s.icon}"></i>
+  function itemHTML(s) {
+    return `<button class="m-list-item" type="button" data-slug="${escAttr(s.slug)}">
+      <i class="fa-solid ${escAttr(s.icon)}"></i>
       <span>${MShell.esc(s.label)}</span>
       <i class="fa-solid fa-chevron-right m-chevron"></i>
-    </a>`;
+    </button>`;
   }
 
   function render(slugPedido) {
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
 
+    // Um slug que a UI mobile não implementa cai aqui; em vez de um 404
+    // silencioso, a tela explica onde aquela seção mora.
+    const naoImplementado = slugPedido && slugPedido !== 'mais'
+      && !SECOES.some(s => s.slug === slugPedido);
+
     view.innerHTML = `
-      <p class="m-sub">Estas seções continuam na versão desktop — abrir qualquer
-      uma passa a usar essa versão até você voltar para a mobile.</p>
+      ${naoImplementado ? `<p class="m-sub" style="color:var(--amber)">
+        Esta seção existe só na versão desktop — abra-a pelo botão abaixo.</p>` : ''}
 
       <div class="m-list">
-        ${SECOES.map(s => itemHTML(s, s.slug === slugPedido)).join('')}
+        ${SECOES.map(itemHTML).join('')}
       </div>
 
       <div class="m-list">
@@ -54,6 +61,10 @@
       <p class="m-sub" style="text-align:center">VELOCE LABS v${MShell.esc(window.APP_VERSION || '')}</p>
     `;
 
+    view.querySelectorAll('[data-slug]').forEach(btn => {
+      btn.addEventListener('click', () => MRouter.navigate(btn.dataset.slug));
+    });
+
     document.getElementById('m-switch-desktop')
       ?.addEventListener('click', () => window.Variant && Variant.switchTo('desktop'));
 
@@ -69,8 +80,6 @@
     slug: 'mais',
     viewId: VIEW_ID,
     label: 'Mais',
-    // Um slug desktop-only cai aqui; `slug` é o que o usuário pediu, e o
-    // item correspondente aparece destacado em vez de redirecionar sozinho.
     onEnter: ({ slug }) => {
       MShell.setHeader({ eyebrow: 'Configurações', title: 'MAIS' });
       render(slug);
