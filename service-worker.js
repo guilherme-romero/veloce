@@ -5,13 +5,14 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.7.6';
+const CACHE_VERSION = 'v2.7.9';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
 const SHELL = [
   './',
   './index.html',
+  './mobile.html',
   './login.html',
   './manifest.json',
   './icons/favicon.svg',
@@ -28,7 +29,11 @@ const SHELL = [
   './css/bikes.css',
   './css/ferramentas.css',
   './css/login.css',
+  './css/mobile.css',
+  './css/mobile-sheet.css',
+  './css/mobile-bikes.css',
   './js/version.js',
+  './js/variant.js',
   './js/utils.js',
   './js/router.js',
   './js/defaults.js',
@@ -56,6 +61,16 @@ const SHELL = [
   './js/app.js',
   './js/login.js',
   './js/pwa.js',
+  './js/core/metrics.js',
+  './js/core/activity-stats.js',
+  './js/mobile/router-mobile.js',
+  './js/mobile/shell.js',
+  './js/mobile/home-mobile.js',
+  './js/mobile/activities-mobile.js',
+  './js/mobile/insights-mobile.js',
+  './js/mobile/bikes-mobile.js',
+  './js/mobile/more-mobile.js',
+  './js/mobile/boot.js',
   // dados_usuario.txt entra como cache opcional — não falha install se faltar
 ];
 
@@ -130,7 +145,12 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then(c => c.put(req, respClone));
           return resp;
         })
-        .catch(() => caches.match(req).then(c => c || caches.match('./index.html')))
+        // Fallback por variante: uma navegação a mobile.html offline não pode
+        // cair no HTML desktop. A navegação a './' cai em index.html de
+        // propósito — variant.js roda lá e redireciona se a preferência do
+        // usuário for mobile (o SW não tem acesso ao localStorage).
+        .catch(() => caches.match(req).then(c => c || caches.match(
+          url.pathname.endsWith('/mobile.html') ? './mobile.html' : './index.html')))
     );
     return;
   }

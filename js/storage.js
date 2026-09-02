@@ -107,36 +107,57 @@ function _genId(prefix) {
 /* ═══════════════════════════════════════════════════════════════════════
    STORAGE — API
 ═══════════════════════════════════════════════════════════════════════ */
+/* ── Carregadores por coleção ────────────────────────────────────────
+   Cada entrada busca uma coleção e popula o seu cache. loadAll() roda todas
+   (é o que o desktop faz); a UI mobile chama Storage.load([...]) com só as
+   coleções que as telas dela leem, para não gastar o caminho crítico do boot
+   com dados que ninguém consome. Os corpos vieram de loadAll() sem alteração. */
+const LOADERS = {
+  'profile': () => window.Api.get('/profile').then(r => {
+    _userCache = (r && Object.keys(r).length) ? { ...DEFAULTS.user, ...r } : { ...DEFAULTS.user };
+  }),
+  'modes':          () => window.Api.get('/modes').then(r => { _modesCache = Array.isArray(r) ? r : []; }),
+  'workouts':       () => window.Api.get('/workouts').then(r => { _workoutsCache = (r && typeof r === 'object') ? r : {}; }),
+  'weights':        () => window.Api.get('/weights').then(r => { _weightsCache = Array.isArray(r) ? r : []; }),
+  'rides':          () => window.Api.get('/rides').then(r => { _ridesCache = Array.isArray(r) ? r.map(normalizeRide).filter(Boolean) : []; }),
+  'training-log':   () => window.Api.get('/training-log').then(r => { _trainingLogCache = Array.isArray(r) ? r : []; }),
+  'home-exercises': () => window.Api.get('/home-exercises').then(r => { _homeExercisesCache = Array.isArray(r) ? r : []; }),
+  'routes':         () => window.Api.get('/routes').then(r => { _routesCache = Array.isArray(r) ? r : []; }),
+};
+
 const Storage = {
 
   /* ── Load global no boot ───────────────────────────────────────────── */
-  loadAll: async () => {
-    const Api = window.Api;
+
+  /**
+   * Carrega as coleções pedidas, em paralelo.
+   * @param {string[]} nomes — chaves de LOADERS.
+   */
+  load: async (nomes) => {
     // Coleta falhas não-401 para que o boot possa avisar o usuário em vez
     // de seguir silenciosamente para um estado vazio (BUG-015). 401 é
     // tratado pelo wrapper Api (redireciona pro login).
     const failures = [];
     const wrap = (label, p) => p.catch(e => {
-      console.warn(`[loadAll/${label}]`, e);
+      console.warn(`[load/${label}]`, e);
       if (e?.status !== 401) failures.push({ label, message: e?.message || String(e) });
     });
 
-    const tasks = [
-      wrap('profile', Api.get('/profile').then(r => {
-        _userCache = (r && Object.keys(r).length) ? { ...DEFAULTS.user, ...r } : { ...DEFAULTS.user };
-      })),
-      wrap('modes', Api.get('/modes').then(r => { _modesCache = Array.isArray(r) ? r : []; })),
-      wrap('workouts', Api.get('/workouts').then(r => { _workoutsCache = (r && typeof r === 'object') ? r : {}; })),
-      wrap('weights', Api.get('/weights').then(r => { _weightsCache = Array.isArray(r) ? r : []; })),
-      wrap('rides', Api.get('/rides').then(r => { _ridesCache = Array.isArray(r) ? r.map(normalizeRide).filter(Boolean) : []; })),
-      wrap('training-log', Api.get('/training-log').then(r => { _trainingLogCache = Array.isArray(r) ? r : []; })),
-      wrap('home-exercises', Api.get('/home-exercises').then(r => { _homeExercisesCache = Array.isArray(r) ? r : []; })),
-      wrap('routes', Api.get('/routes').then(r => { _routesCache = Array.isArray(r) ? r : []; })),
-    ];
+    const tasks = [];
+    (nomes || []).forEach(nome => {
+      const loader = LOADERS[nome];
+      // Nome errado é erro de programação: avisa alto em vez de devolver um
+      // cache vazio que a tela exibiria como "sem dados".
+      if (!loader) { console.warn(`[load] coleção desconhecida: ${nome}`); return; }
+      tasks.push(wrap(nome, loader()));
+    });
+
     await Promise.all(tasks);
     window.LOAD_ERRORS = failures;
     return failures;
   },
+
+  loadAll: async () => Storage.load(Object.keys(LOADERS)),
 
   // Compat: alguns lugares chamavam loadWeights especificamente
   loadWeights: async () => {

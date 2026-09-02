@@ -1,0 +1,50 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   BIKES · MOBILE — ajustes sobre o markup que js/bikes.js já emite.
+
+   css/bikes.css é carregado como está (usa só tokens, que css/mobile.css
+   redeclara com os mesmos nomes). Aqui ficam apenas os deltas do handoff
+   para 390px: faixa jersey mais alta, bike inativa esmaecida, números em
+   Bebas e ações pareadas com alvo de toque decente.
+═══════════════════════════════════════════════════════════════════════ */
+
+#m-view-bikes .bikes-list { gap: var(--gap); }
+
+#m-view-bikes .bike-card {
+  border-radius: var(--radius-hero);
+  padding: 16px;
+}
+
+/* Faixa jersey de 6px no topo da bike ativa (handoff §4). */
+#m-view-bikes .bike-card-active::before { height: 6px; }
+
+/* Bike inativa a 72% de opacidade — a ativa é que tem de puxar o olho. */
+#m-view-bikes .bike-card:not(.bike-card-active) { opacity: .72; }
+
+#m-view-bikes .bike-name {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: 28px; line-height: .92; letter-spacing: .02em;
+}
+
+/* Números dos totais (km, horas, elevação) na régua tipográfica do mobile. */
+#m-view-bikes .bike-stat-value,
+#m-view-bikes .bst-num {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: 26px; line-height: .82; letter-spacing: .02em;
+}
+#m-view-bikes .bike-stat-label {
+  font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+
+/* Componentes: barra de 5px e ações pareadas de 40px (handoff §4). */
+#m-view-bikes .bike-comp-item { border-radius: 12px; }
+#m-view-bikes .bike-comp-progress { height: 5px; }
+#m-view-bikes .bike-comp-item .btn-sm { min-height: 40px; flex: 1; }
+
+#m-view-bikes .bike-icon-btn {
+  min-width: 40px; min-height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* Linhas de ação empilham em vez de espremer em 390px. */
+#m-view-bikes .bike-card-footer { display: flex; flex-wrap: wrap; gap: 8px; }
+#m-view-bikes .bike-card-footer .btn { flex: 1 1 45%; }

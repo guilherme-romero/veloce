@@ -13,6 +13,47 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
 
 ---
 
+# Levantamento 2026-09-01 (v2.7.7) — relato de uso
+
+Origem: relato direto do usuário — no celular, o app abria a versão desktop e era preciso entrar no
+menu hambúrguer e clicar em "Versão mobile" na mão. Reproduzido e corrigido no mesmo dia.
+
+## IMPORTANTE
+
+- **✅ CORRIGIDO (2026-09-01, v2.7.8)** — **[IMPORTANTE] [BUG-069] `js/variant.js`** — a detecção
+  automática de variante **nunca disparava num celular**: `index.html` sempre abria a UI desktop.
+
+  **Causa raiz:** o `variant.js` da v2.7.7 decidia por `window.innerWidth <= 767`, e o `<script>`
+  era o **primeiro elemento do `<head>`, antes da `<meta name="viewport">`**. Enquanto essa meta não
+  é processada, o browser móvel usa o **viewport de layout padrão**, e `innerWidth` vale **980** —
+  acima do corte. O redirect nunca acontecia; depois do load, `innerWidth` já era 390, tarde demais.
+
+  **Medido com o dispositivo emulado (`Page.addScriptToEvaluateOnNewDocument` + iPhone):**
+
+  | momento | `innerWidth` | `screen.width` |
+  |---|---|---|
+  | topo do `<head>` (onde o script rodava) | **980** | 390 |
+  | após o load (meta viewport já valeu) | 390 | 390 |
+
+  **Por que a validação da v2.7.7 não pegou:** os testes headless rodaram com
+  `--window-size=390,844`, que define o viewport **direto**, sem depender da meta. `innerWidth` já
+  nascia 390 e o redirect funcionava — falso negativo do ambiente de teste. **Lição:** validar
+  comportamento de mobile exige `Emulation.setDeviceMetricsOverride({ mobile: true })`, nunca
+  apenas redimensionar a janela.
+
+  **Correção:** a decisão passou a ser por **tipo de dispositivo** (Client Hints → user agent →
+  iPad com UA de Macintosh + `maxTouchPoints` → `pointer: coarse` com `screen.width <= 1024`).
+  Nenhum desses sinais depende da meta viewport. O `<script>` também foi movido para depois da meta
+  CSP — assim é coberto por ela e a armadilha de ordem não volta. Como efeito colateral bem-vindo,
+  uma janela estreita num PC deixou de virar UI mobile.
+
+  **Mudanças relacionadas na mesma versão:** o item "Versão mobile" saiu da nav desktop
+  (`index.html`, `js/app.js`) e o override deixou de ser permanente — vive em `sessionStorage` e
+  vale só na aba corrente, com o `localStorage['vl.ui']` da v2.7.7 apagado na migração (sem isso,
+  quem já tinha clicado no botão continuaria preso no desktop).
+
+---
+
 # Levantamento 2026-08-31 (v2.7.5) — relato de uso
 
 Origem: relato direto do usuário — o popup "Nova versão disponível" aparecia repetidamente, no

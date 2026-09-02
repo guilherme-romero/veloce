@@ -11,6 +11,52 @@ estimado: **baixo** / **médio** / **alto**.
 
 ---
 
+## Onda mobile — trace de performance (2026-09-01, v2.7.9)
+
+Origem: trace via CDP com iPhone 14 Pro emulado, CPU 4× mais lenta e Fast 3G, cache frio, sem
+service worker. Mediana de 3 execuções por cenário.
+
+**Referência medida.** A UI mobile já era muito mais leve que a desktop nas mesmas condições:
+
+| | mobile | desktop |
+|---|---:|---:|
+| Total Blocking Time | **7 ms** | 1.595 ms |
+| First Contentful Paint | 1.140 ms | 2.660 ms |
+| Nós no DOM | 192 | 1.670 |
+| Event listeners | 14 | 145 |
+| Long tasks | 1 | 14 |
+
+**O teste local exagerava o custo de rede.** Cada JS local custava ~170 ms independente do tamanho
+(`version.js`, 700 bytes, levava 177 ms) — latência do HTTP/1.1 sem multiplexação do servidor de
+teste. Medindo a produção com o mesmo throttling: **HTTP/3 + Cloudflare + zstd**, 4 ms por arquivo,
+DOMContentLoaded de 5.461 ms → **1.042 ms**, 82 kB transferidos para 550 kB descompactados.
+**Conclusão: os 20 arquivos JS separados não são problema e não devem ser concatenados.** De quebra,
+o HTML tem `cf-cache-status: DYNAMIC` — o Cloudflare não cacheia o documento, então não há risco de
+servir HTML velho por 7 dias.
+
+### ✅ IMPLEMENTADO (v2.7.9) — carga seletiva no boot mobile · esforço baixo
+
+`Storage.loadAll()` buscava 8 coleções antes do primeiro pixel de conteúdo; as telas mobile leem
+**2** (`profile` via `getUser`, `training-log` via `getTrainingLog`). `modes`, `workouts`,
+`weights`, `rides`, `home-exercises` e `routes` não são lidas por nenhuma delas — `js/bikes.js` fala
+direto com a API. Além disso, `auth/me` e a carga eram sequenciais.
+
+- `js/storage.js` — o corpo de `loadAll()` virou o mapa `LOADERS`; nasceu `Storage.load(nomes)` e
+  `loadAll()` passou a ser `load(Object.keys(LOADERS))`. O desktop não muda: mesmas 8 chamadas.
+- `js/mobile/boot.js` — `Storage.load(['profile','training-log'])` disparado **em paralelo** com o
+  gate de autenticação.
+
+**Resultado** (mesmo instrumento, medindo a partir do DOMContentLoaded para descontar a variação da
+rede local): tempo até o primeiro render **576 ms → 269 ms** (−53%); LCP relativo −299 ms; chamadas
+na fase de boot **9 → 3**.
+
+**Guarda contra regressão:** `scratchpad/guard-colecoes.js` faz grep dos `Storage.getX()` em tudo
+que `mobile.html` carrega e confere contra a lista `COLECOES` de `js/mobile/boot.js`. Uma tela nova
+que use um getter não coberto receberia cache vazio **sem erro no console** — o teste transforma
+isso em falha explícita.
+
+---
+
 ## Auditoria de performance 2026-08-30 (v2.7.1)
 
 Primeira varredura com o `revisor-performance` adaptado ao stack. Todos os itens foram

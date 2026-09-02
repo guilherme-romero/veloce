@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0f12">
+  <meta name="description" content="VELOCE LABS — treino de ciclismo, versão mobile.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;
+             font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com;
+             img-src 'self' data: blob: https://*.cloudfront.net https://*.strava.com;
+             connect-src 'self';
+             worker-src 'self';"
+  >
+
+  <!-- Ver nota em index.html: depois da meta viewport e da CSP, antes do
+       primeiro <link> (BUG-069). -->
+  <script src="js/variant.js?v=2.7.9"></script>
+
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.7.9">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.7.9">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.7.9">
+  <link rel="manifest" href="manifest.json?v=2.7.9">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <link rel="stylesheet" href="css/mobile.css?v=2.7.9">
+  <link rel="stylesheet" href="css/mobile-sheet.css?v=2.7.9">
+  <!-- bikes.css é o do desktop: só usa tokens, que mobile.css redeclara. -->
+  <link rel="stylesheet" href="css/bikes.css?v=2.7.9">
+  <link rel="stylesheet" href="css/mobile-bikes.css?v=2.7.9">
+
+  <title>VELOCE LABS</title>
+</head>
+<body>
+
+<div class="m-app">
+
+  <header class="m-header">
+    <div id="m-header-left"></div>
+    <div id="m-header-actions" class="m-header-actions"></div>
+  </header>
+
+  <main class="m-scroll">
+    <!-- Uma <section> por aba; o MRouter alterna o atributo hidden.
+         Os ids de conteúdo são preenchidos pelos módulos js/mobile/*.js. -->
+    <section id="m-view-inicio"     class="m-view" hidden aria-hidden="true"></section>
+    <section id="m-view-atividades" class="m-view" hidden aria-hidden="true"></section>
+    <section id="m-view-insights"   class="m-view" hidden aria-hidden="true"></section>
+
+    <!-- A garagem reaproveita js/bikes.js inteiro: ele só precisa destes
+         ids e faz todo o resto por delegação de data-act. -->
+    <section id="m-view-bikes" class="m-view" hidden aria-hidden="true">
+      <div id="bikes-list"></div>
+      <div id="bikes-empty" class="m-empty" hidden>
+        Nenhuma bicicleta cadastrada.
+        <div style="margin-top:14px">
+          <button id="btn-add-bike-empty" class="m-btn m-btn-primary" type="button">
+            <i class="fa-solid fa-plus"></i> Nova bike
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section id="m-view-mais" class="m-view" hidden aria-hidden="true"></section>
+  </main>
+
+  <nav class="m-tabbar" aria-label="Navegação principal">
+    <button class="m-tab" type="button" data-slug="inicio">
+      <i class="fa-solid fa-house"></i><span>Início</span>
+    </button>
+    <button class="m-tab" type="button" data-slug="atividades">
+      <i class="fa-solid fa-list-check"></i><span>Ativid.</span>
+    </button>
+    <button class="m-tab" type="button" data-slug="insights">
+      <i class="fa-solid fa-chart-line"></i><span>Insights</span>
+    </button>
+    <button class="m-tab" type="button" data-slug="bikes">
+      <i class="fa-solid fa-bicycle"></i><span>Bikes</span>
+    </button>
+    <button class="m-tab" type="button" data-slug="mais">
+      <i class="fa-solid fa-ellipsis"></i><span>Mais</span>
+    </button>
+  </nav>
+
+</div>
+
+<!-- ═══════════ SCRIPTS ═══════════════════════════════════════════════
+     Ordem obrigatória: dados → shell → views (que se auto-registram no
+     MRouter) → boot. Nenhum defer: os módulos dependem uns dos outros na
+     ordem de carga, como no desktop.
+     NÃO são carregados aqui: router.js, app.js, home.js, activities.js,
+     insights.js, rides.js, routes.js, workouts.js, ferramentas.js,
+     backup.js, heatmap.js, notifications.js, strava.js, garmin.js,
+     charts.js — a UI mobile tem os próprios renders.
+══════════════════════════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<script src="js/version.js?v=2.7.9"></script>
+<script src="js/utils.js?v=2.7.9"></script>
+<script src="js/api.js?v=2.7.9"></script>
+<script src="js/defaults.js?v=2.7.9"></script>
+<script src="js/storage.js?v=2.7.9"></script>
+<script src="js/profile.js?v=2.7.9"></script>
+<script src="js/core/metrics.js?v=2.7.9"></script>
+<script src="js/core/activity-stats.js?v=2.7.9"></script>
+<script src="js/modals.js?v=2.7.9"></script>
+<script src="js/bikes.js?v=2.7.9"></script>
+
+<script src="js/mobile/router-mobile.js?v=2.7.9"></script>
+<script src="js/mobile/shell.js?v=2.7.9"></script>
+<script src="js/mobile/home-mobile.js?v=2.7.9"></script>
+<script src="js/mobile/activities-mobile.js?v=2.7.9"></script>
+<script src="js/mobile/insights-mobile.js?v=2.7.9"></script>
+<script src="js/mobile/bikes-mobile.js?v=2.7.9"></script>
+<script src="js/mobile/more-mobile.js?v=2.7.9"></script>
+
+<script src="js/mobile/boot.js?v=2.7.9"></script>
+<script src="js/pwa.js?v=2.7.9"></script>
+
+</body>
+</html>

@@ -1653,5 +1653,8 @@
     init,
     load,
     render,
+    // A UI mobile monta o botão "Nova bike" no header, que é recriado a cada
+    // entrada na aba — não dá para depender do bind único de init().
+    openBikeModal,
   };
 })();

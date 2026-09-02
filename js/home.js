@@ -13,14 +13,10 @@
 
   function fmtKm(v)   { return (v == null || !isFinite(v)) ? '—' : v.toFixed(0); }
   function fmtKg(v)   { return (v == null || !isFinite(v)) ? '—' : v.toFixed(1).replace('.', ','); }
-  function parseLocalDT(iso) {
-    if (!iso) return null;
-    // Garmin: "YYYY-MM-DD HH:MM:SS" (espaço) → normaliza para ISO
-    // Strava:  "YYYY-MM-DDTHH:MM:SSZ" (Z é na verdade hora local) → tira Z
-    const s = iso.replace(' ', 'T').replace(/Z$/, '');
-    const d = new Date(s.includes('T') ? s : s + 'T12:00:00');
-    return isNaN(d) ? null : d;
-  }
+  // parseLocalDT e weekStatsFromActivities moraram aqui até a UI mobile
+  // precisar delas: agora vivem em js/core/activity-stats.js, consumido
+  // pelas duas interfaces. O corpo é o mesmo — só mudou de arquivo.
+  const parseLocalDT = ActivityStats.parseLocalDT;
 
 
   function fmtDate(iso) {
@@ -56,31 +52,7 @@
     return 'Boa noite';
   }
 
-  // Km desta semana vs. semana passada (ambas inteiras), com DOMINGO como
-  // início da semana. Fonte: atividades unificadas (Garmin/Strava), que é o
-  // que reflete de fato o que foi pedalado.
-  function weekStatsFromActivities(items) {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const dow = today.getDay(); // 0 = domingo (início da semana)
-
-    const startThis = new Date(today);  startThis.setDate(today.getDate() - dow);
-    const startLast = new Date(startThis); startLast.setDate(startThis.getDate() - 7);
-    const endThis   = new Date(startThis); endThis.setDate(startThis.getDate() + 7); // exclusivo
-
-    let atual = 0, anterior = 0;
-    (items || []).forEach(a => {
-      if (!isFinite(a.distanciaKm)) return;
-      const d = parseLocalDT(a.inicio || a.data);
-      if (!d) return;
-      const day = new Date(d); day.setHours(0,0,0,0);
-      if (day >= startThis && day < endThis)         atual    += a.distanciaKm;
-      else if (day >= startLast && day < startThis)  anterior += a.distanciaKm;
-    });
-
-    // Só há % quando existe base de comparação (> 0) na semana passada.
-    const pct = anterior > 0 ? ((atual - anterior) / anterior) * 100 : null;
-    return { atual, pct };
-  }
+  const weekStatsFromActivities = ActivityStats.weekStatsFromActivities;
 
   function renderWeekKpi(stats) {
     $('home-week-km').textContent = fmtKm(stats.atual);
