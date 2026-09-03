@@ -5,8 +5,13 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.9.0';
+const CACHE_VERSION = 'v2.9.1';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
+
+// Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
+// release nova nao pode apagar o offline do usuario. Limpo no logout, pelas
+// duas variantes (js/app.js e js/mobile/more-mobile.js).
+const DATA_CACHE = 'treino-bike-data';
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
 const SHELL = [
@@ -116,7 +121,8 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys.filter(k => k.startsWith('treino-bike-') && k !== CACHE_NAME)
+        // DATA_CACHE fica de fora: ele nao e versionado e sobrevive as releases.
+        keys.filter(k => k.startsWith('treino-bike-') && k !== CACHE_NAME && k !== DATA_CACHE)
             .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
@@ -132,8 +138,27 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (!['http:', 'https:'].includes(url.protocol)) return;
 
-  // /api/* NUNCA passa pelo cache — sempre vai direto pra rede (com cookies)
-  if (url.pathname.startsWith('/api/')) return;
+  // /api/* — network-first com fallback ao cache (BUG-079). Online o
+  // comportamento e IDENTICO ao de antes: a rede sempre vence, e o cache so
+  // entra quando ela falha. Nao e stale-while-revalidate de proposito — servir
+  // dado velho com rede disponivel mascararia a falta de guarda das views.
+  if (url.pathname.startsWith('/api/')) {
+    // /api/auth/* NUNCA e cacheado: um /auth/me cacheado faria um usuario
+    // deslogado parecer logado. Vai direto pra rede, como sempre foi.
+    if (url.pathname.startsWith('/api/auth/')) return;
+    event.respondWith(
+      fetch(req)
+        .then(resp => {
+          if (resp && resp.status === 200 && resp.type === 'basic') {
+            const clone = resp.clone();
+            caches.open(DATA_CACHE).then(c => c.put(req, clone));
+          }
+          return resp;
+        })
+        .catch(() => caches.match(req, { cacheName: DATA_CACHE }))
+    );
+    return;
+  }
 
   // Cross-origin (CDNs como cdnjs, unpkg, fontes Google): deixa o navegador
   // buscar diretamente. Interceptar gera responses opacas que o navegador

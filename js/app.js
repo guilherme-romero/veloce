@@ -395,13 +395,21 @@ async function ensureAuthenticated() {
     const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
     if (resp.ok) return true;
   } catch (e) {
-    console.warn('[auth] backend indisponível, redirecionando para login');
+    // BUG-079: erro de REDE, nao de sessao. Antes a execucao caia no redirect
+    // abaixo e o PWA nunca abria offline, apesar dos 67 arquivos do SHELL em
+    // cache. Deixa o app abrir com o que o SW guardou; se a sessao estiver
+    // mesmo invalida, a primeira chamada do Api devolve 401 e manda pro login.
+    console.warn('[auth] backend indisponível — abrindo com o cache offline');
+    return true;
   }
   window.location.replace('/login.html');
   return false;
 }
 
 async function doLogout() {
+  // Dados de saude nao podem sobreviver ao logout no aparelho. Antes do fetch
+  // de proposito: vale mesmo se a chamada de rede falhar.
+  try { await caches.delete('treino-bike-data'); } catch (_) {}
   try {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
   } catch (e) { /* ignore */ }

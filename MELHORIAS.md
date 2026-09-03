@@ -11,6 +11,166 @@ estimado: **baixo** / **médio** / **alto**.
 
 ---
 
+## FASE 25 — auditoria da UI mobile (2026-09-03, v2.9.0)
+
+Subagents `revisor-seguranca` e `revisor-performance` sobre `mobile.html`, `js/mobile/*`,
+`js/variant.js` e `js/core/*`. Bugs correspondentes: BUG-072 a BUG-078 em [BUGS.md](BUGS.md).
+
+Escala do banco no momento da medição, que condiciona tudo abaixo: 133 `garmin_activities`,
+107 `strava_activities` (104 já com link — só ~3 sobrevivem ao dedup), 114 `garmin_daily_health`,
+71 `weights`, 12 PRs, 2 bikes, DB de 1,5 MB. **Nenhum endpoint é caro em CPU de banco hoje** — o
+pior caso medido é 4 ms. O custo real está em round-trips repetidos e em desperdício estrutural
+que escala com o histórico.
+
+### Padrão único de cache com TTL para as views mobile — esforço **baixo**
+
+Hoje convivem três padrões: flag booleana eterna (Atividades, Perfil, rides), TTL manual (clima,
+`js/mobile/rides-mobile.js:163`) e nenhuma guarda (Insights, Início, Bikes). A flag eterna tem o
+defeito oposto ao da ausência: quem abre Atividades às 8h e volta às 20h nunca vê o pedal do dia
+sem dar F5.
+
+Helper em `js/mobile/shell.js`:
+```js
+MShell.cached(chave, ttlMs, fn)  // memoiza ou reexecuta
+MShell.invalidate()              // limpa tudo
+```
+
+**TTL de 5 minutos.** O sync roda a cada 30 min (`server/scheduler.js:10`) e os dados Garmin não
+mudam entre syncs, então 5 min cobre 100% das trocas de aba de uma sessão — que é o caso a matar —
+e no pior caso serve dado 5 min velho num universo onde ele já nasce até 30 min velho. TTL maior
+não compra frescura e piora a percepção logo após um sync manual. Complemento obrigatório:
+`MShell.invalidate()` no fim de `syncAll()` (`js/mobile/home-mobile.js:214`). O TTL do clima pode
+seguir em 1 h — o Open-Meteo atualiza de hora em hora.
+
+### `SELECT *` lendo 731 KB por request para descartar — esforço **baixo**
+
+`server/routes/activities.js:64` e `:72` fazem `SELECT *`, mas `garminRow()`/`stravaRow()`
+(`:14-55`) descartam `polyline`, `payload` e `hr_zones`. Medido no banco real:
+
+| coluna | volume |
+|---|---|
+| `garmin_activities.polyline` | 411 KB |
+| `strava_activities.payload` | 232 KB |
+| `garmin_activities.payload` | 61 KB |
+| `garmin_activities.hr_zones` | 27 KB |
+| **total lido e jogado fora** | **731 KB** |
+
+**Ganho medido:** `days=1825` cai de 3,98 ms → **2,52 ms** (−37%); `days=180` de 2,23 → 1,43 ms
+(−36%). O payload de rede não muda — essas colunas nunca chegavam ao JSON, isso já está correto.
+
+**Correção:** listar as 17 colunas usadas. Mesmo tratamento em `server/routes/garmin.js:374`
+(`/garmin/activities`, também `SELECT *`). A polyline cresce ~3 KB por pedal, então o desperdício
+aumenta linearmente para sempre.
+
+### Remover `'unsafe-inline'` de `script-src` no mobile — esforço **baixo**
+
+`mobile.html:10` declara `'unsafe-inline'` em `script-src`, e **nada que o mobile carrega precisa
+disso**. Verificado: zero `<script>` inline em `mobile.html`, zero handler `on*=` gerado pelos
+módulos mobile, e o único gerador de handler inline do projeto (`js/utils.js:43`, no
+`Avatar.html`) não é chamado por nenhum arquivo carregado no mobile. O único `on*` do código mobile
+é `rides-mobile.js:112` (`el.onclick = ...`), que é atribuição de propriedade JS e não sofre CSP.
+
+```
+script-src 'self' https://cdnjs.cloudflare.com;
+```
+
+Dá ao mobile uma defesa em profundidade contra XSS que o desktop **não consegue ter** enquanto
+`utils.js:43` gerar `onerror="..."`. `style-src 'unsafe-inline'` continua obrigatório (os módulos
+usam `style="..."` em dezenas de lugares). Testar as 7 telas com o console aberto antes de publicar.
+
+### CSP: faltam `base-uri`, `form-action` e `object-src` — esforço **baixo**
+
+Nenhuma das duas CSPs (meta e header do nginx) declara essas três diretivas. Com `'unsafe-inline'`
+presente, um `<base href="https://evil/">` injetado redireciona todos os `<script src="js/...">`
+relativos. Acrescentar `base-uri 'self'; form-action 'self'; object-src 'none';` custa nada.
+
+### `kpi()` com contratos de escape opostos entre dois módulos — esforço **baixo**
+
+```js
+<div class="m-sub">${sub || ''}</div>     // js/mobile/home-mobile.js:31    → HTML cru
+<div class="m-sub">${esc(sub)}</div>      // js/mobile/insights-mobile.js:33 → escapado
+```
+
+Mesmo nome, assinatura quase idêntica, contratos **opostos**. Hoje é seguro — os quatro chamadores
+de Início são numéricos ou já aplicam `esc()` internamente (`:81`, `:91`) — mas é exatamente a
+armadilha que um chamador novo pisa. Renomear o parâmetro para `subHTML` e documentar "HTML já
+escapado pelo chamador", como `js/mobile/shell.js:17` faz com `actions`. Mesmo padrão em
+`js/mobile/profile-mobile.js:101` e `:110` (`taxa`/`faltam` são fragmentos crus, e o vizinho `msg`
+na `:112` é escapado).
+
+### Extrair o logout para `js/core/session.js` — esforço **baixo**
+
+`js/mobile/more-mobile.js:73` duplica `js/app.js:405` de propósito (o comentário na `:72` assume).
+Como a lógica é sensível (revogação server-side) e agora tem duas cópias, o fix do BUG-075 corre o
+risco de chegar só a uma. É o mesmo argumento que `js/mobile/boot.js:5-7` já faz sobre
+`ensureAuthenticated()` — que é a **terceira** cópia desse tipo de duplicação.
+
+### Insights pede 180 dias para usar 60 — esforço **baixo**
+
+`js/mobile/insights-mobile.js:289` busca `?days=180`, mas `Metrics.calcTSBMetrics`
+(`js/core/metrics.js:76-97`) monta uma série fixa de 60 dias e a EMA de 42 d converge dentro dela.
+Nada mais em Insights usa `items`. Os 120 dias extras são ~35 atividades, ~14 KB de JSON e ~1 ms de
+handler sem uso. Trocar por `?days=90` (60 da série + warm-up da EMA). **Conferir antes** se
+`js/insights.js` (desktop) depende da janela maior.
+
+### Chart.js (205 KB) carregado síncrono numa tela que não tem gráfico — esforço **médio**
+
+`mobile.html:108` carrega o UMD do CDN antes de todos os módulos, mas a Home mobile **não tem
+nenhum gráfico** (não há chamada a `mChart` em `home-mobile.js`) — o primeiro só aparece em
+Atividades, Insights ou Perfil. São ~205 KB de parse+eval no thread principal antes de o `boot()`
+começar, num LXC de 2 vCPU e em CPU de celular. O gzip do nginx está ativo e o SW cacheia, então o
+peso é de **parse**, não de rede — e acontece em toda abertura do app.
+
+**Correção:** `MShell.ensureChart()` injetando a tag sob demanda no primeiro `onEnter` que precise,
+ou no mínimo `defer`. Mesmo raciocínio para `js/bikes.js` (82 KB, o maior arquivo do mobile, usado
+por uma aba só).
+
+### Proxy Open-Meteo sem cache no servidor — esforço **baixo**
+
+`server/routes/weather.js:50` faz um fetch externo por request. O TTL de 1 h do mobile
+(`rides-mobile.js:163`) protege só aquela aba naquela sessão — um F5, o desktop, ou o PWA reaberto
+batem de novo. Cache em módulo com TTL de 30 min chaveado por lat/lon: 6 linhas, tira a latência
+externa do caminho de Passeios.
+
+### `db.prepare()` dentro de função chamada em loop — esforço **baixo**
+
+`server/routes/bikes.js:141`, `:151`, `:186`, `:193`, `:225`, `:232` — `calcBikeStats` prepara 2
+statements por bike, e `GET /api/bikes` (`:334`) o chama num `map`. **Medido:** 0,218 ms com
+`prepare()` dentro vs **0,101 ms** hoisted (2,2× por bike). Com 2 bikes o ganho é 0,23 ms —
+irrelevante hoje, mas o padrão está errado e `server/routes/garmin.js` já faz certo
+(`ACTIVITY_UPSERT_SQL` preparado uma vez). Os placeholders de `EXCLUDED_*_TYPES` são constantes, o
+hoist é trivial. Corrigir junto de outra passada nesse arquivo.
+
+### `dailyWeights` recalculado 3× por render — esforço **baixo**
+
+`js/mobile/profile-mobile.js:80`, `:149`, `:187` chamam
+`WeightStats.dailyWeights(Storage.getWeights())` três vezes, reagrupando e reordenando 71 pesagens.
+Custo desprezível (<0,1 ms); anotado porque é uma linha — calcular uma vez em `render()`.
+
+### Escape duplo em títulos de modal — esforço **baixo**
+
+`js/bikes.js:667`, `:693`, `:723`, `:785` fazem `title: \`Remover ${esc(bike.nome)}?\``, mas
+`js/modals.js:26` já aplica `esc(title)`. Uma bike chamada `Caloi & Cia` aparece como
+`Caloi &amp;amp; Cia`. Cosmético e pré-existente, mas agora visível também na aba Bikes do mobile,
+que reaproveita `bikes.js` inteiro.
+
+### Não são problemas — não reabrir
+
+- **gzip**: configurado corretamente (`/etc/nginx/sites-available/treino_bike:84-87`, inclui
+  `application/json`) e verificado em resposta real.
+- **Índices**: `idx_garmin_data`, `idx_strava_data` e `idx_activity_links_strava` cobrem os planos
+  quentes com `SEARCH`, não `SCAN`. `/activities/weekly-records` faz `SCAN garmin_activities`, mas
+  com 133 linhas é 0,5 ms e um índice em `tipo` seria **pior que inútil** nessa cardinalidade.
+- **`/activities/unified` vazando polyline no JSON**: não vaza, `garminRow()` projeta. O
+  desperdício é só do lado do SQLite.
+- **`js/core/` com complexidade quadrática**: nenhum dos 6 arquivos é O(n²) nem precisa de
+  memoização. O único candidato é `metrics.js:100` (`_movingAvg`, O(n·k) pelo `slice`), usado só
+  por `js/insights.js:298` no desktop sobre 60 pontos.
+- **Vazamento de listeners no mobile**: não confirmado. As views reescrevem `view.innerHTML` e
+  `MShell.setHeader` reescreve o header inteiro — os nós antigos levam os handlers junto.
+
+---
+
 ## Onda mobile — trace de performance (2026-09-01, v2.7.9)
 
 Origem: trace via CDP com iPhone 14 Pro emulado, CPU 4× mais lenta e Fast 3G, cache frio, sem

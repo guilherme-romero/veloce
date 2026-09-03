@@ -69,6 +69,9 @@
       ?.addEventListener('click', () => window.Variant && Variant.switchTo('desktop'));
 
     document.getElementById('m-logout')?.addEventListener('click', async () => {
+      // Dados de saude nao podem sobreviver ao logout no aparelho. Antes do
+      // fetch de proposito: vale mesmo se a chamada de rede falhar.
+      try { await caches.delete('treino-bike-data'); } catch (_) {}
       // fetch direto, igual ao doLogout() do desktop (app.js:479)
       try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); }
       catch (_) {}

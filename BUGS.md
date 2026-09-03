@@ -13,6 +13,232 @@ impacto ao usuário), **MENOR** (edge case / inconsistência de baixo impacto).
 
 ---
 
+# Auditoria 2026-09-03 (v2.9.0) — FASE 25: revisão de segurança e performance da UI mobile
+
+Primeira auditoria da superfície mobile (`mobile.html`, `js/mobile/*`, `js/variant.js`,
+`js/core/*`), entregue nas releases v2.8.0 → v2.9.0. A auditoria de 2026-08-30 não a cobriu porque
+nada disso existia. Subagents `revisor-seguranca` e `revisor-performance`.
+
+**Nenhum achado CRÍTICO.** Os quatro pontos que a FASE 25 levantou como suspeitos foram
+**verificados e estão corretos**: escape completo (`esc`/`escAttr`) nos 10 módulos mobile; a CSP
+dupla (meta estrita em `mobile.html:10` + header permissivo do nginx) resulta na estrita, que é
+subconjunto da outra em todas as diretivas; `js/variant.js` não tem open-redirect (o destino sai
+sempre de um ternário fechado que só devolve `'mobile.html'` ou `'index.html'`); e o logout do
+mobile por `fetch` direto aciona a revogação server-side igual ao desktop.
+
+Todos os itens abaixo estão **✓ verificado** — reconferidos lendo o código antes de aceitar.
+
+## BUG-079 — o gate de autenticação anula todo o cache offline do PWA ✓ verificado · ✅ CORRIGIDO na v2.9.1
+**IMPORTANTE** · `js/mobile/boot.js:15-24` e, idêntico, `js/app.js:393-402`
+
+```js
+async function ensureAuthenticated() {
+  try {
+    const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    if (resp.ok) return true;
+  } catch (e) {
+    console.warn('[auth] backend indisponível, redirecionando para login');
+  }
+  location.replace('/login.html');   // ← o catch NÃO retorna; cai aqui offline
+  return false;
+}
+```
+
+O `catch` não distingue **"rede indisponível"** de **"sem sessão"**: em ambos os casos a execução
+segue para o `location.replace('/login.html')`. Sem rede, o `fetch` lança, e o app redireciona para
+uma tela de login que também não consegue autenticar offline.
+
+**Consequência: o PWA não funciona offline, apesar de cachear tudo corretamente.** Medido em
+navegador real (`localhost` é secure context, então SW e Cache API funcionam):
+
+```
+fetch offline de ./mobile.html  → 200, 6.418 bytes, conteúdo mobile   ← o SW acerta
+navegação real offline          → /login.html                          ← o app se auto-sabota
+```
+
+O service worker cumpre a parte dele: pré-cacheia os **67/67** itens do `SHELL`, e o fallback por
+variante (`service-worker.js:158`) devolve `mobile.html` e não `index.html`. Todo esse trabalho é
+descartado pelo gate — abrir o PWA instalado sem rede mostra uma tela de login intransponível.
+
+**Correção:** tratar os dois casos separadamente — só redirecionar quando a resposta for um 401 de
+verdade; num erro de rede, seguir com os dados do cache e deixar o `Api` redirecionar quando a
+sessão realmente for negada.
+```js
+try {
+  const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
+  if (resp.ok) return true;
+  if (resp.status === 401) { location.replace('/login.html'); return false; }
+} catch (e) {
+  console.warn('[auth] backend indisponível — seguindo com o cache offline');
+  return true;                       // offline: deixa o app abrir
+}
+location.replace('/login.html');
+return false;
+```
+O fix precisa ir nas **duas** variantes (é a terceira cópia dessa lógica — ver a melhoria
+"extrair o logout/sessão para `js/core/`" em `MELHORIAS.md`).
+
+**✅ Corrigido na v2.9.1**, nas duas variantes (`js/mobile/boot.js:15` e `js/app.js:393`): o erro
+de rede agora devolve `true` e deixa o app abrir; só um 401 de verdade redireciona.
+
+Como `service-worker.js:135` fazia `/api/*` **nunca** passar pelo cache, só o gate faria o app
+abrir com todas as telas vazias. Então a release também passou a cachear as respostas:
+
+- **network-first com fallback ao cache** para `GET /api/*` — online o comportamento é **idêntico**
+  ao anterior (a rede sempre vence), e o cache só entra quando ela falha. Não é
+  stale-while-revalidate de propósito: servir dado velho com rede disponível mascararia a falta de
+  guarda do BUG-073.
+- cache separado `treino-bike-data`, **sem versão**, para que uma release não apague o offline do
+  usuário — e por isso excluído explicitamente da limpeza do `activate`.
+- **`/api/auth/*` nunca é cacheado**: um `/auth/me` em cache faria um usuário deslogado parecer
+  logado.
+- o **logout apaga** `treino-bike-data` nas duas variantes, antes do `fetch`, para valer mesmo se a
+  chamada de rede falhar — dados de saúde não podem sobreviver ao logout no aparelho.
+
+Verificado em navegador real: o app abre offline na UI mobile e **com dados** — o recorde real de
+82,5 km renderiza e o Perfil mostra as 6 zonas; 15 respostas no cache de dados, nenhuma de
+`/api/auth/`; e o cache some após o logout. Suíte de PWA: **17/17**.
+
+## BUG-080 — `start_url` manda a instalação do mobile para a variante desktop ✓ verificado
+**MENOR** · `manifest.json:5`
+
+```json
+"start_url": "./",
+"scope": "./"
+```
+
+`manifest.json` é único para as duas variantes, e `start_url: "./"` resolve para a raiz — ou seja,
+`index.html`. Instalar o PWA a partir de `mobile.html` cria um atalho que abre a **desktop**. O que
+salva o caso na prática é o `js/variant.js` redirecionando de volta pela detecção de dispositivo —
+mas isso custa um hop a cada abertura e depende da detecção acertar, quando a intenção do usuário
+já era explícita no momento da instalação.
+
+Confirmado no manifest servido: `start_url='./'`, `scope='./'`, `display='standalone'`, 5 ícones.
+
+**Correção:** as duas variantes precisariam de manifests distintos (`manifest.json` e
+`manifest-mobile.json`, com `start_url: "./mobile.html"`), com `mobile.html:27` apontando para o
+seu. Alternativa mais barata, se um manifest só for requisito: aceitar o hop e documentar.
+
+## BUG-072 — `handoff_mobile/` servido publicamente na origem do app ✓ verificado · ✅ CORRIGIDO na v2.9.1
+**IMPORTANTE · segurança** · `handoff_mobile/Veloce Labs Mobile.dc.html`, `handoff_mobile/support.js`
+
+O docroot do nginx é o próprio repositório (`/etc/nginx/sites-available/treino_bike:5`) e o
+`location /` não tem gate de autenticação. Confirmado por request:
+
+```
+GET /handoff_mobile/Veloce%20Labs%20Mobile.dc.html  → 200  (sem sessão)
+GET /handoff_mobile/support.js                      → 200  (sem sessão)
+```
+
+São 52 KB de runtime de ferramenta de design de terceiro, versionados no commit `3233843`,
+contendo `new Function(...)` (`support.js:688`, `:1026`) e `window.parent.postMessage`
+(`:1464`) — servidos na **mesma origem do cookie `tb_session`**. O que segura o pior hoje é
+acidente de configuração: a CSP do nginx não declara `'unsafe-eval'`, então o `new Function` é
+bloqueado. É artefato de handoff, não código de produção.
+
+**Correção:** mover `handoff_mobile/` para `excluir/` (gitignored, não servido) ou negar no nginx
+junto do bloco de `/.git`:
+```nginx
+location ^~ /handoff_mobile { deny all; return 404; }
+```
+
+**✅ Corrigido na v2.9.1** removendo do repositório os três arquivos executáveis —
+`Veloce Labs Mobile.dc.html`, `support.js` e `favicon.svg` (~129 KB). Nada no código os
+referenciava. Ficaram `README.md` e os 5 screenshots, que são referência de design inerte.
+Confirmado por HTTP: os três removidos devolvem **404**, `README.md` e os screenshots seguem em 200.
+
+> **Descoberta durante a correção:** mover para `excluir/` **não** resolveria — a pasta também é
+> servida (`/excluir/roadmap.txt` → **200**). O `CLAUDE.md` afirmava que ela "não é servida nem
+> carregada pelo app"; só a segunda metade é verdade. A documentação foi corrigida.
+>
+> **Continua em aberto:** o nginx não tem `deny` para `/handoff_mobile` nem para `/excluir`, e a
+> proteção por remoção só vale para o que já foi removido. Um bloco `deny` cobriria também o que
+> cair nessas pastas no futuro — exige sudo, então ficou para você aplicar.
+
+## BUG-073 — Insights refaz 7 chamadas de rede a cada `onEnter` ✓ verificado
+**IMPORTANTE · performance** · `js/mobile/insights-mobile.js:288` (`Promise.all`), `:324` (`onEnter`)
+
+`load()` é chamado incondicionalmente, sem guarda. Trocar de aba e voltar refaz os 7 fetches, os
+~4,1 ms de event loop e os ~55 KB de JSON. Eram 4 chamadas antes da v2.9.0 — os três cards novos
+(Índice de Fadiga, Training Readiness, Recordes Pessoais) somaram mais 3.
+
+Numa sessão de 10 trocas de aba: 70 requests e ~550 KB para dados que só mudam a cada 30 min
+(`server/scheduler.js:10`, `SYNC_INTERVAL_MIN = 30`).
+
+**Correção:** guarda com TTL — ver a melhoria "padrão único de cache" em `MELHORIAS.md`.
+
+## BUG-074 — Bikes recarrega sem guarda, com fan-out de 3+N requests ✓ verificado
+**IMPORTANTE · performance** · `js/mobile/bikes-mobile.js:29`
+
+`onEnter` chama `Bikes.load()` incondicionalmente, e `Bikes.load()` (`js/bikes.js:205`) dispara
+`GET /bikes` + `/bikes/meta/brands` + `/component-types` + **uma chamada `/bikes/:id/components`
+por bike**. Com 2 bikes são 5 requests por entrada na aba, e cada `/components` reexecuta o
+`calcBikeKm` que o `GET /bikes` já calculou no mesmo instante — o dobro de agregação sobre
+`garmin_activities` + `strava_activities`, crescendo linearmente com o número de bikes.
+
+Esta view **não constava** do levantamento de guardas da FASE 25 (ver correção no `ROADMAP.md`).
+
+**Correção:** flag `_loaded` no padrão de `js/mobile/activities-mobile.js:18`, invalidada após
+mutação de bike/componente. Estruturalmente melhor: `GET /bikes` já embutir `components` e
+eliminar o N+1 de rede.
+
+## BUG-075 — logout engole a falha e o usuário sai "logado" ✓ verificado
+**MENOR · segurança** · `js/mobile/more-mobile.js:71-76` (e idêntico no desktop, `js/app.js:405`)
+
+```js
+try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); }
+catch (_) {}
+location.replace('/login.html');
+```
+
+O `catch` vazio cobre falha de rede e o código não checa `resp.ok`. Se a chamada falhar (offline,
+backend caído, 500), o `UPDATE auth_state SET last_logout_at` não roda, o `clearCookie` não chega,
+e o cookie `tb_session` continua válido no browser — mas o usuário vê a tela de login e acredita
+que saiu. Basta navegar de volta para `mobile.html` para voltar autenticado.
+
+**Correção:** checar `r.ok` e avisar por toast em vez de redirecionar. O fix precisa ir nas **duas**
+variantes.
+
+## BUG-076 — `?ui=desktop` prende a aba na variante desktop ✓ verificado
+**MENOR** · `js/mobile/home-mobile.js:164`
+
+```js
+location.href = 'index.html?ui=desktop#/inicio';
+```
+
+`?ui=desktop` grava `vl.ui = 'desktop'` em `sessionStorage` (`js/variant.js:61`) pelo resto da aba.
+A partir daí o "voltar" do celular para `mobile.html` é interceptado por `variant.js:65` e devolve
+o usuário ao desktop. Não é falha de segurança (mesma origem, mesma sessão, destino no whitelist do
+`pageOf`), mas é a única forma de estado externo influenciar navegação.
+
+**Correção:** `location.href = 'index.html#/inicio'` — o destino já é explícito e a detecção por
+dispositivo não força o retorno enquanto a aba estiver lá.
+
+## BUG-077 — Início refaz 2 chamadas a cada `onEnter` ✓ verificado
+**MENOR · performance** · `js/mobile/home-mobile.js:173`, `:186`
+
+Mesma classe do BUG-073, 3× menor: `/activities/unified?days=30` (0,38 ms) e
+`/garmin/training-readiness?days=1` (0,025 ms), em `await` **sequencial**. O banco é irrelevante; o
+que incomoda são os 2 round-trips e o re-render completo do skeleton a cada volta para a aba mais
+visitada do app.
+
+> Correção de premissa: a FASE 25 registrou "Início = 6 chamadas". São **2**. As outras 4 estão em
+> `syncAll()` (`home-mobile.js:198-214`), que só roda no clique do botão de sync — ação explícita
+> do usuário, não custo de navegação.
+
+## BUG-078 — corrida entre o `await` do `load()` e o `onLeave` cria gráfico em canvas oculto ✓ verificado
+**MENOR** · `js/mobile/insights-mobile.js:283` · mesmo padrão em `js/mobile/profile-mobile.js:168`
+
+`destroyCharts()` roda **antes** do `Promise.all`; os gráficos nascem depois (`:125`, `:175`). Se o
+usuário sair da aba durante os 7 fetches, o `onLeave` (`:328`) roda com o array ainda vazio e as 2
+instâncias Chart.js são criadas em seguida, num canvas 0×0, com listener de resize pendurado até o
+próximo `load()`. Não é vazamento permanente — o `load()` seguinte limpa — mas é lixo evitável.
+
+**Correção:** token de geração — `const gen = ++_gen` no início de `load()` e
+`if (gen !== _gen) return;` depois do `await`, antes de renderizar.
+
+---
+
 # Levantamento 2026-09-02 (v2.8.1) — ajustes na aba Atividades
 
 Origem: relato direto do usuário sobre a aba Atividades do mobile. Dois dos três pontos eram de
