@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
    MOBILE — sistema visual da UI de 390px (Hi-Vis Peloton).
-   Fonte de verdade: handoff_mobile/README.md + os artboards do .dc.html.
+   Fonte de verdade: docs/design-mobile/README.md (grid, paddings, tokens).
 
    Este arquivo é carregado APENAS por mobile.html. O desktop continua em
    css/style.css e não é afetado por nada aqui.

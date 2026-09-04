@@ -1,7 +1,20 @@
 # Veloce Labs — Handoff Mobile (Hi-Vis Peloton)
 
 Especificação para implementar as telas mobile (390 px) do app de ciclismo com dados do Garmin Connect.
-Fonte de verdade visual: `Veloce Labs Mobile.dc.html` + `screenshots/`.
+Fonte de verdade visual: `screenshots/`.
+
+> **Os screenshots estão borrados de propósito.** Eram capturas do app com o banco real e continham
+> dados pessoais — nome, meta de peso, readiness, VO₂máx, HRV, quilometragens e o traçado GPS de um
+> pedal. Os valores foram borrados em 2026-09-04; rótulos, layout, tipografia e espaçamento (que é
+> para o que a referência serve) permanecem legíveis.
+>
+> O `Veloce Labs Mobile.dc.html`, runtime da ferramenta de design que era a outra fonte visual, foi
+> removido na v2.9.1: estava sendo servido **sem autenticação** na mesma origem do cookie de sessão
+> (BUG-072).
+>
+> **Nota para o dia em que este repositório deixar de ser privado:** borrar a árvore não apaga o
+> histórico. Os PNGs originais, legíveis, seguem nos commits `3233843` e `bc90c54` — e teriam de ser
+> removidos do histórico (`git filter-repo` ou similar), não só da árvore.
 
 ---
 
