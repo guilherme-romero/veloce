@@ -151,9 +151,28 @@ Confirmado por HTTP: os três removidos devolvem **404**, `README.md` e os scree
 > servida (`/excluir/roadmap.txt` → **200**). O `CLAUDE.md` afirmava que ela "não é servida nem
 > carregada pelo app"; só a segunda metade é verdade. A documentação foi corrigida.
 >
-> **Continua em aberto:** o nginx não tem `deny` para `/handoff_mobile` nem para `/excluir`, e a
-> proteção por remoção só vale para o que já foi removido. Um bloco `deny` cobriria também o que
-> cair nessas pastas no futuro — exige sudo, então ficou para você aplicar.
+**✅ Segunda camada aplicada em 2026-09-03** (nginx, pelo usuário com sudo): blocos `deny` para as
+duas pastas, inseridos após o bloco de dotfiles em `/etc/nginx/sites-available/treino_bike`.
+
+```nginx
+location ^~ /handoff_mobile { deny all; return 404; }
+location ^~ /excluir        { deny all; return 404; }
+```
+
+O **`^~` é obrigatório** — sem ele um prefixo perde para as `location` regex, e era exatamente por
+elas que os arquivos vazavam: `/excluir/roadmap.txt` pelo `~* \.txt$`, e os assets do
+`handoff_mobile/` pelo `~* \.(js|css|png|...)$`. Um `location /excluir` simples pareceria aplicado
+e não bloquearia nada.
+
+Confirmado após o reload: `/handoff_mobile/README.md` e `/excluir/roadmap.txt` → **404**;
+`/`, `/mobile.html` e `/js/version.js` → **200**.
+
+> Cuidado ao verificar: o `systemctl reload` do nginx é gracioso e os workers antigos seguem
+> atendendo até drenar. Um `curl` imediatamente após o reload ainda devolve a resposta da config
+> velha — foi o que aconteceu na primeira execução, e não indicava falha.
+
+Com isso o BUG-072 fica fechado em duas camadas: a remoção protege o que já estava lá, e o `deny`
+protege o que cair nessas pastas daqui em diante.
 
 ## BUG-073 — Insights refaz 7 chamadas de rede a cada `onEnter` ✓ verificado
 **IMPORTANTE · performance** · `js/mobile/insights-mobile.js:288` (`Promise.all`), `:324` (`onEnter`)
