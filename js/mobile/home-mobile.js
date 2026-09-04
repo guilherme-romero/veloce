@@ -219,6 +219,9 @@
         if (failed) toast(`Sincronização concluída com erros em ${failed} serviço(s).`, { kind: 'error' });
         else toast('Sincronização concluída', { kind: 'success' });
       }
+      // Sem isto o TTL de 5 min viraria bug: apertar sync e ir para Insights
+      // mostraria os dados ANTERIORES ao sync.
+      if (window.MShell && MShell.invalidate) MShell.invalidate();
       await load();
     }
 

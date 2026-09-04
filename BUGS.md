@@ -174,7 +174,7 @@ Confirmado após o reload: `/handoff_mobile/README.md` e `/excluir/roadmap.txt` 
 Com isso o BUG-072 fica fechado em duas camadas: a remoção protege o que já estava lá, e o `deny`
 protege o que cair nessas pastas daqui em diante.
 
-## BUG-073 — Insights refaz 7 chamadas de rede a cada `onEnter` ✓ verificado
+## BUG-073 — Insights refaz 7 chamadas de rede a cada `onEnter` ✓ verificado · ✅ CORRIGIDO na v2.9.2
 **IMPORTANTE · performance** · `js/mobile/insights-mobile.js:288` (`Promise.all`), `:324` (`onEnter`)
 
 `load()` é chamado incondicionalmente, sem guarda. Trocar de aba e voltar refaz os 7 fetches, os
@@ -186,7 +186,30 @@ Numa sessão de 10 trocas de aba: 70 requests e ~550 KB para dados que só mudam
 
 **Correção:** guarda com TTL — ver a melhoria "padrão único de cache" em `MELHORIAS.md`.
 
-## BUG-074 — Bikes recarrega sem guarda, com fan-out de 3+N requests ✓ verificado
+**✅ Corrigido na v2.9.2.** Helper novo em `js/mobile/shell.js`:
+
+```js
+MShell.cached(chave, ttlMs, fn)   // memoiza; guarda a PROMESSA, nao o valor
+MShell.invalidate(chave?)          // sem argumento limpa tudo
+MShell.TTL_DADOS                   // 5 min
+```
+
+Guarda a promessa de propósito: duas entradas rápidas na mesma aba coalescem numa única ida à rede
+em vez de disparar duas. Se `fn` rejeitar, a entrada é removida — erro não fica cacheado.
+
+Em `insights-mobile.js` **só a busca** é memoizada (as 7 chamadas viraram `buscarDados()`); o render
+continua rodando sempre, porque o `onLeave` destrói os gráficos e uma re-entrada que não
+renderizasse deixaria os canvas vazios.
+
+**TTL de 5 min:** o sync roda a cada 30 min (`server/scheduler.js:10`), então 5 min cobre 100% das
+trocas de aba de uma sessão — o caso a matar — e no pior caso serve dado 5 min velho num universo
+onde ele já nasce até 30 min velho. Complemento obrigatório: `syncAll()` (`home-mobile.js`) chama
+`MShell.invalidate()`, senão o botão de sync mostraria os dados **anteriores** ao sync.
+
+Medido em navegador: re-entrada em Insights caiu de **7 → 0** chamadas, os 2 gráficos são
+recriados e o recorde real de 82,5 km continua na tela; `MShell.invalidate()` faz voltar a **7**.
+
+## BUG-074 — Bikes recarrega sem guarda, com fan-out de 3+N requests ✓ verificado · ✅ CORRIGIDO na v2.9.2
 **IMPORTANTE · performance** · `js/mobile/bikes-mobile.js:29`
 
 `onEnter` chama `Bikes.load()` incondicionalmente, e `Bikes.load()` (`js/bikes.js:205`) dispara
@@ -200,6 +223,22 @@ Esta view **não constava** do levantamento de guardas da FASE 25 (ver correçã
 **Correção:** flag `_loaded` no padrão de `js/mobile/activities-mobile.js:18`, invalidada após
 mutação de bike/componente. Estruturalmente melhor: `GET /bikes` já embutir `components` e
 eliminar o N+1 de rede.
+
+**✅ Corrigido na v2.9.2** com o mesmo `MShell.cached`, aplicado no `onEnter` de
+`js/mobile/bikes-mobile.js` — **nunca** dentro de `Bikes.load()`: `js/bikes.js` chama o próprio
+`load()` em 12 pontos após criar/editar/remover bike ou componente, e engessar isso faria a Garagem
+parar de refletir as mutações. Pular o `load()` inteiro é seguro nesta view porque ela não tem
+gráfico nem `onLeave`, e o markup permanece no DOM escondido.
+
+Medido: re-entrada caiu de **5 → 0** chamadas, com a lista de bikes ainda renderizada.
+
+> Efeito colateral aceito: uma mutação atualiza o DOM pelo caminho do `bikes.js` sem tocar no
+> timestamp do cache, então uma re-entrada posterior pode refazer a carga uma vez. Desperdício
+> pequeno e sempre correto — nunca mostra dado velho.
+
+**Continua em aberto:** o **N+1 de rede** (`3 + N` requests na primeira visita e após cada mutação).
+Eliminá-lo exige `GET /bikes` embutir os componentes, e `js/bikes.js` é compartilhado com a
+desktop — ficou registrado como melhoria por causa da superfície de regressão.
 
 ## BUG-075 — logout engole a falha e o usuário sai "logado" ✓ verificado
 **MENOR · segurança** · `js/mobile/more-mobile.js:71-76` (e idêntico no desktop, `js/app.js:405`)

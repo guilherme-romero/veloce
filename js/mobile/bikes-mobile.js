@@ -25,7 +25,17 @@
       document.getElementById('btn-add-bike')
         ?.addEventListener('click', () => Bikes.openBikeModal(null));
 
-      if (window.Bikes && Bikes.load) Bikes.load();
+      // BUG-074: Bikes.load() faz /bikes + /bikes/meta/brands +
+      // /component-types + UMA chamada por bike. A guarda fica AQUI e nunca
+      // dentro de Bikes.load() — js/bikes.js chama o proprio load() em 12
+      // pontos apos criar/editar/remover bike ou componente, e engessar isso
+      // faria a Garagem parar de refletir as mutacoes.
+      //
+      // Pular o load inteiro e seguro nesta view: ela nao tem grafico nem
+      // onLeave, e o markup renderizado permanece no DOM escondido.
+      if (window.Bikes && Bikes.load) {
+        MShell.cached('bikes', MShell.TTL_DADOS, async () => { await Bikes.load(); return true; });
+      }
     },
   });
 })();

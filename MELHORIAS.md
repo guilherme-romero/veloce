@@ -22,7 +22,19 @@ Escala do banco no momento da medição, que condiciona tudo abaixo: 133 `garmin
 pior caso medido é 4 ms. O custo real está em round-trips repetidos e em desperdício estrutural
 que escala com o histórico.
 
-### Padrão único de cache com TTL para as views mobile — esforço **baixo**
+### Padrão único de cache com TTL para as views mobile — esforço **baixo** · 🚧 PARCIAL na v2.9.2
+
+> **Estado em 2026-09-04:** o helper existe e está em uso — `MShell.cached(chave, ttlMs, fn)`,
+> `MShell.invalidate(chave?)` e `MShell.TTL_DADOS` (5 min), em `js/mobile/shell.js`. A v2.9.2 o
+> aplicou em **Insights** (BUG-073) e **Bikes** (BUG-074), e ligou o `invalidate()` ao `syncAll()`.
+>
+> **Falta migrar** as três views que já tinham guarda própria: Atividades e Perfil (flag booleana
+> eterna) e o clima de Passeios (TTL manual de 1 h, que pode virar caso do padrão). A flag eterna
+> tem o defeito oposto ao da ausência de guarda — quem abre Atividades às 8h e volta às 20h nunca
+> vê o pedal do dia sem F5 —, então migrar não é só cosmético. Falta também **Início** (BUG-077,
+> 2 chamadas sem guarda).
+>
+> O texto abaixo é o desenho original, mantido porque a justificativa do TTL continua valendo.
 
 Hoje convivem três padrões: flag booleana eterna (Atividades, Perfil, rides), TTL manual (clima,
 `js/mobile/rides-mobile.js:163`) e nenhuma guarda (Insights, Início, Bikes). A flag eterna tem o

@@ -105,9 +105,44 @@
     return new Chart(canvas.getContext('2d'), cfg);
   }
 
+  /* ── Cache de carga por view ──────────────────────────────────────
+     BUG-073 / BUG-074: Insights e Bikes refaziam TODA a carga de rede a cada
+     onEnter. Trocar de aba e voltar custava 7 e 3+N requests.
+
+     TTL de 5 min: o sync roda a cada 30 min (server/scheduler.js) e os dados
+     da Garmin nao mudam entre syncs, entao 5 min cobre 100% das trocas de aba
+     de uma sessao — o caso que queremos matar — e no pior caso serve dado 5
+     min velho num universo onde ele ja nasce ate 30 min velho.
+
+     As views que ja tinham guarda (Atividades, Perfil, clima) seguem com o
+     padrao antigo; migra-las esta registrado em MELHORIAS.md. */
+
+  const TTL_DADOS = 5 * 60 * 1000;
+  const _cache = new Map();   // chave -> { p: Promise, ts: number }
+
+  /**
+   * Memoiza o resultado de `fn` por `ttlMs`. Guarda a PROMESSA, nao o valor:
+   * duas entradas rapidas na mesma aba coalescem numa unica ida a rede em vez
+   * de disparar duas. Se `fn` rejeitar, a entrada e removida — erro nao fica
+   * cacheado, e a proxima tentativa refaz a chamada.
+   */
+  async function cached(chave, ttlMs, fn) {
+    const hit = _cache.get(chave);
+    if (hit && (Date.now() - hit.ts) < ttlMs) return hit.p;
+    const p = Promise.resolve().then(fn);
+    _cache.set(chave, { p, ts: Date.now() });
+    try { return await p; } catch (e) { _cache.delete(chave); throw e; }
+  }
+
+  /** Sem argumento limpa tudo; com chave, so aquela entrada. */
+  function invalidate(chave) {
+    if (chave == null) _cache.clear(); else _cache.delete(chave);
+  }
+
   window.MShell = {
     setHeader, initials,
     parseLocalDT, fmtDate, fmtDateHora, fmtDuracao, fmtNum,
     mChart, esc,
+    cached, invalidate, TTL_DADOS,
   };
 })();

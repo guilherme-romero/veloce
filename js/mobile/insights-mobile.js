@@ -276,15 +276,9 @@
       </div>`).join('');
   }
 
-  async function load() {
-    const view = document.getElementById(VIEW_ID);
-    if (!view) return;
-    view.innerHTML = skeleton();
-    destroyCharts();
-
-    const user = (window.Storage && Storage.getUser && Storage.getUser()) || {};
-    const fcMax = Metrics.calcFCMax(user);
-
+  // As 7 chamadas da tela, isoladas para poderem ser memoizadas. O RENDER
+  // continua rodando sempre — ver o comentario em load().
+  async function buscarDados() {
     const [acts, health, vo2, dist, readiness, prs, weeklyRec] = await Promise.all([
       Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
       Api.get('/garmin/health?days=60').catch(() => []),
@@ -294,6 +288,23 @@
       Api.get('/garmin/personal-records').catch(() => []),
       Api.get('/activities/weekly-records').catch(() => null),
     ]);
+    return { acts, health, vo2, dist, readiness, prs, weeklyRec };
+  }
+
+  async function load() {
+    const view = document.getElementById(VIEW_ID);
+    if (!view) return;
+    view.innerHTML = skeleton();
+    destroyCharts();
+
+    const user = (window.Storage && Storage.getUser && Storage.getUser()) || {};
+    const fcMax = Metrics.calcFCMax(user);
+
+    // BUG-073: so a BUSCA e memoizada (TTL de 5 min). O render nao pode ser
+    // pulado — o onLeave destroi os graficos, entao uma re-entrada que nao
+    // renderizasse deixaria os canvas vazios.
+    const { acts, health, vo2, dist, readiness, prs, weeklyRec } =
+      await MShell.cached('insights', MShell.TTL_DADOS, buscarDados);
 
     const items = (acts && acts.items) || [];
     let ctl = null, atl = null, tsb = null, ctlSerie = [], atlSerie = [];
