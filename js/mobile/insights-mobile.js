@@ -276,6 +276,13 @@
       </div>`).join('');
   }
 
+  // BUG-078: token de geracao. destroyCharts() roda ANTES do await, e os
+  // graficos nascem depois — se o usuario sair da aba durante a busca, as
+  // instancias eram criadas num canvas 0x0 com listener de resize pendurado.
+  // O onLeave TAMBEM incrementa: sem isso, sair e NAO voltar deixaria a carga
+  // em voo renderizar na view escondida.
+  let _gen = 0;
+
   // As 7 chamadas da tela, isoladas para poderem ser memoizadas. O RENDER
   // continua rodando sempre — ver o comentario em load().
   async function buscarDados() {
@@ -294,6 +301,7 @@
   async function load() {
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
+    const gen = ++_gen;
     view.innerHTML = skeleton();
     destroyCharts();
 
@@ -305,6 +313,7 @@
     // renderizasse deixaria os canvas vazios.
     const { acts, health, vo2, dist, readiness, prs, weeklyRec } =
       await MShell.cached('insights', MShell.TTL_DADOS, buscarDados);
+    if (gen !== _gen) return;   // saiu da aba durante a busca
 
     const items = (acts && acts.items) || [];
     let ctl = null, atl = null, tsb = null, ctlSerie = [], atlSerie = [];
@@ -336,6 +345,6 @@
       MShell.setHeader({ eyebrow: 'Análise de carga', title: 'INSIGHTS DE TREINO' });
       load();
     },
-    onLeave: destroyCharts,
+    onLeave: () => { _gen++; destroyCharts(); },
   });
 })();

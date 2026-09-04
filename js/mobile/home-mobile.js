@@ -150,6 +150,19 @@
     return Utils.calcTrainingStreak(log.map(e => e.data));
   }
 
+  // As duas chamadas da Home, isoladas para poderem ser memoizadas.
+  async function buscarDados() {
+    const [acts, ready] = await Promise.all([
+      // Deixa propagar: falha aqui NAO pode ser cacheada — o load() renderiza
+      // o estado de erro e a proxima entrada tenta de novo.
+      Api.get('/activities/unified?days=30'),
+      // Garmin ausente e situacao normal, nao erro: cai no estado "—".
+      Api.get('/garmin/training-readiness?days=1').catch(() => null),
+    ]);
+    const r = Array.isArray(ready) && ready.length && ready[0].score != null ? ready[0] : null;
+    return { items: (acts && acts.items) || [], readiness: r };
+  }
+
   async function load() {
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
@@ -161,17 +174,22 @@
     document.getElementById('m-home-registrar')?.addEventListener('click', () => {
       // O modal de registro vive em training-log.js, que é desktop-only por
       // ora: a UI mobile manda para a seção correspondente lá.
-      location.href = 'index.html?ui=desktop#/inicio';
+      // BUG-076: sem o ?ui=desktop. Ele gravava vl.ui='desktop' no
+      // sessionStorage (variant.js:61) pelo resto da aba, e a partir dai o
+      // "voltar" do celular para mobile.html era interceptado e devolvia o
+      // usuario a desktop. O destino ja e explicito na URL.
+      location.href = 'index.html#/inicio';
     });
     document.getElementById('m-home-sync')?.addEventListener('click', syncAll);
 
     // KPIs que não dependem de rede aparecem imediatamente.
     renderKpis({ week: null, streak: streakStats(), readiness: null, user });
 
-    let items = [];
+    // BUG-077: as duas chamadas eram sequenciais e refeitas a cada onEnter.
+    // Agora rodam em paralelo e passam pela guarda de 5 min do MShell.
+    let items = [], readiness = null;
     try {
-      const resp = await Api.get('/activities/unified?days=30');
-      items = (resp && resp.items) || [];
+      ({ items, readiness } = await MShell.cached('inicio', MShell.TTL_DADOS, buscarDados));
     } catch (e) {
       console.error('[home-mobile] activities', e);
       const el = document.getElementById('m-home-recent');
@@ -180,12 +198,6 @@
 
     subline(items);
     renderRecent(items);
-
-    let readiness = null;
-    try {
-      const r = await Api.get('/garmin/training-readiness?days=1');
-      if (Array.isArray(r) && r.length && r[0].score != null) readiness = r[0];
-    } catch (_) { /* sem Garmin conectado: cai no estado "—" */ }
 
     renderKpis({
       week: ActivityStats.weekStatsFromActivities(items),

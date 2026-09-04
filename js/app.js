@@ -410,9 +410,19 @@ async function doLogout() {
   // Dados de saude nao podem sobreviver ao logout no aparelho. Antes do fetch
   // de proposito: vale mesmo se a chamada de rede falhar.
   try { await caches.delete('treino-bike-data'); } catch (_) {}
+  // BUG-075: sem checar resp.ok, uma falha de rede deixava o cookie tb_session
+  // VALIDO e ainda assim mandava para o login — o usuario acreditava ter saido
+  // e bastava voltar para estar logado de novo. So redireciona se o servidor
+  // confirmar.
+  let ok = false;
   try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-  } catch (e) { /* ignore */ }
+    const r = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    ok = r.ok;
+  } catch (e) { /* rede indisponivel */ }
+  if (!ok) {
+    if (window.toast) toast('Não foi possível encerrar a sessão no servidor. Tente de novo.', { kind: 'error' });
+    return;
+  }
   window.location.replace('/login.html');
 }
 

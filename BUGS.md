@@ -99,7 +99,7 @@ Verificado em navegador real: o app abre offline na UI mobile e **com dados** �
 82,5 km renderiza e o Perfil mostra as 6 zonas; 15 respostas no cache de dados, nenhuma de
 `/api/auth/`; e o cache some após o logout. Suíte de PWA: **17/17**.
 
-## BUG-080 — `start_url` manda a instalação do mobile para a variante desktop ✓ verificado
+## BUG-080 — `start_url` manda a instalação do mobile para a variante desktop ✓ verificado · ✅ CORRIGIDO na v2.9.3
 **MENOR** · `manifest.json:5`
 
 ```json
@@ -240,8 +240,8 @@ Medido: re-entrada caiu de **5 → 0** chamadas, com a lista de bikes ainda rend
 Eliminá-lo exige `GET /bikes` embutir os componentes, e `js/bikes.js` é compartilhado com a
 desktop — ficou registrado como melhoria por causa da superfície de regressão.
 
-## BUG-075 — logout engole a falha e o usuário sai "logado" ✓ verificado
-**MENOR · segurança** · `js/mobile/more-mobile.js:71-76` (e idêntico no desktop, `js/app.js:405`)
+## BUG-075 — logout engole a falha e o usuário sai "logado" ✓ verificado · ✅ CORRIGIDO na v2.9.3
+**MENOR · segurança** · `js/mobile/more-mobile.js:76` (e idêntico no desktop, `js/app.js:413`)
 
 ```js
 try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }); }
@@ -257,7 +257,7 @@ que saiu. Basta navegar de volta para `mobile.html` para voltar autenticado.
 **Correção:** checar `r.ok` e avisar por toast em vez de redirecionar. O fix precisa ir nas **duas**
 variantes.
 
-## BUG-076 — `?ui=desktop` prende a aba na variante desktop ✓ verificado
+## BUG-076 — `?ui=desktop` prende a aba na variante desktop ✓ verificado · ✅ CORRIGIDO na v2.9.3
 **MENOR** · `js/mobile/home-mobile.js:164`
 
 ```js
@@ -272,7 +272,7 @@ o usuário ao desktop. Não é falha de segurança (mesma origem, mesma sessão,
 **Correção:** `location.href = 'index.html#/inicio'` — o destino já é explícito e a detecção por
 dispositivo não força o retorno enquanto a aba estiver lá.
 
-## BUG-077 — Início refaz 2 chamadas a cada `onEnter` ✓ verificado
+## BUG-077 — Início refaz 2 chamadas a cada `onEnter` ✓ verificado · ✅ CORRIGIDO na v2.9.3
 **MENOR · performance** · `js/mobile/home-mobile.js:173`, `:186`
 
 Mesma classe do BUG-073, 3× menor: `/activities/unified?days=30` (0,38 ms) e
@@ -284,8 +284,8 @@ visitada do app.
 > `syncAll()` (`home-mobile.js:198-214`), que só roda no clique do botão de sync — ação explícita
 > do usuário, não custo de navegação.
 
-## BUG-078 — corrida entre o `await` do `load()` e o `onLeave` cria gráfico em canvas oculto ✓ verificado
-**MENOR** · `js/mobile/insights-mobile.js:283` · mesmo padrão em `js/mobile/profile-mobile.js:168`
+## BUG-078 — corrida entre o `await` do `load()` e o `onLeave` cria gráfico em canvas oculto ✓ verificado · ✅ CORRIGIDO na v2.9.3
+**MENOR** · `js/mobile/insights-mobile.js:298` · mesmo padrão em `js/mobile/profile-mobile.js:198`
 
 `destroyCharts()` roda **antes** do `Promise.all`; os gráficos nascem depois (`:125`, `:175`). Se o
 usuário sair da aba durante os 7 fetches, o `onLeave` (`:328`) roda com o array ainda vazio e as 2
@@ -1100,3 +1100,42 @@ Revisados no diff pelo `code-reviewer` (regressões/XSS) e pelo `nutritionist` (
   (`activities.js:44`) espera metros e divide por 1000; a multiplicação por 1000 apenas desfaz a
   unidade. Resultado correto, apenas confuso — ver melhoria de consistência em MELHORIAS.md.
 - **`js/insights.js:189` TSB = CTL − ATL** — sinal correto (convenção Banister/TrainingPeaks).
+
+---
+
+# Correções 2026-09-04 (v2.9.3) — os cinco MENOR restantes da FASE 25
+
+Fecha a auditoria: com esta release, **os nove bugs (BUG-072 a BUG-080) estão corrigidos**.
+
+**BUG-075** — o logout passou a checar `resp.ok` e, em falha, mostra um toast e **não** redireciona,
+em vez de mandar o usuário para o login com o cookie ainda válido. Nas duas variantes
+(`js/mobile/more-mobile.js:76`, `js/app.js:413`). O `caches.delete('treino-bike-data')` da v2.9.1
+segue **antes** de tudo — apagar o cache local é sempre seguro, mesmo com o logout falhando.
+Provado em navegador com a rede caída: a URL não muda, o aviso aparece, e `/api/auth/me` continua
+devolvendo **200** — a sessão realmente sobreviveu, que era exatamente a mentira do bug.
+
+**BUG-076** — `js/mobile/home-mobile.js:181` navega para `index.html#/inicio`, sem o `?ui=desktop`
+que gravava `vl.ui` no `sessionStorage` e prendia a aba na variante desktop.
+
+**BUG-077** — Início passou a usar o `MShell.cached` da v2.9.2, e as duas chamadas, que eram
+sequenciais sem motivo, agora rodam em paralelo. Medido: **2 → 0** chamadas por re-entrada. A falha
+de `/activities/unified` **propaga** de propósito, para que erro não fique cacheado por 5 minutos.
+
+**BUG-078** — token de geração em `insights-mobile.js` e `profile-mobile.js`, incrementado também
+no `onLeave`. Esse detalhe é o que faz funcionar: sem ele, sair da aba **e não voltar** deixaria a
+carga em voo renderizar na view escondida. Provado forçando a corrida — sair 120 ms após entrar em
+Insights com o cache invalidado deixa **0** instâncias de Chart.js vivas nos 2 canvas, e voltar
+recria as duas normalmente.
+
+**BUG-080** — `manifest-mobile.json` novo, com `start_url: "./mobile.html"`; `mobile.html:27` aponta
+para ele. O arquivo entrou no array `SHELL` do service worker (67 → **68** entradas), como manda o
+`CLAUDE.md` — arquivo novo na raiz fora do SHELL fica sem pré-cache e o app perde offline em
+silêncio.
+
+> Nota de infra, sem ação necessária: o nginx tem `location = /manifest.json` (match exato) com
+> `max-age=3600`. O `/manifest-mobile.json` não casa com ele e cai no `location /` — servido
+> normalmente, só sem esse cache header. Para um manifest isso é até preferível.
+
+**Verificação:** percurso das 7 telas **64/64**, PWA **21/21**, bordas 18/18, boot da desktop limpo.
+As asserções que afirmavam BUG-077 e BUG-080 como abertos foram **viradas** para cobrar o oposto.
+

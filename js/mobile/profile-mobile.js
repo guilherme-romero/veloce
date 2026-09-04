@@ -19,6 +19,7 @@
 
   let chart = null;
   let weightsCarregadas = false;
+  let _gen = 0;
 
   const ZONAS = [
     { k: 'z1', nome: 'Z1 — Recuperação',       desc: 'Elimina resíduos metabólicos.' },
@@ -201,6 +202,10 @@
   async function load() {
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
+    // BUG-078: mesmo token de geracao do Insights. Aqui o await so existe na
+    // PRIMEIRA visita (guardado por weightsCarregadas), entao a janela e
+    // estreitissima — o padrao fica igual nos dois para evitar recaida.
+    const gen = ++_gen;
 
     if (!weightsCarregadas) {
       view.innerHTML = '<div class="m-empty">Carregando pesagens…</div>';
@@ -211,6 +216,7 @@
         console.error('[profile-mobile] weights', e);
       }
     }
+    if (gen !== _gen) return;   // saiu da aba durante a carga
     render();
   }
 
@@ -224,6 +230,6 @@
       MShell.setHeader({ eyebrow: 'Seu perfil', title: 'PERFIL', back: 'mais' });
       load();
     },
-    onLeave: destroyChart,
+    onLeave: () => { _gen++; destroyChart(); },
   });
 })();

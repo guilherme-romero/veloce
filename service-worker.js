@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.9.2';
+const CACHE_VERSION = 'v2.9.3';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -20,6 +20,7 @@ const SHELL = [
   './mobile.html',
   './login.html',
   './manifest.json',
+  './manifest-mobile.json',
   './icons/favicon.svg',
   './icons/favicon-16.png',
   './icons/favicon-32.png',
