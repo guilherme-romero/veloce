@@ -69,3 +69,7 @@ melhorias/
 
 # Capturas para a sessao de design mobile (locais, nao versionadas)
 design-mobile/
+
+# Harness de testes: sessao viva e saidas de execucao
+tests/.cookie
+tests/resultado*.json
