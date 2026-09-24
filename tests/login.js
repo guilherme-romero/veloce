@@ -1,18 +1,19 @@
 /* Loga UMA vez e guarda o cookie. /api/auth/login tem rate-limit de 5/min,
    entao todo run reusa o cookie salvo em vez de logar de novo. */
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 const COOKIE_FILE = path.join(__dirname, '.cookie');
 const cfg = require('./config.js');
 const _u = new URL(cfg.BASE);
-const BASE = { host: _u.hostname, port: _u.port || 80 };
+const isHttps = _u.protocol === 'https:';
+const transport = require(isHttps ? 'https' : 'http');
+const BASE = { host: _u.hostname, port: _u.port || (isHttps ? 443 : 80) };
 
 function post(pathname, body) {
   return new Promise((res, rej) => {
     const data = JSON.stringify(body);
-    const req = http.request({ ...BASE, path: pathname, method: 'POST',
+    const req = transport.request({ ...BASE, path: pathname, method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } },
       r => { let d = ''; r.on('data', c => d += c);
              r.on('end', () => res({ status: r.statusCode, headers: r.headers, body: d })); });
@@ -28,7 +29,7 @@ async function login(user, pass) {
   const raw = setCookie[0];
   const [nameValue] = raw.split(';');
   const [name, ...rest] = nameValue.split('=');
-  const cookie = { name: name.trim(), value: rest.join('='), domain: '127.0.0.1', path: '/' };
+  const cookie = { name: name.trim(), value: rest.join('='), domain: _u.hostname, path: '/' };
   fs.writeFileSync(COOKIE_FILE, JSON.stringify(cookie), { mode: 0o600 });
   return cookie;
 }

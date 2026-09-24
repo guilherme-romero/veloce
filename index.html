@@ -19,13 +19,13 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.9.4"></script>
+  <script src="js/variant.js?v=2.9.5"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.4">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.4">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.4">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.4">
-  <link rel="manifest" href="manifest.json?v=2.9.4">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.5">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.5">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.5">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.5">
+  <link rel="manifest" href="manifest.json?v=2.9.5">
 
   <title>VELOCE LABS</title>
 
@@ -44,11 +44,11 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.9.4">
-  <link rel="stylesheet" href="css/rides.css?v=2.9.4">
-  <link rel="stylesheet" href="css/routes.css?v=2.9.4">
-  <link rel="stylesheet" href="css/bikes.css?v=2.9.4">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.4">
+  <link rel="stylesheet" href="css/style.css?v=2.9.5">
+  <link rel="stylesheet" href="css/rides.css?v=2.9.5">
+  <link rel="stylesheet" href="css/routes.css?v=2.9.5">
+  <link rel="stylesheet" href="css/bikes.css?v=2.9.5">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.5">
 </head>
 <body>
 
@@ -137,7 +137,7 @@
         <div class="home-kpi-head">
           <span class="home-kpi-label-group">
             <span class="home-kpi-label">Sequência</span>
-            <button class="insight-info-btn" type="button" data-info="Sequência de semanas treinando: uma semana conta quando tem pelo menos 2 dias ativos (semana de domingo a sábado). Descansar alguns dias não quebra a sequência. A semana atual em andamento só entra na contagem ao atingir 2 dias ativos."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" type="button" data-info="Sequência de semanas treinando: uma semana conta quando tem pelo menos 2 dias ativos (semana de domingo a sábado). Descansar alguns dias não quebra a sequência. A semana atual em andamento só entra na contagem ao atingir 2 dias ativos."><i class="fa-solid fa-circle-info"></i></button>
           </span>
           <i class="fa-solid fa-fire home-kpi-icon"></i>
         </div>
@@ -248,7 +248,7 @@
 
           <div class="chart-card">
             <span class="card-label">Distribuição de intensidade
-              <button class="insight-info-btn" data-info="Percentual do tempo em cada zona de frequência cardíaca (Z1–Z5), somado a partir das suas atividades sincronizadas do Garmin nos últimos 90 dias."><i class="fa-solid fa-circle-info"></i></button>
+              <button class="insight-info-btn" aria-label="Mais informações" data-info="Percentual do tempo em cada zona de frequência cardíaca (Z1–Z5), somado a partir das suas atividades sincronizadas do Garmin nos últimos 90 dias."><i class="fa-solid fa-circle-info"></i></button>
             </span>
             <div class="chart-wrap"><canvas id="intensityChart"></canvas></div>
           </div>
@@ -818,13 +818,13 @@
       <div class="ins-top-charts">
         <div class="card">
           <div class="card-label">Carga × Fadiga × Forma · 8 semanas
-            <button class="insight-info-btn" data-info="Carga (CTL) = condicionamento de base, média móvel exponencial de ~42 dias. Fadiga (ATL) = carga aguda, média móvel exponencial de ~7 dias. Forma (TSB) = Carga − Fadiga: positiva indica frescor; negativa, fadiga acumulada. Os limiares de TSB seguem a convenção do Performance Manager (TrainingPeaks/Coggan), aqui um pouco mais conservadores."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="Carga (CTL) = condicionamento de base, média móvel exponencial de ~42 dias. Fadiga (ATL) = carga aguda, média móvel exponencial de ~7 dias. Forma (TSB) = Carga − Fadiga: positiva indica frescor; negativa, fadiga acumulada. Os limiares de TSB seguem a convenção do Performance Manager (TrainingPeaks/Coggan), aqui um pouco mais conservadores."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <div class="chart-wrap" style="height:240px;"><canvas id="insLoadChart"></canvas></div>
         </div>
         <div class="card">
           <div class="card-label">Tempo por zona · 30 dias
-            <button class="insight-info-btn" data-info="Distribuição do tempo em cada zona de frequência cardíaca (Z1–Z5) nas atividades sincronizadas do Garmin nos últimos 30 dias."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="Distribuição do tempo em cada zona de frequência cardíaca (Z1–Z5) nas atividades sincronizadas do Garmin nos últimos 30 dias."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <div class="chart-wrap" style="height:240px;"><canvas id="insZoneChart"></canvas></div>
         </div>
@@ -839,7 +839,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Índice de Fadiga</div>
-            <button class="insight-info-btn" data-info="Combina Body Battery (energia gasta vs. capacidade), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio dos últimos 7 dias. Escala 0–100, onde MAIOR = mais fadiga: abaixo de 45 = Recuperado (apto a treino intenso); 45–65 = Moderado (treino normal, evite volume alto); acima de 65 = Fadigado (recomenda-se descanso ou atividade leve). É um índice heurístico deste app (curvas calibradas pelo projeto), não uma métrica clínica validada — use como tendência, não como diagnóstico."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="Combina Body Battery (energia gasta vs. capacidade), HRV (variabilidade cardíaca — indica recuperação do sistema nervoso) e Stress médio dos últimos 7 dias. Escala 0–100, onde MAIOR = mais fadiga: abaixo de 45 = Recuperado (apto a treino intenso); 45–65 = Moderado (treino normal, evite volume alto); acima de 65 = Fadigado (recomenda-se descanso ou atividade leve). É um índice heurístico deste app (curvas calibradas pelo projeto), não uma métrica clínica validada — use como tendência, não como diagnóstico."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="fadiga-status">—</span>
         </div>
@@ -860,7 +860,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Training Readiness (Garmin)</div>
-            <button class="insight-info-btn" data-info="Score oficial Garmin (0–100) que combina qualidade do sono, HRV, recuperação muscular e histórico de treino. HIGH (>65): pronto para sessão intensa. MODERATE (35–65): treino normal ok. LOW (<35): priorize recuperação. Tempo de recuperação = horas restantes estimadas pelo relógio."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="Score oficial Garmin (0–100) que combina qualidade do sono, HRV, recuperação muscular e histórico de treino. HIGH (>65): pronto para sessão intensa. MODERATE (35–65): treino normal ok. LOW (<35): priorize recuperação. Tempo de recuperação = horas restantes estimadas pelo relógio."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="readiness-level">—</span>
         </div>
@@ -882,7 +882,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Carga de Treino (TSB)</div>
-            <button class="insight-info-btn" data-info="TSB = CTL − ATL. CTL (Fitness) é a carga crônica — média móvel exponencial de ~42 dias; ATL (Fadiga) é a carga aguda — média móvel exponencial de ~7 dias. TSB positivo = descansado; negativo = fatigado. Faixas: acima de +10 = pico de frescor; entre +10 e −5 = equilíbrio (ótimo); −5 a −20 = carregado; abaixo de −20 = sobrecarga."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="TSB = CTL − ATL. CTL (Fitness) é a carga crônica — média móvel exponencial de ~42 dias; ATL (Fadiga) é a carga aguda — média móvel exponencial de ~7 dias. TSB positivo = descansado; negativo = fatigado. Faixas: acima de +10 = pico de frescor; entre +10 e −5 = equilíbrio (ótimo); −5 a −20 = carregado; abaixo de −20 = sobrecarga."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="tss-status">—</span>
         </div>
@@ -902,7 +902,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">% de sono profundo</div>
-            <button class="insight-info-btn" data-info="Percentual do sono que foi sono profundo (sono_deep ÷ sono_total) por noite, nos últimos 30 dias. A faixa ideal costuma ficar entre 13% e 23% do total. O sono profundo é a fase mais ligada à recuperação física."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="Percentual do sono que foi sono profundo (sono_deep ÷ sono_total) por noite, nos últimos 30 dias. A faixa ideal costuma ficar entre 13% e 23% do total. O sono profundo é a fase mais ligada à recuperação física."><i class="fa-solid fa-circle-info"></i></button>
           </div>
         </div>
         <div class="chart-wrap" style="height:200px;"><canvas id="insSleepPctChart"></canvas></div>
@@ -914,7 +914,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Intensidade/kg — últimas 12 semanas</div>
-            <button class="insight-info-btn" data-info="TRIMP (Training Impulse) é a carga de treino — duração × intensidade² (FC média ÷ FC máxima teórica) — normalizada pelo seu peso, para comparar o esforço entre semanas independentemente de variações de peso. Barras verde-limão cheias = semanas com FC registrada; barras esmaecidas com borda cinza = carga majoritariamente estimada pela duração (sem FC); borda âmbar = semana em curso (parcial). A tendência (badge) compara as duas últimas semanas completas."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="TRIMP (Training Impulse) é a carga de treino — duração × intensidade² (FC média ÷ FC máxima teórica) — normalizada pelo seu peso, para comparar o esforço entre semanas independentemente de variações de peso. Barras verde-limão cheias = semanas com FC registrada; barras esmaecidas com borda cinza = carga majoritariamente estimada pela duração (sem FC); borda âmbar = semana em curso (parcial). A tendência (badge) compara as duas últimas semanas completas."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="trimp-trend">—</span>
         </div>
@@ -927,7 +927,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">HRV noturno × média 7 noites</div>
-            <button class="insight-info-btn" data-info="HRV (variabilidade da frequência cardíaca) noturno por noite, com a média móvel de 7 noites. Barras acima da linha indicam boa recuperação; abaixo, possível fadiga, estresse ou início de doença. Leitura do desvio em relação ao seu próprio baseline."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="HRV (variabilidade da frequência cardíaca) noturno por noite, com a média móvel de 7 noites. Barras acima da linha indicam boa recuperação; abaixo, possível fadiga, estresse ou início de doença. Leitura do desvio em relação ao seu próprio baseline."><i class="fa-solid fa-circle-info"></i></button>
           </div>
         </div>
         <div class="chart-wrap" style="height:200px;"><canvas id="insHrvMaChart"></canvas></div>
@@ -939,7 +939,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Custo metabólico (kcal/km)</div>
-            <button class="insight-info-btn" data-info="Eficiência energética: kcal gastas por km percorrido. Quanto menor, mais eficiente. Valores altos podem indicar terreno difícil (muito desnível), fadiga acumulada ou menor condicionamento aeróbico. Cada ponto é uma atividade com calorias registradas (Garmin); compare a tendência ao longo do tempo para medir evolução."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="Eficiência energética: kcal gastas por km percorrido. Quanto menor, mais eficiente. Valores altos podem indicar terreno difícil (muito desnível), fadiga acumulada ou menor condicionamento aeróbico. Cada ponto é uma atividade com calorias registradas (Garmin); compare a tendência ao longo do tempo para medir evolução."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="custo-trend">—</span>
         </div>
@@ -954,7 +954,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Recordes pessoais (Garmin)</div>
-            <button class="insight-info-btn" data-info="Recordes de ciclismo. Badge "Novo!" indica conquistas dos últimos 30 dias. Mostra: maior elevação e maior distância numa semana (soma dos pedais da semana), melhor VO2máx estimado (histórico de corrida medido pelo Garmin), maior distância num pedal, 40 km mais rápido pedalando e maior elevação num pedal."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="Recordes de ciclismo. Badge "Novo!" indica conquistas dos últimos 30 dias. Mostra: maior elevação e maior distância numa semana (soma dos pedais da semana), melhor VO2máx estimado (histórico de corrida medido pelo Garmin), maior distância num pedal, 40 km mais rápido pedalando e maior elevação num pedal."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <span class="insight-badge" id="prs-count">—</span>
         </div>
@@ -967,7 +967,7 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label">Hill Score + Endurance Score (Garmin)</div>
-            <button class="insight-info-btn" data-info="Scores Garmin calculados a partir do histórico de treinos. Endurance Score mede resistência aeróbica geral (volume e intensidade ao longo do tempo). Hill Score mede capacidade em subidas (potência relativa em percursos com desnível). Ambos crescem gradualmente com treino consistente."><i class="fa-solid fa-circle-info"></i></button>
+            <button class="insight-info-btn" aria-label="Mais informações" data-info="Scores Garmin calculados a partir do histórico de treinos. Endurance Score mede resistência aeróbica geral (volume e intensidade ao longo do tempo). Hill Score mede capacidade em subidas (potência relativa em percursos com desnível). Ambos crescem gradualmente com treino consistente."><i class="fa-solid fa-circle-info"></i></button>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
             <button class="score-guide-link" id="btn-endurance-guide" type="button" hidden><i class="fa-solid fa-book-open"></i> Guia score</button>
@@ -1558,41 +1558,41 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.9.4"></script>
-<script src="js/utils.js?v=2.9.4"></script>
+<script src="js/version.js?v=2.9.5"></script>
+<script src="js/utils.js?v=2.9.5"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.9.4"></script>
-<script src="js/core/activity-stats.js?v=2.9.4"></script>
-<script src="js/core/weight-stats.js?v=2.9.4"></script>
-<script src="js/core/fatigue.js?v=2.9.4"></script>
-<script src="js/core/records.js?v=2.9.4"></script>
-<script src="js/core/weather-rating.js?v=2.9.4"></script>
-<script src="js/router.js?v=2.9.4"></script>
-<script src="js/defaults.js?v=2.9.4"></script>
-<script src="js/api.js?v=2.9.4"></script>
-<script src="js/storage.js?v=2.9.4"></script>
-<script src="js/profile.js?v=2.9.4"></script>
-<script src="js/charts.js?v=2.9.4"></script>
-<script src="js/modals.js?v=2.9.4"></script>
-<script src="js/workouts.js?v=2.9.4"></script>
-<script src="js/rides.js?v=2.9.4"></script>
-<script src="js/bikes.js?v=2.9.4"></script>
-<script src="js/training-log.js?v=2.9.4"></script>
-<script src="js/home-workout.js?v=2.9.4"></script>
-<script src="js/backup.js?v=2.9.4"></script>
-<script src="js/gpx.js?v=2.9.4"></script>
-<script src="js/routes.js?v=2.9.4"></script>
-<script src="js/heatmap.js?v=2.9.4"></script>
-<script src="js/strava.js?v=2.9.4"></script>
-<script src="js/garmin.js?v=2.9.4"></script>
-<script src="js/activities.js?v=2.9.4"></script>
-<script src="js/insights.js?v=2.9.4"></script>
-<script src="js/testes.js?v=2.9.4"></script>
-<script src="js/ferramentas.js?v=2.9.4"></script>
-<script src="js/home.js?v=2.9.4"></script>
-<script src="js/notifications.js?v=2.9.4"></script>
-<script src="js/app.js?v=2.9.4"></script>
-<script src="js/pwa.js?v=2.9.4"></script>
+<script src="js/core/metrics.js?v=2.9.5"></script>
+<script src="js/core/activity-stats.js?v=2.9.5"></script>
+<script src="js/core/weight-stats.js?v=2.9.5"></script>
+<script src="js/core/fatigue.js?v=2.9.5"></script>
+<script src="js/core/records.js?v=2.9.5"></script>
+<script src="js/core/weather-rating.js?v=2.9.5"></script>
+<script src="js/router.js?v=2.9.5"></script>
+<script src="js/defaults.js?v=2.9.5"></script>
+<script src="js/api.js?v=2.9.5"></script>
+<script src="js/storage.js?v=2.9.5"></script>
+<script src="js/profile.js?v=2.9.5"></script>
+<script src="js/charts.js?v=2.9.5"></script>
+<script src="js/modals.js?v=2.9.5"></script>
+<script src="js/workouts.js?v=2.9.5"></script>
+<script src="js/rides.js?v=2.9.5"></script>
+<script src="js/bikes.js?v=2.9.5"></script>
+<script src="js/training-log.js?v=2.9.5"></script>
+<script src="js/home-workout.js?v=2.9.5"></script>
+<script src="js/backup.js?v=2.9.5"></script>
+<script src="js/gpx.js?v=2.9.5"></script>
+<script src="js/routes.js?v=2.9.5"></script>
+<script src="js/heatmap.js?v=2.9.5"></script>
+<script src="js/strava.js?v=2.9.5"></script>
+<script src="js/garmin.js?v=2.9.5"></script>
+<script src="js/activities.js?v=2.9.5"></script>
+<script src="js/insights.js?v=2.9.5"></script>
+<script src="js/testes.js?v=2.9.5"></script>
+<script src="js/ferramentas.js?v=2.9.5"></script>
+<script src="js/home.js?v=2.9.5"></script>
+<script src="js/notifications.js?v=2.9.5"></script>
+<script src="js/app.js?v=2.9.5"></script>
+<script src="js/pwa.js?v=2.9.5"></script>
 
 </body>
 </html>
