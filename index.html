@@ -19,13 +19,13 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.9.5"></script>
+  <script src="js/variant.js?v=2.9.6"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.5">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.5">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.5">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.5">
-  <link rel="manifest" href="manifest.json?v=2.9.5">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.6">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.6">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.6">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.6">
+  <link rel="manifest" href="manifest.json?v=2.9.6">
 
   <title>VELOCE LABS</title>
 
@@ -44,11 +44,11 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.9.5">
-  <link rel="stylesheet" href="css/rides.css?v=2.9.5">
-  <link rel="stylesheet" href="css/routes.css?v=2.9.5">
-  <link rel="stylesheet" href="css/bikes.css?v=2.9.5">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.5">
+  <link rel="stylesheet" href="css/style.css?v=2.9.6">
+  <link rel="stylesheet" href="css/rides.css?v=2.9.6">
+  <link rel="stylesheet" href="css/routes.css?v=2.9.6">
+  <link rel="stylesheet" href="css/bikes.css?v=2.9.6">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.6">
 </head>
 <body>
 
@@ -1084,8 +1084,17 @@
             <div class="field">
               <label>Largura do pneu — <span id="psi-width-val" style="color:var(--teal)">28</span> mm</label>
               <input type="range" id="psi-width" min="18" max="70" value="28" oninput="document.getElementById('psi-width-val').textContent=this.value">
-              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700;letter-spacing:.06em">
-                <span>18mm speed</span><span>28mm road</span><span>40mm gravel</span><span>70mm MTB</span>
+              <div style="position:relative;height:12px;margin-top:4px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em">
+                <span style="position:absolute;left:0%">18mm</span>
+                <span class="psi-tick-28" style="position:absolute;left:19.2%;transform:translateX(-50%)">28mm</span>
+                <span style="position:absolute;left:42.3%;transform:translateX(-50%)">40mm</span>
+                <span style="position:absolute;right:0%">70mm</span>
+              </div>
+              <div style="position:relative;height:11px;margin-top:2px;font-size:9px;color:var(--muted);letter-spacing:.04em">
+                <span style="position:absolute;left:0%">speed</span>
+                <span class="psi-tick-28" style="position:absolute;left:19.2%;transform:translateX(-50%)">road</span>
+                <span style="position:absolute;left:42.3%;transform:translateX(-50%)">gravel</span>
+                <span style="position:absolute;right:0%">MTB</span>
               </div>
             </div>
 
@@ -1558,41 +1567,41 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.9.5"></script>
-<script src="js/utils.js?v=2.9.5"></script>
+<script src="js/version.js?v=2.9.6"></script>
+<script src="js/utils.js?v=2.9.6"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.9.5"></script>
-<script src="js/core/activity-stats.js?v=2.9.5"></script>
-<script src="js/core/weight-stats.js?v=2.9.5"></script>
-<script src="js/core/fatigue.js?v=2.9.5"></script>
-<script src="js/core/records.js?v=2.9.5"></script>
-<script src="js/core/weather-rating.js?v=2.9.5"></script>
-<script src="js/router.js?v=2.9.5"></script>
-<script src="js/defaults.js?v=2.9.5"></script>
-<script src="js/api.js?v=2.9.5"></script>
-<script src="js/storage.js?v=2.9.5"></script>
-<script src="js/profile.js?v=2.9.5"></script>
-<script src="js/charts.js?v=2.9.5"></script>
-<script src="js/modals.js?v=2.9.5"></script>
-<script src="js/workouts.js?v=2.9.5"></script>
-<script src="js/rides.js?v=2.9.5"></script>
-<script src="js/bikes.js?v=2.9.5"></script>
-<script src="js/training-log.js?v=2.9.5"></script>
-<script src="js/home-workout.js?v=2.9.5"></script>
-<script src="js/backup.js?v=2.9.5"></script>
-<script src="js/gpx.js?v=2.9.5"></script>
-<script src="js/routes.js?v=2.9.5"></script>
-<script src="js/heatmap.js?v=2.9.5"></script>
-<script src="js/strava.js?v=2.9.5"></script>
-<script src="js/garmin.js?v=2.9.5"></script>
-<script src="js/activities.js?v=2.9.5"></script>
-<script src="js/insights.js?v=2.9.5"></script>
-<script src="js/testes.js?v=2.9.5"></script>
-<script src="js/ferramentas.js?v=2.9.5"></script>
-<script src="js/home.js?v=2.9.5"></script>
-<script src="js/notifications.js?v=2.9.5"></script>
-<script src="js/app.js?v=2.9.5"></script>
-<script src="js/pwa.js?v=2.9.5"></script>
+<script src="js/core/metrics.js?v=2.9.6"></script>
+<script src="js/core/activity-stats.js?v=2.9.6"></script>
+<script src="js/core/weight-stats.js?v=2.9.6"></script>
+<script src="js/core/fatigue.js?v=2.9.6"></script>
+<script src="js/core/records.js?v=2.9.6"></script>
+<script src="js/core/weather-rating.js?v=2.9.6"></script>
+<script src="js/router.js?v=2.9.6"></script>
+<script src="js/defaults.js?v=2.9.6"></script>
+<script src="js/api.js?v=2.9.6"></script>
+<script src="js/storage.js?v=2.9.6"></script>
+<script src="js/profile.js?v=2.9.6"></script>
+<script src="js/charts.js?v=2.9.6"></script>
+<script src="js/modals.js?v=2.9.6"></script>
+<script src="js/workouts.js?v=2.9.6"></script>
+<script src="js/rides.js?v=2.9.6"></script>
+<script src="js/bikes.js?v=2.9.6"></script>
+<script src="js/training-log.js?v=2.9.6"></script>
+<script src="js/home-workout.js?v=2.9.6"></script>
+<script src="js/backup.js?v=2.9.6"></script>
+<script src="js/gpx.js?v=2.9.6"></script>
+<script src="js/routes.js?v=2.9.6"></script>
+<script src="js/heatmap.js?v=2.9.6"></script>
+<script src="js/strava.js?v=2.9.6"></script>
+<script src="js/garmin.js?v=2.9.6"></script>
+<script src="js/activities.js?v=2.9.6"></script>
+<script src="js/insights.js?v=2.9.6"></script>
+<script src="js/testes.js?v=2.9.6"></script>
+<script src="js/ferramentas.js?v=2.9.6"></script>
+<script src="js/home.js?v=2.9.6"></script>
+<script src="js/notifications.js?v=2.9.6"></script>
+<script src="js/app.js?v=2.9.6"></script>
+<script src="js/pwa.js?v=2.9.6"></script>
 
 </body>
 </html>

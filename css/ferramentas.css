@@ -8,6 +8,12 @@
 #ferramentas input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--teal);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 0 1px var(--teal)}
 #ferramentas input[type=range]:focus{outline:none}
 
+/* Tela estreita: só início/meio/fim no slider de largura do pneu (28mm/road
+   colide com 18mm/speed nesse tamanho — ver treino_bike_docs/corrigir/) */
+@media (max-width: 480px) {
+  #ferramentas .psi-tick-28 { display: none; }
+}
+
 #ferramentas .btn-calc{display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:var(--bg);border:none;border-radius:9px;padding:12px 22px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.05em;cursor:pointer;transition:opacity .15s}
 #ferramentas .btn-calc:hover{opacity:.88}
 
