@@ -203,7 +203,7 @@ async function syncGarminWeights(db, log) {
 // uso das APIs e a integracao passou a responder 403 (Application Inactive).
 // A tentativa a cada 30 min so acumulava ruido no log (330 erros em uma semana)
 // sem tocar em dado nenhum. A Garmin atende o projeto; migrar o Strava para o
-// modelo novo esta no ROADMAP.md como evolutiva futura, sem previsao.
+// modelo novo esta no treino_bike_docs/ROADMAP.md como evolutiva futura, sem previsao.
 // Para religar sem mexer no codigo: STRAVA_AUTO_SYNC=on no server/.env.
 // A rota MANUAL (POST /api/strava/sync) continua ativa de proposito — serve
 // para testar quando a migracao acontecer.

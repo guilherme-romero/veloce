@@ -11,6 +11,24 @@ estimado: **baixo** / **médio** / **alto**.
 
 ---
 
+## PageSpeed/privacidade — login.html (2026-09-23, v2.9.4)
+
+Login.html saiu do Font Awesome/Google Fonts via CDN (SVGs inline + fontes self-hosted em
+`css/fonts/`), ganhou `noindex`/`robots.txt` e CSP sem `'unsafe-inline'`. PageSpeed Insights real
+(mobile, produção): Desempenho 94, Acessibilidade 96, Boas Práticas 96, SEO 100 — medido **antes**
+do deploy destas mudanças (achados batiam exatamente com o que foi corrigido: render-blocking de
+CDN, CSS não usado do Font Awesome).
+
+- **`index.html`/`mobile.html` continuam no Font Awesome + Google Fonts via CDN** — esforço
+  **médio/alto**: usam dezenas de ícones pela nav e seções (ao contrário do login, que usava só
+  4), então trocar por SVG inline é um refactor de superfície bem maior. Fica registrado como
+  possível próxima onda, não como pendência da mudança do login.
+- **Preload das fontes self-hosted** — esforço **baixo**: `<link rel="preload" as="font" ...>` em
+  `login.html` para as duas fontes de `css/fonts/` eliminaria o flash de fonte e ganharia pontos
+  de LCP. Incremental, não bloqueante.
+
+---
+
 ## FASE 25 — auditoria da UI mobile (2026-09-03, v2.9.0)
 
 Subagents `revisor-seguranca` e `revisor-performance` sobre `mobile.html`, `js/mobile/*`,

@@ -115,7 +115,7 @@
      min velho num universo onde ele ja nasce ate 30 min velho.
 
      As views que ja tinham guarda (Atividades, Perfil, clima) seguem com o
-     padrao antigo; migra-las esta registrado em MELHORIAS.md. */
+     padrao antigo; migra-las esta registrado em treino_bike_docs/MELHORIAS.md. */
 
   const TTL_DADOS = 5 * 60 * 1000;
   const _cache = new Map();   // chave -> { p: Promise, ts: number }

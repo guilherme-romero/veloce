@@ -8,7 +8,7 @@ Se houver arquivos JS modificados em `js/` ou `server/routes/`, rode `node -c <a
 
 Se houver mudanças em `server/package.json` ou `server/package-lock.json`, rode `cd server && npm install` para garantir dependências atualizadas.
 
-**Não há lint, build ou testes automatizados** — validação é manual via navegador (por design do projeto, conforme CLAUDE.md).
+**Não há lint, build ou testes automatizados** — validação é manual via navegador (por design do projeto, conforme treino_bike_docs/CLAUDE.md).
 
 Se algo na validação falhar, pare aqui e reporte o erro antes de prosseguir.
 
@@ -30,7 +30,7 @@ Antes de commitar, rode a rotina de revisão sobre **o que mudou** (não o proje
   **`orientacao-nutricional`** para checar constantes/faixas seguras.
 
 Consolide os achados: **verifique** cada item CRÍTICO/IMPORTANTE lendo o código antes de aceitar,
-corrija o que for barato agora e **registre o restante** em `BUGS.md` (bugs) e `MELHORIAS.md`
+corrija o que for barato agora e **registre o restante** em `treino_bike_docs/BUGS.md` (bugs) e `treino_bike_docs/MELHORIAS.md`
 (melhorias), preservando o formato desses arquivos. Não bloqueie o deploy por MENORES/nitpicks —
 apenas registre-os.
 

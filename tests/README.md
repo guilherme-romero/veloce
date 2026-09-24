@@ -31,7 +31,7 @@ que parece regressão e é só sessão expirada. O `run-all.js` faz login novo a
 | `desktop.js` | Fumaça da variante desktop; existe porque vários fixes tocam `js/app.js` e `js/core/`, compartilhados |
 | `pwa.js` | Service worker, pré-cache do `SHELL`, fallback offline por variante, cache de dados e logout |
 
-Vários testes afirmam o comportamento **corrigido** de um `BUG-NNN` (ver `BUGS.md`): se um deles
+Vários testes afirmam o comportamento **corrigido** de um `BUG-NNN` (ver `treino_bike_docs/BUGS.md`): se um deles
 regredir, a suíte falha nominalmente. Um teste que ainda afirme um bug como *aberto* diz isso no
 próprio nome, para falhar e cobrar atualização quando for corrigido.
 

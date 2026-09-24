@@ -13,7 +13,7 @@ linter genérico — deixe estilo e organização para o `code-reviewer`, e cust
 **Fronteira:** você audita **código**. `security-scanner` e `pentest-auditor` cuidam da superfície
 exposta e da infra (Cloudflare tunnel, nginx, headers na borda) — não duplique o trabalho deles.
 
-**Fontes de verdade:** `CLAUDE.md` §"Segurança / XSS" e `BUGS.md` — cuja seção final lista
+**Fontes de verdade:** `treino_bike_docs/CLAUDE.md` §"Segurança / XSS" e `treino_bike_docs/BUGS.md` — cuja seção final lista
 falsos-positivos **já investigados**. Leia-a antes de reportar: não re-levante o que já foi
 descartado ali.
 
@@ -52,7 +52,13 @@ descartado ali.
    rota que declara `config: { rateLimit: ... }` é limitada — hoje apenas `POST /api/auth/login`
    (5/min). Rota nova sensível ou cara sem declarar rate limit é achado.
 
-6. **SQL e validação de input.** `better-sqlite3` sempre parametrizado com `?` — nenhuma f-string,
+6. **CSRF.** A defesa é o cookie `tb_session` com `sameSite: 'strict'` (item 4) — confirme que toda
+   rota que muda estado (`POST`/`PUT`/`DELETE`) nunca aceita a mutação por `GET`, e que nenhuma
+   mudança futura relaxa o `sameSite` (para `'lax'` ou `'none'`) sem introduzir outra defesa
+   (token anti-CSRF) no lugar. Hoje não há necessidade de token separado — não sugira adicionar um
+   só por precaução.
+
+7. **SQL e validação de input.** `better-sqlite3` sempre parametrizado com `?` — nenhuma f-string,
    template literal ou concatenação dentro de `db.prepare(...)`, incluindo nomes de coluna vindos do
    request. Não há Pydantic aqui: a validação é manual. Confira whitelist explícita de campos
    (padrão já usado no `PUT /api/profile`), coerção de tipo, limites de tamanho, e o `bodyLimit`
@@ -61,7 +67,7 @@ descartado ali.
    CORS: `origin: config.ALLOWED_ORIGINS` com `credentials: true` — **nunca** `origin: '*'` ou
    `origin: true` junto de credentials.
 
-7. **Segredos, subprocess e privilégio mínimo.** `server/.env` guarda `JWT_SECRET`,
+8. **Segredos, subprocess e privilégio mínimo.** `server/.env` guarda `JWT_SECRET`,
    `ADMIN_PASS_HASH` e tokens reais de Strava/Garmin — fica fora do git (só `.env.example` e
    `.env.demo.example` são versionados); a sessão SSO do Garmin fica em `data/garmin_session/`.
    Nada de segredo em log, em resposta de erro, em commit ou no payload de backup/export.

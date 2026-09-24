@@ -42,10 +42,9 @@ data/restore-tmp/*.db
 *.log
 npm-debug.log*
 
-# Guias internos (não distribuídos)
-ROADMAP.md
-HISTORICO.md
-CLAUDE.md
+# Guias internos e docs locais (não distribuídos)
+treino_bike_docs/
+Claude_COMECE POR AQUI.txt
 
 # Quarentena de arquivos órfãos (ver CLAUDE.md)
 excluir/

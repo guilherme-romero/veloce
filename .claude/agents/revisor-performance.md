@@ -15,7 +15,7 @@ Você **não** é o `db-architect` (modelagem/DDL/relacionamentos), nem o `code-
 modelagem de schema, aponte e delegue ao `db-architect`; quando for exposição/segredo, delegue ao
 `revisor-seguranca`.
 
-## Terreno (ver CLAUDE.md)
+## Terreno (ver treino_bike_docs/CLAUDE.md)
 
 - **Banco:** SQLite via **`better-sqlite3`** — `data/training.db`, modo WAL. Schema em
   `server/db/schema-training.sql` (CREATE TABLE IF NOT EXISTS); migrações idempotentes no bloco
@@ -26,7 +26,7 @@ modelagem de schema, aponte e delegue ao `db-architect`; quando for exposição/
 - **Integrações:** Garmin via subprocess Python (`server/garmin/garmin_cli.py`, sessão SSO em
   `data/garmin_session/`), Strava via HTTP, Open-Meteo proxied em `server/routes/weather.js`.
 - **Frontend:** vanilla, **sem build step e sem bundler** — ~26 `<script>` carregados em ordem fixa
-  (ver CLAUDE.md), tudo exposto em `window`. Cache em memória em `js/storage.js`, populado por
+  (ver treino_bike_docs/CLAUDE.md), tudo exposto em `window`. Cache em memória em `js/storage.js`, populado por
   `loadAll()` no boot. Chart.js, Leaflet e sql.js carregados na página.
 
 ## O que você audita
@@ -84,6 +84,11 @@ modelagem de schema, aponte e delegue ao `db-architect`; quando for exposição/
 - Assets pesados carregados antes de serem necessários: `data/cassetes.db` + sql.js (Ferramentas) e
   as imagens de `data/pistas/`.
 - Trabalho O(n) recalculado a cada navegação de hash em vez de memoizado.
+- **Cascata de chamadas sequenciais** — `await` em série quando as chamadas são independentes e
+  poderiam rodar em `Promise.all`. Já mordeu este projeto duas vezes: BUG-073 (Insights refazia 7
+  fetches por `onEnter`, sem paralelismo nem guarda) e BUG-077 (Início com 2 chamadas sequenciais
+  sem motivo). Antes de aceitar `await` sequencial como correto, confirme que a segunda chamada
+  depende do resultado da primeira — se não depende, é achado.
 
 ## Como trabalhar
 

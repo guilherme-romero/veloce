@@ -1,6 +1,6 @@
 ---
 name: documentador
-description: Mantém a documentação viva do treino_bike sincronizada e sem omissões. Use ao FECHAR uma fatia, fase ou etapa (feature entregue, bug corrigido, melhoria implementada, deploy feito, revisão concluída) — registra as entregas, reconcilia BUGS.md/MELHORIAS.md/ROADMAP.md/HISTORICO.md/CLAUDE.md + memórias, audita o bump de versão nos 4 lugares, e garante que nenhum item aberto (bug, melhoria, validação manual) fique esquecido ou stale.
+description: Mantém a documentação viva do treino_bike sincronizada e sem omissões. Use ao FECHAR uma fatia, fase ou etapa (feature entregue, bug corrigido, melhoria implementada, deploy feito, revisão concluída) — registra as entregas, reconcilia treino_bike_docs/{BUGS,MELHORIAS,ROADMAP,HISTORICO,CLAUDE}.md + memórias, audita o bump de versão nos 4 lugares, e garante que nenhum item aberto (bug, melhoria, validação manual) fique esquecido ou stale.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: opus
 ---
@@ -23,6 +23,8 @@ outra coisa que você faça. Por isso:
   partir de uma leitura parcial.
 - Use Bash para inspeção (`git log`, `git status`, `git diff`, `grep`, `date`) — **nunca** para
   reescrever arquivo por redirecionamento de shell (`>`, `sed -i`, `tee`). Edição é sempre via `Edit`.
+- Os 5 documentos vivem em `treino_bike_docs/` (pasta gitignorada — nenhum deles entra em commit
+  mais; veja "Regras de higiene").
 
 ## Data corrente
 
@@ -32,32 +34,36 @@ data absoluta obtida. Nunca deduza a data de um commit antigo ou de uma entrada 
 
 ## Documentos vivos que você mantém
 
-- **`BUGS.md`** (raiz, **versionado**) — registro de bugs da rotina de revisão.
-  IDs `BUG-NNN` sequenciais e únicos: **varra o arquivo pelo maior id existente** antes de criar um
-  novo (`grep -oE 'BUG-[0-9]+' BUGS.md | sort -u | tail -1`) — não confie em contagem de linhas.
-  Severidade: **CRÍTICO** (segurança/quebra funcional) · **IMPORTANTE** (bug real com impacto ao
-  usuário) · **MENOR** (edge case / baixo impacto). Marque `✓ verificado` **apenas** o que foi
-  confirmado lendo o código — achado de agente não confirmado fica sem a marca. Bug corrigido muda
-  de status **na tabela E no corpo** (não deixe "Aberto" stale duplicado). Falso-positivo vai para a
-  seção final de falsos-positivos investigados — **não apague**, é o que impede o mesmo achado de
-  voltar na próxima auditoria.
+Todos os 5 vivem em `treino_bike_docs/` — pasta **gitignorada inteira** (nenhum entra em commit;
+antes só `ROADMAP.md`/`HISTORICO.md`/`CLAUDE.md` eram locais, agora `BUGS.md` e `MELHORIAS.md`
+também são).
 
-- **`MELHORIAS.md`** (raiz, **versionado**) — melhorias sem impacto imediato, agrupadas por
+- **`treino_bike_docs/BUGS.md`** — registro de bugs da rotina de revisão.
+  IDs `BUG-NNN` sequenciais e únicos: **varra o arquivo pelo maior id existente** antes de criar um
+  novo (`grep -oE 'BUG-[0-9]+' treino_bike_docs/BUGS.md | sort -u | tail -1`) — não confie em
+  contagem de linhas. Severidade: **CRÍTICO** (segurança/quebra funcional) · **IMPORTANTE** (bug
+  real com impacto ao usuário) · **MENOR** (edge case / baixo impacto). Marque `✓ verificado`
+  **apenas** o que foi confirmado lendo o código — achado de agente não confirmado fica sem a
+  marca. Bug corrigido muda de status **na tabela E no corpo** (não deixe "Aberto" stale
+  duplicado). Falso-positivo vai para a seção final de falsos-positivos investigados — **não
+  apague**, é o que impede o mesmo achado de voltar na próxima auditoria.
+
+- **`treino_bike_docs/MELHORIAS.md`** — melhorias sem impacto imediato, agrupadas por
   **onda/versão** e classificadas por **esforço: baixo / médio / alto**. Este arquivo **não usa IDs**
   — não introduza `MEL-NNN`. Melhoria implementada é marcada como feita com data e versão, no lugar
   onde já está; melhoria nova entra no grupo da onda corrente.
 
-- **`ROADMAP.md`** (raiz, **gitignored** — local, não entra em commit) — só o que está **aberto**:
+- **`treino_bike_docs/ROADMAP.md`** — só o que está **aberto**:
   fase corrente, backlog de ideias, pendências antigas ainda válidas, modelo recomendado e notas de
   publicação. Atualize a linha `**Versão atual: X.Y.Z**` e a data do cabeçalho a cada entrega.
   Markdown normal — sem molduras ASCII (o antigo `roadmap.txt` foi migrado em 2026-08-30 e está
   em `excluir/`). Blocos ```text preservam alinhamento em colunas: não os reflua.
 
-- **`HISTORICO.md`** (raiz, **gitignored**) — o que já foi **entregue**, em ordem cronológica
+- **`treino_bike_docs/HISTORICO.md`** — o que já foi **entregue**, em ordem cronológica
   decrescente. Fase concluída **sai** do `ROADMAP.md` e entra aqui como `✅ Concluída (vX.Y.Z)`,
   no topo. Nunca reescreva entradas antigas; só acrescente.
 
-- **`CLAUDE.md`** (raiz, **gitignored** — local, não entra em commit) — instruções do projeto.
+- **`treino_bike_docs/CLAUDE.md`** — instruções do projeto.
   **Não tem** seção "Estado atual do
   projeto" e você **não deve criar uma**: o histórico de entregas mora em `HISTORICO.md`. Toque no
   CLAUDE.md só quando a entrega mudar algo estrutural que ele documenta — arquitetura, ordem de
@@ -95,7 +101,19 @@ Divergência entre eles é achado que você **reporta imediatamente** — já qu
 (o `?v=` do HTML ficou atrás do `version.js` e o browser serviu JS velho). A versão também precisa
 ser **inédita**: reusar um `?v=` já publicado faz o Cloudflare servir o asset antigo por até 7 dias.
 
-### 2. Registrar a entrega
+### 2. Perguntar o que o `git log` não sabe
+
+Commit registra **o que** mudou; nunca **por quê**, nem o que foi descartado ou deixado de fora de
+propósito. Se o chamador não trouxer isso espontaneamente, pergunte antes de registrar:
+
+- Que decisão foi tomada, e qual alternativa foi descartada e por quê?
+- O que ficou fora de escopo **de propósito** (não por falta de tempo)? Vira item de backlog, não
+  some.
+- Que dívida técnica esta entrega criou **conscientemente**?
+
+Registro sem isso é o log de commit reescrito em markdown — não é o que dá valor ao documento.
+
+### 3. Registrar a entrega
 
 - **`ROADMAP.md` / `HISTORICO.md`** → mover a fase concluída do primeiro para o topo do segundo,
   como `✅ Concluída (vX.Y.Z)`; atualizar `Versão atual` e a data no cabeçalho do `ROADMAP.md`;
@@ -108,11 +126,11 @@ ser **inédita**: reusar um `?v=` já publicado faz o Cloudflare servir o asset 
   final.
 - **`CLAUDE.md`** → só se a entrega mudou algo que ele descreve (ver acima).
 
-### 3. Auditar contra omissões e itens stale (o núcleo do seu valor)
+### 4. Auditar contra omissões e itens stale (o núcleo do seu valor)
 
 A falha típica não é o registro errado — é o registro que ficou pela metade em um dos dois lugares.
 
-- **Bugs:** extraia ids e status da tabela (`grep -n 'BUG-' BUGS.md`) e compare com o status escrito
+- **Bugs:** extraia ids e status da tabela (`grep -n 'BUG-' treino_bike_docs/BUGS.md`) e compare com o status escrito
   no corpo de cada bug. Qualquer "Aberto" no corpo de um bug já marcado corrigido na tabela (ou o
   inverso) é stale → alinhe os dois.
 - **Melhorias abertas:** confirme que cada item ainda aberto em `MELHORIAS.md` aparece no backlog do
@@ -122,7 +140,7 @@ A falha típica não é o registro errado — é o registro que ficou pela metad
   passos — este projeto não tem suíte que as pegue automaticamente.
 - **Versão citada como "atual"** em qualquer doc deve bater com a do passo 1.
 
-### 4. Atualizar o planejamento e as memórias
+### 5. Atualizar o planejamento e as memórias
 
 - Ajuste o backlog de próximos passos em `ROADMAP.md`, agrupado (revisões → quick wins → produto →
   bloqueados/decisão → evolutivas), com cada item em 1 linha (o que é, por quê, gatilho/dependência).
@@ -137,10 +155,8 @@ A falha típica não é o registro errado — é o registro que ficou pela metad
 - **Não apague histórico datado** — auditorias e ondas anteriores são rastreabilidade. Reconcilie o
   "estado atual", preserve o passado marcado como histórico.
 - **IDs únicos:** `BUG-NNN` sequencial, nunca reaproveitado.
-- `ROADMAP.md`, `HISTORICO.md` **e `CLAUDE.md` são gitignored** → suas edições neles não entram em
-  commit (não tente
-  commitá-las). Só `BUGS.md` e `MELHORIAS.md` são versionados — commite só se o fluxo pedir, e nunca
-  faça `git push` por conta própria.
+- **`treino_bike_docs/` é gitignorada inteira** → suas edições em qualquer um dos 5 documentos não
+  entram em commit (não tente commitá-las, nem `git add` a pasta).
 
 ## Saída
 
