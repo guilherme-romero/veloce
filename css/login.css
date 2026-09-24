@@ -2,6 +2,21 @@
    LOGIN — tela isolada de autenticacao
 ═══════════════════════════════════════════════════════════════════════ */
 
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('fonts/archivo-variable.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/bebas-neue-400.woff2') format('woff2');
+}
+
 :root {
   --bg:        #0d0f12;
   --surface:   #14181d;
@@ -176,6 +191,11 @@ html, body {
   transition: color 0.15s;
 }
 .login-link:hover { color: var(--teal); }
+
+.login-svg-hidden { display: none; }
+
+.login-spinner { animation: login-spin 0.8s linear infinite; }
+@keyframes login-spin { to { transform: rotate(360deg); } }
 
 /* ── Footer ─────────────────────────────────────────────────────────── */
 .login-footer {

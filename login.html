@@ -5,32 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0c0d10">
   <meta name="description" content="Login do VELOCE LABS">
+  <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
-             script-src 'self' 'unsafe-inline';
-             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;
-             font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com;
+             script-src 'self';
+             style-src 'self';
+             font-src 'self';
              img-src 'self' data:;
              connect-src 'self';">
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.3">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.3">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.3">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.3">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.4">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.4">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.4">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.4">
   <title>Login · VELOCE LABS</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-
-  <link rel="stylesheet" href="css/login.css?v=2.9.3">
+  <link rel="stylesheet" href="css/login.css?v=2.9.4">
 </head>
 <body>
 
-<div class="login-wrap">
+<main class="login-wrap">
   <div class="login-brand">
-    <div class="login-brand-icon"><i class="fa-solid fa-person-biking"></i></div>
+    <div class="login-brand-icon">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="5.5" cy="17.5" r="3.5"/>
+        <circle cx="18.5" cy="17.5" r="3.5"/>
+        <circle cx="15" cy="5" r="1"/>
+        <path d="M12 17.5V14l-3-3 4-3 2 3h3"/>
+      </svg>
+    </div>
     <div class="login-brand-name">VELOCE LABS</div>
   </div>
 
@@ -47,18 +51,35 @@
         <input id="login-pass" name="pass" class="login-input" type="password"
                autocomplete="current-password" required>
         <button type="button" id="login-toggle-pass" class="login-eye"
-                title="Mostrar/ocultar senha">
-          <i class="fa-solid fa-eye"></i>
+                title="Mostrar/ocultar senha" aria-label="Mostrar/ocultar senha">
+          <svg id="login-eye-open" viewBox="0 0 24 24" width="16" height="16" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round" aria-hidden="true">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg id="login-eye-closed" viewBox="0 0 24 24" width="16" height="16" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round"
+               stroke-linejoin="round" aria-hidden="true" class="login-svg-hidden">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
         </button>
       </div>
     </div>
 
     <button id="login-submit" type="submit" class="login-btn">
       <span class="login-btn-label">Entrar</span>
-      <span class="login-btn-spin" hidden><i class="fa-solid fa-spinner fa-spin"></i></span>
+      <span class="login-btn-spin" hidden>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="3" stroke-linecap="round" aria-hidden="true" class="login-spinner">
+          <circle cx="12" cy="12" r="9" stroke-opacity="0.3"/>
+          <path d="M21 12a9 9 0 0 0-9-9"/>
+        </svg>
+      </span>
     </button>
 
-    <div id="login-error" class="login-error" hidden></div>
+    <div id="login-error" class="login-error" role="alert" aria-live="polite" hidden></div>
 
     <button type="button" id="login-forgot" class="login-link">
       Esqueci minha senha
@@ -68,9 +89,9 @@
   <div class="login-footer">
     <span id="login-version">v?</span> · <span id="login-year">2026</span>
   </div>
-</div>
+</main>
 
-<script src="js/version.js?v=2.9.3"></script>
-<script src="js/login.js?v=2.9.3"></script>
+<script src="js/version.js?v=2.9.4"></script>
+<script src="js/login.js?v=2.9.4"></script>
 </body>
 </html>

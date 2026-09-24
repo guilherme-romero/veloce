@@ -40,12 +40,15 @@
     if (btnSpin) btnSpin.hidden = !busy;
   }
 
+  const eyeOpen   = document.getElementById('login-eye-open');
+  const eyeClosed = document.getElementById('login-eye-closed');
+
   eyeBtn.addEventListener('click', () => {
     const isPass = passEl.type === 'password';
     passEl.type = isPass ? 'text' : 'password';
-    eyeBtn.querySelector('i').className = isPass
-      ? 'fa-solid fa-eye-slash'
-      : 'fa-solid fa-eye';
+    if (eyeOpen)   eyeOpen.classList.toggle('login-svg-hidden', isPass);
+    if (eyeClosed) eyeClosed.classList.toggle('login-svg-hidden', !isPass);
+    eyeBtn.setAttribute('aria-label', isPass ? 'Ocultar senha' : 'Mostrar senha');
   });
 
   forgot.addEventListener('click', () => {
