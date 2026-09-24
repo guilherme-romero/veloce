@@ -129,6 +129,75 @@ const EXCLUDED_GARMIN_TYPES = ['virtual_ride', 'indoor_cycling', 'e_bike_fitness
 // condição do WHERE, então os valores de tipo entram por último no .get/.all).
 const _ph = (arr) => arr.map(() => '?').join(',');
 
+// `db.prepare()` dentro de calcBikeStats* recompilava o SQL a cada chamada —
+// GET /api/bikes chama uma vez por bike. Lazy-init por instância de `db`
+// (WeakMap, sem mudar a assinatura das funções nem os call sites).
+const _stmtCache = new WeakMap();
+function _stmts(db) {
+  let s = _stmtCache.get(db);
+  if (s) return s;
+  s = {
+    stats: {
+      garmin: db.prepare(
+        `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
+                COALESCE(SUM(tempo_mov_s), 0) AS tempo,
+                COALESCE(SUM(elevacao_m),  0) AS elev,
+                COUNT(*) AS n
+         FROM garmin_activities
+         WHERE data_inicio >= ?
+           AND (tipo IS NULL OR tipo NOT IN (${_ph(EXCLUDED_GARMIN_TYPES)}))`),
+      strava: db.prepare(
+        `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
+                COALESCE(SUM(tempo_mov_s), 0) AS tempo,
+                COALESCE(SUM(elevacao_m),  0) AS elev,
+                COUNT(*) AS n
+         FROM strava_activities s
+         LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+         WHERE s.data_inicio >= ?
+           AND l.strava_id IS NULL
+           AND (s.tipo IS NULL OR s.tipo NOT IN (${_ph(EXCLUDED_STRAVA_TYPES)}))`),
+    },
+    statsUpTo: {
+      garmin: db.prepare(
+        `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
+                COALESCE(SUM(tempo_mov_s), 0) AS tempo,
+                COALESCE(SUM(elevacao_m),  0) AS elev,
+                COUNT(*) AS n
+         FROM garmin_activities
+         WHERE data_inicio >= ? AND data_inicio <= ?
+           AND (tipo IS NULL OR tipo NOT IN (${_ph(EXCLUDED_GARMIN_TYPES)}))`),
+      strava: db.prepare(
+        `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
+                COALESCE(SUM(tempo_mov_s), 0) AS tempo,
+                COALESCE(SUM(elevacao_m),  0) AS elev,
+                COUNT(*) AS n
+         FROM strava_activities s
+         LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+         WHERE s.data_inicio >= ? AND s.data_inicio <= ?
+           AND l.strava_id IS NULL
+           AND (s.tipo IS NULL OR s.tipo NOT IN (${_ph(EXCLUDED_STRAVA_TYPES)}))`),
+    },
+    detailed: {
+      garmin: db.prepare(
+        `SELECT distancia_m, tempo_mov_s, elevacao_m, velocidade_avg, velocidade_max,
+                fc_media, fc_max, watts_avg, watts_max, calorias
+         FROM garmin_activities
+         WHERE data_inicio >= ?
+           AND (tipo IS NULL OR tipo NOT IN (${_ph(EXCLUDED_GARMIN_TYPES)}))`),
+      strava: db.prepare(
+        `SELECT s.distancia_m, s.tempo_mov_s, s.elevacao_m, s.velocidade_avg, s.velocidade_max,
+                s.fc_media, s.fc_max, s.watts_avg, NULL AS watts_max, NULL AS calorias
+         FROM strava_activities s
+         LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+         WHERE s.data_inicio >= ?
+           AND l.strava_id IS NULL
+           AND (s.tipo IS NULL OR s.tipo NOT IN (${_ph(EXCLUDED_STRAVA_TYPES)}))`),
+    },
+  };
+  _stmtCache.set(db, s);
+  return s;
+}
+
 // Agrega km + tempo em movimento + ganho de elevação + nº de atividades
 // que a bike acumulou desde active_since (Garmin tem prioridade; Strava só
 // entra quando não há link de dedup). Retorna objeto de stats.
@@ -139,26 +208,9 @@ function calcBikeStats(db, bike) {
   const atvBase   = +(bike.atividades_base || 0);
   const out = { kmTotal: +base.toFixed(1), tempoMovS: tempoBase, elevM: elevBase, atividades: atvBase };
   if (!bike.active_since) return out;
-  const garmin = db.prepare(
-    `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
-            COALESCE(SUM(tempo_mov_s), 0) AS tempo,
-            COALESCE(SUM(elevacao_m),  0) AS elev,
-            COUNT(*) AS n
-     FROM garmin_activities
-     WHERE data_inicio >= ?
-       AND (tipo IS NULL OR tipo NOT IN (${_ph(EXCLUDED_GARMIN_TYPES)}))`
-  ).get(bike.active_since, ...EXCLUDED_GARMIN_TYPES);
-  const strava = db.prepare(
-    `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
-            COALESCE(SUM(tempo_mov_s), 0) AS tempo,
-            COALESCE(SUM(elevacao_m),  0) AS elev,
-            COUNT(*) AS n
-     FROM strava_activities s
-     LEFT JOIN activity_links l ON l.strava_id = s.id_strava
-     WHERE s.data_inicio >= ?
-       AND l.strava_id IS NULL
-       AND (s.tipo IS NULL OR s.tipo NOT IN (${_ph(EXCLUDED_STRAVA_TYPES)}))`
-  ).get(bike.active_since, ...EXCLUDED_STRAVA_TYPES);
+  const stmts = _stmts(db);
+  const garmin = stmts.stats.garmin.get(bike.active_since, ...EXCLUDED_GARMIN_TYPES);
+  const strava = stmts.stats.strava.get(bike.active_since, ...EXCLUDED_STRAVA_TYPES);
   out.kmTotal   = +(base + (garmin.dist + strava.dist) / 1000).toFixed(1);
   out.tempoMovS = tempoBase + (garmin.tempo || 0) + (strava.tempo || 0);
   out.elevM     = elevBase + Math.round((garmin.elev || 0) + (strava.elev || 0));
@@ -181,26 +233,9 @@ function calcBikeStatsUpTo(db, bike, upTo) {
   const atvBase   = +(bike.atividades_base || 0);
   const out = { kmTotal: +base.toFixed(1), tempoMovS: tempoBase, elevM: elevBase, atividades: atvBase };
   if (!bike.active_since) return out;
-  const garmin = db.prepare(
-    `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
-            COALESCE(SUM(tempo_mov_s), 0) AS tempo,
-            COALESCE(SUM(elevacao_m),  0) AS elev,
-            COUNT(*) AS n
-     FROM garmin_activities
-     WHERE data_inicio >= ? AND data_inicio <= ?
-       AND (tipo IS NULL OR tipo NOT IN (${_ph(EXCLUDED_GARMIN_TYPES)}))`
-  ).get(bike.active_since, upTo, ...EXCLUDED_GARMIN_TYPES);
-  const strava = db.prepare(
-    `SELECT COALESCE(SUM(distancia_m), 0) AS dist,
-            COALESCE(SUM(tempo_mov_s), 0) AS tempo,
-            COALESCE(SUM(elevacao_m),  0) AS elev,
-            COUNT(*) AS n
-     FROM strava_activities s
-     LEFT JOIN activity_links l ON l.strava_id = s.id_strava
-     WHERE s.data_inicio >= ? AND s.data_inicio <= ?
-       AND l.strava_id IS NULL
-       AND (s.tipo IS NULL OR s.tipo NOT IN (${_ph(EXCLUDED_STRAVA_TYPES)}))`
-  ).get(bike.active_since, upTo, ...EXCLUDED_STRAVA_TYPES);
+  const stmts = _stmts(db);
+  const garmin = stmts.statsUpTo.garmin.get(bike.active_since, upTo, ...EXCLUDED_GARMIN_TYPES);
+  const strava = stmts.statsUpTo.strava.get(bike.active_since, upTo, ...EXCLUDED_STRAVA_TYPES);
   out.kmTotal    = +(base + (garmin.dist + strava.dist) / 1000).toFixed(1);
   out.tempoMovS  = tempoBase + (garmin.tempo || 0) + (strava.tempo || 0);
   out.elevM      = elevBase + Math.round((garmin.elev || 0) + (strava.elev || 0));
@@ -222,22 +257,9 @@ function calcBikeStatsDetailed(db, bike) {
   };
   if (!bike.active_since) return empty;
 
-  const garmin = db.prepare(
-    `SELECT distancia_m, tempo_mov_s, elevacao_m, velocidade_avg, velocidade_max,
-            fc_media, fc_max, watts_avg, watts_max, calorias
-     FROM garmin_activities
-     WHERE data_inicio >= ?
-       AND (tipo IS NULL OR tipo NOT IN (${_ph(EXCLUDED_GARMIN_TYPES)}))`
-  ).all(bike.active_since, ...EXCLUDED_GARMIN_TYPES);
-  const strava = db.prepare(
-    `SELECT s.distancia_m, s.tempo_mov_s, s.elevacao_m, s.velocidade_avg, s.velocidade_max,
-            s.fc_media, s.fc_max, s.watts_avg, NULL AS watts_max, NULL AS calorias
-     FROM strava_activities s
-     LEFT JOIN activity_links l ON l.strava_id = s.id_strava
-     WHERE s.data_inicio >= ?
-       AND l.strava_id IS NULL
-       AND (s.tipo IS NULL OR s.tipo NOT IN (${_ph(EXCLUDED_STRAVA_TYPES)}))`
-  ).all(bike.active_since, ...EXCLUDED_STRAVA_TYPES);
+  const stmts = _stmts(db);
+  const garmin = stmts.detailed.garmin.all(bike.active_since, ...EXCLUDED_GARMIN_TYPES);
+  const strava = stmts.detailed.strava.all(bike.active_since, ...EXCLUDED_STRAVA_TYPES);
 
   const acts = garmin.concat(strava);
   if (acts.length === 0) return empty;

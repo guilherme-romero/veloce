@@ -15,7 +15,7 @@
   let _all = [];        // todas as atividades carregadas (5 anos, como o desktop)
   let _year = 'all';
   let _chart = null;
-  let _loaded = false;
+  let _yearInited = false;   // default de ano só na 1a carga, não a cada onEnter
 
   const forYear = () => _year === 'all'
     ? _all
@@ -185,28 +185,35 @@
     renderVolume();
   }
 
+  // Mesma janela do desktop: ~5 anos de histórico unificado.
+  async function buscarDados() {
+    const resp = await Api.get('/activities/unified?days=1825');
+    return (resp && resp.items) || [];
+  }
+
   async function load() {
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
     view.innerHTML = skeleton();
 
-    if (!_loaded) {
-      try {
-        // Mesma janela do desktop: ~5 anos de histórico unificado.
-        const resp = await Api.get('/activities/unified?days=1825');
-        _all = (resp && resp.items) || [];
-        _loaded = true;
-        // Default = ano mais recente com dados, como no desktop.
-        const anos = _all.map(a => {
-          const d = ActivityStats.parseLocalDT(a.inicio || a.data);
-          return d && d.getFullYear();
-        }).filter(Boolean);
-        if (anos.length) _year = Math.max(...anos);
-      } catch (e) {
-        console.error('[activities-mobile]', e);
-        view.innerHTML = `<div class="m-empty">Falha ao carregar o histórico.</div>`;
-        return;
-      }
+    try {
+      // Guarda com TTL de 5 min (padrão MShell) — era flag `_loaded` eterna,
+      // que nunca refletia sync novo sem F5.
+      _all = await MShell.cached('atividades', MShell.TTL_DADOS, buscarDados);
+    } catch (e) {
+      console.error('[activities-mobile]', e);
+      view.innerHTML = `<div class="m-empty">Falha ao carregar o histórico.</div>`;
+      return;
+    }
+
+    if (!_yearInited) {
+      _yearInited = true;
+      // Default = ano mais recente com dados, como no desktop.
+      const anos = _all.map(a => {
+        const d = ActivityStats.parseLocalDT(a.inicio || a.data);
+        return d && d.getFullYear();
+      }).filter(Boolean);
+      if (anos.length) _year = Math.max(...anos);
     }
 
     renderChips();

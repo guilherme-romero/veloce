@@ -44,16 +44,36 @@ function buildUrl({ lat, lon, days = 16, includeHourly = false }) {
   return url;
 }
 
+// Cache em módulo por URL (lat/lon já arredondados por quem chama), TTL
+// 30 min — o Open-Meteo atualiza de hora em hora, e sem isso cada F5/aba
+// nova/reabertura do PWA bate de novo no upstream pros MESMOS pontos
+// (São Paulo fixo em /forecast; rotas revisitadas em /point).
+const CACHE_TTL_MS = 30 * 60 * 1000;
+const _cache = new Map();   // url -> { data, ts }
+
 // Lança em caso de falha — o caller decide o status. Evita o antipadrão
 // de escrever no reply dentro de um helper (BUG-011).
 async function fetchOpenMeteo(url) {
+  const hit = _cache.get(url);
+  if (hit && (Date.now() - hit.ts) < CACHE_TTL_MS) return hit.data;
   const resp = await fetch(url);
   if (!resp.ok) {
     const err = new Error(`open-meteo respondeu ${resp.status}`);
     err.upstreamStatus = resp.status;
     throw err;
   }
-  return await resp.json();
+  const data = await resp.json();
+  _cache.set(url, { data, ts: Date.now() });
+  // TTL só bloqueia leitura stale, não remove — sem isto o Map só cresce
+  // (processo de vida longa, o scheduler roda no mesmo processo). Poda
+  // oportunista no escrever, não a cada leitura: barato e nunca deixa
+  // acumular além de ~1 ciclo de TTL de entradas mortas.
+  if (_cache.size > 200) {
+    for (const [k, v] of _cache) {
+      if (Date.now() - v.ts >= CACHE_TTL_MS) _cache.delete(k);
+    }
+  }
+  return data;
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -75,14 +95,19 @@ async function routes(fastify) {
   // ── GET /api/weather/point — coordenadas dinâmicas (Rotas GPX) ────────
   // Query: lat=, lon=, date=YYYY-MM-DD (opcional, retorna o dia específico)
   fastify.get('/api/weather/point', async (req, reply) => {
-    const lat = parseFloat(req.query?.lat);
-    const lon = parseFloat(req.query?.lon);
+    let lat = parseFloat(req.query?.lat);
+    let lon = parseFloat(req.query?.lon);
     if (!isFinite(lat) || !isFinite(lon)) {
       return reply.code(400).send({ error: 'lat/lon obrigatorios' });
     }
     if (Math.abs(lat) > 90 || Math.abs(lon) > 180) {
       return reply.code(400).send({ error: 'lat/lon fora do intervalo' });
     }
+    // Arredonda a ~1km (2 casas) só para a chave de cache/URL upstream — a
+    // previsão do tempo não varia nessa escala, e isso faz pontos próximos
+    // da mesma rota reaproveitarem o cache em vez de gerar uma entrada cada.
+    lat = Math.round(lat * 100) / 100;
+    lon = Math.round(lon * 100) / 100;
     // Valida formato da data antes de bater no upstream (BUG-018)
     const rawDate = req.query?.date ? String(req.query.date).slice(0, 10) : null;
     if (rawDate && !ISO_DATE_RE.test(rawDate)) {

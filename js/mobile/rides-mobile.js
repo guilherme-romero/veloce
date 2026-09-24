@@ -26,11 +26,12 @@
   const WEEKDAY_PT  = WeatherRating.WEEKDAY_PT;
 
   // Cache da previsão com o mesmo TTL do desktop — dados diários mudam
-  // pouco depois das 06h e a tela é revisitada com frequência.
+  // pouco depois das 06h e a tela é revisitada com frequência. Via MShell
+  // (padrão único), mas com TTL próprio: 1h, não os 5 min de MShell.TTL_DADOS.
   const WEATHER_TTL_MS = 60 * 60 * 1000;
-  let _wx = null, _wxTs = 0;
+  let _wx = null;
 
-  let ridesCarregadas = false;
+  let _ridesEverLoaded = false;   // controla só o texto "Carregando…" na 1a visita
   let filtro = 'proximos';
 
   /* ── Helpers ─────────────────────────────────────────────────────── */
@@ -159,12 +160,15 @@
     });
   }
 
+  async function buscarClima() {
+    const daily = await Api.get('/weather/forecast');
+    if (!daily || !daily.time) throw new Error('Resposta inválida');
+    return daily;
+  }
+
   async function loadWeather() {
-    if (_wx && (Date.now() - _wxTs) < WEATHER_TTL_MS) { renderWeather(); return; }
     try {
-      const daily = await Api.get('/weather/forecast');
-      if (!daily || !daily.time) throw new Error('Resposta inválida');
-      _wx = daily; _wxTs = Date.now();
+      _wx = await MShell.cached('passeios-weather', WEATHER_TTL_MS, buscarClima);
     } catch (e) {
       console.warn('[rides-mobile] weather', e);
       _wx = null;
@@ -445,18 +449,22 @@
     renderLista();
   }
 
+  async function carregarRides() {
+    await Storage.load(['rides']);
+  }
+
   async function load() {
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
 
-    if (!ridesCarregadas) {
-      view.innerHTML = '<div class="m-empty">Carregando passeios…</div>';
-      try {
-        await Storage.load(['rides']);
-        ridesCarregadas = true;
-      } catch (e) {
-        console.error('[rides-mobile] rides', e);
-      }
+    if (!_ridesEverLoaded) view.innerHTML = '<div class="m-empty">Carregando passeios…</div>';
+    try {
+      // Guarda com TTL de 5 min (padrão MShell) — era flag eterna, que nunca
+      // refletia sync novo sem F5.
+      await MShell.cached('passeios-rides', MShell.TTL_DADOS, carregarRides);
+      _ridesEverLoaded = true;
+    } catch (e) {
+      console.error('[rides-mobile] rides', e);
     }
     render();
     loadWeather().then(renderLista);   // o ícone do card depende da previsão

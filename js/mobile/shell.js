@@ -114,8 +114,9 @@
      de uma sessao — o caso que queremos matar — e no pior caso serve dado 5
      min velho num universo onde ele ja nasce ate 30 min velho.
 
-     As views que ja tinham guarda (Atividades, Perfil, clima) seguem com o
-     padrao antigo; migra-las esta registrado em treino_bike_docs/MELHORIAS.md. */
+     Atividades, Perfil e o clima de Passeios migraram para este padrão único
+     em 2026-09-24 (antes: flag eterna em Atividades/Perfil, TTL manual
+     próprio no clima) — nenhuma view mobile ficou fora do MShell.cached. */
 
   const TTL_DADOS = 5 * 60 * 1000;
   const _cache = new Map();   // chave -> { p: Promise, ts: number }

@@ -370,8 +370,17 @@ async function routes(fastify) {
   fastify.get('/api/garmin/activities', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);
     const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+    // Colunas explícitas: rowToActivity() não usa polyline/payload/hr_zones.
     const rows = fastify.db
-      .prepare(`SELECT * FROM garmin_activities WHERE data_inicio >= ? ORDER BY inicio_local DESC`)
+      .prepare(`
+        SELECT id_garmin, nome, tipo, data_inicio, inicio_local, distancia_m,
+               tempo_mov_s, tempo_total_s, elevacao_m, fc_media, fc_max,
+               watts_avg, watts_max, cadencia_avg, velocidade_avg, velocidade_max,
+               calorias, device_id, imported_at
+          FROM garmin_activities
+         WHERE data_inicio >= ?
+         ORDER BY inicio_local DESC
+      `)
       .all(cutoff);
     return rows.map(rowToActivity);
   });

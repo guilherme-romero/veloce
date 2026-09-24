@@ -18,7 +18,7 @@
   const { esc, fmtNum } = MShell;
 
   let chart = null;
-  let weightsCarregadas = false;
+  let _everLoaded = false;   // controla só o texto "Carregando…" na 1a visita
   let _gen = 0;
 
   const ZONAS = [
@@ -199,22 +199,24 @@
     renderChart();
   }
 
+  async function carregarPesagens() {
+    await Storage.load(['weights']);
+  }
+
   async function load() {
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
-    // BUG-078: mesmo token de geracao do Insights. Aqui o await so existe na
-    // PRIMEIRA visita (guardado por weightsCarregadas), entao a janela e
-    // estreitissima — o padrao fica igual nos dois para evitar recaida.
+    // BUG-078: mesmo token de geracao do Insights.
     const gen = ++_gen;
 
-    if (!weightsCarregadas) {
-      view.innerHTML = '<div class="m-empty">Carregando pesagens…</div>';
-      try {
-        await Storage.load(['weights']);
-        weightsCarregadas = true;
-      } catch (e) {
-        console.error('[profile-mobile] weights', e);
-      }
+    if (!_everLoaded) view.innerHTML = '<div class="m-empty">Carregando pesagens…</div>';
+    try {
+      // Guarda com TTL de 5 min (padrão MShell) — era flag eterna, que nunca
+      // refletia sync novo sem F5.
+      await MShell.cached('perfil-weights', MShell.TTL_DADOS, carregarPesagens);
+      _everLoaded = true;
+    } catch (e) {
+      console.error('[profile-mobile] weights', e);
     }
     if (gen !== _gen) return;   // saiu da aba durante a carga
     render();

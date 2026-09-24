@@ -1582,7 +1582,10 @@ body.edit-mode .exercise-actions { display: flex; }
   font-weight: 700;
 }
 .source-strava { background: var(--lime-dim); color: var(--lime); }
-.source-garmin { background: var(--magenta-dim); color: var(--magenta); }
+/* BUG-081: --magenta (#ec3a8b) sobre --magenta-dim composto dá só 3.81:1 —
+   abaixo dos 4.5:1 exigidos em texto de 9px. Tom mais claro só aqui, sem
+   mexer no --magenta compartilhado (usado em nav/notificações). ~5:1. */
+.source-garmin { background: var(--magenta-dim); color: #f169a7; }
 
 /* ── Training log: metricas enriquecidas (Fase 4.6a) ─────────────────── */
 .tl-metrics {

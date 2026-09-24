@@ -61,18 +61,31 @@ async function routes(fastify) {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 1825);
     const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
 
+    // Colunas explícitas: garminRow()/stravaRow() descartam polyline/payload/
+    // hr_zones — SELECT * lia ~731 KB por request só pra jogar fora (medido).
     const garmin = fastify.db
-      .prepare(`SELECT * FROM garmin_activities WHERE data_inicio >= ? ORDER BY inicio_local DESC`)
+      .prepare(`
+        SELECT id_garmin, nome, tipo, data_inicio, inicio_local, distancia_m,
+               tempo_mov_s, tempo_total_s, elevacao_m, fc_media, fc_max,
+               velocidade_avg, velocidade_max, watts_avg, watts_max, cadencia_avg,
+               calorias
+          FROM garmin_activities
+         WHERE data_inicio >= ?
+         ORDER BY inicio_local DESC
+      `)
       .all(cutoff)
       .map(garminRow);
 
     // Strava EXCLUINDO os que tem link com Garmin (Garmin vence)
     const strava = fastify.db
       .prepare(`
-        SELECT s.* FROM strava_activities s
-        LEFT JOIN activity_links l ON l.strava_id = s.id_strava
-        WHERE s.data_inicio >= ? AND l.strava_id IS NULL
-        ORDER BY s.inicio_iso DESC
+        SELECT s.id_strava, s.nome, s.tipo, s.data_inicio, s.inicio_iso, s.distancia_m,
+               s.tempo_mov_s, s.tempo_total_s, s.elevacao_m, s.fc_media, s.fc_max,
+               s.velocidade_avg, s.velocidade_max, s.watts_avg, s.cadencia_avg
+          FROM strava_activities s
+          LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+         WHERE s.data_inicio >= ? AND l.strava_id IS NULL
+         ORDER BY s.inicio_iso DESC
       `)
       .all(cutoff)
       .map(stravaRow);
