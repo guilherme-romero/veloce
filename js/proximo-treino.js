@@ -33,7 +33,11 @@
     try {
       const [unified, health, zoneDist] = await Promise.all([
         window.Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
-        window.Api.get('/garmin/health?days=60').catch(() => []),
+        // 104 dias: os 60 originais + margem pro Cruzamento sugestão×execução
+        // (janela de 90 dias, e fatigueIndex olha até 14 dias antes de cada dia
+        // analisado). Não muda o card de Sugestão do dia, que só lê os
+        // primeiros 7-14 itens do array.
+        window.Api.get('/garmin/health?days=104').catch(() => []),
         window.Api.get('/garmin/zone-distribution?days=30').catch(() => null),
       ]);
 
@@ -51,6 +55,8 @@
       if (!sug.ok) {
         empty.hidden = false;
         content.hidden = true;
+        const historicoVazio = $('proximo-treino-historico');
+        if (historicoVazio) { historicoVazio.hidden = true; historicoVazio.textContent = ''; }
         return;
       }
       empty.hidden = true;
@@ -65,11 +71,26 @@
       }
       const msgEl = $('proximo-treino-msg');
       if (msgEl) msgEl.textContent = sug.msg;
+
+      const historico = $('proximo-treino-historico');
+      if (historico) {
+        const hist = window.SuggestionHistory.analyze({ activities, health: healthArr, fcMax, days: 90 });
+        if (hist.ok) {
+          historico.hidden = false;
+          historico.textContent = `Nos últimos ${hist.janelaDias} dias, você seguiu a recomendação de `
+            + `recuperação em ${hist.seguiu} de ${hist.total} ocasiões (${hist.percentual}%).`;
+        } else {
+          historico.hidden = true;
+          historico.textContent = '';
+        }
+      }
     } catch (err) {
       console.error('[proximo-treino]', err);
       empty.textContent = 'Falha ao calcular a sugestão de treino.';
       empty.hidden = false;
       content.hidden = true;
+      const historicoErro = $('proximo-treino-historico');
+      if (historicoErro) { historicoErro.hidden = true; historicoErro.textContent = ''; }
     }
   }
 

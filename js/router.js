@@ -40,7 +40,7 @@
     { slug: 'atividades',      section: 'activities',   navBtn: 'nav-activities',   label: 'Histórico' },
     { slug: 'historico',       section: 'activities',   navBtn: 'nav-activities',   label: 'Histórico' },
     { slug: 'insights',        section: 'insights',     navBtn: 'nav-insights',     label: 'Insights' },
-    { slug: 'proximo-treino',  section: 'proximo-treino', navBtn: 'nav-proximo-treino', label: 'Próximo Treino' },
+    { slug: 'proximo-treino',  section: 'proximo-treino', navBtn: 'nav-proximo-treino', label: 'Desempenho' },
     { slug: 'testes',          section: 'testes',       navBtn: 'nav-testes',       label: 'Testes' },
     { slug: 'ferramentas',     section: 'ferramentas',  navBtn: 'nav-ferramentas',  label: 'Ferramentas' },
     { slug: 'conexoes',        section: 'integrations', navBtn: 'nav-integrations', label: 'Conexões' },

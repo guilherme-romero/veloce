@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.9.8';
+const CACHE_VERSION = 'v2.9.9';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -78,6 +78,7 @@ const SHELL = [
   './js/core/records.js',
   './js/core/weather-rating.js',
   './js/core/training-suggestion.js',
+  './js/core/suggestion-history.js',
   './js/mobile/router-mobile.js',
   './js/mobile/shell.js',
   './js/mobile/home-mobile.js',
