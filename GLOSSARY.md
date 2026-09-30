@@ -35,11 +35,13 @@ Um corte numérico usado por uma Categoria de sugestão ou pelo Cruzamento suges
 em vez de fixo, é recalculado como um percentil do próprio histórico do atleta (janela de 90 dias,
 com fallback para o valor fixo original enquanto há menos de 30 dias de dado). Cacheado por 7 dias
 — um percentil sobre 90 dias de histórico muda devagar, não precisa recalcular a cada abertura da
-seção. Hoje cobre dois números: o corte de "pouco tempo em zona alta" (sinal de zona-alvo) e o
-corte de TSS que classifica um dia como "treinou pesado" (Cruzamento sugestão×execução). O TSB
-(sinal de volume) é a exceção deliberada — ver ADR-0003.
-_Avoid_: limiar fixo (é o oposto: usado só pro TSB e pros valores hardcoded originais antes da
-calibração existir).
+seção. Cobre três números: o corte de "pouco tempo em zona alta" (sinal de zona-alvo), o corte de
+TSS que classifica um dia como "treinou pesado" (Cruzamento sugestão×execução) e o corte de TSB que
+classifica "Sobrecarga" (sinal de volume) — os três recalibrados por percentil do próprio atleta,
+sem exceção (ver ADR-0003, que documenta por que isso vale mesmo o TSB já nascendo relativo ao
+próprio histórico de carga).
+_Avoid_: limiar fixo (é o oposto: usado só pros valores hardcoded originais, antes da calibração
+existir, e como fallback enquanto há pouco histórico).
 
 **Cruzamento sugestão×execução**:
 Comparação retrospectiva entre a Sugestão de Treino que teria aparecido num dia passado e o que o
