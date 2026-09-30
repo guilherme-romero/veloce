@@ -60,6 +60,7 @@ fastify.register(require('./routes/bikes'));
 fastify.register(require('./routes/component-types'));
 fastify.register(require('./routes/weather'));
 fastify.register(require('./routes/backup'));
+fastify.register(require('./routes/performance-analysis'));
 
 // Health check ampliado (Fase 13.3.1)
 const path = require('path');

@@ -42,4 +42,8 @@ module.exports = {
   STRAVA_CLIENT_ID:     process.env.STRAVA_CLIENT_ID || '',
   STRAVA_CLIENT_SECRET: process.env.STRAVA_CLIENT_SECRET || '',
   STRAVA_REFRESH_TOKEN: process.env.STRAVA_REFRESH_TOKEN || '',
+
+  // Gemini (opcional — se nao configurado, POST /api/performance-analysis
+  // retorna erro e a UI cai no fallback de cache/mensagem de erro simples)
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
 };

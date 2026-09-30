@@ -369,3 +369,16 @@ CREATE TABLE IF NOT EXISTS bike_retired_components (
 );
 CREATE INDEX IF NOT EXISTS idx_retired_bike ON bike_retired_components(bike_id);
 CREATE INDEX IF NOT EXISTS idx_retired_tipo_marca ON bike_retired_components(tipo, marca);
+
+-- Cache da Análise de Performance (Fase 4 da evolução IDEIA-1+2, seção
+-- Desempenho). Singleton (id=1, mesmo padrão de user_profile/strava_sync_meta)
+-- porque só existe UMA análise "atual" por vez — sobrevive a restart do
+-- processo de propósito: o design manda mostrar a última análise cacheada
+-- mesmo vencida se a chamada ao Gemini falhar, e isso não vale nada se um
+-- deploy apagar o cache.
+CREATE TABLE IF NOT EXISTS performance_analysis_cache (
+  id                      INTEGER PRIMARY KEY CHECK (id = 1),
+  atividade_referencia_id TEXT NOT NULL,
+  payload                 TEXT NOT NULL,   -- JSON: { texto, deltas, grupoResumo }
+  gerado_em               TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
