@@ -23,23 +23,23 @@
 
   <!-- Ver nota em index.html: depois da meta viewport e da CSP, antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.9.10"></script>
+  <script src="js/variant.js?v=2.9.11"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.10">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.10">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.10">
-  <link rel="manifest" href="manifest-mobile.json?v=2.9.10">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.11">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.11">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.11">
+  <link rel="manifest" href="manifest-mobile.json?v=2.9.11">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <link rel="stylesheet" href="css/mobile.css?v=2.9.10">
-  <link rel="stylesheet" href="css/mobile-sheet.css?v=2.9.10">
+  <link rel="stylesheet" href="css/mobile.css?v=2.9.11">
+  <link rel="stylesheet" href="css/mobile-sheet.css?v=2.9.11">
   <!-- bikes.css é o do desktop: só usa tokens, que mobile.css redeclara. -->
-  <link rel="stylesheet" href="css/bikes.css?v=2.9.10">
-  <link rel="stylesheet" href="css/mobile-bikes.css?v=2.9.10">
+  <link rel="stylesheet" href="css/bikes.css?v=2.9.11">
+  <link rel="stylesheet" href="css/mobile-bikes.css?v=2.9.11">
 
   <title>VELOCE LABS</title>
 </head>
@@ -57,7 +57,7 @@
          Os ids de conteúdo são preenchidos pelos módulos js/mobile/*.js. -->
     <section id="m-view-inicio"     class="m-view" hidden aria-hidden="true"></section>
     <section id="m-view-atividades" class="m-view" hidden aria-hidden="true"></section>
-    <section id="m-view-insights"   class="m-view" hidden aria-hidden="true"></section>
+    <section id="m-view-desempenho" class="m-view" hidden aria-hidden="true"></section>
 
     <!-- A garagem reaproveita js/bikes.js inteiro: ele só precisa destes
          ids e faz todo o resto por delegação de data-act. -->
@@ -73,7 +73,10 @@
       </div>
     </section>
 
-    <!-- Views sem tab própria: alcançadas pela aba "Mais" (route.tab). -->
+    <!-- Views sem tab própria: alcançadas pela aba "Mais" (route.tab). Insights
+         perdeu a tab própria pra abrir espaço pra Desempenho na tabbar fixa —
+         ver js/mobile/more-mobile.js e o route.tab em insights-mobile.js. -->
+    <section id="m-view-insights" class="m-view" hidden aria-hidden="true"></section>
     <section id="m-view-perfil"   class="m-view" hidden aria-hidden="true"></section>
     <section id="m-view-passeios" class="m-view" hidden aria-hidden="true"></section>
 
@@ -81,17 +84,17 @@
   </main>
 
   <nav class="m-tabbar" aria-label="Navegação principal">
-    <button class="m-tab" type="button" data-slug="inicio">
-      <i class="fa-solid fa-house"></i><span>Início</span>
+    <button class="m-tab" type="button" data-slug="bikes">
+      <i class="fa-solid fa-bicycle"></i><span>Bikes</span>
     </button>
     <button class="m-tab" type="button" data-slug="atividades">
       <i class="fa-solid fa-list-check"></i><span>Ativid.</span>
     </button>
-    <button class="m-tab" type="button" data-slug="insights">
-      <i class="fa-solid fa-chart-line"></i><span>Insights</span>
+    <button class="m-tab" type="button" data-slug="inicio">
+      <i class="fa-solid fa-house"></i><span>Início</span>
     </button>
-    <button class="m-tab" type="button" data-slug="bikes">
-      <i class="fa-solid fa-bicycle"></i><span>Bikes</span>
+    <button class="m-tab" type="button" data-slug="desempenho">
+      <i class="fa-solid fa-gauge-high"></i><span>Desemp.</span>
     </button>
     <button class="m-tab" type="button" data-slug="mais">
       <i class="fa-solid fa-ellipsis"></i><span>Mais</span>
@@ -111,33 +114,36 @@
 ══════════════════════════════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 
-<script src="js/version.js?v=2.9.10"></script>
-<script src="js/utils.js?v=2.9.10"></script>
-<script src="js/api.js?v=2.9.10"></script>
-<script src="js/defaults.js?v=2.9.10"></script>
-<script src="js/storage.js?v=2.9.10"></script>
-<script src="js/profile.js?v=2.9.10"></script>
-<script src="js/core/metrics.js?v=2.9.10"></script>
-<script src="js/core/activity-stats.js?v=2.9.10"></script>
-<script src="js/core/weight-stats.js?v=2.9.10"></script>
-<script src="js/core/fatigue.js?v=2.9.10"></script>
-<script src="js/core/records.js?v=2.9.10"></script>
-<script src="js/core/weather-rating.js?v=2.9.10"></script>
-<script src="js/modals.js?v=2.9.10"></script>
-<script src="js/bikes.js?v=2.9.10"></script>
+<script src="js/version.js?v=2.9.11"></script>
+<script src="js/utils.js?v=2.9.11"></script>
+<script src="js/api.js?v=2.9.11"></script>
+<script src="js/defaults.js?v=2.9.11"></script>
+<script src="js/storage.js?v=2.9.11"></script>
+<script src="js/profile.js?v=2.9.11"></script>
+<script src="js/core/metrics.js?v=2.9.11"></script>
+<script src="js/core/activity-stats.js?v=2.9.11"></script>
+<script src="js/core/weight-stats.js?v=2.9.11"></script>
+<script src="js/core/fatigue.js?v=2.9.11"></script>
+<script src="js/core/records.js?v=2.9.11"></script>
+<script src="js/core/weather-rating.js?v=2.9.11"></script>
+<script src="js/core/training-suggestion.js?v=2.9.11"></script>
+<script src="js/core/suggestion-history.js?v=2.9.11"></script>
+<script src="js/modals.js?v=2.9.11"></script>
+<script src="js/bikes.js?v=2.9.11"></script>
 
-<script src="js/mobile/router-mobile.js?v=2.9.10"></script>
-<script src="js/mobile/shell.js?v=2.9.10"></script>
-<script src="js/mobile/home-mobile.js?v=2.9.10"></script>
-<script src="js/mobile/activities-mobile.js?v=2.9.10"></script>
-<script src="js/mobile/insights-mobile.js?v=2.9.10"></script>
-<script src="js/mobile/bikes-mobile.js?v=2.9.10"></script>
-<script src="js/mobile/profile-mobile.js?v=2.9.10"></script>
-<script src="js/mobile/rides-mobile.js?v=2.9.10"></script>
-<script src="js/mobile/more-mobile.js?v=2.9.10"></script>
+<script src="js/mobile/router-mobile.js?v=2.9.11"></script>
+<script src="js/mobile/shell.js?v=2.9.11"></script>
+<script src="js/mobile/home-mobile.js?v=2.9.11"></script>
+<script src="js/mobile/activities-mobile.js?v=2.9.11"></script>
+<script src="js/mobile/insights-mobile.js?v=2.9.11"></script>
+<script src="js/mobile/desempenho-mobile.js?v=2.9.11"></script>
+<script src="js/mobile/bikes-mobile.js?v=2.9.11"></script>
+<script src="js/mobile/profile-mobile.js?v=2.9.11"></script>
+<script src="js/mobile/rides-mobile.js?v=2.9.11"></script>
+<script src="js/mobile/more-mobile.js?v=2.9.11"></script>
 
-<script src="js/mobile/boot.js?v=2.9.10"></script>
-<script src="js/pwa.js?v=2.9.10"></script>
+<script src="js/mobile/boot.js?v=2.9.11"></script>
+<script src="js/pwa.js?v=2.9.11"></script>
 
 </body>
 </html>

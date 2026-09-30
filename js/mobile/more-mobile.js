@@ -16,6 +16,7 @@
   // Views mobile nativas alcançadas por aqui. O slug é o MESMO do desktop,
   // então #/perfil e #/passeios funcionam nas duas variantes.
   const SECOES = [
+    { slug: 'insights', label: 'Insights',          icon: 'fa-chart-line' },
     { slug: 'perfil',   label: 'Perfil e pesagens', icon: 'fa-user' },
     { slug: 'passeios', label: 'Passeios',          icon: 'fa-calendar-day' },
   ];

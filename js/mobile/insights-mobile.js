@@ -339,6 +339,9 @@
 
   MRouter.register({
     slug: 'insights',
+    // Sem tab própria desde a Fase 3 da evolução Desempenho — acessado pelo
+    // menu "Mais" (js/mobile/more-mobile.js) ou por deep link direto.
+    tab: 'mais',
     viewId: VIEW_ID,
     label: 'Insights',
     onEnter: () => {
