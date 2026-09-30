@@ -366,6 +366,169 @@ async function routes(fastify) {
     return { dias: days, atividades, totalSegundos, segundosPorZona: segPorZona };
   });
 
+  // ── GET /api/garmin/calibration ───────────────────────────────────
+  // Limiares calibrados (Fase 2 da evolução Desempenho, IDEIA-1+2) — percentil
+  // do próprio histórico do atleta pros 3 números que a Sugestão de Treino usa
+  // como corte fixo hoje: zona-alvo (p25 de janelas móveis de 30 dias, mesma
+  // unidade do sinal real), TSS "treino pesado" (mediana, p50 — centraliza o
+  // que js/core/suggestion-history.js calcula inline como fallback) e TSB
+  // "Sobrecarga" (p10). Calculado aqui (não no frontend) pra servir desktop e
+  // mobile com o mesmo número. Cache de slot único — 1 atleta, 1 resultado —
+  // TTL de 7 dias (percentil de 90 dias muda devagar). Fórmulas de TSS/EMA
+  // duplicadas de js/core/metrics.js (tssDeAtividade, emaSeries): runtime
+  // diferente (Node vs browser), sem import possível — manter em sincronia
+  // se a fórmula mudar lá. Datas por corte UTC (Date.now() - N*86400_000),
+  // mesmo padrão já usado pelo cutoff de /zone-distribution acima — suficiente
+  // pra uma janela de dias, diferente da comparação exata dia-a-dia do
+  // Cruzamento sugestão×execução (que por isso usa data local no frontend).
+  const CALIB_JANELA_DIAS = 90;
+  const CALIB_WARMUP_DIAS = 60; // mesmo warm-up de calcTSBMetrics
+  const CALIB_MIN_DIAS = 30;    // abaixo disso, cada limiar cai no valor fixo
+  const CALIB_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  let _calibCache = null; // { dados, ts, fcMax }
+
+  // Igual a tssDeAtividade (js/core/metrics.js), exceto pelo console.warn de
+  // FC média > FCMax — omitido de propósito (é telemetria de debug de UI, sem
+  // valor num cálculo de calibração em background).
+  function _calibTss(tempoMovS, fcMedia, fcMax) {
+    if (!tempoMovS || !fcMax) return 0;
+    const tempoH = tempoMovS / 3600;
+    const min = tempoMovS / 60;
+    let intensity = min > 0 && min < 45 ? 0.75 : (min > 180 ? 0.65 : 0.70);
+    if (fcMedia) intensity = Math.min(fcMedia / fcMax, 1.0);
+    return tempoH * intensity * intensity * 100;
+  }
+
+  function _calibEmaSeries(serie, tau) {
+    const out = [];
+    let ema = 0;
+    for (let i = 0; i < serie.length; i++) { ema = ema + (serie[i] - ema) / tau; out.push(ema); }
+    return out;
+  }
+
+  // Percentil por interpolação linear — em p=50 equivale exatamente à mediana
+  // (média dos dois valores centrais em array de tamanho par), mesma definição
+  // usada em js/core/suggestion-history.js.
+  function _calibPercentil(valores, p) {
+    if (!valores.length) return 0;
+    const ord = [...valores].sort((a, b) => a - b);
+    const idx = (p / 100) * (ord.length - 1);
+    const lo = Math.floor(idx), hi = Math.ceil(idx);
+    return lo === hi ? ord[lo] : ord[lo] + (ord[hi] - ord[lo]) * (idx - lo);
+  }
+
+  function _isoSub(n) {
+    return new Date(Date.now() - n * 86400_000).toISOString().slice(0, 10);
+  }
+
+  fastify.get('/api/garmin/calibration', async (req, reply) => {
+    const fcMax = parseInt(req.query?.fcMax, 10);
+    if (!fcMax || fcMax <= 0 || fcMax > 250) { reply.code(400); return { error: 'fcMax inválido' }; }
+
+    if (_calibCache && _calibCache.fcMax === fcMax && (Date.now() - _calibCache.ts) < CALIB_CACHE_TTL_MS) {
+      return _calibCache.dados;
+    }
+
+    const cutoff = _isoSub(CALIB_JANELA_DIAS + CALIB_WARMUP_DIAS);
+    const rows = fastify.db
+      .prepare(`SELECT data_inicio, tempo_mov_s, fc_media, hr_zones
+                FROM garmin_activities WHERE data_inicio >= ?`)
+      .all(cutoff);
+
+    const tssPorDia = {};
+    const zonaPorDia = {};
+    for (const r of rows) {
+      const tss = _calibTss(r.tempo_mov_s, r.fc_media, fcMax);
+      if (tss > 0) tssPorDia[r.data_inicio] = (tssPorDia[r.data_inicio] || 0) + tss;
+
+      if (r.hr_zones && r.hr_zones !== 'null') {
+        let zs;
+        try { zs = JSON.parse(r.hr_zones); } catch (_) { zs = null; }
+        if (Array.isArray(zs)) {
+          const arr = zonaPorDia[r.data_inicio] || (zonaPorDia[r.data_inicio] = [0, 0, 0, 0, 0]);
+          for (const z of zs) {
+            const idx = (z.zona || 0) - 1;
+            if (idx >= 0 && idx < 5 && isFinite(z.segundos)) arr[idx] += z.segundos;
+          }
+        }
+      }
+    }
+
+    // Amostra = dias com atividade DENTRO da janela de calibração (90 dias),
+    // não do período estendido de 150 dias buscado só pro warm-up do TSB.
+    const dias90 = [];
+    for (let i = CALIB_JANELA_DIAS - 1; i >= 0; i--) dias90.push(_isoSub(i));
+    const amostraDias = dias90.filter(d => tssPorDia[d] != null || zonaPorDia[d] != null).length;
+    // Amostra específica de TSS — amostraDias combina TSS OU zona; um atleta com
+    // muita zona e pouco TSS "real" passaria o gate geral mas teria mediana
+    // degenerada (perto de 0). Guard dedicado, mesmo espírito do de zona-alvo.
+    const amostraDiasTss = dias90.filter(d => tssPorDia[d] != null).length;
+
+    const fallback = { zonaAlvo: false, tss: false, tsb: false };
+
+    let tssRecuperacaoIgnorada = 50; // referência genérica pré-calibração
+    if (amostraDiasTss >= CALIB_MIN_DIAS) {
+      tssRecuperacaoIgnorada = _calibPercentil(dias90.map(d => tssPorDia[d] || 0), 50);
+    } else {
+      fallback.tss = true;
+    }
+
+    let zonaAltaMinPct = 0.10;
+    if (amostraDias >= CALIB_MIN_DIAS) {
+      const serieJanelas = [];
+      for (const d of dias90) {
+        let altaSeg = 0, totalSeg = 0;
+        for (let j = 0; j < 30; j++) {
+          const dj = new Date(d + 'T12:00:00'); dj.setDate(dj.getDate() - j);
+          const arr = zonaPorDia[dj.toISOString().slice(0, 10)];
+          if (!arr) continue;
+          altaSeg += (arr[3] || 0) + (arr[4] || 0);
+          totalSeg += arr.reduce((s, v) => s + v, 0);
+        }
+        if (totalSeg > 0) serieJanelas.push(altaSeg / totalSeg);
+      }
+      if (serieJanelas.length >= CALIB_MIN_DIAS) {
+        zonaAltaMinPct = _calibPercentil(serieJanelas, 25);
+      } else {
+        fallback.zonaAlvo = true;
+      }
+    } else {
+      fallback.zonaAlvo = true;
+    }
+
+    let tsbSobrecarga = -20;
+    if (amostraDias >= CALIB_MIN_DIAS) {
+      const serieTsb = [];
+      for (const d of dias90) {
+        const refDate = new Date(d + 'T12:00:00');
+        const serie60 = [];
+        for (let k = 59; k >= 0; k--) {
+          const dk = new Date(refDate); dk.setDate(dk.getDate() - k);
+          serie60.push(tssPorDia[dk.toISOString().slice(0, 10)] || 0);
+        }
+        const ctlSerie = _calibEmaSeries(serie60, 42);
+        const atlSerie = _calibEmaSeries(serie60, 7);
+        const ctl = ctlSerie[ctlSerie.length - 1] || 0;
+        const atl = atlSerie[atlSerie.length - 1] || 0;
+        serieTsb.push(ctl - atl);
+      }
+      tsbSobrecarga = _calibPercentil(serieTsb, 10);
+    } else {
+      fallback.tsb = true;
+    }
+
+    const dados = {
+      calibradoEm: new Date().toISOString(),
+      amostraDias,
+      zonaAltaMinPct,
+      tssRecuperacaoIgnorada,
+      tsbSobrecarga,
+      fallback,
+    };
+    _calibCache = { dados, ts: Date.now(), fcMax };
+    return dados;
+  });
+
   // ── GET /api/garmin/activities ───────────────────────────────────
   fastify.get('/api/garmin/activities', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 365);

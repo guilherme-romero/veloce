@@ -5,6 +5,11 @@
 
    Sem cache: recalcula a cada onEnter (decisão do design — regra é barata,
    não vale o risco de mostrar sugestão desatualizada logo após um sync).
+
+   Fase 2 (IDEIA-1+2): busca também os limiares calibrados (GET
+   /garmin/calibration, cache de 7 dias NO BACKEND) e repassa pro
+   TrainingSuggestion/SuggestionHistory — se a chamada falhar, os dois caem
+   nos limiares fixos originais (parâmetro opcional, sem quebrar nada).
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -31,7 +36,13 @@
     empty.textContent = EMPTY_MSG_DEFAULT;
 
     try {
-      const [unified, health, zoneDist] = await Promise.all([
+      // fcMax precisa vir antes do Promise.all — a calibração (Fase 2) é
+      // buscada por fcMax na query string, já que o backend não replica o
+      // cálculo de idade/FCM do perfil (Storage já está carregado no boot).
+      const user  = window.Storage ? Storage.getUser() : {};
+      const fcMax = window.Metrics.calcFCMax(user);
+
+      const [unified, health, zoneDist, calibracao] = await Promise.all([
         window.Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
         // 104 dias: os 60 originais + margem pro Cruzamento sugestão×execução
         // (janela de 90 dias, e fatigueIndex olha até 14 dias antes de cada dia
@@ -39,17 +50,22 @@
         // primeiros 7-14 itens do array.
         window.Api.get('/garmin/health?days=104').catch(() => []),
         window.Api.get('/garmin/zone-distribution?days=30').catch(() => null),
+        // Limiares calibrados (Fase 2) — sem fcMax não há o que calibrar;
+        // se falhar, os módulos caem nos limiares fixos (parâmetro opcional).
+        fcMax ? window.Api.get('/garmin/calibration?fcMax=' + fcMax).catch(() => null) : Promise.resolve(null),
       ]);
 
       const activities = (unified && unified.items) || [];
       // Mesmo pré-processamento de insights.js: mais recente primeiro.
       const healthArr = Array.isArray(health) ? [...health].sort((a, b) => b.data.localeCompare(a.data)) : [];
 
-      const user  = window.Storage ? Storage.getUser() : {};
-      const fcMax = window.Metrics.calcFCMax(user);
+      const limiares = calibracao ? {
+        zonaAltaMinPct: calibracao.zonaAltaMinPct,
+        tsbSobrecarga:  calibracao.tsbSobrecarga,
+      } : undefined;
 
       const sug = window.TrainingSuggestion.suggest({
-        activities, health: healthArr, zoneDist, fcMax,
+        activities, health: healthArr, zoneDist, fcMax, limiares,
       });
 
       if (!sug.ok) {
@@ -74,7 +90,8 @@
 
       const historico = $('proximo-treino-historico');
       if (historico) {
-        const hist = window.SuggestionHistory.analyze({ activities, health: healthArr, fcMax, days: 90 });
+        const limiarTss = calibracao ? calibracao.tssRecuperacaoIgnorada : undefined;
+        const hist = window.SuggestionHistory.analyze({ activities, health: healthArr, fcMax, days: 90, limiarTss });
         if (hist.ok) {
           historico.hidden = false;
           historico.textContent = `Nos últimos ${hist.janelaDias} dias, você seguiu a recomendação de `

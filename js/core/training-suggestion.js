@@ -19,8 +19,9 @@
 (function () {
 
   // Limiar novo (sem precedente no código): pouco tempo em Z4+Z5 nos
-  // últimos 30 dias sugere subir intensidade. Primeira estimativa — como o
-  // TTL de cache, calibrar depois contra o histórico real de uso.
+  // últimos 30 dias sugere subir intensidade. Valor fixo = fallback quando
+  // `limiares.zonaAltaMinPct` não vem (calibração indisponível ou histórico
+  // curto — ver js/core/suggestion-history.js e GET /garmin/calibration).
   const ZONA_ALTA_MIN_PCT = 0.10;
 
   // Histórico curto demais pra confiar no ATL de 7 dias / warm-up do TSB.
@@ -54,10 +55,15 @@
    *                                      insights.js antes de chamar Fatigue)
    * @param  {Object} params.zoneDist   — /garmin/zone-distribution?days=30
    * @param  {number} params.fcMax      — Metrics.calcFCMax(user)
+   * @param  {Object} [params.limiares] — Limiares calibrados (Fase 2, IDEIA-1+2:
+   *                                      GET /garmin/calibration), opcional —
+   *                                      default preserva os limiares fixos.
+   * @param  {number} [params.limiares.zonaAltaMinPct]
+   * @param  {number} [params.limiares.tsbSobrecarga]
    * @return {Object} { ok:false } | { ok:true, categoria, msg, token }
    *                  categoria ∈ 'recuperacao' | 'volume' | 'zona-alvo'
    */
-  function suggest({ activities, health, zoneDist, fcMax }) {
+  function suggest({ activities, health, zoneDist, fcMax, limiares }) {
     const acts = Array.isArray(activities) ? activities : [];
 
     // 1. Dado insuficiente → seção fica ausente, nunca chuta.
@@ -78,7 +84,7 @@
     // 3. Sinal de volume — reaproveita metrics.js (TSB).
     if (fcMax) {
       const { tsb } = window.Metrics.calcTSBMetrics(acts, fcMax);
-      const tsbInfo = window.Metrics.tsbStatus(tsb);
+      const tsbInfo = window.Metrics.tsbStatus(tsb, limiares?.tsbSobrecarga);
       if (tsbInfo.status === 'Sobrecarga') {
         return {
           ok: true, categoria: 'volume', token: tsbInfo.token,
@@ -92,7 +98,8 @@
     const total = (zoneDist && zoneDist.totalSegundos) || 0;
     if (total > 0) {
       const altaPct = ((seg[3] || 0) + (seg[4] || 0)) / total;
-      if (altaPct < ZONA_ALTA_MIN_PCT) {
+      const zonaAltaMinPct = limiares?.zonaAltaMinPct ?? ZONA_ALTA_MIN_PCT;
+      if (altaPct < zonaAltaMinPct) {
         return {
           ok: true, categoria: 'zona-alvo', token: 'amber',
           msg: 'Pouco tempo em zonas altas nos últimos 30 dias — hoje é um bom dia para Z4.',

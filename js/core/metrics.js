@@ -72,7 +72,11 @@
   // Fonte única de CTL/ATL/TSB — usada pelo card 7.4 e pelo banner do topo,
   // garantindo que os dois exibam exatamente os mesmos números. Série diária de
   // 60 dias (mais antigo → recente); EMA de 42d (crônica) e 7d (aguda).
-  function calcTSBMetrics(activities, fcMax) {
+  // `refDate` (Fase 2 da evolução Desempenho, IDEIA-1+2): data de referência pra
+  // fechar a série de 60 dias — default `new Date()` preserva os 4 call sites
+  // existentes. Usada pela calibração de limiares pra perguntar "qual seria o
+  // TSB no dia X", sem duplicar a lógica de EMA em outro lugar.
+  function calcTSBMetrics(activities, fcMax, refDate = new Date()) {
     if (!activities.length || !fcMax) return { ctl: 0, atl: 0, tsb: 0, ctlSerie: [], atlSerie: [] };
     const tssDia = {};
     activities.forEach(a => {
@@ -80,7 +84,7 @@
       if (tss > 0) tssDia[a.data] = (tssDia[a.data] || 0) + tss;
     });
     const serie = [];
-    const hoje = new Date(); hoje.setHours(12, 0, 0, 0);
+    const hoje = new Date(refDate); hoje.setHours(12, 0, 0, 0);
     for (let i = 59; i >= 0; i--) {
       const d = new Date(hoje); d.setDate(d.getDate() - i);
       serie.push(tssDia[d.toISOString().slice(0, 10)] || 0);
@@ -126,10 +130,14 @@
   // Classificação do TSB. Extraída do if-chain de renderTSS (insights.js) —
   // mesmos cortes, mesmas mensagens; o que muda é devolver token em vez de
   // hex, para que cada UI resolva a cor com as próprias variáveis CSS.
-  function tsbStatus(tsb) {
+  // `cutoffSobrecarga` (Fase 2, IDEIA-1+2): corte customizado pro limiar
+  // calibrado de "Sobrecarga" — default -20 preserva os call sites de Insights
+  // (desktop/mobile), que continuam com o corte fixo por decisão de escopo
+  // desta evolução (só a Sugestão de Treino usa o valor calibrado).
+  function tsbStatus(tsb, cutoffSobrecarga = -20) {
     if (tsb > 10)   return { status: 'Fresco',     token: 'green', msg: 'TSB positivo — momento ideal para sessão intensa ou prova.' };
     if (tsb > -5)   return { status: 'Ótimo',      token: 'teal',  msg: 'Em equilíbrio — pode manter o ritmo de treino atual.' };
-    if (tsb > -20)  return { status: 'Carregado',  token: 'amber', msg: 'Carga acumulada — bom estímulo, monitore sinais de cansaço.' };
+    if (tsb > cutoffSobrecarga) return { status: 'Carregado',  token: 'amber', msg: 'Carga acumulada — bom estímulo, monitore sinais de cansaço.' };
     return            { status: 'Sobrecarga', token: 'red',   msg: 'Risco de overreaching — reduza volume nos próximos dias.' };
   }
 

@@ -50,9 +50,13 @@
    * @param  {Array}  params.health     — /garmin/health, MAIS RECENTE PRIMEIRO
    * @param  {number} params.fcMax      — Metrics.calcFCMax(user)
    * @param  {number} [params.days=90]  — janela de análise
+   * @param  {number} [params.limiarTss] — Limiar calibrado (Fase 2, IDEIA-1+2:
+   *                                       GET /garmin/calibration), opcional —
+   *                                       sem ele, calcula a mediana inline
+   *                                       (mesmo cálculo, só não centralizado).
    * @return {Object} { ok:false } | { ok:true, seguiu, total, percentual, janelaDias }
    */
-  function analyze({ activities, health, fcMax, days = 90 }) {
+  function analyze({ activities, health, fcMax, days = 90, limiarTss }) {
     const acts   = Array.isArray(activities) ? activities : [];
     const healthArr = Array.isArray(health) ? health : [];
     if (!healthArr.length || !fcMax) return { ok: false };
@@ -65,8 +69,7 @@
     });
 
     const dias = listaDias(days);
-    const distribuicao = dias.map(d => tssPorDia[d] || 0);
-    const limiar = mediana(distribuicao);
+    const limiar = limiarTss ?? mediana(dias.map(d => tssPorDia[d] || 0));
 
     let total = 0;
     let seguiu = 0;
