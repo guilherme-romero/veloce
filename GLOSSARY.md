@@ -5,26 +5,75 @@ dados sincronizados da Garmin (e historicamente do Strava).
 
 ## Language
 
-**Próximo Treino** (seção):
-Nome canônico da seção antes chamada "IA" no backlog (IDEIA-1+2). Renomeada porque o motor é regras
-locais, não LLM — o projeto evita nomear features pela tecnologia que não usam (mesmo critério já
-aplicado ao Índice de Fadiga, rotulado explicitamente como heurístico). Fica posicionada logo após
-Insights, sem depender da seção Testes (que é temporária/descartável).
-_Avoid_: seção IA, Treinador.
+**Desempenho** (seção):
+Nome canônico da seção antes chamada "Próximo Treino" (e, antes disso, "seção IA" no backlog
+IDEIA-1+2). Renomeada em 2026-09-30 ao ganhar uma segunda metade: a seção passou a abrigar tanto a
+Sugestão de Treino (prescritiva, hoje) quanto a Análise de Performance (retrospectiva, ver abaixo)
+— "Próximo Treino" descrevia só a primeira metade. "Desempenho" (em vez do inglês "Performance")
+mantém a seção alinhada ao restante do nav, 100% em português — "Insights" é a única exceção
+conhecida, uma anomalia antiga, não uma convenção a estender. Fica posicionada logo após Insights,
+sem depender da seção Testes (que é temporária/descartável).
+_Avoid_: seção IA, Próximo Treino (nome anterior), Treinador, Performance (em inglês).
 
 **Sugestão de Treino**:
-Recomendação prescritiva e específica sobre o próximo treino, gerada pela seção Próximo Treino por
+Recomendação prescritiva e específica sobre o próximo treino, gerada pela seção Desempenho por
 um motor de regras locais (100% frontend, `js/core/training-suggestion.js`) a partir do histórico
 recente. Pertence a exatamente uma de três Categorias de sugestão, e a seção mostra **uma por
 vez** — a de maior prioridade entre as que se justificam no momento (ver Prioridade de categoria).
 Consome a Recomendação de fadiga como **sinal de entrada** (fadiga alta força recuperação, mesmo
 que o TSB sozinho apontasse zona-alvo); TSB/CTL/ATL como sinal de volume; distribuição de tempo por
-zona como sinal de zona-alvo — limiares numéricos exatos ficam para a implementação. **Ausente**
-(estado vazio, não uma sugestão "chutada") quando falta o sinal de maior prioridade disponível ou
-o histórico é curto demais para TSB (~7 dias). Puramente efêmera: computada a cada abertura da
-seção, nunca persistida — não há registro histórico de qual sugestão apareceu em qual dia (v1).
-Desktop-only na v1; mobile é extensão de fase 2.
+zona como sinal de zona-alvo — os limiares de zona-alvo e do Cruzamento sugestão×execução são
+Limiares calibrados (ver abaixo); o de volume (TSB) fica fixo, ver ADR-0003. **Ausente** (estado
+vazio, não uma sugestão "chutada") quando falta o sinal de maior prioridade disponível ou o
+histórico é curto demais para TSB (~7 dias). Puramente efêmera: computada a cada abertura da seção,
+nunca persistida — não há registro histórico de qual sugestão apareceu em qual dia. Implementada e
+testada em 2026-09-30 (desktop); a extensão mobile reaproveita o mesmo motor sem simplificação.
 _Avoid_: Recomendação (termo já ocupado, ver abaixo), dica, insight.
+
+**Limiar calibrado**:
+Um corte numérico usado por uma Categoria de sugestão ou pelo Cruzamento sugestão×execução que,
+em vez de fixo, é recalculado como um percentil do próprio histórico do atleta (janela de 90 dias,
+com fallback para o valor fixo original enquanto há menos de 30 dias de dado). Cacheado por 7 dias
+— um percentil sobre 90 dias de histórico muda devagar, não precisa recalcular a cada abertura da
+seção. Hoje cobre dois números: o corte de "pouco tempo em zona alta" (sinal de zona-alvo) e o
+corte de TSS que classifica um dia como "treinou pesado" (Cruzamento sugestão×execução). O TSB
+(sinal de volume) é a exceção deliberada — ver ADR-0003.
+_Avoid_: limiar fixo (é o oposto: usado só pro TSB e pros valores hardcoded originais antes da
+calibração existir).
+
+**Cruzamento sugestão×execução**:
+Comparação retrospectiva entre a Sugestão de Treino que teria aparecido num dia passado e o que o
+atleta de fato pedalou naquele dia — hoje só cobre a categoria recuperação (dia com TSS acima da
+mediana do próprio histórico de 90 dias conta como "treinou pesado mesmo assim"; volume e zona-alvo
+não têm veredito ainda). Mostrado como bloco inline na seção Desempenho ("nos últimos 90 dias, você
+seguiu a recomendação de recuperação em X de Y ocasiões"). Sem persistência: recalculado
+retroativamente reaplicando a função pura da Sugestão de Treino a cada dia passado — não quebra a
+premissa de a Sugestão de Treino ser efêmera.
+
+**Análise de Performance**:
+Bloco retrospectivo/comparativo na seção Desempenho, abaixo da Sugestão de Treino — avalia se o
+atleta melhorou ao comparar uma série de atividades parecidas entre si (ver Grupo de comparação) e
+sugere foco de treino, usando a API do Gemini para a parte de interpretação/texto (ver ADR-0002 —
+o app pré-calcula os números, o Gemini nunca faz conta). Diferente da Sugestão de Treino:
+retrospectiva (não prescreve o treino de hoje), sob demanda (botão, não recalculada a cada
+abertura), e não é efêmera — o resultado fica em cache por 24h. **Ausente** quando a Atividade de
+referência não tem Grupo de comparação suficiente (menos de 3 atividades parecidas nos últimos 12
+meses). Se a chamada ao Gemini falhar, mostra a última análise em cache mesmo vencida (com aviso),
+ou uma mensagem de erro simples se não houver nenhuma ainda.
+_Avoid_: Sugestão (reservado para Sugestão de Treino — a Análise de Performance não prescreve nada
+pra hoje), Insights (termo já usado pela seção existente, que descreve estado atual, não evolução).
+
+**Atividade de referência**:
+A atividade mais recente do atleta que seja elegível para a Análise de Performance (bike, ≥10km) —
+pula rolos curtos/testes ao escolher o ponto de partida da comparação, mesmo que não seja
+literalmente a última atividade registrada. É contra ela que o Grupo de comparação é formado.
+
+**Grupo de comparação**:
+Conjunto de atividades dos últimos 12 meses parecidas com a Atividade de referência — dentro de
+±15% de distância e ±20% de ganho de elevação. Precisa de ao menos 3 atividades (incluindo a
+referência) para a Análise de Performance sair do estado ausente; abaixo disso, a diferença entre
+"melhora real" e "ruído de um dia" não é distinguível. A Análise de Performance comenta a
+**tendência** ao longo desse grupo (série), não uma comparação par a par entre só duas atividades.
 
 **Recomendação**:
 Mensagem contextual já existente hoje, embutida nos cards de Insights (ex.: banner do Índice de
