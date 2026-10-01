@@ -334,6 +334,26 @@ async function routes(fastify) {
     }
   });
 
+  // Parsing compartilhado de hr_zones (JSON [{zona, segundos}, ...], 5 zonas)
+  // — usado por /zone-distribution (agregado) e /zone-distribution-by-activity
+  // (por atividade, Comparativo de Desempenho/GLOSSARY.md). Devolve [z1..z5]
+  // em segundos, ou null se a linha não tiver dado de zona utilizável.
+  function _parseHrZonesRow(hrZonesRaw) {
+    let zs;
+    try { zs = JSON.parse(hrZonesRaw); } catch (_) { return null; }
+    if (!Array.isArray(zs) || zs.length === 0) return null;
+    const seg = [0, 0, 0, 0, 0];
+    let usou = false;
+    for (const z of zs) {
+      const idx = (z.zona || 0) - 1;
+      if (idx >= 0 && idx < 5 && isFinite(z.segundos)) {
+        seg[idx] += z.segundos;
+        usou = true;
+      }
+    }
+    return usou ? seg : null;
+  }
+
   // ── GET /api/garmin/zone-distribution ────────────────────────────
   // Agrega o tempo (segundos) por zona de FC das atividades já sincronizadas
   // (usa o hr_zones cacheado, sem refazer fetch). Garmin usa 5 zonas.
@@ -349,21 +369,36 @@ async function routes(fastify) {
     const segPorZona = [0, 0, 0, 0, 0]; // zonas 1..5
     let atividades = 0;
     for (const r of rows) {
-      let zs;
-      try { zs = JSON.parse(r.hr_zones); } catch (_) { continue; }
-      if (!Array.isArray(zs) || zs.length === 0) continue;
-      let usou = false;
-      for (const z of zs) {
-        const idx = (z.zona || 0) - 1;
-        if (idx >= 0 && idx < 5 && isFinite(z.segundos)) {
-          segPorZona[idx] += z.segundos;
-          usou = true;
-        }
-      }
-      if (usou) atividades++;
+      const seg = _parseHrZonesRow(r.hr_zones);
+      if (!seg) continue;
+      for (let i = 0; i < 5; i++) segPorZona[i] += seg[i];
+      atividades++;
     }
     const totalSegundos = segPorZona.reduce((s, v) => s + v, 0);
     return { dias: days, atividades, totalSegundos, segundosPorZona: segPorZona };
+  });
+
+  // ── GET /api/garmin/zone-distribution-by-activity ────────────────
+  // Igual a /zone-distribution, mas devolve o tempo por zona POR ATIVIDADE
+  // em vez de agregado — necessário pro Comparativo de Desempenho recortar
+  // dois períodos de 30 dias (GLOSSARY.md "Categoria de zona"). Mesma query/
+  // parsing de hr_zones, só sem somar tudo num total único.
+  fastify.get('/api/garmin/zone-distribution-by-activity', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query?.days || 90, 10) || 90, 1), 365);
+    const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+    const rows = fastify.db
+      .prepare(`SELECT id_garmin, data_inicio, hr_zones FROM garmin_activities
+                WHERE data_inicio >= ? AND hr_zones IS NOT NULL
+                  AND hr_zones != '' AND hr_zones != 'null'`)
+      .all(cutoff);
+
+    const items = [];
+    for (const r of rows) {
+      const seg = _parseHrZonesRow(r.hr_zones);
+      if (!seg) continue;
+      items.push({ id: r.id_garmin, data: r.data_inicio, segundosPorZona: seg });
+    }
+    return { dias: days, items };
   });
 
   // ── GET /api/garmin/calibration ───────────────────────────────────

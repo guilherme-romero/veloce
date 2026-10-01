@@ -46,4 +46,8 @@ module.exports = {
   // Gemini (opcional — se nao configurado, POST /api/performance-analysis
   // retorna erro e a UI cai no fallback de cache/mensagem de erro simples)
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+
+  // Groq (opcional — fallback da Analise de Performance quando o Gemini
+  // falha ou fica sem chave/cota; ver server/services/ai-providers.js)
+  GROQ_API_KEY: process.env.GROQ_API_KEY || '',
 };

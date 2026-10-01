@@ -2528,3 +2528,35 @@ body.edit-mode .exercise-actions { display: flex; }
   color: var(--muted);
   line-height: 1.5;
 }
+
+/* ── Comparativo de Desempenho (GLOSSARY.md) — grid dos 5 sub-cards ──── */
+.comp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+.comp-card {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 14px;
+}
+.comp-card .chart-wrap { height: 140px; margin-top: 10px; }
+.comp-card__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.comp-card__badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+@media (max-width: 640px) {
+  .comp-grid { grid-template-columns: 1fr; }
+}

@@ -22,13 +22,13 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.9.12"></script>
+  <script src="js/variant.js?v=2.9.13"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.12">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.12">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.12">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.12">
-  <link rel="manifest" href="manifest.json?v=2.9.12">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.13">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.13">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.13">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.13">
+  <link rel="manifest" href="manifest.json?v=2.9.13">
 
   <title>VELOCE LABS</title>
 
@@ -47,11 +47,11 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.9.12">
-  <link rel="stylesheet" href="css/rides.css?v=2.9.12">
-  <link rel="stylesheet" href="css/routes.css?v=2.9.12">
-  <link rel="stylesheet" href="css/bikes.css?v=2.9.12">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.12">
+  <link rel="stylesheet" href="css/style.css?v=2.9.13">
+  <link rel="stylesheet" href="css/rides.css?v=2.9.13">
+  <link rel="stylesheet" href="css/routes.css?v=2.9.13">
+  <link rel="stylesheet" href="css/bikes.css?v=2.9.13">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.13">
 </head>
 <body>
 
@@ -1038,6 +1038,46 @@
           <p id="performance-analysis-meta" style="margin-top:10px;color:var(--muted2);font-size:12px;"></p>
         </div>
       </div>
+
+      <div class="card insight-card" id="comparative-performance-card">
+        <div class="insight-head">
+          <div class="insight-head-left">
+            <div class="card-label">Comparativo — últimos 30 dias</div>
+          </div>
+        </div>
+        <div class="insight-msg" id="comparative-performance-empty" style="color:var(--muted2);" hidden>
+          Pedale por pelo menos 3 saídas em cada um dos últimos dois períodos de 30 dias para ver o comparativo.
+        </div>
+        <div id="comparative-performance-content" hidden>
+          <div class="comp-grid">
+            <div class="comp-card">
+              <div class="comp-card__label">Volume (km)</div>
+              <span class="comp-card__badge" id="compVolumeBadge"></span>
+              <div class="chart-wrap"><canvas id="compVolumeChart"></canvas></div>
+            </div>
+            <div class="comp-card">
+              <div class="comp-card__label">Tempo de pedal (h)</div>
+              <span class="comp-card__badge" id="compTempoBadge"></span>
+              <div class="chart-wrap"><canvas id="compTempoChart"></canvas></div>
+            </div>
+            <div class="comp-card">
+              <div class="comp-card__label">Altimetria (m)</div>
+              <span class="comp-card__badge" id="compAltimetriaBadge"></span>
+              <div class="chart-wrap"><canvas id="compAltimetriaChart"></canvas></div>
+            </div>
+            <div class="comp-card">
+              <div class="comp-card__label">Tempo por categoria de zona</div>
+              <span class="comp-card__badge" id="compZonaVariacao"></span>
+              <div class="chart-wrap"><canvas id="compZonaChart"></canvas></div>
+            </div>
+            <div class="comp-card" id="compPesoCard" hidden>
+              <div class="comp-card__label">Peso corporal</div>
+              <span class="comp-card__badge" id="compPesoVariacao"></span>
+              <div class="chart-wrap"><canvas id="compPesoChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1611,49 +1651,52 @@
 <!-- ═══════════════════ SCRIPTS ══════════════════════════════════════ -->
 <!-- CDN externos (versionamento próprio) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.9.12"></script>
-<script src="js/utils.js?v=2.9.12"></script>
+<script src="js/version.js?v=2.9.13"></script>
+<script src="js/utils.js?v=2.9.13"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.9.12"></script>
-<script src="js/core/activity-stats.js?v=2.9.12"></script>
-<script src="js/core/weight-stats.js?v=2.9.12"></script>
-<script src="js/core/fatigue.js?v=2.9.12"></script>
-<script src="js/core/records.js?v=2.9.12"></script>
-<script src="js/core/weather-rating.js?v=2.9.12"></script>
-<script src="js/core/training-suggestion.js?v=2.9.12"></script>
-<script src="js/core/suggestion-history.js?v=2.9.12"></script>
-<script src="js/core/performance-analysis.js?v=2.9.12"></script>
-<script src="js/router.js?v=2.9.12"></script>
-<script src="js/defaults.js?v=2.9.12"></script>
-<script src="js/api.js?v=2.9.12"></script>
-<script src="js/storage.js?v=2.9.12"></script>
-<script src="js/profile.js?v=2.9.12"></script>
-<script src="js/charts.js?v=2.9.12"></script>
-<script src="js/modals.js?v=2.9.12"></script>
-<script src="js/workouts.js?v=2.9.12"></script>
-<script src="js/rides.js?v=2.9.12"></script>
-<script src="js/bikes.js?v=2.9.12"></script>
-<script src="js/training-log.js?v=2.9.12"></script>
-<script src="js/home-workout.js?v=2.9.12"></script>
-<script src="js/backup.js?v=2.9.12"></script>
-<script src="js/gpx.js?v=2.9.12"></script>
-<script src="js/routes.js?v=2.9.12"></script>
-<script src="js/heatmap.js?v=2.9.12"></script>
-<script src="js/strava.js?v=2.9.12"></script>
-<script src="js/garmin.js?v=2.9.12"></script>
-<script src="js/activities.js?v=2.9.12"></script>
-<script src="js/insights.js?v=2.9.12"></script>
-<script src="js/proximo-treino.js?v=2.9.12"></script>
-<script src="js/performance-analysis.js?v=2.9.12"></script>
-<script src="js/testes.js?v=2.9.12"></script>
-<script src="js/ferramentas.js?v=2.9.12"></script>
-<script src="js/home.js?v=2.9.12"></script>
-<script src="js/notifications.js?v=2.9.12"></script>
-<script src="js/app.js?v=2.9.12"></script>
-<script src="js/pwa.js?v=2.9.12"></script>
+<script src="js/core/metrics.js?v=2.9.13"></script>
+<script src="js/core/activity-stats.js?v=2.9.13"></script>
+<script src="js/core/weight-stats.js?v=2.9.13"></script>
+<script src="js/core/fatigue.js?v=2.9.13"></script>
+<script src="js/core/records.js?v=2.9.13"></script>
+<script src="js/core/weather-rating.js?v=2.9.13"></script>
+<script src="js/core/training-suggestion.js?v=2.9.13"></script>
+<script src="js/core/suggestion-history.js?v=2.9.13"></script>
+<script src="js/core/performance-analysis.js?v=2.9.13"></script>
+<script src="js/core/comparative-performance.js?v=2.9.13"></script>
+<script src="js/router.js?v=2.9.13"></script>
+<script src="js/defaults.js?v=2.9.13"></script>
+<script src="js/api.js?v=2.9.13"></script>
+<script src="js/storage.js?v=2.9.13"></script>
+<script src="js/profile.js?v=2.9.13"></script>
+<script src="js/charts.js?v=2.9.13"></script>
+<script src="js/modals.js?v=2.9.13"></script>
+<script src="js/workouts.js?v=2.9.13"></script>
+<script src="js/rides.js?v=2.9.13"></script>
+<script src="js/bikes.js?v=2.9.13"></script>
+<script src="js/training-log.js?v=2.9.13"></script>
+<script src="js/home-workout.js?v=2.9.13"></script>
+<script src="js/backup.js?v=2.9.13"></script>
+<script src="js/gpx.js?v=2.9.13"></script>
+<script src="js/routes.js?v=2.9.13"></script>
+<script src="js/heatmap.js?v=2.9.13"></script>
+<script src="js/strava.js?v=2.9.13"></script>
+<script src="js/garmin.js?v=2.9.13"></script>
+<script src="js/activities.js?v=2.9.13"></script>
+<script src="js/insights.js?v=2.9.13"></script>
+<script src="js/proximo-treino.js?v=2.9.13"></script>
+<script src="js/performance-analysis.js?v=2.9.13"></script>
+<script src="js/comparative-performance.js?v=2.9.13"></script>
+<script src="js/testes.js?v=2.9.13"></script>
+<script src="js/ferramentas.js?v=2.9.13"></script>
+<script src="js/home.js?v=2.9.13"></script>
+<script src="js/notifications.js?v=2.9.13"></script>
+<script src="js/app.js?v=2.9.13"></script>
+<script src="js/pwa.js?v=2.9.13"></script>
 
 </body>
 </html>

@@ -2,27 +2,30 @@
    ROTAS — /api/performance-analysis (Fase 4 da evolução IDEIA-1+2, seção
    Desempenho — bloco "Análise de Performance", GLOSSARY.md).
 
-   GET  /api/performance-analysis   lê o cache (nunca chama o Gemini)
-   POST /api/performance-analysis   gera uma análise nova via Gemini
+   GET  /api/performance-analysis   lê o cache (nunca chama nenhuma IA)
+   POST /api/performance-analysis   gera uma análise nova via Gemini/Groq
 
    Cache PERSISTENTE (tabela performance_analysis_cache, singleton id=1,
    schema em server/db/schema-training.sql) — diferente do cache em memória
-   da calibração (Fase 2): esta análise custou uma chamada paga ao Gemini,
+   da calibração (Fase 2): esta análise custou uma chamada paga a uma IA,
    então precisa sobreviver a um restart do processo (deploy). O design
-   manda mostrar a última análise cacheada mesmo vencida se o Gemini falhar
+   manda mostrar a última análise cacheada mesmo vencida se a IA falhar
    (ver ADR-0002/GLOSSARY "Análise de Performance") — por isso o POST só
    sobrescreve a linha em caso de SUCESSO; falha nunca apaga o que já tinha.
 
    Pré-cálculo local (ADR-0002): o frontend (js/core/performance-analysis.js)
    já manda os deltas prontos no corpo do POST — esta rota nunca recalcula
-   número nenhum, só monta o prompt e interpreta a resposta do Gemini.
+   número nenhum, só monta o prompt e interpreta a resposta da IA.
+
+   Rotação de modelo de IA (ADR-0004): a chamada em si (descoberta de
+   modelo, cascata Gemini→Groq) mora em server/services/ai-providers.js —
+   esta rota só consome gerarAnalise() e sabe qual provider/model respondeu
+   pra guardar no payload cacheado e exibir na UI.
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
-const config = require('../config');
+const { gerarAnalise } = require('../services/ai-providers');
 
 const CACHE_VENCIDO_MS = 24 * 60 * 60 * 1000;
-const GEMINI_MODEL = 'gemini-2.0-flash';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 function montarPrompt({ deltas, grupoResumo }) {
   return [
@@ -36,31 +39,6 @@ function montarPrompt({ deltas, grupoResumo }) {
     `Tempo em movimento (s): ${deltas.tempoMovS.join(', ')}\n`,
     `FC média (bpm): ${deltas.fcMedia.join(', ')}\n`,
   ].join('');
-}
-
-async function chamarGemini(prompt) {
-  if (!config.GEMINI_API_KEY) {
-    const err = new Error('GEMINI_API_KEY não configurada');
-    err.semChave = true;
-    throw err;
-  }
-  const resp = await fetch(`${GEMINI_URL}?key=${config.GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-    signal: AbortSignal.timeout(20_000), // não trava o request esperando a API externa indefinidamente
-  });
-  if (!resp.ok) {
-    const corpo = await resp.text().catch(() => '');
-    const err = new Error(`Gemini respondeu ${resp.status}`);
-    err.upstreamStatus = resp.status;
-    err.upstreamBody = corpo.slice(0, 500);
-    throw err;
-  }
-  const json = await resp.json();
-  const texto = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!texto) throw new Error('Gemini não devolveu texto');
-  return texto.trim();
 }
 
 function lerCache(fastify) {
@@ -93,11 +71,11 @@ async function routes(fastify) {
       return { ok: false, error: 'referenciaId, deltas e grupoResumo são obrigatórios' };
     }
 
-    let texto;
+    let resultado;
     try {
-      texto = await chamarGemini(montarPrompt({ deltas, grupoResumo }));
+      resultado = await gerarAnalise(montarPrompt({ deltas, grupoResumo }));
     } catch (err) {
-      req.log.warn({ err: err.message, upstreamStatus: err.upstreamStatus }, 'performance-analysis: Gemini falhou');
+      req.log.warn({ err: err.message, cascata: err.cascata }, 'performance-analysis: todos os provedores de IA falharam');
       const cache = lerCache(fastify);
       reply.code(502);
       return cache
@@ -105,7 +83,8 @@ async function routes(fastify) {
         : { ok: false, error: 'Análise indisponível no momento' };
     }
 
-    const payload = JSON.stringify({ texto, deltas, grupoResumo });
+    const { texto, provider, model } = resultado;
+    const payload = JSON.stringify({ texto, deltas, grupoResumo, provider, model });
     fastify.db
       .prepare(`INSERT INTO performance_analysis_cache (id, atividade_referencia_id, payload, gerado_em)
                 VALUES (1, ?, ?, CURRENT_TIMESTAMP)

@@ -109,6 +109,9 @@
     if (route.section === 'proximo-treino' && window.PerformanceAnalysisUI?.load) {
       window.PerformanceAnalysisUI.load();
     }
+    if (route.section === 'proximo-treino' && window.ComparativePerformanceUI?.load) {
+      window.ComparativePerformanceUI.load();
+    }
     if (route.section === 'testes' && window.Testes?.load) {
       window.Testes.load();
     }

@@ -33,6 +33,14 @@
     });
   }
 
+  // Payloads antigos (gerados antes da Rotação de modelo de IA, ADR-0004)
+  // não têm provider/model — trata como opcional.
+  function rotuloProvider(payload) {
+    if (!payload.provider || !payload.model) return '';
+    const nome = payload.provider === 'gemini' ? 'Gemini' : 'Groq';
+    return ' · gerado via ' + nome + ' · ' + payload.model;
+  }
+
   function mostrarResultado(payload, geradoEm, vencida) {
     const empty   = $('performance-analysis-empty');
     const content = $('performance-analysis-content');
@@ -41,7 +49,7 @@
     renderTexto($('performance-analysis-texto'), payload.texto);
 
     const meta = $('performance-analysis-meta');
-    meta.textContent = 'Gerada em ' + fmtDataHora(geradoEm);
+    meta.textContent = 'Gerada em ' + fmtDataHora(geradoEm) + rotuloProvider(payload);
     meta.style.color = '';
     if (vencida) {
       meta.textContent += ' — desatualizada, toque em Analisar pra atualizar';

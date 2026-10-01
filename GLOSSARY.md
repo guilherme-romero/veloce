@@ -92,3 +92,45 @@ v1 — não adicionar uma quarta categoria sem revisar esta decisão.
 **Prioridade de categoria**:
 Ordem fixa usada para escolher qual Categoria de sugestão vence quando mais de uma se justifica:
 **Recuperação > Volume > Zona-alvo** (ver `docs/adr/0001-prioridade-fixa-entre-categorias-de-sugestao.md`).
+
+**Rotação de modelo de IA**:
+Mecanismo que escolhe automaticamente qual modelo de IA chamar para a Análise de Performance, sem
+depender de um nome de modelo hardcoded no código — nomes de modelo saem de circulação em poucos
+meses (confirmado: `gemini-2.0-flash`, usado na entrega original da Análise de Performance, foi
+descontinuado pelo Google 4 meses depois). Descobre os modelos disponíveis em tempo real junto da
+API de cada provedor, escolhe o melhor por um padrão de nome preferido (não por número de versão,
+frágil de comparar como string), e tenta até 2 modelos por provedor antes de desistir dele. Gemini
+é sempre o provedor principal; Groq só é tentado depois de esgotar as tentativas com o Gemini (ver
+Provedor de fallback). Ver `docs/adr/0004-descoberta-dinamica-de-modelo-de-ia.md`.
+_Avoid_: modelo de IA (sozinho, sem o contexto de que ele roda — é sempre resolvido em runtime, não
+fixo no código).
+
+**Provedor de fallback**:
+Groq, usado pela Análise de Performance somente quando o provedor principal (Gemini) falha em
+todas as tentativas da Rotação de modelo de IA — nunca chamado em paralelo com o Gemini. O
+resultado da análise registra qual provedor/modelo de fato gerou o texto, exibido discretamente
+na UI, para que fique visível quando a rotação estiver de fato acontecendo.
+
+**Comparativo de Desempenho**:
+Bloco da seção Desempenho que compara os últimos 30 dias contra os 30 dias imediatamente
+anteriores (janela fixa, sem seletor de período) em cinco frentes: volume, tempo de pedal,
+altimetria, tempo por Categoria de zona, e peso corporal. Diferente da Análise de Performance (que
+compara uma Atividade de referência contra um Grupo de comparação de atividades parecidas, ao
+longo de 12 meses): o Comparativo de Desempenho usa tempo corrido como eixo de comparação, não
+semelhança entre atividades — os dois blocos respondem perguntas diferentes e convivem na mesma
+seção. **Ausente** (bloco inteiro oculto, sem erro) se qualquer um dos dois períodos tiver menos de
+3 atividades. O sub-bloco de peso tem seu próprio critério de ausência, independente dos outros
+quatro (pode faltar peso mesmo com atividade suficiente). Só Volume/Tempo de pedal/Altimetria
+recebem selo de alta/baixa (verde/vermelho) — zona e peso mostram a variação sem indicar se é boa
+ou ruim, porque isso depende do objetivo pessoal do atleta, que o app não pergunta. Nasce
+desktop-only; mobile é extensão futura, mesmo padrão já usado para o resto da seção.
+_Avoid_: Grupo de comparação (termo já reservado para a Análise de Performance, não para este
+bloco).
+
+**Categoria de zona**:
+Agrupamento das 5 zonas de FC com dado real por atividade (Z1–Z5, armazenadas por pedalada) em 3
+categorias de treino, usado pelo Comparativo de Desempenho: **Resistência** (Z1+Z2), **Limiar
+lático** (Z3+Z4) e **Esforço máximo** (Z5). Deliberadamente usa o modelo de 5 zonas que tem
+histórico por atividade (o mesmo que já define "zona alta" = Z4+Z5 nos Limiares calibrados), não o
+modelo de 6 zonas de exibição do perfil do atleta (`js/utils.js` `FC_ZONES`), que não tem dado
+histórico por pedalada.
