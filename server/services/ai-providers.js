@@ -20,9 +20,25 @@ const GROQ_CHAT_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 const CALL_TIMEOUT_MS   = 20_000;
 const MODEL_LIST_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Ordem = prioridade; primeiro padrão que bater em algum modelo da lista
-// ao vivo vence. Mesmo array serve pros dois provedores.
+// A listagem de modelos de cada provedor inclui variantes que NÃO são chat
+// de texto (TTS, imagem, transcrição, classificadores de segurança/guard) —
+// descoberto empiricamente em produção: o filtro antigo (só "não é preview/
+// deprecated") escolheu "whisper-large-v3" (transcrição) e "canopylabs/
+// orpheus-v1-english" (text-to-speech) como candidatos Groq. Excluir sempre,
+// pros dois provedores, antes de aplicar qualquer padrão de preferência.
+const EXCLUDE_NAO_TEXTO = /tts|image|vision|whisper|transcribe|audio|embed|moderation|guard|safety|safeguard|clip|lyria|robotics|computer-use|antigravity|deep-research|orpheus/i;
+
+// Ordem = prioridade; primeiro padrão que bater em algum modelo (já filtrado
+// por EXCLUDE_NAO_TEXTO) vence. Mesmo array serve pros dois provedores —
+// cada padrão só "pega" nos nomes do provedor a que se aplica, os outros
+// simplesmente não encontram match e caem pro próximo.
 const PADROES_PREFERIDOS = [
+  // Gemini mantém aliases "-latest" que a própria Google aponta pro modelo
+  // recomendado do momento — escolher isso elimina o problema de
+  // obsolescência de vez (nunca mais precisa saber o número da versão).
+  (m) => /^gemini-(flash|pro)(-lite)?-latest$/i.test(m),
+  // Groq: maior modelo open-weight da família gpt-oss, bom default de uso geral.
+  (m) => /gpt-oss-120b/i.test(m),
   (m) => /flash/i.test(m) && !/preview|exp|deprecated/i.test(m),
   (m) => !/preview|exp|deprecated/i.test(m),
 ];
@@ -45,7 +61,8 @@ async function listarModelosGemini(apiKey) {
   return (json.models || [])
     .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
     .map((m) => (m.name || '').replace(/^models\//, ''))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((m) => !EXCLUDE_NAO_TEXTO.test(m));
 }
 
 async function listarModelosGroq(apiKey) {
@@ -59,15 +76,10 @@ async function listarModelosGroq(apiKey) {
     throw err;
   }
   const json = await resp.json();
-  return (json.data || []).map((m) => m.id).filter(Boolean);
-}
-
-function selecionarMelhorModelo(modelos) {
-  for (const padrao of PADROES_PREFERIDOS) {
-    const achado = modelos.find(padrao);
-    if (achado) return achado;
-  }
-  return modelos[0] || null;
+  return (json.data || [])
+    .map((m) => m.id)
+    .filter(Boolean)
+    .filter((m) => !EXCLUDE_NAO_TEXTO.test(m));
 }
 
 async function obterModelosComCache(provider, fetcher, apiKey) {
