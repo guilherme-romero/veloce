@@ -11,8 +11,7 @@ IDEIA-1+2). Renomeada em 2026-09-30 ao ganhar uma segunda metade: a seção pass
 Sugestão de Treino (prescritiva, hoje) quanto a Análise de Performance (retrospectiva, ver abaixo)
 — "Próximo Treino" descrevia só a primeira metade. "Desempenho" (em vez do inglês "Performance")
 mantém a seção alinhada ao restante do nav, 100% em português — "Insights" é a única exceção
-conhecida, uma anomalia antiga, não uma convenção a estender. Fica posicionada logo após Insights,
-sem depender da seção Testes (que é temporária/descartável).
+conhecida, uma anomalia antiga, não uma convenção a estender. Fica posicionada logo após Insights.
 _Avoid_: seção IA, Próximo Treino (nome anterior), Treinador, Performance (em inglês).
 
 **Sugestão de Treino**:
