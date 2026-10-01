@@ -14,8 +14,13 @@
     amber: '#f5d523',
     red:   '#f0523a',
     green: '#22c55e',
-    teal:  'var(--teal)',
-    muted2: 'var(--muted2)',
+    // Hex literal, não var(--x): estas cores alimentam fillStyle/strokeStyle
+    // de <canvas> via Chart.js, e canvas não resolve variáveis CSS (ao
+    // contrário de propriedades DOM) — o navegador ignora o valor inválido
+    // silenciosamente e mantém preto. Mesmo motivo de js/charts.js usar hex
+    // literal em CHART_COLORS em vez de var(--teal).
+    teal:  '#c6f135',
+    muted2: '#c4ccd4',
   };
 
   const CATEGORIA_LABELS = ['Resistência', 'Limiar lático', 'Esforço máximo'];
