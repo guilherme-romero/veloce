@@ -22,13 +22,13 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.9.16"></script>
+  <script src="js/variant.js?v=2.9.17"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.16">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.16">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.16">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.16">
-  <link rel="manifest" href="manifest.json?v=2.9.16">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.17">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.17">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.17">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.17">
+  <link rel="manifest" href="manifest.json?v=2.9.17">
 
   <title>VELOCE LABS</title>
 
@@ -47,11 +47,11 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.9.16">
-  <link rel="stylesheet" href="css/rides.css?v=2.9.16">
-  <link rel="stylesheet" href="css/routes.css?v=2.9.16">
-  <link rel="stylesheet" href="css/bikes.css?v=2.9.16">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.16">
+  <link rel="stylesheet" href="css/style.css?v=2.9.17">
+  <link rel="stylesheet" href="css/rides.css?v=2.9.17">
+  <link rel="stylesheet" href="css/routes.css?v=2.9.17">
+  <link rel="stylesheet" href="css/bikes.css?v=2.9.17">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.17">
 </head>
 <body>
 
@@ -999,33 +999,43 @@
 
   <!-- ┌─ DESEMPENHO (IDEIA-1+2, antes "Próximo Treino") ──────────────┐ -->
   <section id="proximo-treino" class="scroll-mt-20">
-    <div class="section-label">Sugestão do dia</div>
-    <h2 class="section-title">Desempenho</h2>
-    <p class="section-sub" style="margin-bottom:28px;">
-      Uma sugestão por vez, calculada por regras locais a partir do seu índice de fadiga, TSB e
-      distribuição de zona de FC — heurística deste app, não IA.
-    </p>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:20px;flex-wrap:wrap;">
+      <div>
+        <div class="section-label">Sugestão do dia</div>
+        <h2 class="section-title">Desempenho</h2>
+      </div>
+      <p style="font-size:12px;color:var(--muted);max-width:380px;text-align:right;">
+        Regras locais a partir do índice de fadiga, TSB e zonas de FC — heurística deste app, não IA.
+      </p>
+    </div>
 
     <div id="proximo-treino-empty" class="card" style="padding:28px;text-align:center;color:var(--muted2);">
       Sincronize com o Garmin e treine por pelo menos 7 dias para ver a sugestão aqui.
     </div>
 
     <div id="proximo-treino-content" hidden>
-      <div class="card insight-card">
-        <div class="insight-head">
-          <div class="insight-head-left">
-            <div class="card-label">Sugestão de treino</div>
-          </div>
-          <span class="insight-badge" id="proximo-treino-categoria">—</span>
+      <div class="desemp-top">
+        <div class="desemp-verdict" id="desemp-verdict">
+          <span class="desemp-verdict__badge"><i class="fa-solid" id="desemp-verdict-icon"></i><span id="desemp-verdict-categoria"></span></span>
+          <div class="desemp-verdict__title" id="desemp-verdict-title"></div>
+          <p class="desemp-verdict__sub" id="desemp-verdict-sub"></p>
         </div>
-        <div class="insight-msg" id="proximo-treino-msg"></div>
-        <p class="insight-msg" id="proximo-treino-historico" hidden style="margin-top:10px;color:var(--muted2);font-size:13px;"></p>
+        <div class="desemp-adherence">
+          <div class="desemp-adherence__ring" id="desemp-adherence-ring" hidden>
+            <div class="desemp-adherence__ring-inner">
+              <span class="desemp-adherence__pct" id="desemp-adherence-pct"></span>
+              <span class="desemp-adherence__label">aderência</span>
+            </div>
+          </div>
+          <p class="desemp-adherence__text" id="desemp-adherence-text" hidden></p>
+          <p class="desemp-adherence__text" id="desemp-adherence-empty" hidden>Sem histórico suficiente.</p>
+        </div>
       </div>
 
       <div class="card insight-card">
         <div class="insight-head">
           <div class="insight-head-left">
-            <div class="card-label">Análise de Performance</div>
+            <div class="card-label" id="performance-analysis-label">Análise de performance</div>
           </div>
           <button id="performance-analysis-btn" class="btn btn-ghost" type="button" hidden>
             <i class="fa-solid fa-wand-magic-sparkles"></i> Analisar
@@ -1033,8 +1043,26 @@
         </div>
         <div class="insight-msg" id="performance-analysis-empty" style="color:var(--muted2);"></div>
         <div id="performance-analysis-content" hidden>
-          <div id="performance-analysis-texto"></div>
-          <p id="performance-analysis-meta" style="margin-top:10px;color:var(--muted2);font-size:12px;"></p>
+          <div class="desemp-analysis__grid">
+            <div>
+              <div class="desemp-stats">
+                <div>
+                  <div class="desemp-stat__value" id="pa-stat-vel"></div>
+                  <div class="desemp-stat__label">vel. média km/h</div>
+                </div>
+                <div>
+                  <div class="desemp-stat__value desemp-stat__value--fc" id="pa-stat-fc"></div>
+                  <div class="desemp-stat__label">fc média bpm</div>
+                </div>
+              </div>
+              <div id="performance-analysis-texto"></div>
+            </div>
+            <div class="desemp-focus" id="performance-analysis-foco" hidden>
+              <div class="desemp-focus__title"><i class="fa-solid fa-crosshairs"></i>Foco de treino</div>
+              <p class="desemp-focus__text" id="performance-analysis-foco-text"></p>
+            </div>
+          </div>
+          <p class="desemp-meta" id="performance-analysis-meta"></p>
         </div>
       </div>
 
@@ -1048,31 +1076,60 @@
           Pedale por pelo menos 3 saídas em cada um dos últimos dois períodos de 30 dias para ver o comparativo.
         </div>
         <div id="comparative-performance-content" hidden>
-          <div class="comp-grid">
-            <div class="comp-card">
-              <div class="comp-card__label">Volume (km)</div>
-              <span class="comp-card__badge" id="compVolumeBadge"></span>
-              <div class="chart-wrap"><canvas id="compVolumeChart"></canvas></div>
+          <div class="desemp-compare-grid">
+            <div class="desemp-tile">
+              <div class="desemp-tile__label">Volume</div>
+              <div class="desemp-tile__value" id="compVolumeValue"></div>
+              <div class="desemp-tile__delta" id="compVolumeDelta"></div>
+              <div class="desemp-bars">
+                <div class="desemp-bar"><div class="desemp-bar__fill" id="compVolumeBarAnterior" style="background:var(--border2);"></div></div>
+                <div class="desemp-bar"><div class="desemp-bar__fill" id="compVolumeBarAtual" style="background:var(--lime);"></div></div>
+              </div>
             </div>
-            <div class="comp-card">
-              <div class="comp-card__label">Tempo de pedal (h)</div>
-              <span class="comp-card__badge" id="compTempoBadge"></span>
-              <div class="chart-wrap"><canvas id="compTempoChart"></canvas></div>
+            <div class="desemp-tile">
+              <div class="desemp-tile__label">Tempo de pedal</div>
+              <div class="desemp-tile__value" id="compTempoValue"></div>
+              <div class="desemp-tile__delta" id="compTempoDelta"></div>
+              <div class="desemp-bars">
+                <div class="desemp-bar"><div class="desemp-bar__fill" id="compTempoBarAnterior" style="background:var(--border2);"></div></div>
+                <div class="desemp-bar"><div class="desemp-bar__fill" id="compTempoBarAtual" style="background:var(--lime);"></div></div>
+              </div>
             </div>
-            <div class="comp-card">
-              <div class="comp-card__label">Altimetria (m)</div>
-              <span class="comp-card__badge" id="compAltimetriaBadge"></span>
-              <div class="chart-wrap"><canvas id="compAltimetriaChart"></canvas></div>
+            <div class="desemp-tile">
+              <div class="desemp-tile__label">Altimetria</div>
+              <div class="desemp-tile__value desemp-tile__value--elev" id="compAltimetriaValue"></div>
+              <div class="desemp-tile__delta" id="compAltimetriaDelta"></div>
+              <div class="desemp-bars">
+                <div class="desemp-bar"><div class="desemp-bar__fill" id="compAltimetriaBarAnterior" style="background:var(--border2);"></div></div>
+                <div class="desemp-bar"><div class="desemp-bar__fill" id="compAltimetriaBarAtual" style="background:var(--green);"></div></div>
+              </div>
             </div>
-            <div class="comp-card">
-              <div class="comp-card__label">Tempo por categoria de zona</div>
-              <span class="comp-card__badge" id="compZonaVariacao"></span>
-              <div class="chart-wrap"><canvas id="compZonaChart"></canvas></div>
+            <div class="desemp-tile">
+              <div class="desemp-tile__label">Tempo por zona</div>
+              <div class="desemp-zone-row">
+                <span class="desemp-zone-row__label">Anterior</span>
+                <div class="desemp-zone-row__bar" id="compZonaAnteriorBar"></div>
+                <span class="desemp-zone-row__total" id="compZonaAnteriorTotal"></span>
+              </div>
+              <div class="desemp-zone-row">
+                <span class="desemp-zone-row__label">Atual</span>
+                <div class="desemp-zone-row__bar" id="compZonaAtualBar"></div>
+                <span class="desemp-zone-row__total" id="compZonaAtualTotal"></span>
+              </div>
+              <div class="desemp-zone-legend">
+                <span class="desemp-zone-legend__item"><span class="desemp-zone-legend__swatch" style="background:var(--blue);"></span>Resistência</span>
+                <span class="desemp-zone-legend__item"><span class="desemp-zone-legend__swatch" style="background:var(--amber);"></span>Limiar</span>
+                <span class="desemp-zone-legend__item"><span class="desemp-zone-legend__swatch" style="background:var(--red);"></span>Máximo</span>
+              </div>
             </div>
-            <div class="comp-card" id="compPesoCard" hidden>
-              <div class="comp-card__label">Peso corporal</div>
-              <span class="comp-card__badge" id="compPesoVariacao"></span>
-              <div class="chart-wrap"><canvas id="compPesoChart"></canvas></div>
+            <div class="desemp-tile" id="compPesoCard" hidden>
+              <div class="desemp-tile__label">Peso corporal</div>
+              <div class="desemp-tile__value" id="compPesoValue"></div>
+              <div class="desemp-tile__delta" id="compPesoDelta"></div>
+              <svg viewBox="0 0 160 40" preserveAspectRatio="none">
+                <polyline id="compPesoLine" class="desemp-sparkline" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                <circle id="compPesoDot" class="desemp-sparkline-dot" r="3.5"></circle>
+              </svg>
             </div>
           </div>
         </div>
@@ -1622,51 +1679,50 @@
 <!-- ═══════════════════ SCRIPTS ══════════════════════════════════════ -->
 <!-- CDN externos (versionamento próprio) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.9.16"></script>
-<script src="js/utils.js?v=2.9.16"></script>
+<script src="js/version.js?v=2.9.17"></script>
+<script src="js/utils.js?v=2.9.17"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.9.16"></script>
-<script src="js/core/activity-stats.js?v=2.9.16"></script>
-<script src="js/core/weight-stats.js?v=2.9.16"></script>
-<script src="js/core/fatigue.js?v=2.9.16"></script>
-<script src="js/core/records.js?v=2.9.16"></script>
-<script src="js/core/weather-rating.js?v=2.9.16"></script>
-<script src="js/core/training-suggestion.js?v=2.9.16"></script>
-<script src="js/core/suggestion-history.js?v=2.9.16"></script>
-<script src="js/core/performance-analysis.js?v=2.9.16"></script>
-<script src="js/core/comparative-performance.js?v=2.9.16"></script>
-<script src="js/router.js?v=2.9.16"></script>
-<script src="js/defaults.js?v=2.9.16"></script>
-<script src="js/api.js?v=2.9.16"></script>
-<script src="js/storage.js?v=2.9.16"></script>
-<script src="js/profile.js?v=2.9.16"></script>
-<script src="js/charts.js?v=2.9.16"></script>
-<script src="js/modals.js?v=2.9.16"></script>
-<script src="js/workouts.js?v=2.9.16"></script>
-<script src="js/rides.js?v=2.9.16"></script>
-<script src="js/bikes.js?v=2.9.16"></script>
-<script src="js/training-log.js?v=2.9.16"></script>
-<script src="js/home-workout.js?v=2.9.16"></script>
-<script src="js/backup.js?v=2.9.16"></script>
-<script src="js/gpx.js?v=2.9.16"></script>
-<script src="js/routes.js?v=2.9.16"></script>
-<script src="js/heatmap.js?v=2.9.16"></script>
-<script src="js/strava.js?v=2.9.16"></script>
-<script src="js/garmin.js?v=2.9.16"></script>
-<script src="js/activities.js?v=2.9.16"></script>
-<script src="js/insights.js?v=2.9.16"></script>
-<script src="js/proximo-treino.js?v=2.9.16"></script>
-<script src="js/performance-analysis.js?v=2.9.16"></script>
-<script src="js/comparative-performance.js?v=2.9.16"></script>
-<script src="js/ferramentas.js?v=2.9.16"></script>
-<script src="js/home.js?v=2.9.16"></script>
-<script src="js/notifications.js?v=2.9.16"></script>
-<script src="js/app.js?v=2.9.16"></script>
-<script src="js/pwa.js?v=2.9.16"></script>
+<script src="js/core/metrics.js?v=2.9.17"></script>
+<script src="js/core/activity-stats.js?v=2.9.17"></script>
+<script src="js/core/weight-stats.js?v=2.9.17"></script>
+<script src="js/core/fatigue.js?v=2.9.17"></script>
+<script src="js/core/records.js?v=2.9.17"></script>
+<script src="js/core/weather-rating.js?v=2.9.17"></script>
+<script src="js/core/training-suggestion.js?v=2.9.17"></script>
+<script src="js/core/suggestion-history.js?v=2.9.17"></script>
+<script src="js/core/performance-analysis.js?v=2.9.17"></script>
+<script src="js/core/comparative-performance.js?v=2.9.17"></script>
+<script src="js/router.js?v=2.9.17"></script>
+<script src="js/defaults.js?v=2.9.17"></script>
+<script src="js/api.js?v=2.9.17"></script>
+<script src="js/storage.js?v=2.9.17"></script>
+<script src="js/profile.js?v=2.9.17"></script>
+<script src="js/charts.js?v=2.9.17"></script>
+<script src="js/modals.js?v=2.9.17"></script>
+<script src="js/workouts.js?v=2.9.17"></script>
+<script src="js/rides.js?v=2.9.17"></script>
+<script src="js/bikes.js?v=2.9.17"></script>
+<script src="js/training-log.js?v=2.9.17"></script>
+<script src="js/home-workout.js?v=2.9.17"></script>
+<script src="js/backup.js?v=2.9.17"></script>
+<script src="js/gpx.js?v=2.9.17"></script>
+<script src="js/routes.js?v=2.9.17"></script>
+<script src="js/heatmap.js?v=2.9.17"></script>
+<script src="js/strava.js?v=2.9.17"></script>
+<script src="js/garmin.js?v=2.9.17"></script>
+<script src="js/activities.js?v=2.9.17"></script>
+<script src="js/insights.js?v=2.9.17"></script>
+<script src="js/proximo-treino.js?v=2.9.17"></script>
+<script src="js/performance-analysis.js?v=2.9.17"></script>
+<script src="js/comparative-performance.js?v=2.9.17"></script>
+<script src="js/ferramentas.js?v=2.9.17"></script>
+<script src="js/home.js?v=2.9.17"></script>
+<script src="js/notifications.js?v=2.9.17"></script>
+<script src="js/app.js?v=2.9.17"></script>
+<script src="js/pwa.js?v=2.9.17"></script>
 
 </body>
 </html>

@@ -14,17 +14,31 @@
 (function () {
   const $ = (id) => document.getElementById(id);
 
-  const COLORS = {
-    amber: '#f5d523',
-    red:   '#f0523a',
-    green: '#22c55e',
+  // Mapa determinístico (categoria, token) → estado visual do card Veredito
+  // (handoff_desempenho/README.md) — a cor/ícone é por ESTADO, não reaproveita
+  // o token vermelho/âmbar/verde antigo (ex.: os dois estados "zona-alvo"
+  // usam o mesmo fundo lima, diferenciados só pelo ícone).
+  const ESTADOS_VEREDITO = {
+    'recuperacao':       { label: 'Recuperação',               bg: 'var(--magenta)', icon: 'fa-bed' },
+    'volume':            { label: 'Treino leve / manutenção',  bg: 'var(--amber)',   icon: 'fa-feather' },
+    'zona-alvo:amber':   { label: 'Treino forte / intervalado', bg: 'var(--lime)',   icon: 'fa-bolt' },
+    'zona-alvo:green':   { label: 'Treino normal',             bg: 'var(--lime)',    icon: 'fa-bicycle' },
   };
 
-  const CATEGORIA_LABEL = {
-    'recuperacao': 'Recuperação',
-    'volume':      'Volume',
-    'zona-alvo':   'Zona-alvo',
-  };
+  function estadoVeredito(sug) {
+    const chave = sug.categoria === 'zona-alvo' ? `zona-alvo:${sug.token}` : sug.categoria;
+    return ESTADOS_VEREDITO[chave] || ESTADOS_VEREDITO['zona-alvo:green'];
+  }
+
+  // As 4 mensagens de TrainingSuggestion seguem o padrão "Motivo — Ação" —
+  // divide sem inventar texto novo: título = ação (vira o H em caixa alta),
+  // subtítulo = motivo. Sem "—" na mensagem (não deveria acontecer hoje),
+  // tudo vira título.
+  function splitMotivoAcao(msg) {
+    const idx = msg.indexOf(' — ');
+    if (idx === -1) return { subtitulo: '', titulo: msg };
+    return { subtitulo: msg.slice(0, idx), titulo: msg.slice(idx + 3) };
+  }
 
   const EMPTY_MSG_DEFAULT = 'Sincronize com o Garmin e treine por pelo menos 7 dias para ver a sugestão aqui.';
 
@@ -71,43 +85,57 @@
       if (!sug.ok) {
         empty.hidden = false;
         content.hidden = true;
-        const historicoVazio = $('proximo-treino-historico');
-        if (historicoVazio) { historicoVazio.hidden = true; historicoVazio.textContent = ''; }
         return;
       }
       empty.hidden = true;
       content.hidden = false;
 
-      const color = COLORS[sug.token] || COLORS.green;
-      const badge = $('proximo-treino-categoria');
-      if (badge) {
-        badge.textContent = CATEGORIA_LABEL[sug.categoria] || sug.categoria;
-        badge.style.background = color + '20';
-        badge.style.color = color;
-      }
-      const msgEl = $('proximo-treino-msg');
-      if (msgEl) msgEl.textContent = sug.msg;
+      const estado = estadoVeredito(sug);
+      const { titulo, subtitulo } = splitMotivoAcao(sug.msg);
 
-      const historico = $('proximo-treino-historico');
-      if (historico) {
-        const limiarTss = calibracao ? calibracao.tssRecuperacaoIgnorada : undefined;
-        const hist = window.SuggestionHistory.analyze({ activities, health: healthArr, fcMax, days: 90, limiarTss });
-        if (hist.ok) {
-          historico.hidden = false;
-          historico.textContent = `Nos últimos ${hist.janelaDias} dias, você seguiu a recomendação de `
-            + `recuperação em ${hist.seguiu} de ${hist.total} ocasiões (${hist.percentual}%).`;
-        } else {
-          historico.hidden = true;
-          historico.textContent = '';
+      const verdict = $('desemp-verdict');
+      if (verdict) verdict.style.background = estado.bg;
+      const icon = $('desemp-verdict-icon');
+      if (icon) icon.className = 'fa-solid ' + estado.icon;
+      const categoriaEl = $('desemp-verdict-categoria');
+      if (categoriaEl) categoriaEl.textContent = estado.label;
+      const tituloEl = $('desemp-verdict-title');
+      if (tituloEl) tituloEl.textContent = titulo.replace(/\.$/, '').toUpperCase();
+      const subEl = $('desemp-verdict-sub');
+      if (subEl) subEl.textContent = subtitulo;
+
+      const limiarTss = calibracao ? calibracao.tssRecuperacaoIgnorada : undefined;
+      const hist = window.SuggestionHistory.analyze({ activities, health: healthArr, fcMax, days: 90, limiarTss });
+      const ring   = $('desemp-adherence-ring');
+      const texto  = $('desemp-adherence-text');
+      const vazio  = $('desemp-adherence-empty');
+      if (hist.ok) {
+        if (ring) {
+          ring.hidden = false;
+          ring.style.background = `conic-gradient(var(--lime) 0 ${hist.percentual}%, var(--border) ${hist.percentual}% 100%)`;
         }
+        const pct = $('desemp-adherence-pct');
+        if (pct) pct.textContent = hist.percentual + '%';
+        if (texto) {
+          texto.hidden = false;
+          texto.replaceChildren();
+          texto.append('Você seguiu a recuperação em ');
+          const strong = document.createElement('strong');
+          strong.style.color = 'var(--text)';
+          strong.textContent = `${hist.seguiu} de ${hist.total}`;
+          texto.append(strong, ` ocasiões nos últimos ${hist.janelaDias} dias.`);
+        }
+        if (vazio) vazio.hidden = true;
+      } else {
+        if (ring) ring.hidden = true;
+        if (texto) texto.hidden = true;
+        if (vazio) vazio.hidden = false;
       }
     } catch (err) {
       console.error('[proximo-treino]', err);
       empty.textContent = 'Falha ao calcular a sugestão de treino.';
       empty.hidden = false;
       content.hidden = true;
-      const historicoErro = $('proximo-treino-historico');
-      if (historicoErro) { historicoErro.hidden = true; historicoErro.textContent = ''; }
     }
   }
 

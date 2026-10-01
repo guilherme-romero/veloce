@@ -2521,34 +2521,127 @@ body.edit-mode .exercise-actions { display: flex; }
   line-height: 1.5;
 }
 
-/* ── Comparativo de Desempenho (GLOSSARY.md) — grid dos 5 sub-cards ──── */
-.comp-grid {
+/* ── Desempenho (handoff_desempenho) — Veredito, Aderência, Análise,
+   Comparativo. Cor/fonte reaproveitam os tokens já definidos no :root
+   (nunca hex literal) — ver treino_bike_docs/handoff_desempenho/README.md
+   pra referência visual completa. ─────────────────────────────────────── */
+#proximo-treino-content { display: flex; flex-direction: column; gap: 20px; }
+#proximo-treino-content[hidden] { display: none; }
+
+/* Bloco 1: Veredito + Aderência */
+.desemp-top { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; }
+
+.desemp-verdict {
+  position: relative;
+  overflow: hidden;
+  color: var(--bg);
+  border-radius: var(--radius-lg);
+  padding: 28px 30px;
+}
+.desemp-verdict::after {
+  content: '';
+  position: absolute; top: 0; right: 28px; bottom: 0; width: 10px;
+  background: repeating-linear-gradient(180deg, var(--bg) 0 14px, transparent 14px 28px);
+  opacity: .18;
+}
+.desemp-verdict__badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(13, 15, 18, .14);
+  font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+  padding: 6px 12px; border-radius: 999px; margin-bottom: 16px;
+}
+.desemp-verdict__title {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: .86;
+  max-width: 620px;
+}
+.desemp-verdict__sub { font-size: 14px; font-weight: 500; margin-top: 14px; opacity: .85; }
+
+.desemp-adherence {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; text-align: center;
+}
+.desemp-adherence__ring {
+  width: 148px; height: 148px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.desemp-adherence__ring[hidden] { display: none; }
+.desemp-adherence__ring-inner {
+  width: 116px; height: 116px; border-radius: 50%; background: var(--surface);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.desemp-adherence__pct { font-family: var(--font-display); font-size: 46px; line-height: .85; color: var(--lime); }
+.desemp-adherence__label { font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+.desemp-adherence__text { font-size: 12px; color: var(--muted); }
+
+/* Bloco 2: Análise de Performance */
+.desemp-analysis__grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; }
+.desemp-stats { display: flex; gap: 28px; margin-bottom: 16px; }
+.desemp-stat__value { font-family: var(--font-display); font-size: 34px; line-height: .85; }
+.desemp-stat__value--fc { color: var(--magenta); }
+.desemp-stat__label { font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-top: 4px; }
+.desemp-obs { font-size: 13px; line-height: 1.6; color: var(--muted2); }
+.desemp-obs + .desemp-obs { margin-top: 10px; }
+.desemp-focus { background: var(--surface2); border-radius: 14px; padding: 20px; border-top: 3px solid var(--lime); }
+.desemp-focus__title {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-display); font-size: 22px; color: var(--lime); margin-bottom: 10px;
+}
+.desemp-focus__title i { font-size: 16px; }
+.desemp-focus__text { font-size: 13px; line-height: 1.6; color: var(--text); }
+.desemp-meta { font-size: 11px; color: var(--muted); margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* Bloco 3: Comparativo */
+.desemp-compare-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-top: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 12px;
 }
-.comp-card {
-  background: var(--surface2);
-  border-radius: 12px;
-  padding: 14px;
+.desemp-tile { background: var(--surface2); border-radius: 14px; padding: 16px; }
+.desemp-tile__label {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
 }
-.comp-card .chart-wrap { height: 140px; margin-top: 10px; }
-.comp-card__label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted2);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+.desemp-tile__value { font-family: var(--font-display); font-size: 40px; line-height: .82; }
+.desemp-tile__value small { font-size: 15px; color: var(--lime); margin-left: 3px; }
+.desemp-tile__value--elev { color: var(--green); }
+.desemp-tile__delta { font-size: 11px; color: var(--muted); margin: 6px 0 12px; }
+.desemp-delta-down { color: var(--magenta); font-weight: 800; }
+.desemp-delta-up { color: var(--lime); font-weight: 800; }
+
+.desemp-bars { display: flex; flex-direction: column; gap: 5px; }
+.desemp-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.desemp-bar__fill { height: 100%; border-radius: 3px; }
+
+.desemp-zone-row { display: flex; align-items: center; gap: 8px; }
+.desemp-zone-row + .desemp-zone-row { margin-top: 10px; }
+.desemp-zone-row__label { width: 48px; flex-shrink: 0; font-size: 10px; color: var(--muted); }
+/* flex:1 item + width inline não combinam (flex-basis:0% do atalho "flex:1"
+   ignora width) — a trilha fica flex:1 (sempre ocupa a linha toda) e quem
+   recebe a largura percentual (via JS) é o wrapper interno criado em
+   montarBarraZona(), não este elemento. */
+.desemp-zone-row__bar { flex: 1; height: 14px; border-radius: 3px; overflow: hidden; }
+.desemp-zone-row__total { font-size: 11px; font-weight: 700; min-width: 30px; text-align: right; }
+.desemp-zone-legend { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; font-size: 9.5px; color: var(--muted); }
+.desemp-zone-legend__item { display: inline-flex; align-items: center; gap: 4px; }
+.desemp-zone-legend__swatch { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+.desemp-tile svg { width: 100%; height: 40px; display: block; }
+.desemp-sparkline { stroke: var(--lime); }
+.desemp-sparkline-dot { fill: var(--lime); }
+
+@media (max-width: 1099px) {
+  .desemp-top { grid-template-columns: 1fr; }
+  .desemp-analysis__grid { grid-template-columns: 1fr; }
+  .desemp-compare-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-.comp-card__badge {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-}
-@media (max-width: 640px) {
-  .comp-grid { grid-template-columns: 1fr; }
+@media (max-width: 759px) {
+  .desemp-verdict__title { font-size: 40px; }
+  .desemp-compare-grid {
+    display: flex; overflow-x: auto; gap: 12px; padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+  .desemp-compare-grid .desemp-tile { flex: 0 0 200px; scroll-snap-align: start; }
 }

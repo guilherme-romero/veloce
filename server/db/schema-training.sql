@@ -379,6 +379,6 @@ CREATE INDEX IF NOT EXISTS idx_retired_tipo_marca ON bike_retired_components(tip
 CREATE TABLE IF NOT EXISTS performance_analysis_cache (
   id                      INTEGER PRIMARY KEY CHECK (id = 1),
   atividade_referencia_id TEXT NOT NULL,
-  payload                 TEXT NOT NULL,   -- JSON: { texto, deltas, grupoResumo, provider, model }
+  payload                 TEXT NOT NULL,   -- JSON: { observacao, foco, deltas, grupoResumo, provider, model }
   gerado_em               TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

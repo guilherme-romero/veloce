@@ -27,17 +27,41 @@ const { gerarAnalise } = require('../services/ai-providers');
 
 const CACHE_VENCIDO_MS = 24 * 60 * 60 * 1000;
 
+// Mesma lógica de js/core/performance-analysis.js:calcularDestaques() —
+// duplicada aqui porque é o backend (Node) que monta o prompt; runtime
+// diferente, sem import possível (mesmo padrão já aceito em
+// server/routes/garmin.js pra tssDeAtividade). Calculado localmente, nunca
+// pelo modelo — ADR-0002.
+function calcularDestaques(deltas) {
+  const vel = (deltas.velMediaKmh || []).filter((v) => v != null);
+  const fc  = (deltas.fcMedia || []).filter((v) => v != null);
+  return {
+    velMinKmh: vel.length ? Math.min(...vel) : null,
+    velMaxKmh: vel.length ? Math.max(...vel) : null,
+    fcMinBpm:  fc.length ? Math.min(...fc) : null,
+    fcMaxBpm:  fc.length ? Math.max(...fc) : null,
+  };
+}
+
+// Handoff_desempenho: a UI mostra "observação" e "foco de treino" como
+// blocos separados — pede JSON estruturado em vez de texto livre (mais
+// robusto que regex sobre Markdown cru). O parsing na rota (ver `routes()`)
+// tem fallback se o modelo não obedecer o formato.
 function montarPrompt({ deltas, grupoResumo }) {
+  const destaques = calcularDestaques(deltas);
   return [
     'Você é um assistente de treino de ciclismo. Compare os números abaixo (mesma rota/perfil, ',
-    'ordem cronológica — mais antigo primeiro) e diga, em português, se houve melhora, em que ',
-    'aspecto (velocidade, tempo ou eficiência de FC), e sugira um foco de treino em 2-3 frases. ',
-    'Não invente números além dos fornecidos.\n\n',
+    'ordem cronológica — mais antigo primeiro) e avalie se houve melhora, em que aspecto ',
+    '(velocidade, tempo ou eficiência de FC). Não invente números além dos fornecidos — a faixa de ',
+    'velocidade e de FC já aparece na tela separadamente, não repita esses números na prosa.\n\n',
     `Atividades comparadas: ${grupoResumo.tamanho} saídas de ~${grupoResumo.distanciaKm}km e `,
     `~${grupoResumo.elevacaoM}m de elevação nos últimos 12 meses.\n`,
-    `Velocidade média (km/h): ${deltas.velMediaKmh.join(', ')}\n`,
+    `Velocidade média (km/h): ${deltas.velMediaKmh.join(', ')} (faixa ${destaques.velMinKmh}–${destaques.velMaxKmh})\n`,
     `Tempo em movimento (s): ${deltas.tempoMovS.join(', ')}\n`,
-    `FC média (bpm): ${deltas.fcMedia.join(', ')}\n`,
+    `FC média (bpm): ${deltas.fcMedia.join(', ')} (faixa ${destaques.fcMinBpm}–${destaques.fcMaxBpm})\n\n`,
+    'Responda em português, SOMENTE com um objeto JSON válido (sem markdown, sem ```), no formato ',
+    'exato: {"observacao": "2-4 frases sobre o que os números mostram", "foco": "1-3 frases de ',
+    'sugestão de foco de treino"}.',
   ].join('');
 }
 
@@ -84,7 +108,20 @@ async function routes(fastify) {
     }
 
     const { texto, provider, model } = resultado;
-    const payload = JSON.stringify({ texto, deltas, grupoResumo, provider, model });
+    // O modelo foi instruído a responder só com JSON, mas não dá pra confiar
+    // cegamente — fallback: todo o texto bruto vira "observacao", sem foco
+    // (a UI esconde o bloco de foco quando foco é null).
+    let observacao = texto;
+    let foco = null;
+    try {
+      const parsed = JSON.parse(texto);
+      if (parsed && typeof parsed.observacao === 'string') {
+        observacao = parsed.observacao;
+        foco = typeof parsed.foco === 'string' ? parsed.foco : null;
+      }
+    } catch (_) { /* resposta não veio em JSON — usa o texto bruto como observação */ }
+
+    const payload = JSON.stringify({ observacao, foco, deltas, grupoResumo, provider, model });
     fastify.db
       .prepare(`INSERT INTO performance_analysis_cache (id, atividade_referencia_id, payload, gerado_em)
                 VALUES (1, ?, ?, CURRENT_TIMESTAMP)

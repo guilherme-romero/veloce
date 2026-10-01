@@ -87,5 +87,25 @@
     };
   }
 
-  window.PerformanceAnalysis = { analisar, selecionarReferencia, montarGrupo };
+  /**
+   * Faixa min–max de velocidade/FC a partir de `deltas` (handoff_desempenho:
+   * números-chave do card de Análise). Calculado localmente — nunca pelo
+   * modelo de IA — pra manter a garantia do ADR-0002 (app calcula, IA só
+   * interpreta). Mesma lógica duplicada em server/routes/performance-
+   * analysis.js pro texto do prompt (runtime diferente, sem import possível).
+   * @param  {Object} deltas — { velMediaKmh, tempoMovS, fcMedia } (arrays)
+   * @return {{ velMinKmh, velMaxKmh, fcMinBpm, fcMaxBpm }} (null se a série não tiver nenhum valor)
+   */
+  function calcularDestaques(deltas) {
+    const vel = (deltas?.velMediaKmh || []).filter(v => v != null);
+    const fc  = (deltas?.fcMedia || []).filter(v => v != null);
+    return {
+      velMinKmh: vel.length ? Math.min(...vel) : null,
+      velMaxKmh: vel.length ? Math.max(...vel) : null,
+      fcMinBpm:  fc.length ? Math.min(...fc) : null,
+      fcMaxBpm:  fc.length ? Math.max(...fc) : null,
+    };
+  }
+
+  window.PerformanceAnalysis = { analisar, selecionarReferencia, montarGrupo, calcularDestaques };
 })();

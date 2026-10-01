@@ -1,176 +1,176 @@
 /* ═══════════════════════════════════════════════════════════════════════
    COMPARATIVO DE DESEMPENHO — bloco da seção Desempenho, abaixo da Análise
    de Performance (GLOSSARY.md "Comparativo de Desempenho"). Reaproveita o
-   motor puro ComparativePerformance (js/core/) e renderiza 5 mini-gráficos
-   via Chart.js (já carregado pelo resto do app).
+   motor puro ComparativePerformance (js/core/) e renderiza 5 tiles via
+   CSS/SVG puro (handoff_desempenho) — sem Chart.js nesse bloco.
 
    Desktop-only nesta rodada (mobile fica para depois, mesmo padrão faseado
-   de sempre) — só este arquivo + index.html são tocados.
+   de sempre) — só este arquivo + index.html são tocados. O motor puro
+   (js/core/comparative-performance.js) não muda nada nesta reforma — só a
+   camada de apresentação.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const $ = (id) => document.getElementById(id);
 
-  const COLORS = {
-    amber: '#f5d523',
-    red:   '#f0523a',
-    green: '#22c55e',
-    // Hex literal, não var(--x): estas cores alimentam fillStyle/strokeStyle
-    // de <canvas> via Chart.js, e canvas não resolve variáveis CSS (ao
-    // contrário de propriedades DOM) — o navegador ignora o valor inválido
-    // silenciosamente e mantém preto. Mesmo motivo de js/charts.js usar hex
-    // literal em CHART_COLORS em vez de var(--teal).
-    teal:  '#c6f135',
-    muted2: '#c4ccd4',
-  };
-
   const CATEGORIA_LABELS = ['Resistência', 'Limiar lático', 'Esforço máximo'];
-  const CATEGORIA_CORES = ['#4e9ef5', COLORS.amber, COLORS.red]; // mesma leitura de intensidade crescente usada em intensityChart
+  // Tokens já existentes no :root (css/style.css) — nunca hex literal.
+  const CATEGORIA_CORES = ['var(--blue)', 'var(--amber)', 'var(--red)'];
 
-  let _charts = {}; // id -> instância Chart.js, destruída/recriada a cada load()
-
-  function destruirCharts() {
-    Object.values(_charts).forEach((c) => c && c.destroy());
-    _charts = {};
+  // Larguras das 2 barrinhas "anterior/atual" (handoff_desempenho §3.4):
+  // anterior = 100% normalmente; atual = atual/anterior×100% com teto de
+  // 100%. Se atual > anterior, inverte a referência (atual vira 100%) pra
+  // nunca estourar a barra.
+  function larguras(atual, anterior) {
+    if (anterior <= 0 && atual <= 0) return { anteriorPct: 0, atualPct: 0 };
+    if (anterior <= 0) return { anteriorPct: 0, atualPct: 100 };
+    if (atual <= anterior) return { anteriorPct: 100, atualPct: Math.min(100, (atual / anterior) * 100) };
+    return { anteriorPct: Math.max(0, (anterior / atual) * 100), atualPct: 100 };
   }
 
-  // Selo neutro (sem juízo de valor) — usado em zona/peso.
-  function setBadgeNeutro(el, texto) {
-    el.textContent = texto;
-    el.style.background = 'transparent';
-    el.style.color = COLORS.muted2;
+  function setBar(idAnterior, idAtual, atual, anterior) {
+    const { anteriorPct, atualPct } = larguras(atual, anterior);
+    const elAnterior = $(idAnterior);
+    const elAtual = $(idAtual);
+    if (elAnterior) elAnterior.style.width = anteriorPct + '%';
+    if (elAtual) elAtual.style.width = atualPct + '%';
   }
 
-  // Selo verde/vermelho (alta/baixa) — só Volume/Tempo/Altimetria.
-  function setBadgeDirecao(el, metrica) {
-    const cor = metrica.direcao === 'alta' ? COLORS.green : (metrica.direcao === 'baixa' ? COLORS.red : COLORS.muted2);
-    const seta = metrica.direcao === 'alta' ? '▲' : (metrica.direcao === 'baixa' ? '▼' : '—');
+  // Texto "era {anterior} · {seta}{pct}%" — seta/cor neutra de direção só
+  // pros 3 tiles de alta/baixa (Volume/Tempo/Altimetria); Zona/Peso usam
+  // texto sem juízo de valor (ver renderZona/renderPeso).
+  function textoDelta(elId, anteriorFmt, metrica) {
+    const el = $(elId);
+    if (!el) return;
+    el.replaceChildren();
+    el.append(`era ${anteriorFmt} · `);
+    const span = document.createElement('span');
+    const seta = metrica.direcao === 'alta' ? '↑' : (metrica.direcao === 'baixa' ? '↓' : '—');
     // percentual é null quando o período anterior foi 0 (divisão por zero
     // evitada) — mostra o delta absoluto em vez de deixar a seta sem número.
-    const pct = metrica.percentual != null ? Math.abs(metrica.percentual) + '%' : '+' + Math.round(Math.abs(metrica.delta) * 10) / 10;
-    el.textContent = [seta, pct].filter(Boolean).join(' ');
-    el.style.background = cor + '20';
-    el.style.color = cor;
+    const pct = metrica.percentual != null ? Math.abs(metrica.percentual) + '%' : String(Math.round(Math.abs(metrica.delta) * 10) / 10);
+    span.className = metrica.direcao === 'alta' ? 'desemp-delta-up' : (metrica.direcao === 'baixa' ? 'desemp-delta-down' : '');
+    span.textContent = seta + pct;
+    el.append(span);
   }
 
-  function barraAgrupada(canvasId, atual, anterior, cor) {
-    const el = $(canvasId);
+  function renderNumeroTile(valorElId, valor, unidade) {
+    const el = $(valorElId);
     if (!el) return;
-    _charts[canvasId] = new Chart(el.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: ['Anterior', 'Atual'],
-        datasets: [{ data: [anterior, atual], backgroundColor: cor, borderRadius: 6, maxBarThickness: 48 }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } },
-      },
+    el.replaceChildren(document.createTextNode(valor));
+    const small = document.createElement('small');
+    small.textContent = unidade;
+    el.append(small);
+  }
+
+  function renderBarrasVolumeTempoAltimetria(r) {
+    renderNumeroTile('compVolumeValue', Math.round(r.volume.atual), 'KM');
+    textoDelta('compVolumeDelta', Math.round(r.volume.anterior) + ' km', r.volume);
+    setBar('compVolumeBarAnterior', 'compVolumeBarAtual', r.volume.atual, r.volume.anterior);
+
+    const tempoAtual = Math.round(r.tempo.atual * 10) / 10;
+    const tempoAnterior = Math.round(r.tempo.anterior * 10) / 10;
+    renderNumeroTile('compTempoValue', String(tempoAtual).replace('.', ','), 'H');
+    textoDelta('compTempoDelta', String(tempoAnterior).replace('.', ',') + ' h', r.tempo);
+    setBar('compTempoBarAnterior', 'compTempoBarAtual', r.tempo.atual, r.tempo.anterior);
+
+    renderNumeroTile('compAltimetriaValue', Math.round(r.altimetria.atual), 'M');
+    textoDelta('compAltimetriaDelta', Math.round(r.altimetria.anterior) + ' m', r.altimetria);
+    setBar('compAltimetriaBarAnterior', 'compAltimetriaBarAtual', r.altimetria.atual, r.altimetria.anterior);
+  }
+
+  // Barra "Anterior" sempre 100% de largura; barra "Atual" é proporcional
+  // (atual/anterior, capada em 100%) — as fatias internas de cada barra são
+  // o % de cada Categoria de zona dentro do total DAQUELA barra.
+  function montarBarraZona(containerId, segundosPorZona, totalBarraPct) {
+    const el = $(containerId);
+    if (!el) return;
+    el.replaceChildren();
+    // O container (.desemp-zone-row__bar) é flex:1 — sempre ocupa a trilha
+    // inteira da linha. Quem recebe a largura percentual é este wrapper
+    // interno (não tem flex-grow, então `width` funciona normalmente).
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `width:${totalBarraPct}%;height:100%;display:flex;`;
+    el.appendChild(wrapper);
+    const total = segundosPorZona.reduce((s, v) => s + v, 0);
+    if (total <= 0) return;
+    segundosPorZona.forEach((seg, i) => {
+      const span = document.createElement('span');
+      span.style.width = (seg / total) * 100 + '%';
+      span.style.background = CATEGORIA_CORES[i];
+      wrapper.appendChild(span);
     });
   }
 
-  function barraEmpilhadaZona(zonaAtual, zonaAnterior) {
-    const el = $('compZonaChart');
-    if (!el) return;
-    const paraHoras = (seg) => Math.round((seg / 3600) * 10) / 10;
-    _charts.compZonaChart = new Chart(el.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: ['Anterior', 'Atual'],
-        datasets: [
-          { label: CATEGORIA_LABELS[0], data: [paraHoras(zonaAnterior.resistencia), paraHoras(zonaAtual.resistencia)], backgroundColor: CATEGORIA_CORES[0] },
-          { label: CATEGORIA_LABELS[1], data: [paraHoras(zonaAnterior.limiarLatico), paraHoras(zonaAtual.limiarLatico)], backgroundColor: CATEGORIA_CORES[1] },
-          { label: CATEGORIA_LABELS[2], data: [paraHoras(zonaAnterior.esforcoMaximo), paraHoras(zonaAtual.esforcoMaximo)], backgroundColor: CATEGORIA_CORES[2] },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-        scales: {
-          x: { stacked: true },
-          y: { stacked: true, beginAtZero: true, title: { display: true, text: 'horas', font: { size: 10 } } },
-        },
-      },
-    });
+  function paraHoras(segundos) {
+    return Math.round(segundos / 3600 * 10) / 10;
   }
 
-  function linhaPeso(dadosPeso) {
+  function renderZona(zonaAtual, zonaAnterior) {
+    const segAnterior = [zonaAnterior.resistencia, zonaAnterior.limiarLatico, zonaAnterior.esforcoMaximo];
+    const segAtual    = [zonaAtual.resistencia, zonaAtual.limiarLatico, zonaAtual.esforcoMaximo];
+    const totalAnteriorSeg = segAnterior.reduce((s, v) => s + v, 0);
+    const totalAtualSeg    = segAtual.reduce((s, v) => s + v, 0);
+    const { anteriorPct, atualPct } = larguras(totalAtualSeg, totalAnteriorSeg);
+
+    montarBarraZona('compZonaAnteriorBar', segAnterior, anteriorPct);
+    montarBarraZona('compZonaAtualBar', segAtual, atualPct);
+
+    const totalAnteriorEl = $('compZonaAnteriorTotal');
+    if (totalAnteriorEl) totalAnteriorEl.textContent = paraHoras(totalAnteriorSeg) + 'h';
+    const totalAtualEl = $('compZonaAtualTotal');
+    if (totalAtualEl) totalAtualEl.textContent = paraHoras(totalAtualSeg) + 'h';
+  }
+
+  function renderPeso(dadosPeso) {
     const card = $('compPesoCard');
-    const badge = $('compPesoVariacao');
     if (!dadosPeso || !dadosPeso.ok) {
       if (card) card.hidden = true;
       return;
     }
     if (card) card.hidden = false;
-    const el = $('compPesoChart');
-    if (!el) return;
 
     const pontos = dadosPeso.pontos;
     const primeiro = pontos[0].peso;
     const ultimo = pontos[pontos.length - 1].peso;
-    setBadgeNeutro(badge, (ultimo - primeiro >= 0 ? '+' : '') + (ultimo - primeiro).toFixed(1) + ' kg');
+    const deltaKg = Math.round((ultimo - primeiro) * 10) / 10;
 
-    const annotationPlugin = window['chartjs-plugin-annotation'];
-    const fronteiraIdx = pontos.findIndex((p) => p.data >= dadosPeso.fronteira);
+    renderNumeroTile('compPesoValue', String(ultimo).replace('.', ','), 'KG');
+    const deltaEl = $('compPesoDelta');
+    if (deltaEl) {
+      deltaEl.replaceChildren();
+      const span = document.createElement('span');
+      span.className = deltaKg > 0 ? 'desemp-delta-up' : (deltaKg < 0 ? 'desemp-delta-down' : '');
+      span.textContent = (deltaKg >= 0 ? '+' : '') + String(deltaKg).replace('.', ',') + ' kg';
+      deltaEl.append(span, ` em ${pontos.length} medições`);
+    }
 
-    _charts.compPesoChart = new Chart(el.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: pontos.map((p) => p.data),
-        datasets: [{
-          data: pontos.map((p) => p.peso),
-          borderColor: COLORS.teal,
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          tension: 0.25,
-          pointRadius: 2,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          // O UMD do chartjs-plugin-annotation se auto-registra em Chart
-          // global assim que o <script> carrega (é assim que o bundle da
-          // CDN funciona, não há como evitar sem um build step) — mas só
-          // tem efeito aqui: nenhum outro gráfico da página (weightChart,
-          // intensityChart, etc.) define options.plugins.annotation, então
-          // nenhum deles ganha anotação nenhuma.
-          annotation: annotationPlugin && fronteiraIdx > 0 ? {
-            annotations: {
-              fronteira: {
-                type: 'line',
-                xMin: fronteiraIdx,
-                xMax: fronteiraIdx,
-                borderColor: COLORS.muted2,
-                borderWidth: 1,
-                borderDash: [4, 4],
-              },
-            },
-          } : undefined,
-        },
-        scales: { x: { ticks: { maxTicksLimit: 6 } } },
-      },
+    // Sparkline: normaliza os pontos num viewBox fixo (0 0 160 40, mesmo do
+    // handoff) — x distribuído uniformemente, y invertido (peso maior = mais
+    // acima) dentro da faixa min–max da própria série.
+    const n = pontos.length;
+    const pesos = pontos.map((p) => p.peso);
+    const min = Math.min(...pesos);
+    const max = Math.max(...pesos);
+    const faixa = (max - min) || 1;
+    const coords = pontos.map((p, i) => {
+      const x = n > 1 ? 4 + (i / (n - 1)) * 152 : 80;
+      const y = 8 + (1 - (p.peso - min) / faixa) * 26;
+      return { x, y };
     });
+    const linha = $('compPesoLine');
+    if (linha) linha.setAttribute('points', coords.map((c) => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' '));
+    const dot = $('compPesoDot');
+    if (dot) {
+      const ultimoPonto = coords[coords.length - 1];
+      dot.setAttribute('cx', ultimoPonto.x.toFixed(1));
+      dot.setAttribute('cy', ultimoPonto.y.toFixed(1));
+    }
   }
 
-  function renderCards(r) {
-    setBadgeDirecao($('compVolumeBadge'), r.volume);
-    setBadgeDirecao($('compTempoBadge'), r.tempo);
-    setBadgeDirecao($('compAltimetriaBadge'), r.altimetria);
-    setBadgeNeutro($('compZonaVariacao'), 'variação por categoria');
-  }
-
-  function renderCharts(r) {
-    destruirCharts();
-    barraAgrupada('compVolumeChart', Math.round(r.volume.atual), Math.round(r.volume.anterior), COLORS.teal);
-    barraAgrupada('compTempoChart', Math.round(r.tempo.atual * 10) / 10, Math.round(r.tempo.anterior * 10) / 10, COLORS.teal);
-    barraAgrupada('compAltimetriaChart', Math.round(r.altimetria.atual), Math.round(r.altimetria.anterior), COLORS.teal);
-    barraEmpilhadaZona(r.zona.atual, r.zona.anterior);
-    linhaPeso(r.peso);
+  function renderTiles(r) {
+    renderBarrasVolumeTempoAltimetria(r);
+    renderZona(r.zona.atual, r.zona.anterior);
+    renderPeso(r.peso);
   }
 
   async function load() {
@@ -198,8 +198,7 @@
       }
       empty.hidden = true;
       content.hidden = false;
-      renderCards(resultado);
-      renderCharts(resultado);
+      renderTiles(resultado);
     } catch (err) {
       console.error('[comparative-performance]', err);
       empty.hidden = false;

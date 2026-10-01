@@ -21,13 +21,13 @@
     } catch (_) { return iso; }
   }
 
-  // Sem innerHTML pro texto do Gemini, mesmo sendo API "confiável" — mesma
+  // Sem innerHTML pro texto da IA, mesmo sendo API "confiável" — mesma
   // disciplina de XSS do resto do projeto. Um <p> por linha, via textContent.
   function renderTexto(container, texto) {
     container.replaceChildren();
     String(texto || '').split('\n').filter(l => l.trim()).forEach(linha => {
       const p = document.createElement('p');
-      p.className = 'insight-msg';
+      p.className = 'desemp-obs';
       p.textContent = linha;
       container.appendChild(p);
     });
@@ -41,12 +41,43 @@
     return ' · gerado via ' + nome + ' · ' + payload.model;
   }
 
+  function fmtFaixa(min, max, casasDecimais) {
+    if (min == null || max == null) return '—';
+    const f = (v) => casasDecimais ? v.toFixed(1).replace('.', ',') : Math.round(v);
+    return min === max ? String(f(min)) : `${f(min)}–${f(max)}`;
+  }
+
   function mostrarResultado(payload, geradoEm, vencida) {
     const empty   = $('performance-analysis-empty');
     const content = $('performance-analysis-content');
     empty.hidden = true;
     content.hidden = false;
-    renderTexto($('performance-analysis-texto'), payload.texto);
+
+    // Payload antigo (pré-handoff_desempenho) só tinha `texto` — trata como
+    // "observacao" sem "foco", pra não quebrar análises já cacheadas.
+    const observacao = payload.observacao ?? payload.texto;
+    renderTexto($('performance-analysis-texto'), observacao);
+
+    const destaques = window.PerformanceAnalysis.calcularDestaques(payload.deltas || {});
+    const velEl = $('pa-stat-vel');
+    if (velEl) velEl.textContent = fmtFaixa(destaques.velMinKmh, destaques.velMaxKmh, true);
+    const fcEl = $('pa-stat-fc');
+    if (fcEl) fcEl.textContent = fmtFaixa(destaques.fcMinBpm, destaques.fcMaxBpm, false);
+
+    const focoBox  = $('performance-analysis-foco');
+    const focoText = $('performance-analysis-foco-text');
+    if (payload.foco) {
+      if (focoText) focoText.textContent = payload.foco;
+      if (focoBox) focoBox.hidden = false;
+    } else if (focoBox) {
+      focoBox.hidden = true;
+    }
+
+    const label = $('performance-analysis-label');
+    if (label) {
+      const n = payload.grupoResumo?.tamanho;
+      label.textContent = 'Análise de performance' + (n ? ` · ${n} saídas` : '');
+    }
 
     const meta = $('performance-analysis-meta');
     meta.textContent = 'Gerada em ' + fmtDataHora(geradoEm) + rotuloProvider(payload);
@@ -98,6 +129,8 @@
       };
       _analiseAtual = { referenciaId: resultado.referenciaId, deltas: resultado.deltas, grupoResumo };
       btn.hidden = false;
+      const label = $('performance-analysis-label');
+      if (label) label.textContent = `Análise de performance · ${grupoResumo.tamanho} saídas`;
 
       const cache = await window.Api.get('/performance-analysis?referenciaId=' + encodeURIComponent(resultado.referenciaId)).catch(() => null);
       if (cache && cache.ok) {
