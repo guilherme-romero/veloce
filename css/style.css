@@ -120,6 +120,13 @@ nav {
   overscroll-behavior-x: contain;
   scrollbar-width: none;          /* Firefox */
   -ms-overflow-style: none;       /* Edge legado */
+  /* A scrollbar fica escondida de propósito (linha acima) — sem isso, o
+     último botão (ex. "Conexões") parece cortado em vez de "role pra ver",
+     numa faixa de largura intermediária onde a nav precisa rolar
+     (treino_bike_docs/corrigir/top_bar_nome - cortado.png). O fade nas duas
+     pontas é a pista visual de que há mais conteúdo fora da área visível. */
+  mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
 }
 .nav-links::-webkit-scrollbar { display: none; }
 .nav-links .nav-btn { flex: 0 0 auto; }   /* botao nao espreme, a faixa e' que rola */
@@ -2606,7 +2613,6 @@ body.edit-mode .exercise-actions { display: flex; }
 }
 .desemp-tile__value { font-family: var(--font-display); font-size: 40px; line-height: .82; }
 .desemp-tile__value small { font-size: 15px; color: var(--lime); margin-left: 3px; }
-.desemp-tile__value--elev { color: var(--green); }
 .desemp-tile__delta { font-size: 11px; color: var(--muted); margin: 6px 0 12px; }
 .desemp-delta-down { color: var(--magenta); font-weight: 800; }
 .desemp-delta-up { color: var(--lime); font-weight: 800; }

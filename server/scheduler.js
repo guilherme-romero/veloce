@@ -6,12 +6,25 @@ const garmin = require('./services/garmin');
 const strava = require('./services/strava');
 const { autoFillBike } = require('./utils/training-log-helper');
 const { runMatching }  = require('./utils/activity-matcher');
+const { getUnifiedActivities } = require('./services/activities');
+const { analisar, lerCache, gerarEArmazenarAnalise } = require('./services/performance-analysis');
 
 const SYNC_INTERVAL_MIN = 30;     // intervalo do sync automático (minutos)
 const CHECK_INTERVAL_MS = 60_000; // verifica a cada minuto
+const ANALISE_HORA      = 6;      // horário fixo (local da LXC, America/Sao_Paulo) do job de IA
 
 // Evita disparo duplo no mesmo slot (chave = "YYYY-MM-DD:HH:bloco")
 const _synced = new Set();
+// Evita disparo duplo da Análise de Performance no mesmo dia (chave = "YYYY-MM-DD")
+const _analisadoHoje = new Set();
+
+// Data local (não UTC) — mesmo padrão de js/core/suggestion-history.js: pra
+// um horário fixo perto da meia-noite, toISOString() (UTC) deslocaria a
+// chave de dedup pro dia errado em fuso -03:00. Não é o caso de 6h local
+// (longe da virada UTC), mas mantém o mesmo cuidado por consistência.
+function diaLocalKey(d) {
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+}
 
 function slotKey() {
   const now = new Date();
@@ -309,6 +322,43 @@ async function runFullSync(db, log) {
   else log.info('[scheduler] sync automático concluído');
 }
 
+// ── Análise de Performance automática (6h) ──────────────────────────────
+// Roda depois do sync (a Atividade de referência precisa já estar no banco).
+// Só chama a IA se a referência mudou desde a última análise cacheada —
+// evita gastar cota Gemini/Groq em dias sem treino novo (decisão do grilling
+// desta feature). Sem retry no mesmo dia se falhar: a UI mostra o cache
+// antigo até a tentativa de amanhã às 6h — mesmo comportamento já existente
+// quando a IA falha sob demanda.
+async function runAnalisePerformance(db, log) {
+  const { items } = getUnifiedActivities(db, 365);
+  const resultado = analisar({ activities: items });
+  if (!resultado.ok) {
+    log.info('[scheduler] análise de performance: grupo de comparação insuficiente — pulando');
+    return;
+  }
+
+  const cache = lerCache(db);
+  if (cache && cache.atividade_referencia_id === String(resultado.referenciaId)) {
+    log.info('[scheduler] análise de performance: referência sem mudança — pulando (sem gastar IA)');
+    return;
+  }
+
+  const ultima = resultado.grupo[resultado.grupo.length - 1];
+  const grupoResumo = {
+    tamanho:     resultado.grupo.length,
+    distanciaKm: Math.round(ultima.distanciaKm),
+    elevacaoM:   Math.round(ultima.elevacaoM || 0),
+  };
+
+  try {
+    const row = await gerarEArmazenarAnalise(db, { referenciaId: resultado.referenciaId, deltas: resultado.deltas, grupoResumo });
+    const payload = JSON.parse(row.payload);
+    log.info({ provider: payload.provider, model: payload.model }, '[scheduler] análise de performance gerada');
+  } catch (e) {
+    log.warn({ err: e.message, cascata: e.cascata }, '[scheduler] análise de performance: todos os provedores de IA falharam — tenta de novo amanhã');
+  }
+}
+
 // ── Setup ──────────────────────────────────────────────────────────────
 function setup(db, log) {
   setInterval(() => {
@@ -323,10 +373,32 @@ function setup(db, log) {
       const oldest = [..._synced][0];
       _synced.delete(oldest);
     }
-    runFullSync(db, log).catch(e => log.error({ err: e }, '[scheduler] erro no sync automático'));
+    let chain = runFullSync(db, log).catch(e => log.error({ err: e }, '[scheduler] erro no sync automático'));
+
+    // Análise de Performance: só às ANALISE_HORA:00, uma vez por dia — sempre
+    // cai num slot de sync (minuto 0 é múltiplo de 30), por isso fica
+    // encadeada aqui em vez de um segundo setInterval: espera o sync
+    // terminar (sucesso ou erro — runFullSync já trata cada fonte com seu
+    // próprio try/catch, então uma falha aqui seria algo bem incomum) antes
+    // de rodar, pra dar a melhor chance de já ter a Atividade de referência
+    // mais recente no banco. Se o sync falhar mesmo assim, a análise roda
+    // com o que já estava no banco — nunca pior do que não encadear.
+    if (now.getHours() === ANALISE_HORA) {
+      const diaKey = diaLocalKey(now);
+      if (!_analisadoHoje.has(diaKey)) {
+        _analisadoHoje.add(diaKey);
+        if (_analisadoHoje.size > 5) {
+          const oldest = [..._analisadoHoje][0];
+          _analisadoHoje.delete(oldest);
+        }
+        chain = chain
+          .then(() => runAnalisePerformance(db, log))
+          .catch(e => log.error({ err: e }, '[scheduler] erro na análise de performance automática'));
+      }
+    }
   }, CHECK_INTERVAL_MS);
 
-  log.info(`[scheduler] ativo — sync automático a cada ${SYNC_INTERVAL_MIN} min`);
+  log.info(`[scheduler] ativo — sync automático a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h`);
 }
 
 module.exports = { setup };

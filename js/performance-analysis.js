@@ -6,9 +6,10 @@
    Gemini) — nunca faz a análise no frontend.
 
    Diferente de js/proximo-treino.js: não recalcula tudo a cada onEnter — só
-   BUSCA o cache existente (GET, sem custo) automaticamente; gerar uma
-   análise nova (POST, chama o Gemini de verdade e gasta cota) só acontece
-   sob demanda, no clique do botão "Analisar".
+   BUSCA o cache existente (GET, sem custo) automaticamente. Gerar uma
+   análise nova (POST, chama a IA de verdade e gasta cota) roda sozinho todo
+   dia às 6h (server/scheduler.js) — o botão (ícone, não mais CTA principal)
+   só força isso manualmente fora do horário.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -136,7 +137,7 @@
       if (cache && cache.ok) {
         mostrarResultado(cache.payload, cache.geradoEm, cache.vencida);
       } else {
-        mostrarVazio('Toque em "Analisar" pra comparar suas últimas saídas parecidas.');
+        mostrarVazio('A análise é gerada automaticamente às 6h — toque no ícone pra forçar agora.');
       }
     } catch (err) {
       console.error('[performance-analysis]', err);
@@ -151,7 +152,7 @@
 
     const original = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analisando…';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
     try {
       const resp = await window.Api.post('/performance-analysis', _analiseAtual);
