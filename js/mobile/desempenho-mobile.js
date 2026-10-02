@@ -97,11 +97,11 @@
 
       <div class="m-card mdesemp-compare">
         <div class="m-card-head">
-          <span class="m-eyebrow">Comparativo · 30d <i class="fa-solid fa-arrows-left-right" style="margin-left:6px;color:var(--muted)"></i></span>
+          <span class="m-eyebrow">Comparativo · 30d</span>
         </div>
         <div class="m-empty" id="m-comp-empty" hidden>Pedale por pelo menos 3 saídas em cada um dos últimos dois períodos de 30 dias para ver o comparativo.</div>
         <div id="m-comp-content" hidden>
-          <div class="mdesemp-carousel">
+          <div class="mdesemp-compare-grid">
             <div class="mdesemp-carousel-tile">
               <div class="mdesemp-tile__label">Volume</div>
               <div class="mdesemp-tile__value" id="m-comp-volume-value"></div>

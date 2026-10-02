@@ -113,16 +113,12 @@
 .mdesemp-focus__text { font-size: 12.5px; line-height: 1.6; color: var(--text); }
 .mdesemp-meta { font-size: 10.5px; color: var(--muted); margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 
-/* ── Comparativo (carrossel) + Tempo por zona ─────────────────────────── */
+/* ── Comparativo (grid 2×2) + Tempo por zona ──────────────────────────── */
 
-.mdesemp-carousel {
-  display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
-  margin: 0 -18px; padding: 0 18px 4px;
-  scrollbar-width: none;
+.mdesemp-compare-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
 }
-.mdesemp-carousel::-webkit-scrollbar { height: 0; }
 .mdesemp-carousel-tile {
-  flex: none; width: 150px; scroll-snap-align: start;
   background: var(--surface2); border-radius: 14px; padding: 14px;
 }
 .mdesemp-carousel-tile[hidden] { display: none; }
