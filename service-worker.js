@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.9.18';
+const CACHE_VERSION = 'v2.9.19';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -41,6 +41,7 @@ const SHELL = [
   './css/mobile.css',
   './css/mobile-sheet.css',
   './css/mobile-bikes.css',
+  './css/mobile-desempenho.css',
   './js/version.js',
   './js/variant.js',
   './js/utils.js',
@@ -88,6 +89,8 @@ const SHELL = [
   './js/mobile/home-mobile.js',
   './js/mobile/activities-mobile.js',
   './js/mobile/insights-mobile.js',
+  './js/mobile/performance-analysis-mobile.js',
+  './js/mobile/comparative-performance-mobile.js',
   './js/mobile/desempenho-mobile.js',
   './js/mobile/bikes-mobile.js',
   './js/mobile/profile-mobile.js',

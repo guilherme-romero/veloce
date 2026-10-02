@@ -9,6 +9,10 @@
 
    Os gráficos são criados no onEnter (um canvas em view escondida nasce
    0×0) e destruídos no onLeave.
+
+   Acessado via seletor segmentado "Desempenho | Insights" dentro da tab
+   Desempenho (reforma mobile do handoff) — sem tab própria, mas também
+   sem mais passar pelo menu "Mais".
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const VIEW_ID = 'm-view-insights';
@@ -36,6 +40,7 @@
 
   function skeleton() {
     return `
+      ${MShell.segment('insights')}
       <div id="m-ins-alert"></div>
       <div class="m-kpigrid" id="m-ins-kpis"></div>
 
@@ -303,6 +308,7 @@
     if (!view) return;
     const gen = ++_gen;
     view.innerHTML = skeleton();
+    MShell.wireSegment(view);
     destroyCharts();
 
     const user = (window.Storage && Storage.getUser && Storage.getUser()) || {};
@@ -339,9 +345,10 @@
 
   MRouter.register({
     slug: 'insights',
-    // Sem tab própria desde a Fase 3 da evolução Desempenho — acessado pelo
-    // menu "Mais" (js/mobile/more-mobile.js) ou por deep link direto.
-    tab: 'mais',
+    // Sem tab própria desde a Fase 3 da evolução Desempenho — hoje acessado
+    // por dentro da tab Desempenho (seletor segmentado) ou por deep link
+    // direto; saiu do menu "Mais" na reforma mobile do handoff Desempenho.
+    tab: 'desempenho',
     viewId: VIEW_ID,
     label: 'Insights',
     onEnter: () => {

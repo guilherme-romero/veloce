@@ -42,6 +42,28 @@
       ?.addEventListener('click', (e) => MRouter.navigate(e.currentTarget.dataset.back));
   }
 
+  /**
+   * Seletor segmentado "Desempenho | Insights". Insights deixou de ter
+   * entrada própria no menu "Mais" e passou a viver dentro de Desempenho —
+   * as duas continuam views independentes do MRouter (próprio viewId cada),
+   * o seletor só troca de rota. Centralizado aqui porque as duas views
+   * (desempenho-mobile.js e insights-mobile.js) precisam do mesmo markup.
+   */
+  function segment(ativo) {
+    const item = (slug, label) => `<button type="button" class="m-segment-btn${ativo === slug ? ' is-active' : ''}"
+        data-slug="${escAttr(slug)}" role="tab" aria-selected="${ativo === slug}">${esc(label)}</button>`;
+    return `<div class="m-segment" role="tablist">
+      ${item('desempenho', 'Desempenho')}${item('insights', 'Insights')}
+    </div>`;
+  }
+
+  /** Liga os cliques do seletor renderizado dentro de `view` à navegação do MRouter. */
+  function wireSegment(view) {
+    view.querySelectorAll('.m-segment-btn').forEach(btn => {
+      btn.addEventListener('click', () => MRouter.navigate(btn.dataset.slug));
+    });
+  }
+
   /** Iniciais para o avatar do header (mesma regra do desktop). */
   function initials(nome) {
     const parts = String(nome || '').trim().split(/\s+/).filter(Boolean);
@@ -141,7 +163,7 @@
   }
 
   window.MShell = {
-    setHeader, initials,
+    setHeader, initials, segment, wireSegment,
     parseLocalDT, fmtDate, fmtDateHora, fmtDuracao, fmtNum,
     mChart, esc,
     cached, invalidate, TTL_DADOS,

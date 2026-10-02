@@ -1,0 +1,160 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   DESEMPENHO MOBILE (handoff treino_bike_docs/handoff_desempenho_mobile/)
+   — reforma de layout da aba Desempenho no mobile, com o seletor segmentado
+   "Desempenho | Insights" (inverso do handoff original: Insights entra
+   dentro de Desempenho, não o contrário — ver js/mobile/shell.js).
+
+   Prefixo mdesemp- para as classes exclusivas desta reforma, evitando
+   colisão com os tokens .desemp-* já usados no CSS desktop (css/style.css).
+   Cores e fontes reaproveitam as variáveis já definidas em css/mobile.css.
+═══════════════════════════════════════════════════════════════════════ */
+
+.m-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.m-segment-btn {
+  min-height: 40px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.m-segment-btn.is-active {
+  background: var(--lime);
+  color: var(--bg);
+  font-weight: 800;
+}
+
+/* ── Veredito ───────────────────────────────────────────────────────── */
+
+.mdesemp-verdict {
+  position: relative;
+  overflow: hidden;
+  color: var(--bg);
+  border-radius: var(--radius-lg);
+  padding: 20px 18px;
+  margin-bottom: 14px;
+}
+.mdesemp-verdict::after {
+  content: '';
+  position: absolute; top: 0; right: 18px; bottom: 0; width: 8px;
+  background: repeating-linear-gradient(180deg, var(--bg) 0 14px, transparent 14px 28px);
+  opacity: .18;
+}
+.mdesemp-verdict__badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(13, 15, 18, .14);
+  font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+  padding: 6px 12px; border-radius: 999px; margin-bottom: 14px;
+}
+.mdesemp-verdict__title {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: .88;
+  max-width: 300px;
+}
+.mdesemp-verdict__sub { font-size: 12.5px; font-weight: 500; margin-top: 10px; opacity: .85; max-width: 300px; }
+
+/* ── Aderência (em linha no mobile, diferente da coluna do desktop) ──── */
+
+.mdesemp-adherence {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px; display: flex; align-items: center; gap: 16px;
+  margin-bottom: 14px;
+}
+.mdesemp-adherence__ring {
+  width: 96px; height: 96px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.mdesemp-adherence__ring[hidden] { display: none; }
+.mdesemp-adherence__ring-inner {
+  width: 74px; height: 74px; border-radius: 50%; background: var(--surface);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.mdesemp-adherence__pct { font-family: var(--font-display); font-size: 32px; line-height: .85; color: var(--lime); }
+.mdesemp-adherence__body { flex: 1; min-width: 0; }
+.mdesemp-adherence__label { font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+.mdesemp-adherence__text, .mdesemp-adherence__empty { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+/* ── Análise de performance ───────────────────────────────────────────── */
+
+.mdesemp-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px; padding: 0 12px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--lime); font-size: 11.5px; font-weight: 700;
+}
+.mdesemp-btn[hidden] { display: none; }
+.mdesemp-analysis__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.mdesemp-stat-tile { background: var(--surface2); border-radius: var(--radius-card); padding: 12px; }
+.mdesemp-stat__value { font-family: var(--font-display); font-size: 24px; line-height: .85; }
+.mdesemp-stat__value--fc { color: var(--magenta); }
+.mdesemp-stat__label { font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-top: 4px; }
+.mdesemp-obs { font-size: 12.5px; line-height: 1.6; color: var(--muted2); }
+.mdesemp-obs + .mdesemp-obs { margin-top: 10px; }
+.mdesemp-focus { background: var(--surface2); border-radius: 14px; padding: 14px; margin-top: 14px; border-top: 3px solid var(--lime); }
+.mdesemp-focus__title {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-display); font-size: 20px; color: var(--lime); margin-bottom: 8px;
+}
+.mdesemp-focus__title i { font-size: 14px; }
+.mdesemp-focus__text { font-size: 12.5px; line-height: 1.6; color: var(--text); }
+.mdesemp-meta { font-size: 10.5px; color: var(--muted); margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+/* ── Comparativo (carrossel) + Tempo por zona ─────────────────────────── */
+
+.mdesemp-carousel {
+  display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+  margin: 0 -18px; padding: 0 18px 4px;
+  scrollbar-width: none;
+}
+.mdesemp-carousel::-webkit-scrollbar { height: 0; }
+.mdesemp-carousel-tile {
+  flex: none; width: 150px; scroll-snap-align: start;
+  background: var(--surface2); border-radius: 14px; padding: 14px;
+}
+.mdesemp-carousel-tile[hidden] { display: none; }
+.mdesemp-tile__label {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 8px;
+}
+.mdesemp-tile__value { font-family: var(--font-display); font-size: 36px; line-height: .82; }
+.mdesemp-tile__value small { font-size: 13px; color: var(--lime); margin-left: 3px; }
+.mdesemp-tile__delta { font-size: 10.5px; color: var(--muted); margin: 6px 0 10px; }
+.mdesemp-delta-down { color: var(--magenta); font-weight: 800; }
+.mdesemp-delta-up { color: var(--lime); font-weight: 800; }
+
+.mdesemp-bars { display: flex; flex-direction: column; gap: 5px; }
+.mdesemp-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.mdesemp-bar__fill { height: 100%; border-radius: 3px; }
+
+.mdesemp-carousel-tile svg { width: 100%; height: 36px; display: block; }
+.mdesemp-sparkline { stroke: var(--lime); }
+.mdesemp-sparkline-dot { fill: var(--lime); }
+
+.mdesemp-zone-card {
+  margin-top: 14px; background: var(--surface2); border-radius: var(--radius-card); padding: 14px;
+}
+.mdesemp-zone-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.mdesemp-zone-row__label { width: 48px; flex-shrink: 0; font-size: 10px; color: var(--muted); }
+.mdesemp-zone-row__bar { flex: 1; height: 16px; border-radius: 3px; overflow: hidden; background: var(--border); }
+.mdesemp-zone-row__total { font-size: 11px; font-weight: 700; min-width: 30px; text-align: right; }
+.mdesemp-zone-legend { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; font-size: 9.5px; color: var(--muted); }
+.mdesemp-zone-legend__item { display: inline-flex; align-items: center; gap: 4px; }
+.mdesemp-zone-legend__swatch { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+
+.mdesemp-footnote {
+  text-align: center; font-size: 10.5px; color: var(--muted); margin-top: 4px;
+}

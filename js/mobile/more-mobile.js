@@ -14,9 +14,11 @@
   const VIEW_ID = 'm-view-mais';
 
   // Views mobile nativas alcançadas por aqui. O slug é o MESMO do desktop,
-  // então #/perfil e #/passeios funcionam nas duas variantes.
+  // então #/perfil e #/passeios funcionam nas duas variantes. Insights saiu
+  // desta lista na reforma mobile do handoff Desempenho — agora vive dentro
+  // da tab Desempenho (seletor segmentado), mas o deep link #/insights
+  // continua funcionando normalmente.
   const SECOES = [
-    { slug: 'insights', label: 'Insights',          icon: 'fa-chart-line' },
     { slug: 'perfil',   label: 'Perfil e pesagens', icon: 'fa-user' },
     { slug: 'passeios', label: 'Passeios',          icon: 'fa-calendar-day' },
   ];

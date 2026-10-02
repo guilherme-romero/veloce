@@ -4,9 +4,9 @@
    motor puro ComparativePerformance (js/core/) e renderiza 5 tiles via
    CSS/SVG puro (handoff_desempenho) — sem Chart.js nesse bloco.
 
-   Desktop-only nesta rodada (mobile fica para depois, mesmo padrão faseado
-   de sempre) — só este arquivo + index.html são tocados. O motor puro
-   (js/core/comparative-performance.js) não muda nada nesta reforma — só a
+   Versão desktop. Espelhada no mobile por js/mobile/comparative-performance-
+   mobile.js (carrossel em vez de grid de 5 colunas) — mesmo motor puro
+   (js/core/comparative-performance.js), cada plataforma só duplica a
    camada de apresentação.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
