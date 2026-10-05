@@ -195,8 +195,14 @@
       const user  = window.Storage ? Storage.getUser() : {};
       const fcMax = window.Metrics.calcFCMax(user);
 
+      // days=365: superconjunto das janelas que Análise (365) e Comparativo
+      // (61) também precisam — um fetch só, compartilhado com os dois
+      // sub-módulos abaixo (eles filtram por data internamente, então aceitam
+      // a lista maior sem mudar resultado). Antes eram 3 fetches a
+      // /activities/unified (180+365+61) = 6 queries no backend por abertura
+      // de aba; agora é 1 fetch = 2 queries.
       const [unified, health, zoneDist, calibracao] = await Promise.all([
-        window.Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
+        window.Api.get('/activities/unified?days=365').catch(() => ({ items: [] })),
         // 104 dias: 90 do Cruzamento sugestão×execução + margem de lookback
         // do fatigueIndex — mesmo raciocínio de js/proximo-treino.js.
         window.Api.get('/garmin/health?days=104').catch(() => []),
@@ -206,6 +212,14 @@
       if (gen !== _gen) return;
 
       const activities = (unified && unified.items) || [];
+
+      // Análise e Comparativo são independentes do bloco Veredito/Aderência
+      // abaixo (fontes de dados próprias, nenhum usa o resultado do outro) —
+      // disparam já com os dados compartilhados, em vez de esperar o render
+      // do Veredito terminar. Cada um tem seu próprio _gen, invalidado junto
+      // no onLeave abaixo.
+      window.PerformanceAnalysisMobile?.load(activities);
+      window.ComparativePerformanceMobile?.load(activities);
       const healthArr = Array.isArray(health) ? [...health].sort((a, b) => b.data.localeCompare(a.data)) : [];
       const limiares = calibracao ? {
         zonaAltaMinPct: calibracao.zonaAltaMinPct,
@@ -266,13 +280,6 @@
       console.error('[desempenho-mobile]', err);
       mostrarTopoVazio('Falha ao calcular a sugestão de treino.');
     }
-
-    // Independentes do bloco acima: Análise busca /performance-analysis,
-    // Comparativo calcula no cliente a partir de /activities,
-    // /garmin/zone-distribution-by-activity e /weights. Cada um tem seu
-    // próprio _gen, invalidado junto no onLeave abaixo.
-    window.PerformanceAnalysisMobile?.load();
-    window.ComparativePerformanceMobile?.load();
   }
 
   MRouter.register({

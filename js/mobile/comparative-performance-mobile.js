@@ -3,9 +3,11 @@
    (desktop), trocando os ids por m-comp-* e o grid de 5 colunas por um
    carrossel horizontal com scroll-snap (handoff_desempenho_mobile/README.md)
    + um card de "Tempo por zona" separado, fora do carrossel. Mesmo motor
-   puro (window.ComparativePerformance, js/core/) e os mesmos 3 GETs do
+   puro (window.ComparativePerformance, js/core/) e os mesmos GETs do
    desktop — não existe endpoint HTTP próprio de Comparativo, tudo é
-   calculado no cliente.
+   calculado no cliente. Desde a consolidação de fetch (Issue #24),
+   /activities/unified vem pré-carregado de desempenho-mobile.js; só
+   /garmin/zone-distribution-by-activity e /weights são buscados aqui.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -158,7 +160,12 @@
   let _gen = 0;
   function invalidate() { _gen++; }
 
-  async function load() {
+  // activitiesPreCarregadas: desempenho-mobile.js já busca /activities/
+  // unified?days=365 (superconjunto dos 61 dias que este módulo precisa) e
+  // repassa o array direto, evitando um segundo fetch idêntico — comparar()
+  // filtra por data internamente, então aceita a lista maior sem mudar
+  // resultado. Sem o parâmetro (uso standalone), busca por conta própria.
+  async function load(activitiesPreCarregadas) {
     const empty   = $('m-comp-empty');
     const content = $('m-comp-content');
     if (!empty || !content) return;
@@ -166,14 +173,16 @@
 
     try {
       const [unified, zoneDist, weights] = await Promise.all([
-        window.Api.get('/activities/unified?days=61').catch(() => ({ items: [] })),
+        activitiesPreCarregadas ? Promise.resolve(null) : window.Api.get('/activities/unified?days=61').catch(() => ({ items: [] })),
         window.Api.get('/garmin/zone-distribution-by-activity?days=61').catch(() => ({ items: [] })),
         window.Api.get('/weights').catch(() => []),
       ]);
       if (gen !== _gen) return;
 
+      const activities = activitiesPreCarregadas || ((unified && unified.items) || []);
+
       const resultado = window.ComparativePerformance.comparar({
-        activities: (unified && unified.items) || [],
+        activities,
         zoneItems:  (zoneDist && zoneDist.items) || [],
         weights:    (weights || []).filter((w) => w.fonte === 'garmin'),
       });

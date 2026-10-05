@@ -104,7 +104,11 @@
   let _gen = 0;
   function invalidate() { _gen++; }
 
-  async function load() {
+  // activitiesPreCarregadas: desempenho-mobile.js já busca /activities/
+  // unified?days=365 (superconjunto desta janela) e repassa o array direto,
+  // evitando um segundo fetch idêntico. Sem o parâmetro (uso standalone),
+  // busca por conta própria — mantém o contrato antigo como fallback.
+  async function load(activitiesPreCarregadas) {
     const btn = $('m-pa-btn');
     if (!btn) return;
     const gen = ++_gen;
@@ -119,9 +123,12 @@
     _analiseAtual = null;
 
     try {
-      const unified = await window.Api.get('/activities/unified?days=365').catch(() => ({ items: [] }));
-      if (gen !== _gen) return;
-      const activities = (unified && unified.items) || [];
+      let activities = activitiesPreCarregadas;
+      if (!activities) {
+        const unified = await window.Api.get('/activities/unified?days=365').catch(() => ({ items: [] }));
+        if (gen !== _gen) return;
+        activities = (unified && unified.items) || [];
+      }
 
       const resultado = window.PerformanceAnalysis.analisar({ activities });
       if (!resultado.ok) {
