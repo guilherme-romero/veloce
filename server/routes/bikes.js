@@ -707,6 +707,7 @@ async function routes(fastify) {
   fastify.put('/api/bikes/:id/components/:cid/intervals/:iid', async (req, reply) => {
     const { id, iid } = req.params;
     const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
+    if (!bike) return reply.code(404).send({ error: 'bike nao encontrada' });
     const cur  = fastify.db.prepare('SELECT * FROM bike_service_intervals WHERE id = ?').get(iid);
     if (!cur) return reply.code(404).send({ error: 'intervalo nao encontrado' });
     const body = req.body || {};
