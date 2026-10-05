@@ -1,0 +1,17 @@
+name: Syntax check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  node-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: node -c em todo .js de server/
+        run: |
+          find server -name '*.js' -print0 | xargs -0 -n1 node -c
