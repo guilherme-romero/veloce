@@ -20,6 +20,24 @@ const str = (max) => (v) =>
   typeof v === 'string' && v.length <= max ? v : undefined;
 const isoDate = (v) =>
   typeof v === 'string' && ISO_DATE.test(v) ? v : undefined;
+const enumVal = (valores) => (v) => (valores.includes(v) ? v : undefined);
+// Array com itens dentro do enum, sem duplicatas, até `max` itens. Array
+// vazio é um valor LEGÍTIMO (usuário desmarcou tudo — "limpar o campo"),
+// diferente de um item fora do enum, que invalida o array inteiro (mesmo
+// rigor do resto do arquivo: nao tenta "salvar o que der", descarta o campo).
+const arrEnum = (valores, max) => (v) => {
+  if (!Array.isArray(v) || v.length > max) return undefined;
+  if (v.length === 0) return v;
+  const unicos = [...new Set(v)];
+  return unicos.length === v.length && v.every((x) => valores.includes(x)) ? v : undefined;
+};
+
+// Treino IA (IDEIA-7, Issue #1) — intake novo do perfil, usado para montar o
+// prompt de geracao do Plano de Treino Semanal. Sem FTP/potencia: tudo
+// baseado em FC/percepcao (ver GET /garmin/calibration).
+const DIAS_SEMANA = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+const OBJETIVOS_TREINO_IA = ['condicionamento', 'performance', 'perdaPeso'];
+const NIVEIS_EXPERIENCIA = ['iniciante', 'intermediario', 'avancado'];
 
 const PROFILE_FIELDS = {
   nome:            str(120),
@@ -36,6 +54,12 @@ const PROFILE_FIELDS = {
   // ISO string vinda do proprio POST /api/user/avatar (nao e' numero); vai
   // parar num ?ts= de cache-busting, entao basta ser string curta.
   avatarUpdatedAt: str(40),
+  // Treino IA — intake (ver comentario acima dos enums).
+  objetivosPrioridade: arrEnum(OBJETIVOS_TREINO_IA, 3),
+  diasDisponiveis:     arrEnum(DIAS_SEMANA, 7),
+  duracaoSessaoMin:    num(15, 300),
+  diaLongao:           enumVal(DIAS_SEMANA),
+  nivelExperiencia:    enumVal(NIVEIS_EXPERIENCIA),
 };
 const ALLOWED_PROFILE_KEYS = new Set(Object.keys(PROFILE_FIELDS));
 const MAX_PROFILE_BYTES = 16 * 1024; // perfil e pequeno; teto generoso

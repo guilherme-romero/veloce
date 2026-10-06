@@ -382,3 +382,15 @@ CREATE TABLE IF NOT EXISTS performance_analysis_cache (
   payload                 TEXT NOT NULL,   -- JSON: { observacao, foco, deltas, grupoResumo, provider, model }
   gerado_em               TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Plano de Treino Semanal (Treino IA, IDEIA-7, Issue #1). NÃO singleton
+-- (diferente de performance_analysis_cache): cada geração nova insere uma
+-- linha e desativa a anterior na mesma transação, preservando histórico.
+-- Sem expiração por tempo — o plano vale até o usuário gerar outro manualmente.
+CREATE TABLE IF NOT EXISTS weekly_training_plans (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  ativo     INTEGER NOT NULL DEFAULT 1,  -- 0|1 — só 1 linha com ativo=1 por vez
+  payload   TEXT NOT NULL,               -- JSON: { plano, observacaoGeral, perfil, insumos, provider, model }
+  gerado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_ativo ON weekly_training_plans(ativo);

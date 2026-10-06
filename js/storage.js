@@ -29,6 +29,12 @@ const DEFAULTS = {
     bikePeso: 11,
     bikeModelo: 'Gravel',
     dataInicioPlano: '',
+    // Treino IA (IDEIA-7) — intake de perfil, ver server/routes/profile.js
+    objetivosPrioridade: [],
+    diasDisponiveis: [],
+    duracaoSessaoMin: 0,
+    diaLongao: '',
+    nivelExperiencia: '',
   },
   modes: [
     { id: 'base',  nome: 'Fortalecimento · Core',  ordem: 0 },

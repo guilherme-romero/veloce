@@ -133,3 +133,24 @@ lático** (Z3+Z4) e **Esforço máximo** (Z5). Deliberadamente usa o modelo de 5
 histórico por atividade (o mesmo que já define "zona alta" = Z4+Z5 nos Limiares calibrados), não o
 modelo de 6 zonas de exibição do perfil do atleta (`js/utils.js` `FC_ZONES`), que não tem dado
 histórico por pedalada.
+
+**Treino IA** (seção):
+Seção desktop-only (IDEIA-7), ao lado de Treinos (semana padrão manual) no nav — hospeda o Plano de
+Treino Semanal e o intake de preferências de treino (objetivos priorizados, dias disponíveis,
+duração de sessão, dia do longão, nível de experiência), capturado dentro do mesmo modal de Perfil.
+Coexiste com a aba Treinos manual nesta v1; não a substitui.
+
+**Plano de Treino Semanal**:
+Uma única semana-padrão recorrente (7 dias, sem periodização nem progressão de carga entre
+semanas) gerada pela seção Treino IA, sob demanda (botão "Gerar plano" — diferente da Análise de
+Performance, não há job automático às 6h). Usa a API do Gemini/Groq só para a parte de
+interpretação/prescrição (mesma regra de ADR-0002/0004: o app pré-calcula CTL/ATL/TSB, tendência
+de peso e Limiares calibrados no frontend; a IA nunca faz conta, só decide tipo de treino e
+distribuição de minutos por Categoria de zona a partir desses números prontos). Persistido em
+`weekly_training_plans` — **não-singleton** (diferente do cache da Análise de Performance):
+cada geração nova desativa a anterior (`ativo`) mas preserva histórico, e **sem expiração por
+tempo** — o plano vale até o usuário gerar outro manualmente. Se a geração falhar, mostra o último
+plano ativo (sem apagar), igual ao comportamento já estabelecido pela Análise de Performance.
+_Avoid_: confundir com Sugestão de Treino — são opostos em quase todo eixo: Sugestão de Treino é
+diária, reativa, 100% local/determinística (sem IA) e nunca persistida; o Plano de Treino Semanal é
+semanal, sob demanda, usa IA para a prescrição e é persistido com histórico.

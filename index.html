@@ -22,13 +22,13 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.9.22"></script>
+  <script src="js/variant.js?v=2.9.23"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.22">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.22">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.22">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.22">
-  <link rel="manifest" href="manifest.json?v=2.9.22">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.23">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.23">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.23">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.23">
+  <link rel="manifest" href="manifest.json?v=2.9.23">
 
   <title>VELOCE LABS</title>
 
@@ -47,11 +47,12 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.9.22">
-  <link rel="stylesheet" href="css/rides.css?v=2.9.22">
-  <link rel="stylesheet" href="css/routes.css?v=2.9.22">
-  <link rel="stylesheet" href="css/bikes.css?v=2.9.22">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.22">
+  <link rel="stylesheet" href="css/style.css?v=2.9.23">
+  <link rel="stylesheet" href="css/rides.css?v=2.9.23">
+  <link rel="stylesheet" href="css/routes.css?v=2.9.23">
+  <link rel="stylesheet" href="css/bikes.css?v=2.9.23">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.23">
+  <link rel="stylesheet" href="css/treino-ia.css?v=2.9.23">
 </head>
 <body>
 
@@ -75,6 +76,7 @@
       <button id="nav-activities"   class="nav-btn"        onclick="scrollToSection('activities')">Histórico</button>
       <button id="nav-insights"     class="nav-btn"        onclick="scrollToSection('insights')">Insights</button>
       <button id="nav-proximo-treino" class="nav-btn"      onclick="scrollToSection('proximo-treino')">Desempenho</button>
+      <button id="nav-treino-ia"   class="nav-btn"         onclick="scrollToSection('treino-ia')">Treino IA</button>
       <button id="nav-ferramentas"  class="nav-btn"        onclick="scrollToSection('ferramentas')">Ferramentas</button>
       <button id="nav-integrations" class="nav-btn"        onclick="scrollToSection('integrations')">Conexões</button>
     </div>
@@ -1137,6 +1139,36 @@
     </div>
   </section>
 
+  <!-- ┌─ TREINO IA — Plano de Treino Semanal gerado sob demanda (IDEIA-7) ┐ -->
+  <section id="treino-ia" class="scroll-mt-20">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:20px;flex-wrap:wrap;">
+      <div>
+        <div class="section-label">Semana padrão via IA</div>
+        <h2 class="section-title">Treino IA</h2>
+      </div>
+      <button id="treino-ia-btn-gerar" class="btn btn-primary btn-sm" type="button">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar plano
+      </button>
+    </div>
+
+    <div id="treino-ia-empty" class="card" style="padding:28px;text-align:center;color:var(--muted2);">
+      Nenhum plano gerado ainda — toque em "Gerar plano" para criar sua primeira semana padrão.
+    </div>
+
+    <div id="treino-ia-content" hidden>
+      <p class="desemp-meta" id="treino-ia-observacao-geral" style="margin-bottom:16px;"></p>
+      <div id="treino-ia-dias"></div>
+      <p class="desemp-meta" id="treino-ia-meta"></p>
+
+      <div style="margin-top:24px;">
+        <button id="treino-ia-historico-toggle" class="btn btn-ghost btn-sm" type="button">
+          <i class="fa-solid fa-clock-rotate-left"></i> Planos anteriores
+        </button>
+        <div id="treino-ia-historico" hidden style="margin-top:12px;"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ┌─ FERRAMENTAS — calculadoras do ciclista ────────────────────────┐ -->
   <section id="ferramentas" class="scroll-mt-20" style="display:none;">
 
@@ -1682,47 +1714,48 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.9.22"></script>
-<script src="js/utils.js?v=2.9.22"></script>
+<script src="js/version.js?v=2.9.23"></script>
+<script src="js/utils.js?v=2.9.23"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.9.22"></script>
-<script src="js/core/activity-stats.js?v=2.9.22"></script>
-<script src="js/core/weight-stats.js?v=2.9.22"></script>
-<script src="js/core/fatigue.js?v=2.9.22"></script>
-<script src="js/core/records.js?v=2.9.22"></script>
-<script src="js/core/weather-rating.js?v=2.9.22"></script>
-<script src="js/core/training-suggestion.js?v=2.9.22"></script>
-<script src="js/core/suggestion-history.js?v=2.9.22"></script>
-<script src="js/core/performance-analysis.js?v=2.9.22"></script>
-<script src="js/core/comparative-performance.js?v=2.9.22"></script>
-<script src="js/router.js?v=2.9.22"></script>
-<script src="js/defaults.js?v=2.9.22"></script>
-<script src="js/api.js?v=2.9.22"></script>
-<script src="js/storage.js?v=2.9.22"></script>
-<script src="js/profile.js?v=2.9.22"></script>
-<script src="js/charts.js?v=2.9.22"></script>
-<script src="js/modals.js?v=2.9.22"></script>
-<script src="js/workouts.js?v=2.9.22"></script>
-<script src="js/rides.js?v=2.9.22"></script>
-<script src="js/bikes.js?v=2.9.22"></script>
-<script src="js/training-log.js?v=2.9.22"></script>
-<script src="js/home-workout.js?v=2.9.22"></script>
-<script src="js/backup.js?v=2.9.22"></script>
-<script src="js/gpx.js?v=2.9.22"></script>
-<script src="js/routes.js?v=2.9.22"></script>
-<script src="js/heatmap.js?v=2.9.22"></script>
-<script src="js/strava.js?v=2.9.22"></script>
-<script src="js/garmin.js?v=2.9.22"></script>
-<script src="js/activities.js?v=2.9.22"></script>
-<script src="js/insights.js?v=2.9.22"></script>
-<script src="js/proximo-treino.js?v=2.9.22"></script>
-<script src="js/performance-analysis.js?v=2.9.22"></script>
-<script src="js/comparative-performance.js?v=2.9.22"></script>
-<script src="js/ferramentas.js?v=2.9.22"></script>
-<script src="js/home.js?v=2.9.22"></script>
-<script src="js/notifications.js?v=2.9.22"></script>
-<script src="js/app.js?v=2.9.22"></script>
-<script src="js/pwa.js?v=2.9.22"></script>
+<script src="js/core/metrics.js?v=2.9.23"></script>
+<script src="js/core/activity-stats.js?v=2.9.23"></script>
+<script src="js/core/weight-stats.js?v=2.9.23"></script>
+<script src="js/core/fatigue.js?v=2.9.23"></script>
+<script src="js/core/records.js?v=2.9.23"></script>
+<script src="js/core/weather-rating.js?v=2.9.23"></script>
+<script src="js/core/training-suggestion.js?v=2.9.23"></script>
+<script src="js/core/suggestion-history.js?v=2.9.23"></script>
+<script src="js/core/performance-analysis.js?v=2.9.23"></script>
+<script src="js/core/comparative-performance.js?v=2.9.23"></script>
+<script src="js/router.js?v=2.9.23"></script>
+<script src="js/defaults.js?v=2.9.23"></script>
+<script src="js/api.js?v=2.9.23"></script>
+<script src="js/storage.js?v=2.9.23"></script>
+<script src="js/profile.js?v=2.9.23"></script>
+<script src="js/charts.js?v=2.9.23"></script>
+<script src="js/modals.js?v=2.9.23"></script>
+<script src="js/workouts.js?v=2.9.23"></script>
+<script src="js/rides.js?v=2.9.23"></script>
+<script src="js/bikes.js?v=2.9.23"></script>
+<script src="js/training-log.js?v=2.9.23"></script>
+<script src="js/home-workout.js?v=2.9.23"></script>
+<script src="js/backup.js?v=2.9.23"></script>
+<script src="js/gpx.js?v=2.9.23"></script>
+<script src="js/routes.js?v=2.9.23"></script>
+<script src="js/heatmap.js?v=2.9.23"></script>
+<script src="js/strava.js?v=2.9.23"></script>
+<script src="js/garmin.js?v=2.9.23"></script>
+<script src="js/activities.js?v=2.9.23"></script>
+<script src="js/insights.js?v=2.9.23"></script>
+<script src="js/proximo-treino.js?v=2.9.23"></script>
+<script src="js/performance-analysis.js?v=2.9.23"></script>
+<script src="js/comparative-performance.js?v=2.9.23"></script>
+<script src="js/weekly-training-plan.js?v=2.9.23"></script>
+<script src="js/ferramentas.js?v=2.9.23"></script>
+<script src="js/home.js?v=2.9.23"></script>
+<script src="js/notifications.js?v=2.9.23"></script>
+<script src="js/app.js?v=2.9.23"></script>
+<script src="js/pwa.js?v=2.9.23"></script>
 
 </body>
 </html>
