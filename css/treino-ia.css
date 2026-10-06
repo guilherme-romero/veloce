@@ -1,9 +1,76 @@
-#treino-ia-dias{display:flex;flex-direction:column;gap:12px}
-#treino-ia-dias .treino-ia-dia{display:flex;align-items:center;gap:16px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
-.treino-ia-dia__info{flex:1;min-width:0}
-.treino-ia-dia__nome{font-weight:700}
-.treino-ia-dia__tipo{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.treino-ia-dia__descricao{font-size:13px;color:var(--muted2);margin-top:4px}
-.treino-ia-donut{width:48px;height:48px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06)}
-.treino-ia-donut-vazio{width:48px;height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);text-align:center;border:1px dashed var(--border);border-radius:50%}
-#treino-ia-historico{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted2)}
+/* Treino IA — layout 1A do handoff (treino_bike_docs/handoff_treino_ia/desktop).
+   Tokens Hi-Vis já existentes (css/style.css); nenhuma cor hardcoded aqui
+   além das que vêm via var(). */
+
+#treino-ia .tia-summary{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,.5fr)) minmax(0,1fr);gap:12px;margin-bottom:16px}
+#treino-ia .tia-stat{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px}
+#treino-ia .tia-stat-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+#treino-ia .tia-stat-label--accent{color:var(--lime)}
+#treino-ia .tia-stat-value{font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:.82}
+#treino-ia .tia-stat-value small{font-size:17px;color:var(--lime);margin-left:3px}
+#treino-ia .tia-objetivo-text{font-size:13px;line-height:1.55;color:var(--muted2);text-wrap:pretty}
+#treino-ia .tia-zonabar{height:14px;display:flex;border-radius:4px;overflow:hidden;margin-bottom:10px}
+#treino-ia .tia-zonabar-legend{display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+#treino-ia .tia-zonabar-legend span{display:inline-flex;align-items:center;gap:5px}
+#treino-ia .tia-zonabar-dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+#treino-ia .tia-week-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+#treino-ia .tia-week-hint{font-size:11px;color:var(--muted);text-transform:none;letter-spacing:normal;font-weight:400}
+#treino-ia .tia-week{overflow-x:auto;margin:0 -4px;padding:4px 4px 8px;scrollbar-width:thin}
+#treino-ia .tia-week-grid{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));gap:10px}
+
+#treino-ia .tia-day{border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:320px;cursor:pointer;transition:transform .15s,box-shadow .15s;background:var(--surface);border:1px solid var(--border)}
+#treino-ia .tia-day.is-rest{border:1px dashed var(--border);background:repeating-linear-gradient(135deg,transparent 0 10px,rgba(42,49,58,.25) 10px 11px)}
+#treino-ia .tia-day.is-selected{border-color:var(--lime);box-shadow:0 0 0 3px rgba(198,241,53,.16);transform:translateY(-3px)}
+#treino-ia .tia-day-head{display:flex;align-items:flex-start;justify-content:space-between}
+#treino-ia .tia-day-dow{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:.9}
+#treino-ia .tia-day-date{font-size:10.5px;color:var(--muted);white-space:nowrap}
+#treino-ia .tia-day-today{background:var(--lime);color:var(--bg);font-size:8.5px;font-weight:800;letter-spacing:.12em;padding:4px 7px;border-radius:5px}
+#treino-ia .tia-day-rest-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted)}
+#treino-ia .tia-day-rest-body i{font-size:20px}
+#treino-ia .tia-day-rest-label{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.06em}
+#treino-ia .tia-day-type{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+#treino-ia .tia-day-duration{font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:.82}
+#treino-ia .tia-day-duration small{font-size:15px;color:var(--lime);margin-left:3px}
+#treino-ia .tia-rpe-chip{align-self:flex-start;font-size:10px;font-weight:700;padding:4px 8px;border-radius:999px;white-space:nowrap;background:var(--surface2);border:1px solid var(--border)}
+#treino-ia .tia-rpe-chip--hi{background:rgba(240,82,58,.14);border-color:rgba(240,82,58,.5);color:var(--red)}
+#treino-ia .tia-day-resumo{font-size:11px;line-height:1.45;color:var(--muted);flex:1;text-wrap:pretty}
+#treino-ia .tia-day-resumo--train{color:var(--muted2)}
+#treino-ia .tia-miniprofile{height:40px;display:flex;align-items:flex-end;gap:2px}
+#treino-ia .tia-miniprofile span{border-radius:3px 3px 0 0}
+
+#treino-ia .tia-detail{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:30px 28px 28px;display:flex;flex-wrap:wrap;gap:28px}
+#treino-ia .tia-detail-stripe{position:absolute;top:0;left:0;right:0;height:6px;background:repeating-linear-gradient(90deg,var(--lime) 0 14px,var(--magenta) 14px 28px)}
+#treino-ia .tia-detail-caret{position:absolute;top:6px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid var(--lime);transition:left .2s}
+#treino-ia .tia-detail-left{display:flex;flex-direction:column;gap:16px;min-width:0;flex:3 1 420px}
+#treino-ia .tia-pills{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#treino-ia .tia-pill{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:5px 10px;border-radius:999px;white-space:nowrap}
+#treino-ia .tia-pill--day{background:var(--surface2);border:1px solid var(--border)}
+#treino-ia .tia-pill--day-today{background:var(--lime);color:var(--bg)}
+#treino-ia .tia-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(44px,6vw,72px);line-height:.88}
+#treino-ia .tia-desc{font-size:14px;line-height:1.6;color:var(--muted2);max-width:560px;text-wrap:pretty}
+
+#treino-ia .tia-effort{height:90px;display:flex;align-items:flex-end;gap:2px;background:var(--surface2);border-radius:12px;padding:10px;position:relative}
+#treino-ia .tia-effort-line{position:absolute;left:10px;right:10px;top:10px;border-top:1px dashed var(--border)}
+#treino-ia .tia-effort span{border-radius:3px}
+#treino-ia .tia-effort-legend{display:flex;justify-content:space-between;gap:12px;font-size:10px;color:var(--muted);margin-top:8px;letter-spacing:.06em;text-transform:uppercase}
+
+#treino-ia .tia-rest-tips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#treino-ia .tia-rest-tip{background:var(--surface2);border-radius:12px;padding:14px;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted2)}
+#treino-ia .tia-rest-tip i{color:var(--lime)}
+
+#treino-ia .tia-detail-right{display:flex;flex-direction:column;gap:10px;flex:1 1 260px}
+#treino-ia .tia-side-card{background:var(--surface2);border-radius:14px;padding:16px}
+#treino-ia .tia-side-label{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+#treino-ia .tia-side-value{font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:.82}
+#treino-ia .tia-side-value small{font-size:17px;color:var(--lime);margin-left:3px}
+#treino-ia .tia-rpe-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-top:10px}
+#treino-ia .tia-rpe-seg{height:6px;border-radius:2px;background:var(--border)}
+#treino-ia .tia-next-card{cursor:pointer}
+#treino-ia .tia-next-label{font-size:13px;font-weight:700}
+#treino-ia .tia-next-sub{font-size:11px;margin-top:3px}
+
+#treino-ia .tia-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:11px;color:var(--muted);padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap;margin-top:16px}
+#treino-ia .tia-chevron{width:36px;height:36px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer}
+
+#treino-ia-historico{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}

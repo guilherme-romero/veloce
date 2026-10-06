@@ -1,0 +1,55 @@
+/* Treino IA mobile (treino_bike_docs/handoff_treino_ia/mobile) — faixa de
+   dias + card de detalhe com swipe. Prefixo mtia- exclusivo desta reforma;
+   reaproveita .m-card/.m-segment/.m-eyebrow/.m-num (css/mobile.css) e
+   .mdesemp-zone-legend* (css/mobile-desempenho.css) onde já existem. */
+
+.mtia-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:14px}
+.mtia-chip{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 0 8px;min-height:64px;border-radius:12px;background:var(--surface);border:1px solid var(--border);cursor:pointer}
+.mtia-chip.is-rest{background:transparent;border:1px dashed var(--border)}
+.mtia-chip.is-today{border:1px solid rgba(198,241,53,.6)}
+.mtia-chip.is-selected{background:var(--lime);border-color:var(--lime)}
+.mtia-chip-dow{font-size:9px;font-weight:800;letter-spacing:.08em;color:var(--muted)}
+.mtia-chip.is-selected .mtia-chip-dow{color:var(--bg)}
+.mtia-chip-num{font-family:var(--font-display);font-size:22px;line-height:.9;color:var(--text)}
+.mtia-chip.is-rest .mtia-chip-num{color:var(--muted)}
+.mtia-chip.is-selected .mtia-chip-num{color:var(--bg)}
+.mtia-chip-bar{width:18px;height:4px;border-radius:2px}
+
+.mtia-detail{position:relative;overflow:hidden;padding:22px 16px 16px;display:flex;flex-direction:column;gap:14px}
+.mtia-detail-stripe{position:absolute;top:0;left:0;right:0;height:5px;background:repeating-linear-gradient(90deg,var(--lime) 0 14px,var(--magenta) 14px 28px)}
+.mtia-detail-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mtia-pills{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mtia-pill{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:5px 9px;border-radius:999px;white-space:nowrap}
+.mtia-pill--day{background:var(--surface2);border:1px solid var(--border)}
+.mtia-pill--day-today{background:var(--lime);color:var(--bg)}
+.mtia-detail-arrows{display:flex;gap:6px}
+.mtia-arrow{width:36px;height:36px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--muted2)}
+.mtia-title{font-family:var(--font-display);font-size:46px;line-height:.88}
+.mtia-desc{font-size:13px;line-height:1.55;color:var(--muted2);text-wrap:pretty}
+
+.mtia-effort{height:72px;display:flex;align-items:flex-end;gap:2px;background:var(--surface2);border-radius:12px;padding:8px;position:relative}
+.mtia-effort-line{position:absolute;left:8px;right:8px;top:8px;border-top:1px dashed var(--border)}
+.mtia-effort span{border-radius:3px}
+.mtia-effort-legend{font-size:9.5px;color:var(--muted);margin-top:8px;letter-spacing:.06em;text-transform:uppercase;text-align:center;text-wrap:pretty}
+
+.mtia-rest-tips{display:flex;flex-direction:column;gap:8px}
+.mtia-rest-tip{background:var(--surface2);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted2)}
+.mtia-rest-tip i{color:var(--lime);width:16px}
+
+.mtia-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mtia-side-card{background:var(--surface2);border-radius:12px;padding:12px}
+.mtia-side-label{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.mtia-side-value{font-family:var(--font-display);font-size:34px;line-height:.82}
+.mtia-side-value small{font-size:14px;color:var(--lime);margin-left:3px}
+.mtia-rpe-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;margin-top:8px}
+.mtia-rpe-seg{height:5px;border-radius:2px}
+
+.mtia-next-card{background:var(--surface2);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;min-height:56px;cursor:pointer}
+.mtia-next-info{flex:1;min-width:0}
+.mtia-next-label{font-size:13px;font-weight:700;color:var(--text)}
+.mtia-next-sub{font-size:11px;font-weight:700;white-space:nowrap}
+
+.mtia-objetivo-text{font-size:12.5px;line-height:1.55;color:var(--muted2);text-wrap:pretty;margin-bottom:14px}
+.mtia-stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.mtia-stat-label{font-size:8.5px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:5px}
+.mtia-zonabar{height:10px;display:flex;border-radius:4px;overflow:hidden;margin-bottom:8px}

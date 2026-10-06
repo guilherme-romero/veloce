@@ -1146,27 +1146,23 @@
         <div class="section-label">Semana padrão via IA</div>
         <h2 class="section-title">Treino IA</h2>
       </div>
-      <button id="treino-ia-btn-gerar" class="btn btn-primary btn-sm" type="button">
-        <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar plano
-      </button>
-    </div>
-
-    <div id="treino-ia-empty" class="card" style="padding:28px;text-align:center;color:var(--muted2);">
-      Nenhum plano gerado ainda — toque em "Gerar plano" para criar sua primeira semana padrão.
-    </div>
-
-    <div id="treino-ia-content" hidden>
-      <p class="desemp-meta" id="treino-ia-observacao-geral" style="margin-bottom:16px;"></p>
-      <div id="treino-ia-dias"></div>
-      <p class="desemp-meta" id="treino-ia-meta"></p>
-
-      <div style="margin-top:24px;">
+      <div style="display:flex;gap:10px;">
         <button id="treino-ia-historico-toggle" class="btn btn-ghost btn-sm" type="button">
           <i class="fa-solid fa-clock-rotate-left"></i> Planos anteriores
         </button>
-        <div id="treino-ia-historico" hidden style="margin-top:12px;"></div>
+        <button id="treino-ia-btn-gerar" class="btn btn-primary btn-sm" type="button">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar novo plano
+        </button>
       </div>
     </div>
+
+    <div id="treino-ia-historico" hidden style="margin-bottom:20px;"></div>
+
+    <div id="treino-ia-empty" class="card" style="padding:28px;text-align:center;color:var(--muted2);">
+      Nenhum plano gerado ainda — toque em "Gerar novo plano" para criar sua primeira semana padrão.
+    </div>
+
+    <div id="treino-ia-body" hidden></div>
   </section>
 
   <!-- ┌─ FERRAMENTAS — calculadoras do ciclista ────────────────────────┐ -->

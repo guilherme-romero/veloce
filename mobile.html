@@ -41,6 +41,7 @@
   <link rel="stylesheet" href="css/bikes.css?v=2.9.23">
   <link rel="stylesheet" href="css/mobile-bikes.css?v=2.9.23">
   <link rel="stylesheet" href="css/mobile-desempenho.css?v=2.9.23">
+  <link rel="stylesheet" href="css/mobile-treino-ia.css?v=2.9.23">
 
   <title>VELOCE LABS</title>
 </head>
@@ -74,11 +75,13 @@
       </div>
     </section>
 
-    <!-- Insights não tem tab própria: vive dentro da tab Desempenho, via
-         seletor segmentado (route.tab:'desempenho') — ver js/mobile/
-         insights-mobile.js e js/mobile/shell.js (MShell.segment). Perfil e
-         Passeios seguem sem tab própria, alcançados pela aba "Mais". -->
+    <!-- Insights e Treino IA não têm tab própria: vivem dentro da tab
+         Desempenho, via seletor segmentado (route.tab:'desempenho') — ver
+         js/mobile/insights-mobile.js, js/mobile/treino-ia-mobile.js e
+         js/mobile/shell.js (MShell.segment). Perfil e Passeios seguem sem
+         tab própria, alcançados pela aba "Mais". -->
     <section id="m-view-insights" class="m-view" hidden aria-hidden="true"></section>
+    <section id="m-view-treino-ia" class="m-view" hidden aria-hidden="true"></section>
     <section id="m-view-perfil"   class="m-view" hidden aria-hidden="true"></section>
     <section id="m-view-passeios" class="m-view" hidden aria-hidden="true"></section>
 
@@ -140,6 +143,7 @@
 <script src="js/mobile/home-mobile.js?v=2.9.23"></script>
 <script src="js/mobile/activities-mobile.js?v=2.9.23"></script>
 <script src="js/mobile/insights-mobile.js?v=2.9.23"></script>
+<script src="js/mobile/treino-ia-mobile.js?v=2.9.23"></script>
 <script src="js/mobile/performance-analysis-mobile.js?v=2.9.23"></script>
 <script src="js/mobile/comparative-performance-mobile.js?v=2.9.23"></script>
 <script src="js/mobile/desempenho-mobile.js?v=2.9.23"></script>
