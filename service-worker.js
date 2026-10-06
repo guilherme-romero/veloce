@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.9.22';
+const CACHE_VERSION = 'v2.9.23';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -35,6 +35,8 @@ const SHELL = [
   './css/routes.css',
   './css/bikes.css',
   './css/ferramentas.css',
+  './css/treino-ia.css',
+  './css/mobile-treino-ia.css',
   './css/login.css',
   './css/fonts/archivo-variable.woff2',
   './css/fonts/bebas-neue-400.woff2',
@@ -68,6 +70,7 @@ const SHELL = [
   './js/proximo-treino.js',
   './js/performance-analysis.js',
   './js/comparative-performance.js',
+  './js/weekly-training-plan.js',
   './js/ferramentas.js',
   './js/home.js',
   './js/notifications.js',
@@ -89,6 +92,7 @@ const SHELL = [
   './js/mobile/home-mobile.js',
   './js/mobile/activities-mobile.js',
   './js/mobile/insights-mobile.js',
+  './js/mobile/treino-ia-mobile.js',
   './js/mobile/performance-analysis-mobile.js',
   './js/mobile/comparative-performance-mobile.js',
   './js/mobile/desempenho-mobile.js',

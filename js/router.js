@@ -41,6 +41,7 @@
     { slug: 'historico',       section: 'activities',   navBtn: 'nav-activities',   label: 'Histórico' },
     { slug: 'insights',        section: 'insights',     navBtn: 'nav-insights',     label: 'Insights' },
     { slug: 'proximo-treino',  section: 'proximo-treino', navBtn: 'nav-proximo-treino', label: 'Desempenho' },
+    { slug: 'treino-ia',       section: 'treino-ia',   navBtn: 'nav-treino-ia',    label: 'Treino IA' },
     { slug: 'ferramentas',     section: 'ferramentas',  navBtn: 'nav-ferramentas',  label: 'Ferramentas' },
     { slug: 'conexoes',        section: 'integrations', navBtn: 'nav-integrations', label: 'Conexões' },
     // Adicionar aqui novas seções (historico, home)
@@ -113,6 +114,9 @@
     }
     if (route.section === 'ferramentas' && window.Ferramentas?.load) {
       window.Ferramentas.load();
+    }
+    if (route.section === 'treino-ia' && window.WeeklyTrainingPlanUI?.load) {
+      window.WeeklyTrainingPlanUI.load();
     }
   }
 

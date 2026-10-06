@@ -43,17 +43,19 @@
   }
 
   /**
-   * Seletor segmentado "Desempenho | Insights". Insights deixou de ter
-   * entrada própria no menu "Mais" e passou a viver dentro de Desempenho —
-   * as duas continuam views independentes do MRouter (próprio viewId cada),
-   * o seletor só troca de rota. Centralizado aqui porque as duas views
-   * (desempenho-mobile.js e insights-mobile.js) precisam do mesmo markup.
+   * Seletor segmentado "Desempenho | Insights | Treino IA". Nenhuma das três
+   * tem entrada própria no menu "Mais" — continuam views independentes do
+   * MRouter (próprio viewId cada), o seletor só troca de rota. Centralizado
+   * aqui porque as três views (desempenho-mobile.js, insights-mobile.js,
+   * treino-ia-mobile.js) precisam do mesmo markup. `.m-segment` usa
+   * grid-auto-flow:column (css/mobile-desempenho.css) — funciona com
+   * qualquer nº de itens, sem precisar de uma classe modificadora por caso.
    */
   function segment(ativo) {
     const item = (slug, label) => `<button type="button" class="m-segment-btn${ativo === slug ? ' is-active' : ''}"
         data-slug="${escAttr(slug)}" role="tab" aria-selected="${ativo === slug}">${esc(label)}</button>`;
     return `<div class="m-segment" role="tablist">
-      ${item('desempenho', 'Desempenho')}${item('insights', 'Insights')}
+      ${item('desempenho', 'Desempenho')}${item('insights', 'Insights')}${item('treino-ia', 'Treino IA')}
     </div>`;
   }
 

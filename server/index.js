@@ -61,6 +61,7 @@ fastify.register(require('./routes/component-types'));
 fastify.register(require('./routes/weather'));
 fastify.register(require('./routes/backup'));
 fastify.register(require('./routes/performance-analysis'));
+fastify.register(require('./routes/weekly-training-plan'));
 
 // Health check ampliado (Fase 13.3.1)
 const path = require('path');

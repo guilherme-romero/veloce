@@ -115,6 +115,8 @@ function openProfileModal() {
           <input id="f-bpeso" class="field-input" type="number" min="3" max="30" step="0.1" value="${escAttr(u.bikePeso || '')}" />
         </div>
       </div>
+
+      ${profileTreinoIaFieldsHTML(u)}
     `,
     actions: [
       { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
@@ -125,6 +127,81 @@ function openProfileModal() {
       modal.querySelector('#f-nome').focus();
     },
   });
+}
+
+// Treino IA (IDEIA-7) — intake de perfil usado por js/weekly-training-plan.js
+// para montar os insumos do plano. Bloco dentro do mesmo modal de perfil
+// (mantém o perfil como fonte única da verdade), mesmo padrão visual do
+// bloco "bike" acima (field-row com border-top).
+const TREINO_IA_OBJETIVOS = [
+  { v: 'condicionamento', label: 'Condicionamento geral' },
+  { v: 'performance',     label: 'Performance/velocidade' },
+  { v: 'perdaPeso',       label: 'Perda de peso' },
+];
+const TREINO_IA_DIAS = [
+  { v: 'segunda', label: 'Seg' }, { v: 'terca', label: 'Ter' }, { v: 'quarta', label: 'Qua' },
+  { v: 'quinta', label: 'Qui' }, { v: 'sexta', label: 'Sex' }, { v: 'sabado', label: 'Sáb' }, { v: 'domingo', label: 'Dom' },
+];
+const TREINO_IA_NIVEIS = [
+  { v: 'iniciante', label: 'Iniciante' }, { v: 'intermediario', label: 'Intermediário' }, { v: 'avancado', label: 'Avançado' },
+];
+
+function profileTreinoIaFieldsHTML(u) {
+  const objetivos = u.objetivosPrioridade || [];
+  const diasSet = new Set(u.diasDisponiveis || []);
+
+  const selectObjetivo = (idx) => {
+    const opts = ['<option value="">— selecione —</option>']
+      .concat(TREINO_IA_OBJETIVOS.map((o) => `<option value="${o.v}"${objetivos[idx] === o.v ? ' selected' : ''}>${o.label}</option>`));
+    return `<select id="f-tia-objetivo-${idx}" class="field-select">${opts.join('')}</select>`;
+  };
+
+  const diasCheckboxes = TREINO_IA_DIAS.map((d) => `
+    <label style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted);">
+      <input type="checkbox" id="f-tia-dia-${d.v}" ${diasSet.has(d.v) ? 'checked' : ''} />
+      ${d.label}
+    </label>
+  `).join('');
+
+  const selectDiaLongao = ['<option value="">— selecione —</option>']
+    .concat(TREINO_IA_DIAS.map((d) => `<option value="${d.v}"${u.diaLongao === d.v ? ' selected' : ''}>${d.label}</option>`))
+    .join('');
+
+  const selectNivel = ['<option value="">— selecione —</option>']
+    .concat(TREINO_IA_NIVEIS.map((n) => `<option value="${n.v}"${u.nivelExperiencia === n.v ? ' selected' : ''}>${n.label}</option>`))
+    .join('');
+
+  return `
+    <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:8px;">
+      <label class="field-label" style="display:block;margin-bottom:8px;">Treino IA — preferências</label>
+
+      <div class="field-row">
+        <div class="field"><label class="field-label" for="f-tia-objetivo-0">1º objetivo</label>${selectObjetivo(0)}</div>
+        <div class="field"><label class="field-label" for="f-tia-objetivo-1">2º objetivo</label>${selectObjetivo(1)}</div>
+        <div class="field"><label class="field-label" for="f-tia-objetivo-2">3º objetivo (opcional)</label>${selectObjetivo(2)}</div>
+      </div>
+
+      <div class="field" style="margin-top:12px;">
+        <label class="field-label">Dias disponíveis para treinar</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">${diasCheckboxes}</div>
+      </div>
+
+      <div class="field-row" style="margin-top:12px;">
+        <div class="field">
+          <label class="field-label" for="f-tia-duracao">Duração por sessão (min)</label>
+          <input id="f-tia-duracao" class="field-input" type="number" min="15" max="300" step="5" value="${escAttr(u.duracaoSessaoMin || '')}" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-tia-longao">Dia do treino longão</label>
+          <select id="f-tia-longao" class="field-select">${selectDiaLongao}</select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-tia-nivel">Nível de experiência</label>
+          <select id="f-tia-nivel" class="field-select">${selectNivel}</select>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function wireAvatarUpload(modal) {
@@ -211,6 +288,23 @@ function saveProfile(modal) {
     return isNaN(v) ? 0 : v;
   };
 
+  // Treino IA — objetivos em ordem (descarta vazios, sem reindexar seleção
+  // do usuário: se pular o 2º e preencher o 3º, perde o 3º — UX aceitável
+  // pra v1, já que o form já mostra os 3 selects sequenciais). O mesmo
+  // objetivo em duas posições é rejeitado aqui — a whitelist do backend
+  // (arrEnum) já descarta o campo inteiro nesse caso, mas só loga um
+  // warning, sem avisar o usuário; melhor bloquear antes de enviar.
+  const objetivosBrutos = [0, 1, 2]
+    .map((i) => modal.querySelector('#f-tia-objetivo-' + i)?.value)
+    .filter(Boolean);
+  const objetivosPrioridade = [...new Set(objetivosBrutos)];
+  if (objetivosPrioridade.length !== objetivosBrutos.length) {
+    toast('Não repita o mesmo objetivo em posições diferentes', { kind: 'error' });
+    return;
+  }
+  const diasDisponiveis = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
+    .filter((d) => modal.querySelector('#f-tia-dia-' + d)?.checked);
+
   const current = Storage.getUser();
   const updated = {
     ...current,
@@ -223,6 +317,11 @@ function saveProfile(modal) {
     dataInicioPlano: get('f-inicio') || tbToday(),
     bikeModelo:      get('f-bmodelo'),
     bikePeso:        num('f-bpeso'),
+    objetivosPrioridade,
+    diasDisponiveis,
+    duracaoSessaoMin: num('f-tia-duracao'),
+    diaLongao:        get('f-tia-longao'),
+    nivelExperiencia: get('f-tia-nivel'),
   };
 
   if (!updated.nome)                          { toast('Informe seu nome', { kind: 'error' }); return; }
