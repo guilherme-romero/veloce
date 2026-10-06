@@ -117,7 +117,17 @@ async function chamarGemini(apiKey, model, prompt) {
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    // thinkingBudget:0 — modelos da família 2.5 "pensam" antes de responder,
+    // consumindo uma fatia do orçamento de tokens de saída com texto interno
+    // invisível; descoberto em produção truncando a resposta JSON do Treino
+    // IA logo no primeiro campo. Modelos sem suporte a thinking ignoram o
+    // parâmetro (compatibilidade futura da API, não gera erro 400).
+    // maxOutputTokens generoso porque o Treino IA pede um JSON de 7 dias —
+    // bem maior que a resposta curta da Análise de Performance.
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
+    }),
     signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
   });
   if (!resp.ok) {
@@ -129,7 +139,10 @@ async function chamarGemini(apiKey, model, prompt) {
   }
   const json = await resp.json();
   const texto = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!texto) throw new Error('Gemini não devolveu texto');
+  if (!texto) {
+    const finishReason = json?.candidates?.[0]?.finishReason;
+    throw new Error('Gemini não devolveu texto' + (finishReason ? ` (finishReason: ${finishReason})` : ''));
+  }
   return texto.trim();
 }
 
