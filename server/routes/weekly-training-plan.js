@@ -10,8 +10,13 @@
    server/services/weekly-training-plan.js.
 
    Mesmo design de preservação de performance-analysis.js: falha na geração
-   NUNCA apaga o plano ativo — a rota devolve 502 com o cache antigo (se
-   existir) para a UI continuar mostrando o último plano válido.
+   NUNCA apaga o plano ativo — a rota devolve 503 com o cache antigo (se
+   existir) para a UI continuar mostrando o último plano válido. Usa 503
+   (não 502) de propósito: descoberto em produção que o Cloudflare na
+   frente do app intercepta qualquer 502/504 de origem e substitui o CORPO
+   por uma página de erro genérica própria, mesmo quando o 502 é uma
+   resposta JSON intencional da nossa API — quebra o contrato de erro da
+   UI. 503 não sofre essa interceptação.
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
 const { lerCacheAtivo, lerHistorico, gerarEArmazenarPlano } = require('../services/weekly-training-plan');
@@ -113,7 +118,7 @@ async function routes(fastify) {
     } catch (err) {
       req.log.warn({ err: err.message, cascata: err.cascata, bruto: err.bruto }, 'weekly-training-plan: geração falhou');
       const cache = lerCacheAtivo(fastify.db);
-      reply.code(502);
+      reply.code(503);
       return cache
         ? { ok: false, error: 'Plano indisponível no momento', cache: { payload: JSON.parse(cache.payload), geradoEm: cache.gerado_em } }
         : { ok: false, error: 'Plano indisponível no momento' };

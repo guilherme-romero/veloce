@@ -57,7 +57,11 @@ async function routes(fastify) {
     } catch (err) {
       req.log.warn({ err: err.message, cascata: err.cascata }, 'performance-analysis: todos os provedores de IA falharam');
       const cache = lerCache(fastify.db);
-      reply.code(502);
+      // 503, não 502 — o Cloudflare na frente do app intercepta qualquer
+      // 502/504 de origem e substitui o CORPO por uma página de erro
+      // genérica própria, mesmo sendo uma resposta JSON intencional da
+      // nossa API (descoberto investigando o mesmo bug no Treino IA).
+      reply.code(503);
       return cache
         ? { ok: false, error: 'Análise indisponível no momento', cache: { payload: JSON.parse(cache.payload), geradoEm: cache.gerado_em } }
         : { ok: false, error: 'Análise indisponível no momento' };

@@ -31,6 +31,14 @@ const { gerarAnalise } = require('./ai-providers');
 const DIAS_SEMANA = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
 const ZONA_IDS = ['z1', 'z2', 'z3', 'z4', 'z5', 'z6'];
 const TIPOS = ['resistencia', 'intervalado', 'longao', 'descanso'];
+
+// Normaliza "terça"→"terca" etc. — defesa extra além da instrução explícita
+// no prompt: descoberto em produção que a IA às vezes devolve o dia com a
+// grafia correta em português (acentuada) em vez do slug ASCII pedido.
+function normalizarDiaSemana(v) {
+  if (typeof v !== 'string') return v;
+  return v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
 const ZONA_PADRAO_POR_TIPO = { resistencia: 'z2', intervalado: 'z4', longao: 'z2' };
 const INTENSIDADE_PADRAO_POR_TIPO = { resistencia: 0.45, intervalado: 0.75, longao: 0.4 };
 
@@ -91,6 +99,9 @@ function montarPrompt({ perfil, insumos }) {
     'completas explicando o racional do dia.\n\n',
     '"objetivo" é 1-3 frases descrevendo o racional geral da semana, considerando os objetivos do ',
     'atleta.\n\n',
+    'O campo "dia" de cada item deve ser EXATAMENTE um destes 7 valores, sem acento e nesta grafia ',
+    'literal (são identificadores internos, não texto para exibir): "segunda", "terca", "quarta", ',
+    '"quinta", "sexta", "sabado", "domingo".\n\n',
     'Responda em português, SOMENTE com um objeto JSON válido (sem markdown, sem ```), no formato ',
     'exato: {"objetivo": "...", "dias": [{"dia": "segunda", "descanso": false, "tipo": "...", ',
     '"duracao_min": N, "rpe": [N,N], "titulo": {"a":"...","b":"..."}, "resumo": "...", ',
@@ -160,7 +171,8 @@ function parseRespostaIA(texto) {
   }
 
   const dias = parsed.dias.map((d) => {
-    const dia = DIAS_SEMANA.includes(d?.dia) ? d.dia : null;
+    const diaNormalizado = normalizarDiaSemana(d?.dia);
+    const dia = DIAS_SEMANA.includes(diaNormalizado) ? diaNormalizado : null;
     const descanso = !!d?.descanso || d?.tipo === 'descanso';
     const tipo = descanso ? 'descanso' : (TIPOS.includes(d?.tipo) ? d.tipo : 'resistencia');
     const duracaoMin = descanso ? 0 : Math.max(0, Number.isFinite(d?.duracao_min) ? Math.round(d.duracao_min) : 0);
