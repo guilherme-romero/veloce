@@ -218,8 +218,51 @@ function lerCacheAtivo(db) {
   return db.prepare('SELECT * FROM weekly_training_plans WHERE ativo = 1').get();
 }
 
-function lerHistorico(db, limit = 10) {
-  return db.prepare('SELECT id, gerado_em FROM weekly_training_plans ORDER BY id DESC LIMIT ?').all(limit);
+// Devolve id/ativo/data + um resumo do objetivo (sem o payload inteiro) de
+// cada plano — suficiente pro popup "Planos anteriores" mostrar qual é o
+// atual e do que se tratava cada um, sem carregar os 7 dias de todos.
+function lerHistorico(db, limit = 50) {
+  const rows = db.prepare('SELECT id, ativo, gerado_em, payload FROM weekly_training_plans ORDER BY id DESC LIMIT ?').all(limit);
+  return rows.map((r) => {
+    let objetivo = '';
+    try { objetivo = JSON.parse(r.payload)?.objetivo || ''; } catch (_) { /* payload corrompido — segue com objetivo vazio */ }
+    return {
+      id: r.id,
+      ativo: !!r.ativo,
+      geradoEm: r.gerado_em,
+      objetivo: objetivo.length > 80 ? objetivo.slice(0, 79) + '…' : objetivo,
+    };
+  });
+}
+
+// Reativa um plano do histórico: desativa o atual, ativa o escolhido.
+// @throws {Error} se `id` não existir na tabela.
+// @return {Object} a linha ativa (nova), mesmo shape de lerCacheAtivo().
+function ativarPlano(db, id) {
+  const alvo = db.prepare('SELECT id FROM weekly_training_plans WHERE id = ?').get(id);
+  if (!alvo) { const e = new Error('plano não encontrado'); e.notFound = true; throw e; }
+
+  const txn = db.transaction(() => {
+    db.prepare('UPDATE weekly_training_plans SET ativo = 0 WHERE ativo = 1').run();
+    db.prepare('UPDATE weekly_training_plans SET ativo = 1 WHERE id = ?').run(id);
+  });
+  txn();
+  return lerCacheAtivo(db);
+}
+
+// Exclui um plano inativo. `AND ativo = 0` é defesa em profundidade — nunca
+// apaga o plano ativo mesmo que a rota erre a validação antes de chamar isto.
+// @return {boolean} true se alguma linha foi de fato excluída.
+function excluirPlano(db, id) {
+  const info = db.prepare('DELETE FROM weekly_training_plans WHERE id = ? AND ativo = 0').run(id);
+  return info.changes > 0;
+}
+
+// "Limpar histórico" — exclui todos os planos INATIVOS, preserva o ativo.
+// @return {number} quantidade de planos excluídos.
+function limparHistorico(db) {
+  const info = db.prepare('DELETE FROM weekly_training_plans WHERE ativo = 0').run();
+  return info.changes;
 }
 
 /**
@@ -245,4 +288,5 @@ async function gerarEArmazenarPlano(db, { perfil, insumos }) {
 module.exports = {
   DIAS_SEMANA, ZONA_IDS, TIPOS,
   montarPrompt, parseRespostaIA, atribuirDatas, lerCacheAtivo, lerHistorico, gerarEArmazenarPlano,
+  ativarPlano, excluirPlano, limparHistorico,
 };
