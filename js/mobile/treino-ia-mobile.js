@@ -355,7 +355,7 @@
       itens.forEach((it) => {
         const p = document.createElement('p');
         p.className = 'm-sub';
-        p.textContent = 'Plano #' + it.id + ' — ' + fmtDataHora(it.gerado_em);
+        p.textContent = 'Plano #' + it.id + ' — ' + fmtDataHora(it.geradoEm);
         el.appendChild(p);
       });
     }

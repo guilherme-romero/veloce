@@ -1,9 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════════
    ROTAS — /api/weekly-training-plan (Treino IA, IDEIA-7, Issue #1).
 
-   GET  /api/weekly-training-plan            lê o plano ativo (nunca chama IA)
-   GET  /api/weekly-training-plan/historico   lista simplificada (sem payload)
-   POST /api/weekly-training-plan             gera um plano novo via Gemini/Groq
+   GET    /api/weekly-training-plan              lê o plano ativo (nunca chama IA)
+   GET    /api/weekly-training-plan/historico     lista simplificada (sem payload completo)
+   POST   /api/weekly-training-plan               gera um plano novo via Gemini/Groq
+   POST   /api/weekly-training-plan/:id/ativar    reativa um plano do histórico
+   DELETE /api/weekly-training-plan/:id           exclui um plano inativo
+   DELETE /api/weekly-training-plan/historico     exclui todos os planos inativos (preserva o ativo)
 
    Gatilho exclusivamente sob demanda — sem job automático no scheduler
    (diferente da Análise de Performance). Rota fina: toda a lógica mora em
@@ -19,7 +22,9 @@
    UI. 503 não sofre essa interceptação.
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
-const { lerCacheAtivo, lerHistorico, gerarEArmazenarPlano } = require('../services/weekly-training-plan');
+const {
+  lerCacheAtivo, lerHistorico, gerarEArmazenarPlano, ativarPlano, excluirPlano, limparHistorico,
+} = require('../services/weekly-training-plan');
 
 const DIAS_SEMANA = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
 const OBJETIVOS_TREINO_IA = ['condicionamento', 'performance', 'perdaPeso'];
@@ -85,6 +90,15 @@ function sanitizarInsumos(insumos) {
   return out;
 }
 
+// parseInt sozinho trunca no primeiro caractere não numérico ("1; DROP
+// TABLE" -> 1, "1.5" -> 1) — aceitaria silenciosamente um id diferente do
+// que a string sugere em vez de 400. Exige a string inteira ser dígitos.
+function parseIdParam(raw) {
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) return null;
+  const id = Number(raw);
+  return id > 0 ? id : null;
+}
+
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
 
@@ -97,7 +111,51 @@ async function routes(fastify) {
 
   // ── GET /api/weekly-training-plan/historico ────────────────────────────
   fastify.get('/api/weekly-training-plan/historico', async () => {
-    return { ok: true, itens: lerHistorico(fastify.db, 10) };
+    return { ok: true, itens: lerHistorico(fastify.db) };
+  });
+
+  // ── POST /api/weekly-training-plan/:id/ativar ───────────────────────────
+  // Reativa um plano do histórico — "selecionar" no popup de planos
+  // anteriores. Nunca chama IA, só troca qual linha tem ativo=1.
+  fastify.post('/api/weekly-training-plan/:id/ativar', async (req, reply) => {
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      reply.code(400);
+      return { ok: false, error: 'id inválido' };
+    }
+    let row;
+    try {
+      row = ativarPlano(fastify.db, id);
+    } catch (err) {
+      if (err.notFound) { reply.code(404); return { ok: false, error: 'Plano não encontrado' }; }
+      throw err;
+    }
+    return { ok: true, payload: JSON.parse(row.payload), geradoEm: row.gerado_em };
+  });
+
+  // ── DELETE /api/weekly-training-plan/historico ──────────────────────────
+  // Rota estática — Fastify a prioriza sobre a paramétrica ':id' abaixo
+  // independente da ordem de registro, mas mantemos essa ordem por clareza.
+  fastify.delete('/api/weekly-training-plan/historico', async () => {
+    const excluidos = limparHistorico(fastify.db);
+    return { ok: true, excluidos };
+  });
+
+  // ── DELETE /api/weekly-training-plan/:id ────────────────────────────────
+  // Exclui um plano inativo. O plano ativo nunca pode ser excluído por
+  // aqui — excluirPlano() já garante isso no próprio DELETE SQL.
+  fastify.delete('/api/weekly-training-plan/:id', async (req, reply) => {
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      reply.code(400);
+      return { ok: false, error: 'id inválido' };
+    }
+    const excluido = excluirPlano(fastify.db, id);
+    if (!excluido) {
+      reply.code(400);
+      return { ok: false, error: 'Não é possível excluir o plano ativo, ou plano não encontrado' };
+    }
+    return { ok: true };
   });
 
   // ── POST /api/weekly-training-plan ──────────────────────────────────────

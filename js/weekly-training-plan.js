@@ -352,25 +352,91 @@
     }
   }
 
-  async function carregarHistorico() {
-    const el = $('treino-ia-historico');
-    if (!el) return;
-    el.hidden = !el.hidden;
-    if (el.hidden || el.dataset.loaded) return;
+  // ── Popup "Planos anteriores" (Modals.open) ─────────────────────────────
+  // Selecionar reativa o plano (ativo=1, desativa o atual); excluir e
+  // "limpar histórico" nunca tocam no plano ativo — a API já garante isso
+  // (server/services/weekly-training-plan.js), aqui só desabilita os
+  // controles pra não dar a falsa impressão de que dá pra tentar.
+  function historicoLinhaHTML(it) {
+    const desabilitado = it.ativo ? 'disabled' : '';
+    return `<div class="tia-hist-row" data-id="${it.id}">
+      <div class="tia-hist-info">
+        <div class="tia-hist-data">${esc(fmtDataHora(it.geradoEm))}${it.ativo ? ' <span class="tia-hist-badge">ATUAL</span>' : ''}</div>
+        <div class="tia-hist-objetivo">${esc(it.objetivo || '(sem objetivo registrado)')}</div>
+      </div>
+      <div class="tia-hist-actions">
+        <button type="button" class="btn btn-ghost btn-sm" data-act="selecionar" ${desabilitado}>Selecionar</button>
+        <button type="button" class="btn btn-danger btn-sm" data-act="excluir" ${desabilitado}>Excluir</button>
+      </div>
+    </div>`;
+  }
 
+  async function buscarHistoricoItens() {
     const resp = await window.Api.get('/weekly-training-plan/historico').catch(() => ({ ok: false }));
-    el.replaceChildren();
-    const itens = (resp && resp.ok && resp.itens) || [];
-    if (!itens.length) {
-      el.textContent = 'Nenhum plano anterior.';
-    } else {
-      itens.forEach((it) => {
-        const p = document.createElement('p');
-        p.textContent = 'Plano #' + it.id + ' — ' + fmtDataHora(it.gerado_em);
-        el.appendChild(p);
+    return (resp && resp.ok && resp.itens) || [];
+  }
+
+  function historicoBodyHTML(itens) {
+    const temInativos = itens.some((it) => !it.ativo);
+    const lista = itens.length
+      ? itens.map(historicoLinhaHTML).join('')
+      : '<p style="color:var(--muted2);">Nenhum plano gerado ainda.</p>';
+    return `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button type="button" class="btn btn-danger btn-sm" id="tia-hist-limpar" ${temInativos ? '' : 'disabled'}>Limpar histórico</button>
+      </div>
+      <div id="tia-hist-lista" style="display:flex;flex-direction:column;gap:10px;">${lista}</div>
+    `;
+  }
+
+  function wireHistoricoModal(modal) {
+    modal.querySelector('#tia-hist-limpar')?.addEventListener('click', async () => {
+      const ok = await window.Modals.confirm({
+        title: 'Excluir todos os planos anteriores?',
+        message: 'O plano atual é preservado — só os planos inativos são excluídos.',
+        confirmLabel: 'Limpar histórico',
+        danger: true,
       });
-    }
-    el.dataset.loaded = '1';
+      if (!ok) return;
+      const resp = await window.Api.del('/weekly-training-plan/historico').catch(() => null);
+      if (!resp || !resp.ok) { window.toast?.('Falha ao limpar histórico', { kind: 'error' }); return; }
+      window.toast?.(resp.excluidos + ' plano(s) excluído(s)');
+      abrirHistorico();
+    });
+
+    modal.querySelectorAll('.tia-hist-row').forEach((row) => {
+      const id = row.dataset.id;
+      row.querySelector('[data-act="selecionar"]')?.addEventListener('click', async () => {
+        const resp = await window.Api.post('/weekly-training-plan/' + id + '/ativar', {}).catch(() => null);
+        if (!resp || !resp.ok) { window.toast?.('Falha ao selecionar o plano', { kind: 'error' }); return; }
+        window.Modals.close();
+        mostrarResultado(resp.payload, resp.geradoEm);
+        window.toast?.('Plano reativado');
+      });
+      row.querySelector('[data-act="excluir"]')?.addEventListener('click', async () => {
+        const ok = await window.Modals.confirm({
+          title: 'Excluir este plano?',
+          confirmLabel: 'Excluir',
+          danger: true,
+        });
+        if (!ok) return;
+        const resp = await window.Api.del('/weekly-training-plan/' + id).catch(() => null);
+        if (!resp || !resp.ok) { window.toast?.((resp && resp.error) || 'Falha ao excluir o plano', { kind: 'error' }); return; }
+        window.toast?.('Plano excluído');
+        abrirHistorico();
+      });
+    });
+  }
+
+  async function abrirHistorico() {
+    const itens = await buscarHistoricoItens();
+    window.Modals.open({
+      tag: 'Treino IA',
+      title: 'Planos anteriores',
+      bodyHTML: historicoBodyHTML(itens),
+      actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => window.Modals.close() }],
+      onMount: (modal) => wireHistoricoModal(modal),
+    });
   }
 
   async function load() {
@@ -382,7 +448,7 @@
     const histBtn = $('treino-ia-historico-toggle');
     if (histBtn && !histBtn._wiredWeeklyTrainingPlan) {
       histBtn._wiredWeeklyTrainingPlan = true;
-      histBtn.addEventListener('click', carregarHistorico);
+      histBtn.addEventListener('click', abrirHistorico);
     }
     if (!document._wiredWeeklyTrainingPlanKeydown) {
       document._wiredWeeklyTrainingPlanKeydown = true;

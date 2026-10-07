@@ -73,4 +73,12 @@
 #treino-ia .tia-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:11px;color:var(--muted);padding-top:14px;border-top:1px solid var(--border);flex-wrap:wrap;margin-top:16px}
 #treino-ia .tia-chevron{width:36px;height:36px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer}
 
-#treino-ia-historico{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+/* Popup "Planos anteriores" (js/weekly-training-plan.js:abrirHistorico) —
+   montado via Modals.open() em document.body, fora de #treino-ia, por isso
+   estas classes não levam esse prefixo de escopo. */
+.tia-hist-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.tia-hist-info{min-width:0;flex:1}
+.tia-hist-data{font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.tia-hist-badge{font-size:9px;font-weight:800;letter-spacing:.08em;background:var(--lime);color:var(--bg);padding:2px 6px;border-radius:999px}
+.tia-hist-objetivo{font-size:12px;color:var(--muted2);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tia-hist-actions{display:flex;gap:8px;flex-shrink:0}
