@@ -10,12 +10,24 @@ function setActiveNav(id) {
     if (btn) btn.classList.toggle('active', sec === id);
   });
 }
+// DEPRECATED: window.scrollToSection é sobrescrito por router.js (alias de
+// navigate(), ver linha ~339 ali) assim que o Router inicializa no boot —
+// a versão abaixo só roda em código que chame scrollToSection() antes disso.
 function scrollToSection(id) {
   const el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: 'smooth' });
   setActiveNav(id);
 }
 window.scrollToSection = scrollToSection;
+
+// CSP (issue #19): nav-links usava onclick="scrollToSection(...)" inline.
+// NÃO precisa de wiring novo aqui — Router.rebindNav() (chamado no boot,
+// abaixo) já liga btn.onclick em cada botão de nav (procura pelo id listado
+// em ROUTES), substituindo o antigo onclick inline por navigate() de
+// verdade (SPA routing). Um listener delegado aqui também chamaria
+// scrollToSection, que o próprio router.js sobrescreve como alias de
+// navigate() — ligar os dois gerava clique duplo (scroll concorrente +
+// setActiveNav incompleto, achado em revisão).
 
 /* ═══════════════════════════════════════════════════════════════════════
    RENDER GLOBAL
@@ -123,6 +135,7 @@ function openProfileModal() {
       { label: 'Salvar',   kind: 'primary', onClick: (modal) => saveProfile(modal) },
     ],
     onMount: (modal) => {
+      window.Avatar.wireFallbacks(modal);
       wireAvatarUpload(modal);
       modal.querySelector('#f-nome').focus();
     },
@@ -214,6 +227,7 @@ function wireAvatarUpload(modal) {
   const refreshPreview = (src) => {
     const u = Storage.getUser();
     preview.innerHTML = window.Avatar.html({ src, name: u.nome, size: 'lg' });
+    window.Avatar.wireFallbacks(preview);
   };
 
   pickBtn.addEventListener('click', () => fileInput.click());

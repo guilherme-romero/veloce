@@ -131,7 +131,7 @@ function showDetail(w) {
       <div style="display:flex;gap:8px;">
         <button class="btn btn-sm btn-ghost" type="button" data-edit><i class="fa-solid fa-pen"></i> Editar</button>
         <button class="btn btn-sm btn-danger" type="button" data-delete><i class="fa-solid fa-trash"></i></button>
-        <button class="close-btn" type="button" onclick="closeDetail()" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        <button class="close-btn" type="button" data-close aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
       </div>
     </div>
 
@@ -175,6 +175,7 @@ function showDetail(w) {
 
   d.querySelector('[data-edit]').onclick = () => openWorkoutModal(w.id);
   d.querySelector('[data-delete]').onclick = () => confirmDeleteWorkout(w);
+  d.querySelector('[data-close]').onclick = () => closeDetail();
 
   d.classList.remove('hidden');
   d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -37,11 +37,12 @@ function renderHomeExercises() {
       <div class="rides-empty-state" style="grid-column:1/-1;">
         <i class="fa-solid fa-dumbbell"></i>
         <p>Nenhum exercício cadastrado.</p>
-        <button class="btn btn-primary" type="button" onclick="document.getElementById('btn-add-home-exercise').click()">
+        <button class="btn btn-primary" type="button" data-add-exercise>
           <i class="fa-solid fa-plus"></i> Adicionar exercício
         </button>
       </div>
     `;
+    grid.querySelector('[data-add-exercise]').onclick = () => openHomeExerciseModal(null);
     return;
   }
 
