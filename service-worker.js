@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.9.27';
+const CACHE_VERSION = 'v2.9.40';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -48,17 +48,14 @@ const SHELL = [
   './js/variant.js',
   './js/utils.js',
   './js/router.js',
-  './js/defaults.js',
   './js/api.js',
   './js/storage.js',
   './js/profile.js',
   './js/charts.js',
   './js/modals.js',
-  './js/workouts.js',
   './js/rides.js',
   './js/bikes.js',
   './js/training-log.js',
-  './js/home-workout.js',
   './js/backup.js',
   './js/gpx.js',
   './js/routes.js',

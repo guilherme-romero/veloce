@@ -2,7 +2,7 @@
    APP — bootstrap, navegação, handlers globais
 ═══════════════════════════════════════════════════════════════════════ */
 
-const NAV_SECTIONS = ['home', 'profile', 'plan', 'rides', 'routes', 'activities', 'insights', 'integrations'];
+const NAV_SECTIONS = ['home', 'profile', 'rides', 'routes', 'activities', 'insights', 'integrations'];
 
 function setActiveNav(id) {
   NAV_SECTIONS.forEach(sec => {
@@ -27,11 +27,11 @@ function renderAll() {
   // Cada bloco é independente — falha em um não impede os outros
   try { Profile.render(user); }                                                            catch (e) { console.error('[render] Profile:', e); }
   try { Charts.renderWeight(user, weights); }                                             catch (e) { console.error('[render] Charts:', e); }
-  try { Workouts.renderModes(); }                                                         catch (e) { console.error('[render] Workouts.renderModes:', e); }
-  try { Workouts.renderCalendar(); }                                                      catch (e) { console.error('[render] Workouts.renderCalendar:', e); }
-  try { Charts.renderIntensity(Workouts.getCurrentWorkouts()); }                          catch (e) { console.error('[render] Charts.renderIntensity:', e); }
+  // Argumento ignorado por Charts.renderIntensity (fonte real: hr_zones do
+  // Garmin, agregado no backend) — mantido sem args após a remoção de
+  // Workouts (issue #36).
+  try { Charts.renderIntensity(); }                                                       catch (e) { console.error('[render] Charts.renderIntensity:', e); }
   try { Rides.render(); }                                                                  catch (e) { console.error('[render] Rides:', e); }
-  try { if (typeof HomeWorkout !== 'undefined') HomeWorkout.render(); }                  catch (e) { console.error('[render] HomeWorkout:', e); }
   try { if (typeof renderMiniReport === 'function') renderMiniReport(); }                 catch (e) { console.error('[render] MiniReport:', e); }
   try { if (typeof renderWeightAnalysis === 'function') renderWeightAnalysis(); }         catch (e) { console.error('[render] WeightAnalysis:', e); }
 }
@@ -582,9 +582,6 @@ async function boot() {
   // 4. TrainingLog.init
   await safe('TrainingLog.init()', () => TrainingLog && TrainingLog.init && TrainingLog.init());
 
-  // 5. HomeWorkout.init
-  await safe('HomeWorkout.init()', () => HomeWorkout && HomeWorkout.init && HomeWorkout.init());
-
   // 6. Routes.init
   await safe('Routes.init()', () => Routes && Routes.init && Routes.init());
 
@@ -613,13 +610,6 @@ async function boot() {
     document.getElementById('btn-backup')?.addEventListener('click', () => Backup && Backup.open && Backup.open());
     document.getElementById('btn-logout')?.addEventListener('click', doLogout);
     document.getElementById('btn-notif')?.addEventListener('click', () => window.Notifications && Notifications.open());
-
-    // Plano de treino — export/import isolado
-    document.getElementById('btn-export-plan')?.addEventListener('click', () => Workouts.exportPlan());
-    document.getElementById('plan-import-file')?.addEventListener('change', (e) => {
-      Workouts.importPlan(e.target.files[0]);
-      e.target.value = '';
-    });
   });
 
   // 9. Footer — versão e ano

@@ -696,7 +696,7 @@ function importData(file) {
     try {
       const json = e.target.result;
       const parsed = JSON.parse(json);
-      if (!parsed.user && !parsed.modes && !parsed.workouts) {
+      if (!parsed.user && !parsed.weights && !parsed.rides && !parsed.trainingLog) {
         throw new Error('Estrutura inválida: sem dados reconhecidos');
       }
       validateBackupStructure(parsed);
@@ -730,23 +730,9 @@ function validateBackupStructure(p) {
         (isNaN(u.bikePeso) || u.bikePeso < 1 || u.bikePeso > 100))
       throw new Error('user.bikePeso fora do intervalo');
   }
-  if (p.modes !== undefined) {
-    if (!Array.isArray(p.modes)) throw new Error('modes deve ser array');
-    if (p.modes.length > 50) throw new Error('modes: número excessivo de registros');
-    p.modes.forEach((m, i) => {
-      if (!m.id || !m.nome) throw new Error(`modes[${i}]: id ou nome ausente`);
-      // Mesmo formato exigido pelo backend (MODE_ID_RE em routes/modes.js): o
-      // id vai para dentro de data-* na tela de modos (BUG-057).
-      if (!/^[\w:-]{1,64}$/.test(String(m.id)))
-        throw new Error(`modes[${i}]: id com formato invalido`);
-    });
-  }
-  if (p.workouts !== undefined) {
-    if (typeof p.workouts !== 'object' || Array.isArray(p.workouts)) throw new Error('workouts deve ser objeto');
-    Object.values(p.workouts).forEach((list, i) => {
-      if (!Array.isArray(list)) throw new Error(`workouts[${i}]: valor deve ser array`);
-    });
-  }
+  // Nota: backups antigos podem trazer `modes`/`workouts`/`homeExercises`
+  // (feature removida, issue #36) — Storage.importJSON já ignora essas
+  // chaves de propósito, então não há validação correspondente aqui.
   if (p.weights !== undefined) {
     if (!Array.isArray(p.weights)) throw new Error('weights deve ser array');
     if (p.weights.length > 5000) throw new Error('weights: número excessivo de registros');

@@ -36,20 +36,13 @@ const DEFAULTS = {
     diaLongao: '',
     nivelExperiencia: '',
   },
-  modes: [
-    { id: 'base',  nome: 'Fortalecimento · Core',  ordem: 0 },
-    { id: 'build', nome: 'Condicionamento · Bike', ordem: 1 },
-  ],
 };
 
 /* ── Caches em memoria ──────────────────────────────────────────────── */
 let _userCache          = { ...DEFAULTS.user };
-let _modesCache         = [];
-let _workoutsCache      = {};   // { modeId: [workout] }
 let _weightsCache       = [];
 let _ridesCache         = [];
 let _trainingLogCache   = [];
-let _homeExercisesCache = [];
 let _routesCache        = [];
 
 /* ── Erro de API (fire-and-forget): log + toast se disponivel ───────── */
@@ -122,12 +115,9 @@ const LOADERS = {
   'profile': () => window.Api.get('/profile').then(r => {
     _userCache = (r && Object.keys(r).length) ? { ...DEFAULTS.user, ...r } : { ...DEFAULTS.user };
   }),
-  'modes':          () => window.Api.get('/modes').then(r => { _modesCache = Array.isArray(r) ? r : []; }),
-  'workouts':       () => window.Api.get('/workouts').then(r => { _workoutsCache = (r && typeof r === 'object') ? r : {}; }),
   'weights':        () => window.Api.get('/weights').then(r => { _weightsCache = Array.isArray(r) ? r : []; }),
   'rides':          () => window.Api.get('/rides').then(r => { _ridesCache = Array.isArray(r) ? r.map(normalizeRide).filter(Boolean) : []; }),
   'training-log':   () => window.Api.get('/training-log').then(r => { _trainingLogCache = Array.isArray(r) ? r : []; }),
-  'home-exercises': () => window.Api.get('/home-exercises').then(r => { _homeExercisesCache = Array.isArray(r) ? r : []; }),
   'routes':         () => window.Api.get('/routes').then(r => { _routesCache = Array.isArray(r) ? r : []; }),
 };
 
@@ -179,94 +169,6 @@ const Storage = {
     // fire-and-forget; chamadores existentes nao esperam a resposta
     window.Api.put('/profile', _userCache).catch(e => console.error('[setUser]', e));
     return _userCache;
-  },
-
-  /* ── Modes ─────────────────────────────────────────────────────────── */
-  // Mutators sao otimistas: cache atualiza antes; API e fire-and-forget.
-  // Em caso de erro, log + toast pro usuario; cache pode divergir ate
-  // proximo loadAll() (no proximo boot).
-  getModes: () => _modesCache.slice(),
-  setModes: (modes) => {
-    _modesCache = Array.isArray(modes) ? modes.slice() : [];
-    window.Api.put('/modes', _modesCache).catch(e => _apiError('setModes', e));
-  },
-
-  addMode: (nome) => {
-    const id = 'mode_' + Date.now().toString(36);
-    const ordem = _modesCache.length;
-    const mode = { id, nome, ordem };
-    _modesCache.push(mode);
-    _workoutsCache[id] = [];
-    window.Api.post('/modes', mode).catch(e => _apiError('addMode', e));
-    return id;
-  },
-
-  renameMode: (id, novoNome) => {
-    const idx = _modesCache.findIndex(m => m.id === id);
-    if (idx >= 0) _modesCache[idx] = { ..._modesCache[idx], nome: novoNome };
-    window.Api.put('/modes/' + encodeURIComponent(id), { nome: novoNome })
-      .catch(e => _apiError('renameMode', e));
-  },
-
-  deleteMode: (id) => {
-    if (_modesCache.length <= 1) return false;
-    _modesCache = _modesCache.filter(m => m.id !== id);
-    delete _workoutsCache[id];
-    window.Api.del('/modes/' + encodeURIComponent(id)).catch(e => _apiError('deleteMode', e));
-    return true;
-  },
-
-  /* ── Workouts ──────────────────────────────────────────────────────── */
-  getWorkouts: () => {
-    // retorna copia rasa do dict
-    const out = {};
-    for (const k of Object.keys(_workoutsCache)) out[k] = _workoutsCache[k].slice();
-    return out;
-  },
-  setWorkouts: (w) => {
-    _workoutsCache = (w && typeof w === 'object') ? { ...w } : {};
-    // Sincroniza com backend: substitui cada modo
-    Object.keys(_workoutsCache).forEach(modeId => {
-      window.Api.put('/workouts/mode/' + encodeURIComponent(modeId), _workoutsCache[modeId])
-        .catch(e => console.error('[setWorkouts:' + modeId + ']', e));
-    });
-  },
-
-  getWorkoutsForMode: (modeId) => (_workoutsCache[modeId] || []).slice(),
-  setWorkoutsForMode: (modeId, list) => {
-    _workoutsCache[modeId] = Array.isArray(list) ? list.slice() : [];
-    window.Api.put('/workouts/mode/' + encodeURIComponent(modeId), _workoutsCache[modeId])
-      .catch(e => _apiError('setWorkoutsForMode', e));
-  },
-
-  addWorkout: (modeId, workout) => {
-    if (!workout.id) {
-      workout.id = (typeof tbGenId === 'function')
-        ? tbGenId()
-        : 'w_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
-    }
-    if (!_workoutsCache[modeId]) _workoutsCache[modeId] = [];
-    _workoutsCache[modeId].push(workout);
-    window.Api.post('/workouts', { ...workout, modeId }).catch(e => _apiError('addWorkout', e));
-    return workout.id;
-  },
-
-  updateWorkout: (modeId, workoutId, patch) => {
-    const list = _workoutsCache[modeId] || [];
-    const idx = list.findIndex(w => w.id === workoutId);
-    if (idx < 0) return false;
-    list[idx] = { ...list[idx], ...patch, id: workoutId };
-    window.Api.put('/workouts/' + encodeURIComponent(workoutId), { ...patch, modeId })
-      .catch(e => _apiError('updateWorkout', e));
-    return true;
-  },
-
-  deleteWorkout: (modeId, workoutId) => {
-    if (_workoutsCache[modeId]) {
-      _workoutsCache[modeId] = _workoutsCache[modeId].filter(w => w.id !== workoutId);
-    }
-    window.Api.del('/workouts/' + encodeURIComponent(workoutId))
-      .catch(e => _apiError('deleteWorkout', e));
   },
 
   /* ── Weights ───────────────────────────────────────────────────────── */
@@ -348,49 +250,6 @@ const Storage = {
       .catch(e => _apiError('deleteTrainingEntry', e));
   },
 
-  /* ── Home Exercises ────────────────────────────────────────────────── */
-  getHomeExercises: () => {
-    if (_homeExercisesCache.length === 0) {
-      // Primeira vez: semeia com defaults se houver
-      const defaults = (window.DEFAULT_HOME_EXERCISES || []).map((e, i) => ({
-        ...e,
-        id: e.id || _genId('hw'),
-        ordem: typeof e.ordem === 'number' ? e.ordem : i,
-      }));
-      if (defaults.length) {
-        _homeExercisesCache = defaults.slice();
-        window.Api.put('/home-exercises', defaults).catch(e => console.error('[seed home-exercises]', e));
-      }
-    }
-    return _homeExercisesCache.slice();
-  },
-  setHomeExercises: (exs) => {
-    _homeExercisesCache = Array.isArray(exs) ? exs.slice() : [];
-    window.Api.put('/home-exercises', _homeExercisesCache).catch(e => _apiError('setHomeExercises', e));
-  },
-
-  addHomeExercise: (ex) => {
-    const id = _genId('hw');
-    const body = { ...ex, id, ordem: _homeExercisesCache.length };
-    _homeExercisesCache.push(body);
-    window.Api.post('/home-exercises', body).catch(e => _apiError('addHomeExercise', e));
-    return id;
-  },
-
-  updateHomeExercise: (id, patch) => {
-    const idx = _homeExercisesCache.findIndex(e => e.id === id);
-    if (idx < 0) return false;
-    _homeExercisesCache[idx] = { ..._homeExercisesCache[idx], ...patch, id };
-    window.Api.put('/home-exercises/' + encodeURIComponent(id), patch)
-      .catch(e => _apiError('updateHomeExercise', e));
-  },
-
-  deleteHomeExercise: (id) => {
-    _homeExercisesCache = _homeExercisesCache.filter(e => e.id !== id);
-    window.Api.del('/home-exercises/' + encodeURIComponent(id))
-      .catch(e => _apiError('deleteHomeExercise', e));
-  },
-
   /* ── Routes (GPX) ──────────────────────────────────────────────────── */
   getRoutes: () => _routesCache.slice(),
   setRoutes: (r) => { _routesCache = Array.isArray(r) ? r.slice() : []; },
@@ -412,12 +271,9 @@ const Storage = {
   clearAll: () => {
     Object.values(KEYS).forEach(k => localStorage.removeItem(k));
     _userCache = { ...DEFAULTS.user };
-    _modesCache = [];
-    _workoutsCache = {};
     _weightsCache = [];
     _ridesCache = [];
     _trainingLogCache = [];
-    _homeExercisesCache = [];
     _routesCache = [];
   },
 
@@ -487,12 +343,9 @@ const Storage = {
       version:       SCHEMA_VERSION,
       exportedAt:    new Date().toISOString(),
       user:          Storage.getUser(),
-      modes:         Storage.getModes(),
-      workouts:      Storage.getWorkouts(),
       weights:       Storage.getWeights(),
       rides:         Storage.getRides(),
       trainingLog:   Storage.getTrainingLog(),
-      homeExercises: Storage.getHomeExercises(),
       routes:        Storage.getRoutes(),
       activitiesSummary,
       bikesSummary,
@@ -511,26 +364,8 @@ const Storage = {
       _userCache = { ...DEFAULTS.user, ...data.user };
     }
 
-    // 2. Modes (PUT bulk substitui tudo)
-    if (Array.isArray(data.modes)) {
-      _modesCache = await Api.put('/modes', data.modes).catch(e => { console.warn('[import/modes]', e); return data.modes; });
-    }
-
-    // 3. Workouts (PUT por modo)
-    if (data.workouts && typeof data.workouts === 'object') {
-      const w = {};
-      for (const modeId of Object.keys(data.workouts)) {
-        const list = data.workouts[modeId];
-        if (!Array.isArray(list)) continue;
-        try {
-          w[modeId] = await Api.put('/workouts/mode/' + encodeURIComponent(modeId), list);
-        } catch (e) {
-          console.warn('[import/workouts:' + modeId + ']', e);
-          w[modeId] = list;
-        }
-      }
-      _workoutsCache = w;
-    }
+    // Nota: backups antigos podem trazer `modes`/`workouts`/`homeExercises`
+    // (feature removida, issue #36) — ignorados de propósito, sem erro.
 
     // 4. Weights (POST cada um — acumulativo)
     if (Array.isArray(data.weights)) {
@@ -573,13 +408,6 @@ const Storage = {
         } catch (err) { console.warn('[import/training-log]', body, err); }
       }
       _trainingLogCache.sort((a, b) => a.data.localeCompare(b.data));
-    }
-
-    // 7. Home exercises (PUT bulk)
-    if (Array.isArray(data.homeExercises)) {
-      try {
-        _homeExercisesCache = await Api.put('/home-exercises', data.homeExercises);
-      } catch (e) { console.warn('[import/home-exercises]', e); }
     }
 
     // 8. Routes (POST cada uma)
@@ -625,18 +453,11 @@ async function migrateFromLegacyTxtIfNeeded() {
 
   if (!user.dataInicioPlano) user.dataInicioPlano = todayISO();
 
-  // Persiste perfil + modes padrao no backend
+  // Persiste perfil no backend
   try {
     await window.Api.put('/profile', user);
     _userCache = user;
   } catch (e) { console.warn('[migrate/profile]', e); }
-
-  // Modes default se backend vazio
-  if (_modesCache.length === 0) {
-    try {
-      _modesCache = await window.Api.put('/modes', DEFAULTS.modes);
-    } catch (e) { console.warn('[migrate/modes]', e); }
-  }
 
   _setLs(KEYS.VERSION, SCHEMA_VERSION);
 }
