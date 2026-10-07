@@ -43,20 +43,29 @@
   }
 
   /**
-   * Seletor segmentado "Desempenho | Insights | Treino IA". Nenhuma das três
-   * tem entrada própria no menu "Mais" — continuam views independentes do
-   * MRouter (próprio viewId cada), o seletor só troca de rota. Centralizado
-   * aqui porque as três views (desempenho-mobile.js, insights-mobile.js,
-   * treino-ia-mobile.js) precisam do mesmo markup. `.m-segment` usa
+   * Seletor segmentado genérico de abas internas — usado tanto por
+   * "Desempenho | Insights" (dentro da tab Desempenho) quanto por
+   * "Treino IA | Histórico" (dentro da tab Atividades, ver
+   * `segmentAtividades`). Nenhuma das views que usam isso tem entrada
+   * própria no menu "Mais" — continuam views independentes do MRouter
+   * (próprio viewId cada), o seletor só troca de rota. `.m-segment` usa
    * grid-auto-flow:column (css/mobile-desempenho.css) — funciona com
    * qualquer nº de itens, sem precisar de uma classe modificadora por caso.
    */
-  function segment(ativo) {
+  function segmentBase(itens, ativo) {
     const item = (slug, label) => `<button type="button" class="m-segment-btn${ativo === slug ? ' is-active' : ''}"
         data-slug="${escAttr(slug)}" role="tab" aria-selected="${ativo === slug}">${esc(label)}</button>`;
-    return `<div class="m-segment" role="tablist">
-      ${item('desempenho', 'Desempenho')}${item('insights', 'Insights')}${item('treino-ia', 'Treino IA')}
-    </div>`;
+    return `<div class="m-segment" role="tablist">${itens.map(([slug, label]) => item(slug, label)).join('')}</div>`;
+  }
+
+  /** "Desempenho | Insights" — ver desempenho-mobile.js / insights-mobile.js. */
+  function segment(ativo) {
+    return segmentBase([['desempenho', 'Desempenho'], ['insights', 'Insights']], ativo);
+  }
+
+  /** "Treino IA | Histórico" — dentro da tab Atividades (ver activities-mobile.js / treino-ia-mobile.js). */
+  function segmentAtividades(ativo) {
+    return segmentBase([['treino-ia', 'Treino IA'], ['atividades', 'Histórico']], ativo);
   }
 
   /** Liga os cliques do seletor renderizado dentro de `view` à navegação do MRouter. */
@@ -165,7 +174,7 @@
   }
 
   window.MShell = {
-    setHeader, initials, segment, wireSegment,
+    setHeader, initials, segment, segmentAtividades, wireSegment,
     parseLocalDT, fmtDate, fmtDateHora, fmtDuracao, fmtNum,
     mChart, esc,
     cached, invalidate, TTL_DADOS,
