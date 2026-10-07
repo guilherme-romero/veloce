@@ -280,6 +280,14 @@ CREATE TABLE IF NOT EXISTS activity_links (
 CREATE INDEX IF NOT EXISTS idx_activity_links_strava ON activity_links(strava_id);
 CREATE INDEX IF NOT EXISTS idx_activity_links_garmin ON activity_links(garmin_id);
 
+-- Metadados do matching (issue #40) — singleton (1 linha), mesmo padrão de
+-- strava_sync_meta/garmin_sync_meta. Guarda quando runMatching() rodou por
+-- último, pra reexaminar só o que entrou desde então (ver activity-matcher.js).
+CREATE TABLE IF NOT EXISTS activity_match_meta (
+  id        INTEGER PRIMARY KEY CHECK (id = 1),
+  last_run  TEXT
+);
+
 -- ═══════════════════════════════════════════════════════════════════════
 -- FASE 11.4 — Bicicletas, componentes e log de manutenção
 -- Modelo: "bike ativa" — km de atividades Garmin/Strava com data_inicio
