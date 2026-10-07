@@ -8,12 +8,19 @@
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
 const { runMatching } = require('../utils/activity-matcher');
-const { getUnifiedActivities } = require('../services/activities');
+const { getUnifiedActivities, getMaxHr } = require('../services/activities');
 
 const DEFAULT_DAYS = 180;
 
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
+
+  // Issue #43: refinar a FC máxima (js/profile.js) só precisa do pico, não
+  // da lista inteira de atividades — MAX(fc_max) em SQL.
+  fastify.get('/api/activities/max-hr', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 1825);
+    return { maxHr: getMaxHr(fastify.db, days) };
+  });
 
   fastify.get('/api/activities/unified', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 1825);
