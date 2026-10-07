@@ -487,43 +487,10 @@ function toggleEditMode() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   AUTH — gate de boot e logout
+   AUTH — gate de boot e logout. Lógica em js/core/session.js (issue #13),
+   compartilhada com js/mobile/boot.js + js/mobile/more-mobile.js.
 ═══════════════════════════════════════════════════════════════════════ */
-async function ensureAuthenticated() {
-  try {
-    const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
-    if (resp.ok) return true;
-  } catch (e) {
-    // BUG-079: erro de REDE, nao de sessao. Antes a execucao caia no redirect
-    // abaixo e o PWA nunca abria offline, apesar dos 67 arquivos do SHELL em
-    // cache. Deixa o app abrir com o que o SW guardou; se a sessao estiver
-    // mesmo invalida, a primeira chamada do Api devolve 401 e manda pro login.
-    console.warn('[auth] backend indisponível — abrindo com o cache offline');
-    return true;
-  }
-  window.location.replace('/login.html');
-  return false;
-}
-
-async function doLogout() {
-  // Dados de saude nao podem sobreviver ao logout no aparelho. Antes do fetch
-  // de proposito: vale mesmo se a chamada de rede falhar.
-  try { await caches.delete('treino-bike-data'); } catch (_) {}
-  // BUG-075: sem checar resp.ok, uma falha de rede deixava o cookie tb_session
-  // VALIDO e ainda assim mandava para o login — o usuario acreditava ter saido
-  // e bastava voltar para estar logado de novo. So redireciona se o servidor
-  // confirmar.
-  let ok = false;
-  try {
-    const r = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-    ok = r.ok;
-  } catch (e) { /* rede indisponivel */ }
-  if (!ok) {
-    if (window.toast) toast('Não foi possível encerrar a sessão no servidor. Tente de novo.', { kind: 'error' });
-    return;
-  }
-  window.location.replace('/login.html');
-}
+const { ensureAuthenticated, doLogout } = window.Session;
 
 /* ═══════════════════════════════════════════════════════════════════════
    BOOT
