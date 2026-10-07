@@ -1,10 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════════
    TREINO IA MOBILE — Plano de Treino Semanal (IDEIA-7, Issue #1).
    Layout do handoff (treino_bike_docs/handoff_treino_ia/mobile): faixa
-   compacta de 7 dias + card de detalhe com swipe, acessado pelo mesmo
-   seletor segmentado "Desempenho | Insights | Treino IA" de
-   desempenho-mobile.js/insights-mobile.js (MShell.segment) — não há tab
-   própria na tab bar.
+   compacta de 7 dias + card de detalhe com swipe, acessado pelo seletor
+   segmentado "Treino IA | Histórico" dentro da tab Atividades (ver
+   activities-mobile.js, MShell.segmentAtividades) — não há tab própria na
+   tab bar; o ícone "Ativid." fica aceso (tab: 'atividades' no registro).
 
    Mesmo motor/contrato de dados do desktop (js/weekly-training-plan.js):
    nenhuma lógica de domínio nova aqui, só a camada de apresentação —
@@ -244,7 +244,7 @@
 
   function skeleton() {
     return `
-      ${MShell.segment('treino-ia')}
+      ${MShell.segmentAtividades('treino-ia')}
       <div id="mtia-empty" class="m-empty">Nenhum plano gerado ainda — toque em "Gerar" para criar sua primeira semana padrão.</div>
       <div id="mtia-body" hidden>
         <div id="mtia-strip" class="mtia-strip"></div>
@@ -392,7 +392,7 @@
 
   MRouter.register({
     slug: 'treino-ia',
-    tab: 'desempenho',
+    tab: 'atividades',
     viewId: VIEW_ID,
     label: 'Treino IA',
     onEnter: () => {

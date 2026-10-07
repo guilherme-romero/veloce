@@ -37,6 +37,7 @@
 
   function skeleton() {
     return `
+      ${MShell.segmentAtividades('atividades')}
       <div class="m-chiprow" id="m-act-chips"></div>
       <div class="m-kpigrid" id="m-act-kpis"></div>
 
@@ -195,6 +196,7 @@
     const view = document.getElementById(VIEW_ID);
     if (!view) return;
     view.innerHTML = skeleton();
+    MShell.wireSegment(view);
 
     try {
       // Guarda com TTL de 5 min (padrão MShell) — era flag `_loaded` eterna,
@@ -202,7 +204,10 @@
       _all = await MShell.cached('atividades', MShell.TTL_DADOS, buscarDados);
     } catch (e) {
       console.error('[activities-mobile]', e);
-      view.innerHTML = `<div class="m-empty">Falha ao carregar o histórico.</div>`;
+      // Mantém o seletor visível mesmo com falha — dá pra trocar pra Treino
+      // IA sem precisar que o histórico carregue primeiro.
+      view.innerHTML = `${MShell.segmentAtividades('atividades')}<div class="m-empty">Falha ao carregar o histórico.</div>`;
+      MShell.wireSegment(view);
       return;
     }
 
