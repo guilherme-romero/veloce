@@ -3,12 +3,14 @@
    GET /api/activities/unified?days=N
      Retorna lista combinada, deduplicada via activity_links.
      Regra de prioridade: Garmin > Strava quando ha link.
+   GET /api/activities/latest
+     Só a atividade mais recente (issue #42) — sino de notificações.
    POST /api/activities/match
      Roda o matcher manualmente (geralmente automatico apos sync).
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
 const { runMatching } = require('../utils/activity-matcher');
-const { getUnifiedActivities } = require('../services/activities');
+const { getUnifiedActivities, getLatestActivity } = require('../services/activities');
 
 const DEFAULT_DAYS = 180;
 
@@ -22,6 +24,13 @@ const EXCLUDED_GARMIN_TYPES = ['virtual_ride', 'indoor_cycling', 'e_bike_fitness
 
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
+
+  // Issue #42: o sino de notificações só precisa de 1 item, mas chamava
+  // /unified?days=1825&limit=1 — paginação acontecia DEPOIS do SELECT *
+  // completo. Endpoint dedicado com ORDER BY + LIMIT 1 em SQL.
+  fastify.get('/api/activities/latest', async () => {
+    return { item: getLatestActivity(fastify.db) };
+  });
 
   fastify.get('/api/activities/unified', async (req) => {
     const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 1825);
