@@ -20,6 +20,14 @@
    * onde MAIOR = mais fadiga. Índice heurístico do projeto, não métrica
    * clínica.
    *
+   * Componente de HRV (#57): em vez de um corte fixo (ex. "queda de 25%"),
+   * usa z-score contra a baseline pessoal (média/SD das 4 semanas antes da
+   * semana atual, método Plews/Buchheit) — o coeficiente de variação (CV =
+   * SD/média) natural de cada pessoa decide o que é "queda significativa"
+   * pra ELA, não um número arbitrário igual pra todo mundo. Precisa de pelo
+   * menos 14 noites de HRV na janela de baseline; com menos, cai no limiar
+   * fixo antigo (usuário novo na Garmin / gap de sync).
+   *
    * @param  {Array} health — /api/garmin/health, mais recente primeiro
    * @return {Object} { ok, score, status, token, msg, bb, hrv, stress, fonteCount }
    */
@@ -28,7 +36,6 @@
     if (!arr.length) return { ok: false };
 
     const recentes  = arr.slice(0, 7);    // últimos 7 dias
-    const semanaAnt = arr.slice(7, 14);   // semana anterior
 
     const avg = (a, key) => {
       const vals = a.map(d => d[key]).filter(v => v != null && isFinite(v));
@@ -38,8 +45,20 @@
     const bbDrainAvg = avg(recentes, 'body_battery_drain');
     const bbMaxAvg   = avg(recentes, 'body_battery_max');
     const stressAvg  = avg(recentes, 'stress_avg');
-    const hrvSem     = avg(recentes, 'hrv_noite_avg');
-    const hrvSemAnt  = avg(semanaAnt, 'hrv_noite_avg');
+    const hrvSem      = avg(recentes, 'hrv_noite_avg');
+    // Baseline pessoal (#57, método Plews/Buchheit): janela de 4 semanas
+    // ANTES da semana atual, não só a semana anterior — um único dia ruim
+    // na "semana anterior" não deveria inflar/desinflar o desvio-padrão da
+    // baseline. Precisa de pelo menos 14 noites válidas nessa janela; com
+    // menos, a SD não é confiável e cai no fallback de limiar fixo abaixo.
+    const baselineVals = arr.slice(7, 35)
+      .map(d => d.hrv_noite_avg).filter(v => v != null && isFinite(v));
+    const hasBaseline = baselineVals.length >= 14;
+    const hrvBaselineMean = hasBaseline
+      ? baselineVals.reduce((s, v) => s + v, 0) / baselineVals.length : null;
+    const hrvBaselineSD = hasBaseline
+      ? Math.sqrt(baselineVals.reduce((s, v) => s + (v - hrvBaselineMean) ** 2, 0) / baselineVals.length)
+      : null;
 
     if (bbDrainAvg == null || stressAvg == null) return { ok: false };
 
@@ -47,13 +66,37 @@
     // ausente entra neutra (50) em vez de derrubar o índice.
     const hasBBI    = bbMaxAvg != null && bbDrainAvg != null;
     const hasStress = stressAvg != null;
-    const hasHRV    = !!(hrvSem && hrvSemAnt);
+    // Usa a mesma função `avg` (filtra NaN/Infinity) pra checar a semana
+    // anterior, em vez de só `!= null` — evita contar HRV como "fonte
+    // válida" quando o único dado disponível é não-finito (achado de
+    // revisão). Também não exige SD>0 pra qualificar: baseline degenerada
+    // (SD=0, dado duplicado/sync quebrado) cai no fallback abaixo em vez de
+    // desistir do HRV por completo — ver uso de `hrvSemAntFallback`.
+    // '> 0' (não só '!= null'): HRV 0ms é fisiologicamente inválido — trata
+    // como "sem dado" em vez de arriscar divisão por zero no delta abaixo.
+    const hrvSemAntFallback = avg(arr.slice(7, 14), 'hrv_noite_avg');
+    const hasHRV = hrvSem != null && (hasBaseline || hrvSemAntFallback > 0);
     const bbiScore    = hasBBI    ? Math.min(100, (bbDrainAvg / Math.max(bbMaxAvg, 1)) * 100) : 50;
     const stressScore = hasStress ? Math.min(100, stressAvg * 1.5) : 50;  // stress 50 → 75
     let hrvScore = 50;
-    if (hasHRV) {
-      const delta = (hrvSemAnt - hrvSem) / hrvSemAnt;   // positivo = HRV caindo = fadiga subindo
+    let hrvRef = null;   // valor de referência pra exibir o delta (baseline ou semana anterior)
+    if (hasHRV && hasBaseline && hrvBaselineSD > 0) {
+      // Z-score relativo à variação natural do próprio usuário (CV = SD/média
+      // da baseline) em vez de um corte fixo de "queda de 25%" — alguém com
+      // HRV naturalmente instável (CV alto) não deveria disparar fadiga a
+      // cada flutuação normal; alguém muito estável (CV baixo) não deveria
+      // escapar de uma queda pequena mas estatisticamente significativa.
+      const hrvZ = (hrvSem - hrvBaselineMean) / hrvBaselineSD;   // negativo = abaixo da baseline = fadiga
+      hrvScore = Math.max(0, Math.min(100, 50 - hrvZ * 25));     // -2 SD → 100, 0 → 50, +2 SD → 0
+      hrvRef = hrvBaselineMean;
+    } else if (hasHRV && hrvSemAntFallback > 0) {
+      // Fallback: menos de 14 noites de baseline válidas (usuário novo na
+      // Garmin, gap longo de sync) OU baseline degenerada (SD=0) — mantém
+      // o limiar fixo de queda de 25% como antes, só até acumular
+      // histórico suficiente/variável.
+      const delta = (hrvSemAntFallback - hrvSem) / hrvSemAntFallback;
       hrvScore = Math.max(0, Math.min(100, 50 + delta * 200));
+      hrvRef = hrvSemAntFallback;
     }
 
     const score      = Math.round(bbiScore * 0.40 + hrvScore * 0.35 + stressScore * 0.25);
@@ -68,7 +111,7 @@
       ok: true, score, status, token, fonteCount,
       msg: fonteCount < 3 ? `${msg} (índice baseado em ${fonteCount}/3 fontes Garmin)` : msg,
       bb:     hasBBI    ? `${Math.round(bbDrainAvg)} / ${Math.round(bbMaxAvg)}` : '—',
-      hrv:    hasHRV    ? `${Math.round(hrvSem)} ms` + (hrvSemAnt ? ` (${hrvSem > hrvSemAnt ? '+' : ''}${Math.round(hrvSem - hrvSemAnt)})` : '') : '—',
+      hrv:    hasHRV    ? `${Math.round(hrvSem)} ms` + (hrvRef ? ` (${hrvSem > hrvRef ? '+' : ''}${Math.round(hrvSem - hrvRef)})` : '') : '—',
       stress: hasStress ? `${Math.round(stressAvg)}` : '—',
     };
   }
