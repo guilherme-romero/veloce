@@ -556,7 +556,7 @@
 
     Modals.open({
       tag: isEdit ? 'Editar bicicleta' : 'Nova bicicleta',
-      title: isEdit ? esc(b.nome) : 'Adicionar bicicleta',
+      title: isEdit ? b.nome : 'Adicionar bicicleta',
       bodyHTML: `
         <div class="field">
           <label class="field-label" for="b-nome">Nome *</label>
@@ -664,7 +664,7 @@
   function confirmDeleteBike(bike) {
     Modals.open({
       tag: 'Remover bicicleta',
-      title: `Remover ${esc(bike.nome)}?`,
+      title: `Remover ${bike.nome}?`,
       bodyHTML: `
         <p style="font-size:14px;color:var(--muted);">
           Esta ação remove a bicicleta, todos os componentes cadastrados e o histórico de manutenções.
@@ -690,7 +690,7 @@
   function openActivateModal(bike) {
     Modals.open({
       tag: 'Ativar bicicleta',
-      title: `Ativar ${esc(bike.nome)}`,
+      title: `Ativar ${bike.nome}`,
       bodyHTML: `
         <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">
           A partir desta data, km de atividades Garmin/Strava serão somados a esta bike.
@@ -720,7 +720,7 @@
   function openDeactivateModal(bike) {
     Modals.open({
       tag: 'Inativar bicicleta',
-      title: `Inativar ${esc(bike.nome)}`,
+      title: `Inativar ${bike.nome}`,
       bodyHTML: `
         <p style="font-size:14px;color:var(--muted);margin-bottom:12px;">
           A quilometragem rodada (<strong>${esc(fmtKm(bike.kmTotal))}</strong>) será preservada e
@@ -782,7 +782,7 @@
 
     Modals.open({
       tag: isEdit ? 'Editar componente' : 'Adicionar componente',
-      title: isEdit ? esc(typeLabel(c.tipo)) : `Componente — ${esc(bike.nome)}`,
+      title: isEdit ? typeLabel(c.tipo) : `Componente — ${bike.nome}`,
       bodyHTML: `
         <div class="field">
           <label class="field-label" for="c-tipo">Tipo de componente</label>
@@ -1030,7 +1030,7 @@
     if (!comp) return;
     Modals.open({
       tag: 'Remover componente',
-      title: `Remover ${esc(typeLabel(comp.tipo))}?`,
+      title: `Remover ${typeLabel(comp.tipo)}?`,
       bodyHTML: `<p style="font-size:14px;color:var(--muted);">
                    O histórico de manutenções deste componente também será removido.
                  </p>`,
@@ -1056,7 +1056,7 @@
     if (!comp) return;
     Modals.open({
       tag: 'Registrar limpeza',
-      title: `Limpar ${esc(typeLabel(comp.tipo))}`,
+      title: `Limpar ${typeLabel(comp.tipo)}`,
       bodyHTML: `
         <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
           ${esc(bike.nome)} · km atual: <strong>${esc(fmtKm(bike.kmTotal))}</strong>
@@ -1092,13 +1092,14 @@
     const comp = (_componentsByBike.get(bike.id) || []).find(c => c.id === compId);
     if (!comp) return;
 
-    const tipoLabel = esc(typeLabel(comp.tipo));
+    const tipoLabelRaw = typeLabel(comp.tipo);
+    const tipoLabel = esc(tipoLabelRaw);
     const saiNome = [comp.marca, comp.modelo].filter(Boolean).join(' ').trim();
     const kmRodado = comp.kmDesgastado != null ? comp.kmDesgastado : null;
 
     Modals.open({
       tag: 'Substituir componente',
-      title: `Substituir ${tipoLabel}`,
+      title: `Substituir ${tipoLabelRaw}`,
       bodyHTML: `
         <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">
           ${esc(bike.nome)} · km atual: <strong>${esc(fmtKm(bike.kmTotal))}</strong>
@@ -1197,7 +1198,7 @@
     const iv = interval || { nome: '', base: 'km', intervalo: '' };
     Modals.open({
       tag: isEdit ? 'Editar serviço' : 'Novo serviço recorrente',
-      title: esc(typeLabel(comp.tipo)),
+      title: typeLabel(comp.tipo),
       bodyHTML: `
         <div class="field">
           <label class="field-label" for="iv-nome">Nome do serviço *</label>
@@ -1250,7 +1251,7 @@
     const iv = findInterval(bike, compId, intId);
     Modals.open({
       tag: 'Remover serviço',
-      title: iv ? esc(iv.nome) : 'Remover serviço',
+      title: iv ? iv.nome : 'Remover serviço',
       bodyHTML: `<p style="font-size:14px;color:var(--muted);">Remover este serviço recorrente? O histórico de manutenção já registrado é mantido.</p>`,
       actions: [
         { label: 'Cancelar', kind: 'ghost', onClick: () => Modals.close() },
@@ -1270,7 +1271,7 @@
     const iv = findInterval(bike, compId, intId);
     Modals.open({
       tag: 'Registrar serviço',
-      title: iv ? esc(iv.nome) : 'Registrar serviço',
+      title: iv ? iv.nome : 'Registrar serviço',
       bodyHTML: `
         <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
           ${esc(bike.nome)} · km atual: <strong>${esc(fmtKm(bike.kmTotal))}</strong>
@@ -1311,7 +1312,7 @@
     const limpComps = comps.filter(c => c.temLimpeza).length;
     Modals.open({
       tag: 'Revisão completa',
-      title: esc(bike.nome),
+      title: bike.nome,
       bodyHTML: `
         <div class="field">
           <label class="field-label" for="rev-data">Data da revisão</label>
@@ -1449,7 +1450,7 @@
 
     Modals.open({
       tag: 'Componente',
-      title: esc(typeLabel(comp.tipo)),
+      title: typeLabel(comp.tipo),
       bodyHTML: `
         <div class="bike-detail-stats">
           ${(comp.marca || comp.modelo) ? `<div class="bike-detail-row"><span>Peça atual</span><strong>${esc([comp.marca, comp.modelo].filter(Boolean).join(' '))}</strong></div>` : ''}
@@ -1557,7 +1558,7 @@
   async function openStatsModal(bike) {
     Modals.open({
       tag: 'Estatísticas',
-      title: esc(bike.nome),
+      title: bike.nome,
       bodyHTML: `<div id="bike-stats-content"><div class="bike-log-empty">Carregando…</div></div>
         <div id="bike-stats-retired"></div>`,
       actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => Modals.close() }],
@@ -1594,7 +1595,7 @@
   async function openLogModal(bike) {
     Modals.open({
       tag: 'Manutenções',
-      title: esc(bike.nome),
+      title: bike.nome,
       bodyHTML: '<div id="log-content" class="bike-log-list"><div class="bike-log-empty">Carregando…</div></div>',
       actions: [
         { label: 'Fechar', kind: 'ghost', onClick: () => Modals.close() },
