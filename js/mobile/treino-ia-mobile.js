@@ -28,11 +28,16 @@
     try { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', ''); }
     catch (_) { return iso; }
   }
+  // `gerado_em` vem do SQLite como "YYYY-MM-DD HH:MM:SS" (CURRENT_TIMESTAMP,
+  // sempre UTC), sem indicador de fuso — normaliza pra ISO com "Z" explícito
+  // antes de formatar, e exibe em UTC (não no fuso do aparelho) pra bater
+  // sempre com o que está no banco.
   function fmtDataHora(iso) {
     try {
-      const d = new Date(iso);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
-        + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const isoUtc = /[Zz]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso.replace(' ', 'T') + 'Z';
+      const d = new Date(isoUtc);
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' }).replace('.', '')
+        + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
     } catch (_) { return iso; }
   }
   function rotuloProvider(payload) {

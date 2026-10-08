@@ -193,9 +193,45 @@ function _stmts(db) {
            AND l.strava_id IS NULL
            AND (s.tipo IS NULL OR s.tipo NOT IN (${_ph(EXCLUDED_STRAVA_TYPES)}))`),
     },
+    // Issue #44: GET /bikes embute components — essas 3 queries passam a
+    // rodar 1x por bike dentro do loop, então valem o cache (mesmo motivo do
+    // bloco `stats` acima).
+    components: db.prepare(
+      'SELECT * FROM bike_components WHERE bike_id = ? ORDER BY created_at ASC'
+    ),
+    intervals: db.prepare(
+      'SELECT * FROM bike_service_intervals WHERE component_id = ? ORDER BY created_at ASC'
+    ),
+    maintenanceLog: db.prepare(`
+      SELECT l.*, c.tipo AS component_tipo
+        FROM bike_maintenance_log l
+        LEFT JOIN bike_components c ON c.id = l.component_id
+       WHERE l.bike_id = ? ORDER BY l.data DESC, l.created_at DESC
+    `),
   };
   _stmtCache.set(db, s);
   return s;
+}
+
+function componentsForBike(db, bike) {
+  const kmBike = calcBikeKm(db, bike);
+  const { components, intervals } = _stmts(db);
+  return components.all(bike.id).map(c => {
+    const dto = rowToComponent(c);
+    dto.kmDesgastado = +(kmBike - dto.kmAtInstall).toFixed(1);
+    dto.kmDesdeUltimaLimpeza = dto.temLimpeza
+      ? +(kmBike - dto.kmAtLastClean).toFixed(1)
+      : null;
+    dto.intervals = intervals.all(c.id).map(r => rowToInterval(r, kmBike));
+    return dto;
+  });
+}
+
+function maintenanceLogForBike(db, bikeId) {
+  return _stmts(db).maintenanceLog.all(bikeId).map(r => ({
+    ...rowToLog(r),
+    componentTipo: r.component_tipo || null,
+  }));
 }
 
 // Agrega km + tempo em movimento + ganho de elevação + nº de atividades
@@ -352,10 +388,19 @@ function todayISO() {
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
 
-  // ── Listar todas as bikes (com km calculado) ────────────────────────
+  // ── Listar todas as bikes (com km calculado + componentes embutidos) ──
+  // Issue #44: antes só devolvia a bike; o frontend fazia N chamadas
+  // extras (1 por bike) pra GET /bikes/:id/components. Embutir aqui elimina
+  // o round-trip — N é pequeno (poucas bikes, uso pessoal), então o custo
+  // de rodar as queries de componentes N vezes no SERVIDOR (statements já
+  // cacheados, ver _stmts) é bem mais barato que N requests HTTP do cliente.
   fastify.get('/api/bikes', async () => {
     const bikes = fastify.db.prepare('SELECT * FROM bikes ORDER BY active DESC, nome ASC').all();
-    return bikes.map(b => ({ ...rowToBike(b), ...calcBikeStats(fastify.db, b) }));
+    return bikes.map(b => ({
+      ...rowToBike(b),
+      ...calcBikeStats(fastify.db, b),
+      components: componentsForBike(fastify.db, b),
+    }));
   });
 
   // ── Criar bike ───────────────────────────────────────────────────────
@@ -457,22 +502,7 @@ async function routes(fastify) {
     const { id } = req.params;
     const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
     if (!bike) return reply.code(404).send({ error: 'bike nao encontrada' });
-    const kmBike = calcBikeKm(fastify.db, bike);
-    const comps = fastify.db.prepare(
-      'SELECT * FROM bike_components WHERE bike_id = ? ORDER BY created_at ASC'
-    ).all(id);
-    const intervalStmt = fastify.db.prepare(
-      'SELECT * FROM bike_service_intervals WHERE component_id = ? ORDER BY created_at ASC'
-    );
-    return comps.map(c => {
-      const dto = rowToComponent(c);
-      dto.kmDesgastado = +(kmBike - dto.kmAtInstall).toFixed(1);
-      dto.kmDesdeUltimaLimpeza = dto.temLimpeza
-        ? +(kmBike - dto.kmAtLastClean).toFixed(1)
-        : null;
-      dto.intervals = intervalStmt.all(c.id).map(r => rowToInterval(r, kmBike));
-      return dto;
-    });
+    return componentsForBike(fastify.db, bike);
   });
 
   // ── Estatísticas detalhadas da bike ──────────────────────────────────
@@ -783,16 +813,7 @@ async function routes(fastify) {
     const { id } = req.params;
     const bike = fastify.db.prepare('SELECT * FROM bikes WHERE id = ?').get(id);
     if (!bike) return reply.code(404).send({ error: 'bike nao encontrada' });
-    const rows = fastify.db.prepare(`
-      SELECT l.*, c.tipo AS component_tipo
-      FROM bike_maintenance_log l
-      LEFT JOIN bike_components c ON c.id = l.component_id
-      WHERE l.bike_id = ? ORDER BY l.data DESC, l.created_at DESC
-    `).all(id);
-    return rows.map(r => ({
-      ...rowToLog(r),
-      componentTipo: r.component_tipo || null,
-    }));
+    return maintenanceLogForBike(fastify.db, id);
   });
 }
 
