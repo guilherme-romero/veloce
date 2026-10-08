@@ -142,4 +142,30 @@ function getLatestActivity(db) {
   return toComparableTime(gRow.inicio) >= toComparableTime(sRow.inicio) ? gRow : sRow;
 }
 
-module.exports = { getUnifiedActivities, getLatestActivity };
+/**
+ * Issue #43: js/profile.js puxava 365 dias de atividades completas (/unified)
+ * só pra extrair o MAX(fcMax) observado — refinar a FC máxima estimada.
+ * MAX direto em SQL, sem trazer nenhuma atividade pro Node.
+ * @param  {import('better-sqlite3').Database} db
+ * @param  {number} days
+ * @return {number|null}
+ */
+function getMaxHr(db, days) {
+  const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+
+  const g = db.prepare(
+    'SELECT MAX(fc_max) AS m FROM garmin_activities WHERE data_inicio >= ?'
+  ).get(cutoff).m;
+
+  const s = db.prepare(`
+    SELECT MAX(s.fc_max) AS m
+      FROM strava_activities s
+      LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+     WHERE s.data_inicio >= ? AND l.strava_id IS NULL
+  `).get(cutoff).m;
+
+  if (g == null && s == null) return null;
+  return Math.max(g ?? -Infinity, s ?? -Infinity);
+}
+
+module.exports = { getUnifiedActivities, getLatestActivity, getMaxHr };

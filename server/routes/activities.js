@@ -10,7 +10,7 @@
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
 const { runMatching } = require('../utils/activity-matcher');
-const { getUnifiedActivities, getLatestActivity } = require('../services/activities');
+const { getUnifiedActivities, getLatestActivity, getMaxHr } = require('../services/activities');
 
 const DEFAULT_DAYS = 180;
 
@@ -30,6 +30,13 @@ async function routes(fastify) {
   // completo. Endpoint dedicado com ORDER BY + LIMIT 1 em SQL.
   fastify.get('/api/activities/latest', async () => {
     return { item: getLatestActivity(fastify.db) };
+  });
+
+  // Issue #43: refinar a FC máxima (js/profile.js) só precisa do pico, não
+  // da lista inteira de atividades — MAX(fc_max) em SQL.
+  fastify.get('/api/activities/max-hr', async (req) => {
+    const days = Math.min(Math.max(parseInt(req.query?.days || DEFAULT_DAYS, 10) || DEFAULT_DAYS, 1), 1825);
+    return { maxHr: getMaxHr(fastify.db, days) };
   });
 
   fastify.get('/api/activities/unified', async (req) => {
