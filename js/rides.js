@@ -422,7 +422,7 @@ function openRideModal(ride, presetDate) {
 
   Modals.open({
     tag: isEdit ? 'Editar passeio' : 'Novo passeio',
-    title: isEdit ? esc(r.destino || 'Sem destino') : 'Adicionar passeio',
+    title: isEdit ? (r.destino || 'Sem destino') : 'Adicionar passeio',
     bodyHTML: `
       <div class="field">
         <label class="field-label" for="r-destino">Destino</label>
