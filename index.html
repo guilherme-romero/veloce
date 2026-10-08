@@ -1007,13 +1007,19 @@
       <div class="card insight-card" id="comparative-performance-card">
         <div class="insight-head">
           <div class="insight-head-left">
-            <div class="card-label">Comparativo — últimos 30 dias</div>
+            <div class="card-label">Comparativo — últimos 30 dias
+              <button class="insight-info-btn" aria-label="Mais informações" data-info="Compara dois períodos fixos e contíguos de 30 dias corridos (não contagem de atividades) — os últimos 30 dias vs. os 30 anteriores a eles. O mínimo de 3 saídas por período é só um critério pra exibir o comparativo, não é o que está sendo comparado."><i class="fa-solid fa-circle-info"></i></button>
+            </div>
           </div>
         </div>
         <div class="insight-msg" id="comparative-performance-empty" style="color:var(--muted2);" hidden>
           Pedale por pelo menos 3 saídas em cada um dos últimos dois períodos de 30 dias para ver o comparativo.
         </div>
         <div id="comparative-performance-content" hidden>
+          <div class="legend-row" style="margin-bottom:12px;">
+            <span><span class="swatch" style="background:var(--border2)"></span>Anterior (30 dias)</span>
+            <span><span class="swatch" style="background:var(--lime)"></span>Atual (últimos 30 dias)</span>
+          </div>
           <div class="desemp-compare-grid">
             <div class="desemp-tile">
               <div class="desemp-tile__label">Volume</div>
