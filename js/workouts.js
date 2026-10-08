@@ -202,7 +202,7 @@ function openWorkoutModal(workoutId) {
 
   Modals.open({
     tag: isEdit ? 'Editar treino' : 'Novo treino',
-    title: isEdit ? esc(w.title || 'Sem título') : 'Adicionar treino',
+    title: isEdit ? (w.title || 'Sem título') : 'Adicionar treino',
     bodyHTML: `
       <div class="field-row">
         <div class="field">
@@ -398,7 +398,7 @@ function openRenameModeModal(modeId) {
 
   Modals.open({
     tag: 'Renomear modo',
-    title: esc(m.nome),
+    title: m.nome,
     bodyHTML: `
       <div class="field">
         <label class="field-label" for="m-rename">Novo nome</label>
@@ -430,7 +430,7 @@ function confirmDeleteMode(modeId) {
 
   Modals.open({
     tag: 'Confirmação',
-    title: `Excluir modo "${esc(m.nome)}"?`,
+    title: `Excluir modo "${m.nome}"?`,
     bodyHTML: `
       <p style="color:var(--muted2);font-size:14px;line-height:1.6;">
         ${n > 0
