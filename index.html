@@ -8,7 +8,7 @@
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
-             script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com;
+             script-src 'self' https://cdnjs.cloudflare.com https://unpkg.com;
              style-src 'self' 'unsafe-inline' https://unpkg.com;
              font-src 'self' data: https://unpkg.com;
              img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://server.arcgisonline.com https://*.cloudfront.net https://*.strava.com;
@@ -22,13 +22,13 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.9.43"></script>
+  <script src="js/variant.js?v=2.9.29"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.43">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.43">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.43">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.43">
-  <link rel="manifest" href="manifest.json?v=2.9.43">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.29">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.29">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.29">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.29">
+  <link rel="manifest" href="manifest.json?v=2.9.29">
 
   <title>VELOCE LABS</title>
 
@@ -44,12 +44,12 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.9.43">
-  <link rel="stylesheet" href="css/rides.css?v=2.9.43">
-  <link rel="stylesheet" href="css/routes.css?v=2.9.43">
-  <link rel="stylesheet" href="css/bikes.css?v=2.9.43">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.43">
-  <link rel="stylesheet" href="css/treino-ia.css?v=2.9.43">
+  <link rel="stylesheet" href="css/style.css?v=2.9.29">
+  <link rel="stylesheet" href="css/rides.css?v=2.9.29">
+  <link rel="stylesheet" href="css/routes.css?v=2.9.29">
+  <link rel="stylesheet" href="css/bikes.css?v=2.9.29">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.29">
+  <link rel="stylesheet" href="css/treino-ia.css?v=2.9.29">
 </head>
 <body>
 
@@ -64,18 +64,17 @@
       <span>VELOCE<b>LABS</b></span>
     </div>
     <div class="nav-links" id="nav-links">
-      <button id="nav-home"         class="nav-btn"        onclick="scrollToSection('home')">Início</button>
-      <button id="nav-profile"      class="nav-btn"        onclick="scrollToSection('profile')">Perfil</button>
-      <button id="nav-bikes"        class="nav-btn"        onclick="scrollToSection('bikes')">Bike</button>
-      <button id="nav-plan"         class="nav-btn"        onclick="scrollToSection('plan')">Treinos</button>
-      <button id="nav-rides"        class="nav-btn"        onclick="scrollToSection('rides')">Passeios</button>
-      <button id="nav-routes"       class="nav-btn"        onclick="scrollToSection('routes')">Rotas</button>
-      <button id="nav-activities"   class="nav-btn"        onclick="scrollToSection('activities')">Histórico</button>
-      <button id="nav-insights"     class="nav-btn"        onclick="scrollToSection('insights')">Insights</button>
-      <button id="nav-proximo-treino" class="nav-btn"      onclick="scrollToSection('proximo-treino')">Desempenho</button>
-      <button id="nav-treino-ia"   class="nav-btn"         onclick="scrollToSection('treino-ia')">Treino IA</button>
-      <button id="nav-ferramentas"  class="nav-btn"        onclick="scrollToSection('ferramentas')">Ferramentas</button>
-      <button id="nav-integrations" class="nav-btn"        onclick="scrollToSection('integrations')">Conexões</button>
+      <button id="nav-home"         class="nav-btn">Início</button>
+      <button id="nav-profile"      class="nav-btn">Perfil</button>
+      <button id="nav-bikes"        class="nav-btn">Bike</button>
+      <button id="nav-rides"        class="nav-btn">Passeios</button>
+      <button id="nav-routes"       class="nav-btn">Rotas</button>
+      <button id="nav-activities"   class="nav-btn">Histórico</button>
+      <button id="nav-insights"     class="nav-btn">Insights</button>
+      <button id="nav-proximo-treino" class="nav-btn">Desempenho</button>
+      <button id="nav-treino-ia"   class="nav-btn">Treino</button>
+      <button id="nav-ferramentas"  class="nav-btn">Ferramentas</button>
+      <button id="nav-integrations" class="nav-btn">Conexões</button>
     </div>
     <div class="nav-right">
       <button id="btn-notif" class="nav-icon-btn" title="Notificações" type="button">
@@ -360,66 +359,6 @@
     </div>
 
     <div id="bikes-list" class="bikes-list"></div>
-  </section>
-
-  <!-- ┌─ TREINOS (Em casa + Semana padrão agrupados) ───────────────┐ -->
-  <section id="plan" class="scroll-mt-20">
-
-    <!-- ┌─ EM CASA (Fortalecimento) — agrupado dentro de Treinos ─────┐ -->
-    <div id="home-workout" class="scroll-mt-20">
-      <div class="section-label">Em casa</div>
-      <div class="card">
-        <div class="workout-header">
-          <div style="max-width:500px;">
-            <h2 style="font-family:var(--font-display);font-size:clamp(34px,5vw,50px);font-weight:400;letter-spacing:0.01em;line-height:0.9;text-transform:uppercase;margin-bottom:8px;color:var(--text);">Fortalecimento em casa</h2>
-            <p class="section-sub">Circuito Core &amp; Pernas — 2 a 3× por semana nos dias de descanso da bike.</p>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span class="badge badge-magenta"><i class="fa-solid fa-fire"></i> Core &amp; Estabilidade</span>
-            <button id="btn-add-home-exercise" class="btn btn-primary btn-sm" type="button">
-              <i class="fa-solid fa-plus"></i> Exercício
-            </button>
-            <button id="btn-export-home" class="btn btn-ghost btn-sm btn-icon" type="button" title="Exportar circuito">
-              <i class="fa-solid fa-download"></i>
-            </button>
-            <label class="btn btn-ghost btn-sm btn-icon" style="cursor:pointer;" title="Importar circuito">
-              <i class="fa-solid fa-upload"></i>
-              <input id="home-import-file" type="file" accept="application/json,.json" style="display:none" />
-            </label>
-          </div>
-        </div>
-
-        <div id="home-exercises-grid" class="home-exercises">
-          <!-- preenchido por home-workout.js -->
-        </div>
-      </div>
-    </div>
-
-    <!-- ┌─ SEMANA PADRÃO (Agenda de treino) ──────────────────────────┐ -->
-    <div style="margin-top:48px;">
-      <div class="section-head">
-        <div>
-          <div class="section-label">Semana padrão</div>
-          <h2 class="section-title">Agenda de treino</h2>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <div id="plan-toggle" class="plan-toggle">
-            <!-- preenchido por workouts.js -->
-          </div>
-          <button id="btn-export-plan" class="btn btn-ghost btn-sm btn-icon" type="button" title="Exportar plano de treino">
-            <i class="fa-solid fa-download"></i>
-          </button>
-          <label class="btn btn-ghost btn-sm btn-icon" style="cursor:pointer;" title="Importar plano de treino">
-            <i class="fa-solid fa-upload"></i>
-            <input id="plan-import-file" type="file" accept="application/json,.json" style="display:none" />
-          </label>
-        </div>
-      </div>
-
-      <div id="calendar-grid" class="calendar-grid"></div>
-
-      <div id="workout-detail" class="hidden"></div>
-    </div>
   </section>
 
   <!-- ┌─ PASSEIOS PLANEJADOS ───────────────────────────────────────┐ -->
@@ -1141,7 +1080,7 @@
     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:20px;flex-wrap:wrap;">
       <div>
         <div class="section-label">Semana padrão via IA</div>
-        <h2 class="section-title">Treino IA</h2>
+        <h2 class="section-title">Treino</h2>
       </div>
       <div style="display:flex;gap:10px;">
         <button id="treino-ia-historico-toggle" class="btn btn-ghost btn-sm" type="button">
@@ -1177,16 +1116,16 @@
 
     <!-- TABS -->
     <div class="tool-tabs">
-      <button class="tab-btn active" onclick="ferrSwitchTab('psi',this)">
+      <button class="tab-btn active" data-ferr-tab="psi">
         <i class="fa-solid fa-gauge-high" style="font-size:11px"></i> PSI do Pneu
       </button>
-      <button class="tab-btn" onclick="ferrSwitchTab('gear',this)">
+      <button class="tab-btn" data-ferr-tab="gear">
         <i class="fa-solid fa-gear" style="font-size:11px"></i> Relação × Velocidade
       </button>
-      <button class="tab-btn" onclick="ferrSwitchTab('route',this)">
+      <button class="tab-btn" data-ferr-tab="route">
         <i class="fa-solid fa-mountain" style="font-size:11px"></i> Tempo de Percurso
       </button>
-      <button class="tab-btn" onclick="ferrSwitchTab('nutri',this)">
+      <button class="tab-btn" data-ferr-tab="nutri">
         <i class="fa-solid fa-droplet" style="font-size:11px"></i> Nutrição
       </button>
     </div>
@@ -1221,7 +1160,7 @@
 
             <div class="field">
               <label>Largura do pneu — <span id="psi-width-val" style="color:var(--teal)">28</span> mm</label>
-              <input type="range" id="psi-width" min="18" max="70" value="28" oninput="document.getElementById('psi-width-val').textContent=this.value">
+              <input type="range" id="psi-width" min="18" max="70" value="28">
               <div style="position:relative;height:12px;margin-top:4px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em">
                 <span style="position:absolute;left:0%">18mm</span>
                 <span class="psi-tick-28" style="position:absolute;left:19.2%;transform:translateX(-50%)">28mm</span>
@@ -1270,15 +1209,15 @@
                 <option value="gravel3">Categoria 3 — Cascalho solto</option>
                 <option value="gravel4">Categoria 4 — Cascalho muito solto / areia</option>
               </select>
-              <a href="#" onclick="document.getElementById('terrain-guide').showModal();return false" style="font-size:11px;color:var(--teal);text-decoration:none;margin-top:4px;display:inline-flex;align-items:center;gap:5px;font-weight:700;letter-spacing:.04em"><i class="fa-solid fa-images" style="font-size:10px"></i> Guia de terreno</a>
+              <a href="#" id="btn-terrain-guide-open" style="font-size:11px;color:var(--teal);text-decoration:none;margin-top:4px;display:inline-flex;align-items:center;gap:5px;font-weight:700;letter-spacing:.04em"><i class="fa-solid fa-images" style="font-size:10px"></i> Guia de terreno</a>
             </div>
 
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-              <button class="btn-calc" onclick="ferrCalcPSI()">
+              <button class="btn-calc" id="btn-calc-psi">
                 <i class="fa-solid fa-calculator" style="font-size:13px"></i> CALCULAR PSI
               </button>
               <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer">
-                <input type="checkbox" id="psi-co2" style="accent-color:var(--teal);width:16px;height:16px" onchange="ferrToggleCO2()"> Mostrar equivalência CO₂
+                <input type="checkbox" id="psi-co2" style="accent-color:var(--teal);width:16px;height:16px"> Mostrar equivalência CO₂
               </label>
             </div>
 
@@ -1367,23 +1306,23 @@
             <div class="field">
               <label>Marca</label>
               <div class="seg-btns" id="gear-brand-btns">
-                <button class="seg-btn active" onclick="ferrSelectBrand('Shimano',this)">Shimano</button>
-                <button class="seg-btn" onclick="ferrSelectBrand('SRAM',this)">SRAM</button>
+                <button class="seg-btn active" data-brand="Shimano">Shimano</button>
+                <button class="seg-btn" data-brand="SRAM">SRAM</button>
               </div>
             </div>
 
             <div class="field">
               <label>Categoria</label>
               <div class="seg-btns" id="gear-cat-btns">
-                <button class="seg-btn active" onclick="ferrSelectCat('MTB',this)">MTB</button>
-                <button class="seg-btn" onclick="ferrSelectCat('Road',this)">Road</button>
-                <button class="seg-btn" onclick="ferrSelectCat('Gravel',this)">Gravel</button>
+                <button class="seg-btn active" data-cat="MTB">MTB</button>
+                <button class="seg-btn" data-cat="Road">Road</button>
+                <button class="seg-btn" data-cat="Gravel">Gravel</button>
               </div>
             </div>
 
             <div class="field">
               <label>Cassete</label>
-              <select id="gear-cassete" onchange="ferrCasseteChg()">
+              <select id="gear-cassete">
                 <option value="">Selecione...</option>
               </select>
               <div id="gear-freehub-badge" style="font-size:11px;color:var(--muted);margin-top:4px;font-weight:600"></div>
@@ -1392,8 +1331,8 @@
             <div class="field">
               <label>Coroa (dentes)</label>
               <div style="display:flex;gap:8px;align-items:center">
-                <input type="number" id="gear-chainring" value="34" min="22" max="64" step="1" style="width:90px;flex:none" oninput="document.getElementById('gear-ring-chooser').innerHTML=''">
-                <select id="gear-coroa-preset" onchange="ferrCoroaPreset()" style="flex:1">
+                <input type="number" id="gear-chainring" value="34" min="22" max="64" step="1" style="width:90px;flex:none">
+                <select id="gear-coroa-preset" style="flex:1">
                   <option value="">Presets da categoria...</option>
                 </select>
               </div>
@@ -1402,7 +1341,7 @@
 
             <div class="field">
               <label>Cadência — <span id="gear-cadence-val" style="color:var(--teal)">90</span> rpm</label>
-              <input type="range" id="gear-cadence" min="50" max="140" value="90" oninput="document.getElementById('gear-cadence-val').textContent=this.value">
+              <input type="range" id="gear-cadence" min="50" max="140" value="90">
               <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700;letter-spacing:.06em">
                 <span>50</span><span>90 ideal</span><span>110 sprint</span><span>140</span>
               </div>
@@ -1425,7 +1364,7 @@
               </select>
             </div>
 
-            <button class="btn-calc" onclick="ferrCalcGear()">
+            <button class="btn-calc" id="btn-calc-gear">
               <i class="fa-solid fa-bolt" style="font-size:13px"></i> CALCULAR VELOCIDADES
             </button>
           </div>
@@ -1490,7 +1429,7 @@
             </div>
             <div class="field">
               <label>Ganho de elevação — <span id="route-elev-val" style="color:var(--teal)">800</span> m</label>
-              <input type="range" id="route-elev" min="0" max="4000" value="800" step="50" oninput="document.getElementById('route-elev-val').textContent=this.value">
+              <input type="range" id="route-elev" min="0" max="4000" value="800" step="50">
               <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700;letter-spacing:.06em">
                 <span>0 plano</span><span>400m</span><span>1000m</span><span>2000m+</span>
               </div>
@@ -1516,7 +1455,7 @@
                 </select>
               </div>
             </div>
-            <button class="btn-calc" onclick="ferrCalcRoute()"><i class="fa-solid fa-clock" style="font-size:13px"></i> CALCULAR TEMPO</button>
+            <button class="btn-calc" id="btn-calc-route"><i class="fa-solid fa-clock" style="font-size:13px"></i> CALCULAR TEMPO</button>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
@@ -1588,7 +1527,7 @@
                 <div class="field"><label>Velocidade média (km/h)</label><input type="number" id="n-speed" value="20" min="10" max="50" step="0.5"></div>
                 <div class="field">
                   <label>Ganho de elevação — <span id="n-elev-val" style="color:var(--teal)">500</span> m</label>
-                  <input type="range" id="n-elev" min="0" max="4000" value="500" step="50" oninput="document.getElementById('n-elev-val').textContent=this.value">
+                  <input type="range" id="n-elev" min="0" max="4000" value="500" step="50">
                 </div>
                 <div class="field">
                   <label>Intensidade</label>
@@ -1607,14 +1546,14 @@
               <div class="grid-2" style="gap:12px">
                 <div class="field">
                   <label>Temperatura — <span id="n-temp-val" style="color:var(--teal)">28</span>°C</label>
-                  <input type="range" id="n-temp" min="5" max="45" value="28" oninput="document.getElementById('n-temp-val').textContent=this.value">
+                  <input type="range" id="n-temp" min="5" max="45" value="28">
                   <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700">
                     <span>5°C</span><span>20°C</span><span>30°C</span><span>45°C</span>
                   </div>
                 </div>
                 <div class="field">
                   <label>Umidade — <span id="n-humid-val" style="color:var(--teal)">60</span>%</label>
-                  <input type="range" id="n-humid" min="10" max="100" value="60" oninput="document.getElementById('n-humid-val').textContent=this.value">
+                  <input type="range" id="n-humid" min="10" max="100" value="60">
                   <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;font-weight:700">
                     <span>10%</span><span>50%</span><span>80%</span><span>100%</span>
                   </div>
@@ -1636,7 +1575,7 @@
               </div>
             </div>
 
-            <button class="btn-calc" onclick="ferrCalcNutri()">
+            <button class="btn-calc" id="btn-calc-nutri">
               <i class="fa-solid fa-droplet" style="font-size:13px"></i> CALCULAR NUTRIÇÃO
             </button>
           </div>
@@ -1681,7 +1620,7 @@
       <div style="font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--teal);margin-bottom:4px">Referência Visual</div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text)">GUIA DE TERRENO</div>
     </div>
-    <button onclick="document.getElementById('terrain-guide').close()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:8px 14px;font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fa-solid fa-xmark"></i> Fechar</button>
+    <button id="btn-terrain-guide-close" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);padding:8px 14px;font-family:'Archivo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fa-solid fa-xmark"></i> Fechar</button>
   </div>
   <div class="modal-body">
     <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">Clique numa superfície para selecioná-la diretamente na calculadora. O fator de PSI é baseado na teoria de <em>breakpoint pressure</em> da SILCA.</p>
@@ -1705,48 +1644,46 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.9.43"></script>
-<script src="js/utils.js?v=2.9.43"></script>
+<script src="js/version.js?v=2.9.29"></script>
+<script src="js/utils.js?v=2.9.29"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.9.43"></script>
-<script src="js/core/activity-stats.js?v=2.9.43"></script>
-<script src="js/core/weight-stats.js?v=2.9.43"></script>
-<script src="js/core/fatigue.js?v=2.9.43"></script>
-<script src="js/core/records.js?v=2.9.43"></script>
-<script src="js/core/weather-rating.js?v=2.9.43"></script>
-<script src="js/core/training-suggestion.js?v=2.9.43"></script>
-<script src="js/core/suggestion-history.js?v=2.9.43"></script>
-<script src="js/core/performance-analysis.js?v=2.9.43"></script>
-<script src="js/core/comparative-performance.js?v=2.9.43"></script>
-<script src="js/router.js?v=2.9.43"></script>
-<script src="js/defaults.js?v=2.9.43"></script>
-<script src="js/api.js?v=2.9.43"></script>
-<script src="js/storage.js?v=2.9.43"></script>
-<script src="js/profile.js?v=2.9.43"></script>
-<script src="js/charts.js?v=2.9.43"></script>
-<script src="js/modals.js?v=2.9.43"></script>
-<script src="js/workouts.js?v=2.9.43"></script>
-<script src="js/rides.js?v=2.9.43"></script>
-<script src="js/bikes.js?v=2.9.43"></script>
-<script src="js/training-log.js?v=2.9.43"></script>
-<script src="js/home-workout.js?v=2.9.43"></script>
-<script src="js/backup.js?v=2.9.43"></script>
-<script src="js/gpx.js?v=2.9.43"></script>
-<script src="js/routes.js?v=2.9.43"></script>
-<script src="js/heatmap.js?v=2.9.43"></script>
-<script src="js/strava.js?v=2.9.43"></script>
-<script src="js/garmin.js?v=2.9.43"></script>
-<script src="js/activities.js?v=2.9.43"></script>
-<script src="js/insights.js?v=2.9.43"></script>
-<script src="js/proximo-treino.js?v=2.9.43"></script>
-<script src="js/performance-analysis.js?v=2.9.43"></script>
-<script src="js/comparative-performance.js?v=2.9.43"></script>
-<script src="js/weekly-training-plan.js?v=2.9.43"></script>
-<script src="js/ferramentas.js?v=2.9.43"></script>
-<script src="js/home.js?v=2.9.43"></script>
-<script src="js/notifications.js?v=2.9.43"></script>
-<script src="js/app.js?v=2.9.43"></script>
-<script src="js/pwa.js?v=2.9.43"></script>
+<script src="js/core/metrics.js?v=2.9.29"></script>
+<script src="js/core/activity-stats.js?v=2.9.29"></script>
+<script src="js/core/weight-stats.js?v=2.9.29"></script>
+<script src="js/core/fatigue.js?v=2.9.29"></script>
+<script src="js/core/records.js?v=2.9.29"></script>
+<script src="js/core/weather-rating.js?v=2.9.29"></script>
+<script src="js/core/training-suggestion.js?v=2.9.29"></script>
+<script src="js/core/suggestion-history.js?v=2.9.29"></script>
+<script src="js/core/performance-analysis.js?v=2.9.29"></script>
+<script src="js/core/comparative-performance.js?v=2.9.29"></script>
+<script src="js/core/session.js?v=2.9.29"></script>
+<script src="js/router.js?v=2.9.29"></script>
+<script src="js/api.js?v=2.9.29"></script>
+<script src="js/storage.js?v=2.9.29"></script>
+<script src="js/profile.js?v=2.9.29"></script>
+<script src="js/charts.js?v=2.9.29"></script>
+<script src="js/modals.js?v=2.9.29"></script>
+<script src="js/rides.js?v=2.9.29"></script>
+<script src="js/bikes.js?v=2.9.29"></script>
+<script src="js/training-log.js?v=2.9.29"></script>
+<script src="js/backup.js?v=2.9.29"></script>
+<script src="js/gpx.js?v=2.9.29"></script>
+<script src="js/routes.js?v=2.9.29"></script>
+<script src="js/heatmap.js?v=2.9.29"></script>
+<script src="js/strava.js?v=2.9.29"></script>
+<script src="js/garmin.js?v=2.9.29"></script>
+<script src="js/activities.js?v=2.9.29"></script>
+<script src="js/insights.js?v=2.9.29"></script>
+<script src="js/proximo-treino.js?v=2.9.29"></script>
+<script src="js/performance-analysis.js?v=2.9.29"></script>
+<script src="js/comparative-performance.js?v=2.9.29"></script>
+<script src="js/weekly-training-plan.js?v=2.9.29"></script>
+<script src="js/ferramentas.js?v=2.9.29"></script>
+<script src="js/home.js?v=2.9.29"></script>
+<script src="js/notifications.js?v=2.9.29"></script>
+<script src="js/app.js?v=2.9.29"></script>
+<script src="js/pwa.js?v=2.9.29"></script>
 
 </body>
 </html>

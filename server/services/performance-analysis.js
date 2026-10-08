@@ -115,12 +115,28 @@ function lerCache(db) {
   return db.prepare('SELECT * FROM performance_analysis_cache WHERE id = 1').get();
 }
 
+// Trava de promessa em voo (issue #26): o job das 6h (scheduler.js) e o POST
+// manual podem coincidir, e um duplo-toque/retry no frontend pode escapar do
+// guard de botão desabilitado — cada POST concorrente custaria uma chamada de
+// IA paga/cotada à toa. Em vez de lock de banco, basta reusar a MESMA promessa
+// em voo: quem chegar enquanto uma chamada já está em andamento recebe o
+// resultado dela (sucesso ou falha), nunca dispara uma IA nova.
+// Nota: a trava ignora os parâmetros — se referenciaId mudar entre duas
+// chamadas concorrentes, a segunda recebe o resultado da primeira (o cache
+// grava sempre o par referenciaId+payload coerente entre si, só não
+// necessariamente o que o segundo chamador pediu nesse request específico;
+// o próximo GET reflete o que foi persistido de verdade). Aceitável aqui
+// (app single-user, janela de poucos segundos) — não reusar este padrão
+// sem reconsiderar se o app deixar de ser single-user.
+let emVoo = null;
+
 /**
  * Chama a IA (cascata Gemini→Groq via gerarAnalise), parseia a resposta como
  * JSON com fallback, e grava no cache SÓ em caso de sucesso — falha nunca
  * apaga o que já tinha (mesmo design de sempre, ver GLOSSARY.md "Análise de
  * Performance"). Usada pela rota POST (sob demanda) e pelo job das 6h
- * (automático) — nenhuma duplicação entre os dois chamadores.
+ * (automático) — nenhuma duplicação entre os dois chamadores, e chamadas
+ * concorrentes reusam a mesma promessa em voo (ver `emVoo` acima).
  * @throws {Error} com .cascata quando todos os provedores de IA falham
  *   (propagado de gerarAnalise) — quem chama decide o que fazer (a rota
  *   devolve o cache antigo com 502; o scheduler só loga e tenta de novo
@@ -128,29 +144,39 @@ function lerCache(db) {
  * @return {Object} a linha do cache já atualizada (mesmo shape de lerCache())
  */
 async function gerarEArmazenarAnalise(db, { referenciaId, deltas, grupoResumo }) {
-  const resultado = await gerarAnalise(montarPrompt({ deltas, grupoResumo }));
-  const { texto, provider, model } = resultado;
+  if (emVoo) return emVoo;
 
-  let observacao = texto;
-  let foco = null;
+  emVoo = (async () => {
+    const resultado = await gerarAnalise(montarPrompt({ deltas, grupoResumo }));
+    const { texto, provider, model } = resultado;
+
+    let observacao = texto;
+    let foco = null;
+    try {
+      const parsed = JSON.parse(texto);
+      if (parsed && typeof parsed.observacao === 'string') {
+        observacao = parsed.observacao;
+        foco = typeof parsed.foco === 'string' ? parsed.foco : null;
+      }
+    } catch (_) { /* resposta não veio em JSON — usa o texto bruto como observação */ }
+
+    const payload = JSON.stringify({ observacao, foco, deltas, grupoResumo, provider, model });
+    db.prepare(`INSERT INTO performance_analysis_cache (id, atividade_referencia_id, payload, gerado_em)
+                VALUES (1, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(id) DO UPDATE SET
+                  atividade_referencia_id = excluded.atividade_referencia_id,
+                  payload = excluded.payload,
+                  gerado_em = excluded.gerado_em`)
+      .run(String(referenciaId), payload);
+
+    return lerCache(db);
+  })();
+
   try {
-    const parsed = JSON.parse(texto);
-    if (parsed && typeof parsed.observacao === 'string') {
-      observacao = parsed.observacao;
-      foco = typeof parsed.foco === 'string' ? parsed.foco : null;
-    }
-  } catch (_) { /* resposta não veio em JSON — usa o texto bruto como observação */ }
-
-  const payload = JSON.stringify({ observacao, foco, deltas, grupoResumo, provider, model });
-  db.prepare(`INSERT INTO performance_analysis_cache (id, atividade_referencia_id, payload, gerado_em)
-              VALUES (1, ?, ?, CURRENT_TIMESTAMP)
-              ON CONFLICT(id) DO UPDATE SET
-                atividade_referencia_id = excluded.atividade_referencia_id,
-                payload = excluded.payload,
-                gerado_em = excluded.gerado_em`)
-    .run(String(referenciaId), payload);
-
-  return lerCache(db);
+    return await emVoo;
+  } finally {
+    emVoo = null;
+  }
 }
 
 module.exports = {

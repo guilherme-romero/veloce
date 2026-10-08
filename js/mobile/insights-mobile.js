@@ -27,6 +27,9 @@
     charts = [];
   }
 
+  // `sub` é texto puro, escapado aqui dentro — contrato OPOSTO ao `kpi()` de
+  // home-mobile.js, que recebe `subHTML` (já escapado pelo chamador). Não
+  // confundir os dois ao copiar uma chamada entre módulos (issue #13).
   function kpi(label, value, unit, sub, token) {
     return `<div class="m-kpi">
       <span class="m-eyebrow">${esc(label)}</span>

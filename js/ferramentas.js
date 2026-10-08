@@ -651,13 +651,16 @@ function populateTerrainGrid() {
     const div = document.createElement('div');
     div.className = 'terrain-card' + (key === sel.value ? ' selected' : '');
     div.id = 'tc-' + key;
-    div.innerHTML = `<img src="${t.img}" alt="${t.label}" loading="lazy" onerror="this.style.background='var(--surface2)';this.style.height='100px'">
+    div.innerHTML = `<img src="${t.img}" alt="${t.label}" loading="lazy">
       <div class="terrain-card-info">
         <div class="terrain-card-name">${t.label}</div>
         <div class="terrain-card-psi">PSI típico: ${t.psiRange}</div>
         <span class="terrain-card-badge" style="background:${t.badgeColor}">${t.badge}</span>
         <div style="font-size:10px;color:var(--muted);margin-top:4px">Fator: ×${t.mult}</div>
       </div>`;
+    // CSP (issue #19): onerror ligado via propriedade JS, não atributo inline.
+    const img = div.querySelector('img');
+    if (img) img.onerror = () => { img.style.background = 'var(--surface2)'; img.style.height = '100px'; };
     div.onclick = () => {
       sel.value = key;
       document.querySelectorAll('.terrain-card').forEach(c => c.classList.remove('selected'));
@@ -673,28 +676,78 @@ function populateTerrainGrid() {
   }
 }
 
+// ─── EVENTOS (issue #19 — CSP: nada de onclick/onchange/oninput inline) ───────
+// Todos os elementos são estáticos em index.html (existem desde o boot, só
+// escondidos até o router mostrar a seção) — seguro ligar uma vez só, aqui.
+let _eventsWired = false;
+function wireEvents() {
+  if (_eventsWired) return;
+  _eventsWired = true;
+
+  document.querySelectorAll('#ferramentas .tool-tabs .tab-btn[data-ferr-tab]').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.ferrTab, btn));
+  });
+
+  const psiWidth = document.getElementById('psi-width');
+  psiWidth?.addEventListener('input', () => {
+    document.getElementById('psi-width-val').textContent = psiWidth.value;
+  });
+  document.getElementById('btn-calc-psi')?.addEventListener('click', calcPSI);
+  document.getElementById('psi-co2')?.addEventListener('change', toggleCO2);
+  document.getElementById('btn-terrain-guide-open')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('terrain-guide').showModal();
+  });
+  document.getElementById('btn-terrain-guide-close')?.addEventListener('click', () => {
+    document.getElementById('terrain-guide').close();
+  });
+
+  document.querySelectorAll('#gear-brand-btns .seg-btn[data-brand]').forEach(btn => {
+    btn.addEventListener('click', () => selectBrand(btn.dataset.brand, btn));
+  });
+  document.querySelectorAll('#gear-cat-btns .seg-btn[data-cat]').forEach(btn => {
+    btn.addEventListener('click', () => selectCat(btn.dataset.cat, btn));
+  });
+  document.getElementById('gear-cassete')?.addEventListener('change', onCasseteChange);
+  document.getElementById('gear-chainring')?.addEventListener('input', () => {
+    document.getElementById('gear-ring-chooser').innerHTML = '';
+  });
+  document.getElementById('gear-coroa-preset')?.addEventListener('change', applyCoroaPreset);
+  const gearCadence = document.getElementById('gear-cadence');
+  gearCadence?.addEventListener('input', () => {
+    document.getElementById('gear-cadence-val').textContent = gearCadence.value;
+  });
+  document.getElementById('btn-calc-gear')?.addEventListener('click', calcGear);
+
+  const routeElev = document.getElementById('route-elev');
+  routeElev?.addEventListener('input', () => {
+    document.getElementById('route-elev-val').textContent = routeElev.value;
+  });
+  document.getElementById('btn-calc-route')?.addEventListener('click', calcRoute);
+
+  const nElev = document.getElementById('n-elev');
+  nElev?.addEventListener('input', () => {
+    document.getElementById('n-elev-val').textContent = nElev.value;
+  });
+  const nTemp = document.getElementById('n-temp');
+  nTemp?.addEventListener('input', () => {
+    document.getElementById('n-temp-val').textContent = nTemp.value;
+  });
+  const nHumid = document.getElementById('n-humid');
+  nHumid?.addEventListener('input', () => {
+    document.getElementById('n-humid-val').textContent = nHumid.value;
+  });
+  document.getElementById('btn-calc-nutri')?.addEventListener('click', calcNutri);
+}
+
 // ─── LOAD (chamado pelo router na 1ª visita) ──────────────────────────────────
 async function load() {
+  wireEvents();
   populateTerrainGrid();
   populateCassetes();
   populateCoroas();
   if (!_loaded) { _loaded = true; tryLoadDB(); }
 }
-
-// ─── EXPOSIÇÃO PÚBLICA ────────────────────────────────────────────────────────
-// Funções chamadas via onclick no HTML
-window.ferrSwitchTab   = switchTab;
-window.ferrCalcPSI     = calcPSI;
-window.ferrCalcCO2     = calcCO2;
-window.ferrToggleCO2   = toggleCO2;
-window.ferrSelectBrand = selectBrand;
-window.ferrSelectCat   = selectCat;
-window.ferrCasseteChg  = onCasseteChange;
-window.ferrCoroaPreset = applyCoroaPreset;
-window.ferrGearLine    = renderGearHeadline;
-window.ferrCalcGear    = calcGear;
-window.ferrCalcRoute   = calcRoute;
-window.ferrCalcNutri   = calcNutri;
 
 window.Ferramentas = { load };
 
