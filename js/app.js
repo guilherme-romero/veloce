@@ -2,7 +2,7 @@
    APP — bootstrap, navegação, handlers globais
 ═══════════════════════════════════════════════════════════════════════ */
 
-const NAV_SECTIONS = ['home', 'profile', 'plan', 'rides', 'routes', 'activities', 'insights', 'integrations'];
+const NAV_SECTIONS = ['home', 'profile', 'rides', 'routes', 'activities', 'insights', 'integrations'];
 
 function setActiveNav(id) {
   NAV_SECTIONS.forEach(sec => {
@@ -39,11 +39,11 @@ function renderAll() {
   // Cada bloco é independente — falha em um não impede os outros
   try { Profile.render(user); }                                                            catch (e) { console.error('[render] Profile:', e); }
   try { Charts.renderWeight(user, weights); }                                             catch (e) { console.error('[render] Charts:', e); }
-  try { Workouts.renderModes(); }                                                         catch (e) { console.error('[render] Workouts.renderModes:', e); }
-  try { Workouts.renderCalendar(); }                                                      catch (e) { console.error('[render] Workouts.renderCalendar:', e); }
-  try { Charts.renderIntensity(Workouts.getCurrentWorkouts()); }                          catch (e) { console.error('[render] Charts.renderIntensity:', e); }
+  // Argumento ignorado por Charts.renderIntensity (fonte real: hr_zones do
+  // Garmin, agregado no backend) — mantido sem args após a remoção de
+  // Workouts (issue #36).
+  try { Charts.renderIntensity(); }                                                       catch (e) { console.error('[render] Charts.renderIntensity:', e); }
   try { Rides.render(); }                                                                  catch (e) { console.error('[render] Rides:', e); }
-  try { if (typeof HomeWorkout !== 'undefined') HomeWorkout.render(); }                  catch (e) { console.error('[render] HomeWorkout:', e); }
   try { if (typeof renderMiniReport === 'function') renderMiniReport(); }                 catch (e) { console.error('[render] MiniReport:', e); }
   try { if (typeof renderWeightAnalysis === 'function') renderWeightAnalysis(); }         catch (e) { console.error('[render] WeightAnalysis:', e); }
 }
@@ -472,17 +472,19 @@ function renderWeightAnalysis() {
 
   card.style.display = '';
 
-  const sign = a.taxaPositiva ? '+' : '';
+  // Sinal reflete o número literal (kg/semana); a cor reflete se a tendência
+  // bate com o objetivo (taxaPositiva já normaliza isso pros dois sentidos).
+  const sign = a.taxaKgSem > 0 ? '+' : '';
   const taxaEl = document.getElementById('wa-taxa');
   taxaEl.textContent = `${sign}${a.taxaKgSem.toString().replace('.', ',')}`;
-  // Perda (taxa negativa) é positiva para o objetivo → lime; ganho → magenta.
-  taxaEl.style.color = a.taxaPositiva ? 'var(--magenta)' : 'var(--lime)';
+  taxaEl.style.color = a.taxaPositiva ? 'var(--lime)' : 'var(--magenta)';
 
   const faltamEl = document.getElementById('wa-faltam');
+  const faltamAbs = Math.abs(a.faltam).toString().replace('.', ',');
   faltamEl.textContent = a.metaAtingida
     ? '✓ Meta atingida'
-    : `${a.faltam.toString().replace('.', ',')} kg`;
-  // Ainda ter peso a perder é "negativo" → magenta; meta atingida → lime.
+    : a.objetivoGanho ? `${faltamAbs} kg para ganhar` : `${faltamAbs} kg`;
+  // Ainda ter peso a perder/ganhar é "negativo" → magenta; meta atingida → lime.
   faltamEl.style.color = a.metaAtingida ? 'var(--lime)' : 'var(--magenta)';
 
   document.getElementById('wa-previsao').textContent = a.previsao;
@@ -501,43 +503,10 @@ function toggleEditMode() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   AUTH — gate de boot e logout
+   AUTH — gate de boot e logout. Lógica em js/core/session.js (issue #13),
+   compartilhada com js/mobile/boot.js + js/mobile/more-mobile.js.
 ═══════════════════════════════════════════════════════════════════════ */
-async function ensureAuthenticated() {
-  try {
-    const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
-    if (resp.ok) return true;
-  } catch (e) {
-    // BUG-079: erro de REDE, nao de sessao. Antes a execucao caia no redirect
-    // abaixo e o PWA nunca abria offline, apesar dos 67 arquivos do SHELL em
-    // cache. Deixa o app abrir com o que o SW guardou; se a sessao estiver
-    // mesmo invalida, a primeira chamada do Api devolve 401 e manda pro login.
-    console.warn('[auth] backend indisponível — abrindo com o cache offline');
-    return true;
-  }
-  window.location.replace('/login.html');
-  return false;
-}
-
-async function doLogout() {
-  // Dados de saude nao podem sobreviver ao logout no aparelho. Antes do fetch
-  // de proposito: vale mesmo se a chamada de rede falhar.
-  try { await caches.delete('treino-bike-data'); } catch (_) {}
-  // BUG-075: sem checar resp.ok, uma falha de rede deixava o cookie tb_session
-  // VALIDO e ainda assim mandava para o login — o usuario acreditava ter saido
-  // e bastava voltar para estar logado de novo. So redireciona se o servidor
-  // confirmar.
-  let ok = false;
-  try {
-    const r = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-    ok = r.ok;
-  } catch (e) { /* rede indisponivel */ }
-  if (!ok) {
-    if (window.toast) toast('Não foi possível encerrar a sessão no servidor. Tente de novo.', { kind: 'error' });
-    return;
-  }
-  window.location.replace('/login.html');
-}
+const { ensureAuthenticated, doLogout } = window.Session;
 
 /* ═══════════════════════════════════════════════════════════════════════
    BOOT
@@ -596,9 +565,6 @@ async function boot() {
   // 4. TrainingLog.init
   await safe('TrainingLog.init()', () => TrainingLog && TrainingLog.init && TrainingLog.init());
 
-  // 5. HomeWorkout.init
-  await safe('HomeWorkout.init()', () => HomeWorkout && HomeWorkout.init && HomeWorkout.init());
-
   // 6. Routes.init
   await safe('Routes.init()', () => Routes && Routes.init && Routes.init());
 
@@ -627,13 +593,6 @@ async function boot() {
     document.getElementById('btn-backup')?.addEventListener('click', () => Backup && Backup.open && Backup.open());
     document.getElementById('btn-logout')?.addEventListener('click', doLogout);
     document.getElementById('btn-notif')?.addEventListener('click', () => window.Notifications && Notifications.open());
-
-    // Plano de treino — export/import isolado
-    document.getElementById('btn-export-plan')?.addEventListener('click', () => Workouts.exportPlan());
-    document.getElementById('plan-import-file')?.addEventListener('change', (e) => {
-      Workouts.importPlan(e.target.files[0]);
-      e.target.value = '';
-    });
   });
 
   // 9. Footer — versão e ano

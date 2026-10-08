@@ -166,7 +166,7 @@ async function routes(fastify) {
     const perfil = lerPerfilTreinoIa(fastify.db);
     if (!perfil) {
       reply.code(400);
-      return { ok: false, error: 'Complete suas preferências de Treino IA no perfil antes de gerar um plano' };
+      return { ok: false, error: 'Complete suas preferências de Treino no perfil antes de gerar um plano' };
     }
     const insumos = sanitizarInsumos((req.body || {}).insumos);
 

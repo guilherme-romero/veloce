@@ -189,7 +189,7 @@ async function routes(fastify) {
       return { ok: true, file: filename, size: result.size, removed };
     } catch (err) {
       req.log.error({ err }, 'snapshot error');
-      return reply.code(500).send({ ok: false, error: err.message });
+      return reply.code(500).send({ ok: false, error: 'Não foi possível gerar o backup agora. Tente novamente em alguns minutos.' });
     }
   });
 
@@ -266,7 +266,7 @@ async function routes(fastify) {
         assertValidDb(newDbPath);
       } catch (e) {
         req.log.warn({ err: e }, 'db do ZIP inválido');
-        return reply.code(400).send({ error: 'banco inválido no ZIP: ' + e.message });
+        return reply.code(400).send({ error: 'Banco de dados inválido no arquivo de backup.' });
       }
 
       // 4. Backup pré-restore do banco atual (segurança / rollback manual)
