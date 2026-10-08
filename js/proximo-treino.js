@@ -57,7 +57,7 @@
       const fcMax = window.Metrics.calcFCMax(user);
 
       const [unified, health, zoneDist, calibracao] = await Promise.all([
-        window.Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
+        window.UnifiedActivities.get(180).catch(() => ({ items: [] })),
         // 104 dias: os 60 originais + margem pro Cruzamento sugestão×execução
         // (janela de 90 dias, e fatigueIndex olha até 14 dias antes de cada dia
         // analisado). Não muda o card de Sugestão do dia, que só lê os

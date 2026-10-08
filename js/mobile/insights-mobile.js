@@ -299,7 +299,7 @@
       // últimos 60 dias (EMA com warm-up interno a partir de zero, sem
       // precisar de histórico extra antes da janela) — 90 dá margem sem
       // buscar o dobro do necessário (achado #14).
-      Api.get('/activities/unified?days=90').catch(() => ({ items: [] })),
+      window.UnifiedActivities.get(90).catch(() => ({ items: [] })),
       Api.get('/garmin/health?days=60').catch(() => []),
       Api.get('/garmin/vo2max').catch(() => null),
       Api.get('/garmin/zone-distribution?days=30').catch(() => null),

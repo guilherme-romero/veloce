@@ -294,7 +294,7 @@
   }
 
   async function montarInsumos(u) {
-    const unified = await Api.get('/activities/unified?days=365').catch(() => ({ items: [] }));
+    const unified = await window.UnifiedActivities.get(365).catch(() => ({ items: [] }));
     const activities = (unified && unified.items) || [];
     const { ctl, atl, tsb } = Metrics.calcTSBMetrics(activities, u.fcMax);
     const pesoAnalise = WeightStats.weightAnalysis(u, Storage.getWeights());

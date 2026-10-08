@@ -94,6 +94,7 @@ const SHELL = [
   './js/core/performance-analysis.js',
   './js/core/comparative-performance.js',
   './js/core/session.js',
+  './js/core/unified-activities.js',
   './js/mobile/router-mobile.js',
   './js/mobile/shell.js',
   './js/mobile/home-mobile.js',

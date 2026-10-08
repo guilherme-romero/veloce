@@ -916,7 +916,7 @@
 
     try {
       const [unified, health, readiness, prs, scores, vo2max, weeklyRec] = await Promise.all([
-        window.Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
+        window.UnifiedActivities.get(180).catch(() => ({ items: [] })),
         window.Api.get('/garmin/health?days=60').catch(() => []),
         window.Api.get('/garmin/training-readiness?days=14').catch(() => []),
         window.Api.get('/garmin/personal-records').catch(() => []),

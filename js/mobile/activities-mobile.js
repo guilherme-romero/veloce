@@ -188,7 +188,7 @@
 
   // Mesma janela do desktop: ~5 anos de histórico unificado.
   async function buscarDados() {
-    const resp = await Api.get('/activities/unified?days=1825');
+    const resp = await window.UnifiedActivities.get(1825);
     return (resp && resp.items) || [];
   }
 

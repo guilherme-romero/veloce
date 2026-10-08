@@ -159,7 +159,7 @@
     const [acts, ready] = await Promise.all([
       // Deixa propagar: falha aqui NAO pode ser cacheada — o load() renderiza
       // o estado de erro e a proxima entrada tenta de novo.
-      Api.get('/activities/unified?days=30'),
+      window.UnifiedActivities.get(30),
       // Garmin ausente e situacao normal, nao erro: cai no estado "—".
       Api.get('/garmin/training-readiness?days=1').catch(() => null),
     ]);
@@ -238,6 +238,10 @@
       // Sem isto o TTL de 5 min viraria bug: apertar sync e ir para Insights
       // mostraria os dados ANTERIORES ao sync.
       if (window.MShell && MShell.invalidate) MShell.invalidate();
+      // #52 — syncAll chama /strava/sync e /garmin/sync DIRETO (não passa
+      // por js/strava.js/js/garmin.js, que não são carregados no mobile),
+      // então a invalidação cabeada lá não cobre este caminho.
+      window.UnifiedActivities?.invalidate();
       await load();
     }
 

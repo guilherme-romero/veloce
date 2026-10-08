@@ -126,6 +126,7 @@
     }
     try {
       const res = await window.Api.post('/strava/sync', { days: 90 });
+      window.UnifiedActivities?.invalidate();   // #52 — sync pode ter trazido atividade nova
       const msg = `${res.imported} importadas · ${res.updated} atualizadas · ${res.daysMarked} dias marcados`;
       if (window.toast) window.toast(msg, { kind: 'success' });
       // Recarrega training_log no cache local p/ refletir badges no calendario

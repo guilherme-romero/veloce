@@ -125,7 +125,7 @@
     try {
       let activities = activitiesPreCarregadas;
       if (!activities) {
-        const unified = await window.Api.get('/activities/unified?days=365').catch(() => ({ items: [] }));
+        const unified = await window.UnifiedActivities.get(365).catch(() => ({ items: [] }));
         if (gen !== _gen) return;
         activities = (unified && unified.items) || [];
       }
