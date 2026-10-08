@@ -212,17 +212,10 @@
     loadBrands();   // fire-and-forget: alimenta o datalist de marcas/modelos
     try { _customTypes = await window.Api.get('/component-types') || []; }
     catch (e) { console.warn('[Bikes] tipos custom falharam', e); _customTypes = []; }
+    // Issue #44: GET /bikes já embute components — elimina as N chamadas
+    // paralelas (1 por bike) que existiam antes.
     _componentsByBike.clear();
-    // Carrega componentes em paralelo para cada bike
-    await Promise.all(_bikes.map(async b => {
-      try {
-        const comps = await window.Api.get(`/bikes/${b.id}/components`);
-        _componentsByBike.set(b.id, comps || []);
-      } catch (e) {
-        console.warn('[Bikes] componentes falharam', b.id, e);
-        _componentsByBike.set(b.id, []);
-      }
-    }));
+    _bikes.forEach(b => _componentsByBike.set(b.id, b.components || []));
     render();
   }
 
