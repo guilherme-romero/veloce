@@ -78,7 +78,7 @@
     const meta  = user.pesoMeta;
     // Progresso a partir do peso inicial conhecido (primeira pesagem do
     // período). Sem histórico, a barra fica vazia em vez de mentir 100%.
-    const inicial = analise.ok ? (WeightStats.dailyWeights(Storage.getWeights())[0] || {}).peso : null;
+    const inicial = (WeightStats.dailyWeights(Storage.getWeights())[0] || {}).peso;
     let pct = 0;
     if (inicial != null && inicial !== meta) {
       pct = Math.max(0, Math.min(100, ((inicial - atual) / (inicial - meta)) * 100));
@@ -86,15 +86,30 @@
 
     let taxa = '', msg = '';
     if (analise.ok) {
-      const cor = analise.taxaPositiva ? 'magenta' : 'lime';
-      const sinal = analise.taxaPositiva ? '+' : '';
+      // Sinal reflete o número literal (kg/semana); a cor reflete se a
+      // tendência bate com o objetivo (taxaPositiva já normaliza isso).
+      const cor = analise.taxaPositiva ? 'lime' : 'magenta';
+      const sinal = analise.taxaKgSem > 0 ? '+' : '';
       taxa = `<b style="color:var(--${cor})">${esc(sinal + String(analise.taxaKgSem).replace('.', ','))} kg/sem</b>`;
       msg  = analise.msg;
     }
 
-    const faltam = analise.ok && analise.metaAtingida
+    // Direção do objetivo: usa a já calculada pelo core quando há regressão
+    // (mesmo critério — início da janela vs meta); sem regressão suficiente,
+    // cai pro peso inicial conhecido vs meta como melhor aproximação local.
+    const objetivoGanho = analise.ok ? analise.objetivoGanho
+      : (inicial != null ? meta > inicial : atual - meta < 0);
+    // analise.metaAtingida usa a média (pesoAtual do core); o OR com a
+    // comparação direta cobre o caso raro de user.pesoAtual (perfil) estar
+    // defasado em relação à última pesagem usada no core.
+    const atingida = (analise.ok && analise.metaAtingida)
+      || (objetivoGanho ? atual >= meta : atual <= meta);
+    const delta = Math.abs(atual - meta);
+    const faltam = atingida
       ? '<b style="color:var(--lime)">✓ meta atingida</b>'
-      : `faltam <b style="color:var(--magenta)">${esc(fmtNum(Math.max(0, atual - meta), 1))} kg</b>`;
+      : objetivoGanho
+        ? `faltam <b style="color:var(--magenta)">${esc(fmtNum(delta, 1))} kg</b> para ganhar`
+        : `faltam <b style="color:var(--magenta)">${esc(fmtNum(delta, 1))} kg</b>`;
 
     return `<div class="m-card">
       <div class="m-card-head">

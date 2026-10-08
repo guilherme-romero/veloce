@@ -138,6 +138,8 @@ CREATE TABLE IF NOT EXISTS strava_activities (
   imported_at     TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_strava_data ON strava_activities(data_inicio);
+CREATE INDEX IF NOT EXISTS idx_strava_tipo ON strava_activities(tipo);
+CREATE INDEX IF NOT EXISTS idx_strava_inicio_iso ON strava_activities(inicio_iso);
 
 -- ── Metadados de sync Strava (1 linha) ────────────────────────────────
 CREATE TABLE IF NOT EXISTS strava_sync_meta (
@@ -172,6 +174,8 @@ CREATE TABLE IF NOT EXISTS garmin_activities (
   imported_at     TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_garmin_data ON garmin_activities(data_inicio);
+CREATE INDEX IF NOT EXISTS idx_garmin_tipo ON garmin_activities(tipo);
+CREATE INDEX IF NOT EXISTS idx_garmin_inicio_local ON garmin_activities(inicio_local);
 
 -- ── Metadados de sync Garmin (1 linha) ────────────────────────────────
 CREATE TABLE IF NOT EXISTS garmin_sync_meta (
@@ -280,6 +284,14 @@ CREATE TABLE IF NOT EXISTS activity_links (
 CREATE INDEX IF NOT EXISTS idx_activity_links_strava ON activity_links(strava_id);
 CREATE INDEX IF NOT EXISTS idx_activity_links_garmin ON activity_links(garmin_id);
 
+-- Metadados do matching (issue #40) — singleton (1 linha), mesmo padrão de
+-- strava_sync_meta/garmin_sync_meta. Guarda quando runMatching() rodou por
+-- último, pra reexaminar só o que entrou desde então (ver activity-matcher.js).
+CREATE TABLE IF NOT EXISTS activity_match_meta (
+  id        INTEGER PRIMARY KEY CHECK (id = 1),
+  last_run  TEXT
+);
+
 -- ═══════════════════════════════════════════════════════════════════════
 -- FASE 11.4 — Bicicletas, componentes e log de manutenção
 -- Modelo: "bike ativa" — km de atividades Garmin/Strava com data_inicio
@@ -330,6 +342,7 @@ CREATE TABLE IF NOT EXISTS bike_maintenance_log (
 );
 CREATE INDEX IF NOT EXISTS idx_bike_log_bike ON bike_maintenance_log(bike_id);
 CREATE INDEX IF NOT EXISTS idx_bike_log_data ON bike_maintenance_log(data DESC);
+CREATE INDEX IF NOT EXISTS idx_bike_log_component ON bike_maintenance_log(component_id);
 
 -- Intervalos de serviço recorrentes por componente (Fase 11.5).
 -- Cada intervalo é por km OU por dias, com contagem regressiva até o
@@ -369,6 +382,7 @@ CREATE TABLE IF NOT EXISTS bike_retired_components (
 );
 CREATE INDEX IF NOT EXISTS idx_retired_bike ON bike_retired_components(bike_id);
 CREATE INDEX IF NOT EXISTS idx_retired_tipo_marca ON bike_retired_components(tipo, marca);
+CREATE INDEX IF NOT EXISTS idx_retired_component ON bike_retired_components(component_id);
 
 -- Cache da Análise de Performance (Fase 4 da evolução IDEIA-1+2, seção
 -- Desempenho). Singleton (id=1, mesmo padrão de user_profile/strava_sync_meta)
