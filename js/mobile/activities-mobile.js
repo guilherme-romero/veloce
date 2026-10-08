@@ -198,6 +198,10 @@
     view.innerHTML = skeleton();
     MShell.wireSegment(view);
 
+    // Dispara em paralelo com a busca de dados (#14) — só precisa estar
+    // pronto antes de renderVolume() chamar mChart().
+    const chartReady = MShell.ensureChart().catch(e => console.error('[activities-mobile] chart.js', e));
+
     try {
       // Guarda com TTL de 5 min (padrão MShell) — era flag `_loaded` eterna,
       // que nunca refletia sync novo sem F5.
@@ -210,6 +214,7 @@
       MShell.wireSegment(view);
       return;
     }
+    await chartReady;
 
     if (!_yearInited) {
       _yearInited = true;

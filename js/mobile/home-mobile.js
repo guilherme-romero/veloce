@@ -18,7 +18,11 @@
     return 'Boa noite';
   }
 
-  function kpi({ label, icon, value, unit, sub, accent = '' }) {
+  // `subHTML` é HTML já escapado pelo chamador (ex.: `<b>` pra destacar um
+  // trecho) — contrato OPOSTO ao `kpi()` de insights-mobile.js, que escapa
+  // `sub` inteiro (texto puro). Não confundir os dois ao copiar uma chamada
+  // entre módulos (issue #13).
+  function kpi({ label, icon, value, unit, subHTML, accent = '' }) {
     return `<div class="m-kpi">
       <div class="m-kpi-head">
         <span class="m-eyebrow">${esc(label)}</span>
@@ -28,7 +32,7 @@
         <span class="m-num"${accent ? ` style="color:var(--${esc(accent)})"` : ''}>${esc(value)}</span>
         ${unit ? `<span class="m-unit">${esc(unit)}</span>` : ''}
       </div>
-      <div class="m-sub">${sub || ''}</div>
+      <div class="m-sub">${subHTML || ''}</div>
     </div>`;
   }
 
@@ -93,13 +97,13 @@
 
     el.innerHTML =
       kpi({ label: 'Esta semana', icon: 'fa-road', value: week ? fmtNum(week.atual) : '—',
-            unit: 'km', sub: weekSub }) +
+            unit: 'km', subHTML: weekSub }) +
       kpi({ label: 'Sequência', icon: 'fa-fire', value: streak.current, unit: 'sem',
-            sub: `recorde: ${streak.record} sem.` }) +
-      kpi({ label: 'Readiness', icon: 'fa-heart-pulse', value: readVal, sub: readSub,
+            subHTML: `recorde: ${streak.record} sem.` }) +
+      kpi({ label: 'Readiness', icon: 'fa-heart-pulse', value: readVal, subHTML: readSub,
             accent: readAccent }) +
       kpi({ label: 'Meta de peso', icon: 'fa-weight-scale', value: metaVal, unit: 'kg',
-            sub: metaSub });
+            subHTML: metaSub });
   }
 
   function actividadeHTML(a) {

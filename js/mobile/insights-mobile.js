@@ -27,6 +27,9 @@
     charts = [];
   }
 
+  // `sub` é texto puro, escapado aqui dentro — contrato OPOSTO ao `kpi()` de
+  // home-mobile.js, que recebe `subHTML` (já escapado pelo chamador). Não
+  // confundir os dois ao copiar uma chamada entre módulos (issue #13).
   function kpi(label, value, unit, sub, token) {
     return `<div class="m-kpi">
       <span class="m-eyebrow">${esc(label)}</span>
@@ -292,7 +295,11 @@
   // continua rodando sempre — ver o comentario em load().
   async function buscarDados() {
     const [acts, health, vo2, dist, readiness, prs, weeklyRec] = await Promise.all([
-      window.UnifiedActivities.get(180).catch(() => ({ items: [] })),
+      // 90d (não 180): calcTSBMetrics só consome uma janela fixa dos
+      // últimos 60 dias (EMA com warm-up interno a partir de zero, sem
+      // precisar de histórico extra antes da janela) — 90 dá margem sem
+      // buscar o dobro do necessário (achado #14).
+      window.UnifiedActivities.get(90).catch(() => ({ items: [] })),
       Api.get('/garmin/health?days=60').catch(() => []),
       Api.get('/garmin/vo2max').catch(() => null),
       Api.get('/garmin/zone-distribution?days=30').catch(() => null),
@@ -314,11 +321,16 @@
     const user = (window.Storage && Storage.getUser && Storage.getUser()) || {};
     const fcMax = Metrics.calcFCMax(user);
 
+    // Dispara em paralelo com a busca de dados (#14) — só precisa estar
+    // pronto antes dos renderXxxChart() lá embaixo.
+    const chartReady = MShell.ensureChart().catch(e => console.error('[insights-mobile] chart.js', e));
+
     // BUG-073: so a BUSCA e memoizada (TTL de 5 min). O render nao pode ser
     // pulado — o onLeave destroi os graficos, entao uma re-entrada que nao
     // renderizasse deixaria os canvas vazios.
     const { acts, health, vo2, dist, readiness, prs, weeklyRec } =
       await MShell.cached('insights', MShell.TTL_DADOS, buscarDados);
+    await chartReady;
     if (gen !== _gen) return;   // saiu da aba durante a busca
 
     const items = (acts && acts.items) || [];

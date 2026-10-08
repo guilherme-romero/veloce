@@ -66,6 +66,7 @@ function renderProfile(user) {
         ? '/api/user/avatar?ts=' + encodeURIComponent(user.avatarUpdatedAt || '')
         : null;
       avatarEl.innerHTML = window.Avatar.html({ name: user.nome, src, size: 'lg' });
+      window.Avatar.wireFallbacks(avatarEl);
     } else {
       avatarEl.innerHTML = '<i class="fa-solid fa-user"></i>';
     }
@@ -165,12 +166,8 @@ function updateFcmZones(fcm, idade, nome, fromGarmin) {
 async function refineFcMaxFromGarmin(idade, nome) {
   if (!window.Api) return;
   try {
-    const resp = await window.UnifiedActivities.get(365);
-    const items = (resp && resp.items) || [];
-    let maxObs = 0;
-    items.forEach(a => {
-      if (isFinite(a.fcMax) && a.fcMax > maxObs) maxObs = a.fcMax;
-    });
+    const resp = await window.Api.get('/activities/max-hr?days=365');
+    const maxObs = (resp && typeof resp.maxHr === 'number' && isFinite(resp.maxHr)) ? resp.maxHr : 0;
     // Usa o pico observado apenas se for plausível (descarta zeros/ruído).
     // Faixa plausível: descarta zeros/ruído (piso 120) e artefatos de sensor (teto 230).
     // NUNCA reduz a FCM estimada: um pico submáximo (quem nunca fez esforço
