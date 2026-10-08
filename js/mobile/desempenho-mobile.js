@@ -202,7 +202,7 @@
       // /activities/unified (180+365+61) = 6 queries no backend por abertura
       // de aba; agora é 1 fetch = 2 queries.
       const [unified, health, zoneDist, calibracao] = await Promise.all([
-        window.Api.get('/activities/unified?days=365').catch(() => ({ items: [] })),
+        window.UnifiedActivities.get(365).catch(() => ({ items: [] })),
         // 104 dias: 90 do Cruzamento sugestão×execução + margem de lookback
         // do fatigueIndex — mesmo raciocínio de js/proximo-treino.js.
         window.Api.get('/garmin/health?days=104').catch(() => []),

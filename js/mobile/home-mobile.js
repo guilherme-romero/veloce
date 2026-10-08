@@ -155,7 +155,7 @@
     const [acts, ready] = await Promise.all([
       // Deixa propagar: falha aqui NAO pode ser cacheada — o load() renderiza
       // o estado de erro e a proxima entrada tenta de novo.
-      Api.get('/activities/unified?days=30'),
+      window.UnifiedActivities.get(30),
       // Garmin ausente e situacao normal, nao erro: cai no estado "—".
       Api.get('/garmin/training-readiness?days=1').catch(() => null),
     ]);

@@ -165,7 +165,7 @@ function updateFcmZones(fcm, idade, nome, fromGarmin) {
 async function refineFcMaxFromGarmin(idade, nome) {
   if (!window.Api) return;
   try {
-    const resp = await window.Api.get('/activities/unified?days=365');
+    const resp = await window.UnifiedActivities.get(365);
     const items = (resp && resp.items) || [];
     let maxObs = 0;
     items.forEach(a => {

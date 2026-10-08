@@ -506,7 +506,7 @@ async function buildRelatorioPDF(daysWindow) {
   // ─── ATIVIDADES NO PERÍODO ───────────────────────────────────────────
   try {
     const days = daysWindow || 365 * 5;  // tudo ≈ 5 anos
-    const acts = await window.Api.get(`/activities/unified?days=${days}`);
+    const acts = await window.UnifiedActivities.get(days);
     const items = (acts?.items || acts || []).slice(0, daysWindow ? 50 : 30);
     if (items.length > 0) {
       setSection(`Histórico de atividades (${periodoTxt.toLowerCase()})`);

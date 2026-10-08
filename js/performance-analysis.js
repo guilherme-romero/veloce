@@ -113,7 +113,7 @@
     _analiseAtual = null;
 
     try {
-      const unified = await window.Api.get('/activities/unified?days=365').catch(() => ({ items: [] }));
+      const unified = await window.UnifiedActivities.get(365).catch(() => ({ items: [] }));
       const activities = (unified && unified.items) || [];
 
       const resultado = window.PerformanceAnalysis.analisar({ activities });

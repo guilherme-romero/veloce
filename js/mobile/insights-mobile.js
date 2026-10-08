@@ -292,7 +292,7 @@
   // continua rodando sempre — ver o comentario em load().
   async function buscarDados() {
     const [acts, health, vo2, dist, readiness, prs, weeklyRec] = await Promise.all([
-      Api.get('/activities/unified?days=180').catch(() => ({ items: [] })),
+      window.UnifiedActivities.get(180).catch(() => ({ items: [] })),
       Api.get('/garmin/health?days=60').catch(() => []),
       Api.get('/garmin/vo2max').catch(() => null),
       Api.get('/garmin/zone-distribution?days=30').catch(() => null),

@@ -295,7 +295,7 @@
   // Insumos 100% calculados no frontend — a IA nunca recebe dados brutos pra
   // recalcular (ADR-0002/0004, mesma regra da Análise de Performance).
   async function montarInsumos(u) {
-    const unified = await window.Api.get('/activities/unified?days=365').catch(() => ({ items: [] }));
+    const unified = await window.UnifiedActivities.get(365).catch(() => ({ items: [] }));
     const activities = (unified && unified.items) || [];
     const { ctl, atl, tsb } = window.Metrics.calcTSBMetrics(activities, u.fcMax);
 

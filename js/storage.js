@@ -426,7 +426,7 @@ const Storage = {
   exportJSON: async () => {
     let activitiesSummary = [];
     try {
-      const r = await window.Api.get('/activities/unified?days=1825');  // ≈ 5 anos
+      const r = await window.UnifiedActivities.get(1825);  // ≈ 5 anos
       const items = (r?.items || []);
       activitiesSummary = items.map(a => ({
         data:        a.data,

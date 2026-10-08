@@ -229,6 +229,7 @@
         window.Api.post('/garmin/sync-health', { days: 30 }).catch(e => ({ error: e })),
         window.Api.post('/garmin/sync-extras', { days: 14 }).catch(e => ({ error: e })),
       ]);
+      window.UnifiedActivities?.invalidate();   // #52 — sync pode ter trazido atividade nova
       const parts = [
         `${actRes.imported} ativ.`,
         `${actRes.daysMarked} dias marcados`,
