@@ -85,12 +85,27 @@
     const pesoAtual  = allWeights[allWeights.length - 1].peso;
     const faltam     = +(pesoAtual - u.pesoMeta).toFixed(1);
 
+    // Direção do objetivo é fixada pelo peso no INÍCIO DA JANELA (a mesma
+    // usada na regressão, que já prioriza dataInicioPlano → 180d → 90d →
+    // tudo) vs a meta — não pela posição atual, nem pelo 1º registro de toda
+    // a vida da conta (uma troca de objetivo anos atrás não deve definir a
+    // direção de hoje). Se fosse pela posição atual, ultrapassar a meta de
+    // perda (ex.: perder mais do que o combinado) faria o sistema concluir
+    // "o objetivo agora é ganhar", e penalizar quem continua progredindo na
+    // mesma direção.
+    const inicial       = janela[0].peso;
+    const objetivoGanho = u.pesoMeta > inicial;
+    const metaAtingida  = objetivoGanho ? pesoAtual >= u.pesoMeta : pesoAtual <= u.pesoMeta;
+    const faltamAbs      = Math.abs(faltam);
+    // Normaliza "progresso bom" pra sempre ser > 0, independente da direção.
+    const slopeAlvo      = objetivoGanho ? slope : -slope;
+
     let previsao = '—', semanas = '—', msg = '';
-    if (faltam <= 0) {
+    if (metaAtingida) {
       previsao = 'Meta atingida!';
       msg      = 'Parabéns! Você atingiu sua meta de peso.';
-    } else if (slope < 0) {
-      const diasNecessarios = faltam / Math.abs(slope);
+    } else if (slopeAlvo > 0) {
+      const diasNecessarios = faltamAbs / Math.abs(slope);
       const semsNec = Math.ceil(diasNecessarios / 7);
       previsao = new Date(Date.now() + diasNecessarios * DIA_MS)
         .toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
@@ -101,19 +116,23 @@
     } else if (planPts < 4) {
       msg = 'Poucos dados desde o início do plano — registre mais pesagens para estimar a previsão.';
     } else if (Math.abs(slope) < 0.01) {
-      msg = 'Peso estável — sem tendência de perda no período.';
+      msg = objetivoGanho
+        ? 'Peso estável — sem tendência de ganho no período.'
+        : 'Peso estável — sem tendência de perda no período.';
     } else {
-      msg = 'Tendência de ganho — revise alimentação e treinos.';
+      msg = objetivoGanho
+        ? 'Tendência de perda — revise alimentação e treinos.'
+        : 'Tendência de ganho — revise alimentação e treinos.';
     }
 
     return {
       ok: true,
       slope, taxaKgSem, pesoAtual, faltam, planPts,
-      previsao, semanas, msg,
-      // Semântica em vez de cor: ganhar peso é "ruim" para o objetivo, e
-      // cada variante escolhe o próprio token.
-      taxaPositiva: taxaKgSem > 0,
-      metaAtingida: faltam <= 0,
+      previsao, semanas, msg, objetivoGanho,
+      // Semântica em vez de cor: progredir na direção do objetivo é "bom", e
+      // cada variante escolhe o próprio token (lime/magenta).
+      taxaPositiva: objetivoGanho ? taxaKgSem > 0 : taxaKgSem < 0,
+      metaAtingida,
     };
   }
 
