@@ -1,6 +1,5 @@
 [Unit]
 Description=Treino Bike — disparo semanal do snapshot da base
-Requires=treino-bike-backup.service
 
 [Timer]
 # Toda madrugada de domingo às 03:00

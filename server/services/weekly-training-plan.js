@@ -265,24 +265,41 @@ function limparHistorico(db) {
   return info.changes;
 }
 
+// Mesma trava de "promessa em voo" usada em performance-analysis.js (#26):
+// chamada de IA paga/cotada, acionável manualmente pelo usuário — duplo
+// toque ou retry do frontend não deve disparar 2 chamadas concorrentes.
+// Com chamadas concorrentes, a segunda recebe o resultado da primeira
+// (aceitável aqui — app single-user, janela de poucos segundos).
+let emVoo = null;
+
 /**
  * @throws {Error} com .cascata (de gerarAnalise) ou .bruto (de parseRespostaIA)
  *   quando a geração falha — quem chama decide (a rota devolve 502 + cache antigo).
  * @return {Object} a linha ativa já atualizada (mesmo shape de lerCacheAtivo())
  */
 async function gerarEArmazenarPlano(db, { perfil, insumos }) {
-  const { texto, provider, model } = await gerarAnalise(montarPrompt({ perfil, insumos }));
-  const { objetivo, dias: diasSemData } = parseRespostaIA(texto);
-  const dias = atribuirDatas(diasSemData);
-  const payload = JSON.stringify({ objetivo, dias, perfil, insumos, provider, model });
+  if (emVoo) return emVoo;
 
-  const txn = db.transaction(() => {
-    db.prepare('UPDATE weekly_training_plans SET ativo = 0 WHERE ativo = 1').run();
-    db.prepare('INSERT INTO weekly_training_plans (ativo, payload, gerado_em) VALUES (1, ?, CURRENT_TIMESTAMP)').run(payload);
-  });
-  txn();
+  emVoo = (async () => {
+    const { texto, provider, model } = await gerarAnalise(montarPrompt({ perfil, insumos }));
+    const { objetivo, dias: diasSemData } = parseRespostaIA(texto);
+    const dias = atribuirDatas(diasSemData);
+    const payload = JSON.stringify({ objetivo, dias, perfil, insumos, provider, model });
 
-  return lerCacheAtivo(db);
+    const txn = db.transaction(() => {
+      db.prepare('UPDATE weekly_training_plans SET ativo = 0 WHERE ativo = 1').run();
+      db.prepare('INSERT INTO weekly_training_plans (ativo, payload, gerado_em) VALUES (1, ?, CURRENT_TIMESTAMP)').run(payload);
+    });
+    txn();
+
+    return lerCacheAtivo(db);
+  })();
+
+  try {
+    return await emVoo;
+  } finally {
+    emVoo = null;
+  }
 }
 
 module.exports = {
