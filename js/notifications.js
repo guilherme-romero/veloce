@@ -106,9 +106,8 @@
   // Última atividade registrada.
   async function _ultimaAtividade() {
     try {
-      // days amplo p/ não perder a "última" quando faz tempo do último pedal.
-      const resp = await window.Api.get('/activities/unified?days=1825&limit=1');
-      const a = resp && resp.items && resp.items[0];
+      const resp = await window.Api.get('/activities/latest');
+      const a = resp && resp.item;
       if (!a) return [];
       const dISO = (a.inicio || a.data || '').slice(0, 10);
       const km = isFinite(a.distanciaKm) ? `${a.distanciaKm.toFixed(1).replace('.', ',')} km` : '';
