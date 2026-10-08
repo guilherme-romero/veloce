@@ -81,7 +81,7 @@
     const list = $('home-recent-list');
     if (!list) return;
     try {
-      const resp = await window.Api.get('/activities/unified?days=30');
+      const resp = await window.UnifiedActivities.get(30);
       const items = (resp && resp.items) || [];
       // KPI "Esta semana" (+ variação) usa as mesmas atividades unificadas.
       renderWeekKpi(weekStatsFromActivities(items));
@@ -198,6 +198,7 @@
         const { id, fonte } = btn.dataset;
         try {
           await window.Api.del(`/activities/${fonte}/${id}`);
+          window.UnifiedActivities?.invalidate();   // #52
           if (window.toast) window.toast('Atividade excluída', { kind: 'success' });
           loadLastActivities();
         } catch (err) {

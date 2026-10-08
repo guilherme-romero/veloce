@@ -347,7 +347,7 @@
     try {
       // Endpoint unificado: server-side dedupe via activity_links (Garmin > Strava)
       // ~3 anos para alimentar os filtros por ano (atual + 2 anteriores).
-      const resp = await window.Api.get('/activities/unified?days=1095');
+      const resp = await window.UnifiedActivities.get(1095);
       const combined = (resp && resp.items) || [];
 
       // Scores de Endurance por dia (p/ exibir o ganho na lista de atividades).

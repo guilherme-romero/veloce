@@ -188,7 +188,7 @@
 
   // Mesma janela do desktop: ~5 anos de histórico unificado.
   async function buscarDados() {
-    const resp = await Api.get('/activities/unified?days=1825');
+    const resp = await window.UnifiedActivities.get(1825);
     return (resp && resp.items) || [];
   }
 
@@ -197,6 +197,10 @@
     if (!view) return;
     view.innerHTML = skeleton();
     MShell.wireSegment(view);
+
+    // Dispara em paralelo com a busca de dados (#14) — só precisa estar
+    // pronto antes de renderVolume() chamar mChart().
+    const chartReady = MShell.ensureChart().catch(e => console.error('[activities-mobile] chart.js', e));
 
     try {
       // Guarda com TTL de 5 min (padrão MShell) — era flag `_loaded` eterna,
@@ -210,6 +214,7 @@
       MShell.wireSegment(view);
       return;
     }
+    await chartReady;
 
     if (!_yearInited) {
       _yearInited = true;

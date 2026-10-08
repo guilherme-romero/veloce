@@ -422,7 +422,7 @@ function openRideModal(ride, presetDate) {
 
   Modals.open({
     tag: isEdit ? 'Editar passeio' : 'Novo passeio',
-    title: isEdit ? esc(r.destino || 'Sem destino') : 'Adicionar passeio',
+    title: isEdit ? (r.destino || 'Sem destino') : 'Adicionar passeio',
     bodyHTML: `
       <div class="field">
         <label class="field-label" for="r-destino">Destino</label>
@@ -724,7 +724,7 @@ function activitiesByDate() {
 async function fetchRidesActivities() {
   if (!window.Api) return;
   try {
-    const resp = await window.Api.get('/activities/unified?days=1825');
+    const resp = await window.UnifiedActivities.get(1825);
     _ridesActivities = (resp && resp.items) || [];
     if (_ridesViewMode === 'month') renderMonthView();
   } catch (err) {

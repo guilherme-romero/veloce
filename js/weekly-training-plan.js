@@ -40,11 +40,17 @@
     try { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', ''); }
     catch (_) { return iso; }
   }
+  // `gerado_em` vem do SQLite como "YYYY-MM-DD HH:MM:SS" (CURRENT_TIMESTAMP,
+  // sempre UTC), sem indicador de fuso — alguns engines de JS interpretam
+  // esse formato como hora local, dando um horário errado. Normaliza pra
+  // ISO com "Z" explícito antes de formatar, e exibe em UTC (não no fuso
+  // do navegador) pra bater sempre com o que está no banco.
   function fmtDataHora(iso) {
     try {
-      const d = new Date(iso);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
-        + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const isoUtc = /[Zz]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso.replace(' ', 'T') + 'Z';
+      const d = new Date(isoUtc);
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' }).replace('.', '')
+        + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
     } catch (_) { return iso; }
   }
   function rotuloProvider(payload) {
@@ -295,7 +301,7 @@
   // Insumos 100% calculados no frontend — a IA nunca recebe dados brutos pra
   // recalcular (ADR-0002/0004, mesma regra da Análise de Performance).
   async function montarInsumos(u) {
-    const unified = await window.Api.get('/activities/unified?days=365').catch(() => ({ items: [] }));
+    const unified = await window.UnifiedActivities.get(365).catch(() => ({ items: [] }));
     const activities = (unified && unified.items) || [];
     const { ctl, atl, tsb } = window.Metrics.calcTSBMetrics(activities, u.fcMax);
 
@@ -319,7 +325,7 @@
     const u = window.Storage.getUser();
 
     if (!perfilCompleto(u)) {
-      window.toast?.('Complete suas preferências de Treino IA no perfil antes de gerar um plano', { kind: 'error' });
+      window.toast?.('Complete suas preferências de Treino no perfil antes de gerar um plano', { kind: 'error' });
       window.openProfileModal?.();
       return;
     }
@@ -431,7 +437,7 @@
   async function abrirHistorico() {
     const itens = await buscarHistoricoItens();
     window.Modals.open({
-      tag: 'Treino IA',
+      tag: 'Treino',
       title: 'Planos anteriores',
       bodyHTML: historicoBodyHTML(itens),
       actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => window.Modals.close() }],

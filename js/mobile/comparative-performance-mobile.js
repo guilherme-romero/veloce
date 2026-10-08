@@ -173,7 +173,7 @@
 
     try {
       const [unified, zoneDist, weights] = await Promise.all([
-        activitiesPreCarregadas ? Promise.resolve(null) : window.Api.get('/activities/unified?days=61').catch(() => ({ items: [] })),
+        activitiesPreCarregadas ? Promise.resolve(null) : window.UnifiedActivities.get(61).catch(() => ({ items: [] })),
         window.Api.get('/garmin/zone-distribution-by-activity?days=61').catch(() => ({ items: [] })),
         window.Api.get('/weights').catch(() => []),
       ]);

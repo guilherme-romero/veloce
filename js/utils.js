@@ -34,16 +34,25 @@ function avatarHTML({ src, name, size = 'md', alt = '' } = {}) {
   const cls = `avatar avatar-${size}`;
   const fallback = `<div class="${cls} avatar-fallback">${esc(initials)}</div>`;
   if (!src) return fallback;
-  // Para embutir HTML em onerror="..." precisamos:
-  //  - escapar aspas duplas internas como &quot; (senao fecham o atributo)
-  //  - escapar aspas simples como \\' (porque o JS esta entre aspas simples)
-  const safeFallback = fallback
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, "\\'");
-  return `<img class="${cls}" src="${esc(src)}" alt="${esc(alt)}" referrerpolicy="no-referrer" onerror="this.outerHTML='${safeFallback}'">`;
+  // CSP (issue #19): onerror="..." inline não é mais permitido. O fallback
+  // vai num atributo data-* (esc() já escapa aspas, seguro em atributo) e o
+  // handler real é ligado depois via wireAvatarFallbacks() — propriedade JS
+  // (img.onerror = fn), não atributo HTML, então CSP script-src não bloqueia.
+  return `<img class="${cls} avatar-img" src="${esc(src)}" alt="${esc(alt)}" referrerpolicy="no-referrer" data-avatar-fallback="${esc(fallback)}">`;
 }
 
-window.Avatar = { html: avatarHTML, initials: _avatarInitials };
+// Liga o fallback de erro nas <img class="avatar-img"> dentro de `root`
+// (document inteiro se omitido). Todo chamador que insere Avatar.html() no
+// DOM via innerHTML DEVE chamar isso depois — sem isso, uma imagem quebrada
+// fica com o ícone de imagem rota do navegador em vez do círculo de iniciais.
+function wireAvatarFallbacks(root) {
+  (root || document).querySelectorAll('img.avatar-img:not([data-avatar-wired])').forEach(img => {
+    img.dataset.avatarWired = '1';
+    img.onerror = () => { img.outerHTML = img.dataset.avatarFallback; };
+  });
+}
+
+window.Avatar = { html: avatarHTML, initials: _avatarInitials, wireFallbacks: wireAvatarFallbacks };
 
 /* ── Zonas de FC — fonte única de verdade ──────────────────────────────
    Espelha as cores das classes CSS .z1–.z6 em Fisiologia.

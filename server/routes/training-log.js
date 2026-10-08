@@ -42,7 +42,8 @@ async function routes(fastify) {
       if (String(e.message).includes('UNIQUE')) {
         return reply.code(409).send({ error: 'ja existe entrada para esta data' });
       }
-      return reply.code(400).send({ error: e.message });
+      req.log.error({ err: e }, 'erro ao criar training-log');
+      return reply.code(400).send({ error: 'Não foi possível salvar o registro. Verifique os dados enviados.' });
     }
     return reply.code(201).send(rowToEntry(fastify.db.prepare('SELECT * FROM training_log WHERE id = ?').get(id)));
   });

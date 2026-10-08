@@ -13,7 +13,6 @@
 ═══════════════════════════════════════════════════════════════════════ */
 const path = require('path');
 const fs   = require('fs');
-const vm   = require('vm');
 
 // ── guarda de seguranca ──────────────────────────────────────────────
 const DB_PATH = process.env.DB_PATH;
@@ -25,17 +24,6 @@ if (path.basename(DB_PATH) === 'training.db') {
   console.error('[seed-demo] Recusado: DB_PATH aponta para training.db (banco real).');
   process.exit(1);
 }
-
-// ── reutiliza as definicoes reais de DEFAULT_WORKOUTS / HOME_EXERCISES ─
-// Carrega js/defaults.js num sandbox com shim de `window` (o arquivo e do
-// frontend e define suas globais em window; genId e interno ao arquivo).
-const defaultsSrc = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', 'js', 'defaults.js'), 'utf8');
-const sandbox = { window: {}, Date, Math };
-vm.createContext(sandbox);
-vm.runInContext(defaultsSrc, sandbox);
-const DEFAULT_WORKOUTS       = sandbox.window.DEFAULT_WORKOUTS || { base: [], build: [] };
-const DEFAULT_HOME_EXERCISES = sandbox.window.DEFAULT_HOME_EXERCISES || [];
 
 // ── PRNG deterministico (LCG) para dados estaveis entre execucoes ─────
 let _seed = 20260701;
@@ -61,7 +49,7 @@ const db = require('../db/init');
 // ── limpa tabelas de dados (ordem FK-safe) ───────────────────────────
 const WIPE = [
   'bike_maintenance_log', 'bike_components', 'bikes',
-  'training_log', 'weights', 'rides', 'workouts', 'modes', 'home_exercises',
+  'training_log', 'weights', 'rides',
   'user_profile',
 ];
 for (const t of WIPE) { try { db.prepare(`DELETE FROM ${t}`).run(); } catch (_) {} }
@@ -83,39 +71,6 @@ const seedAll = db.transaction(() => {
   db.prepare(`INSERT INTO user_profile (id, payload, updated_at)
               VALUES (1, ?, CURRENT_TIMESTAMP)`).run(JSON.stringify(profile));
   counts.user_profile = 1;
-
-  // 2. Modos (DEFAULTS.modes) ──────────────────────────────────────────
-  const modes = [
-    { id: 'base',  nome: 'Fortalecimento · Core',  ordem: 0 },
-    { id: 'build', nome: 'Condicionamento · Bike', ordem: 1 },
-  ];
-  const insMode = db.prepare('INSERT INTO modes (id, nome, ordem) VALUES (?, ?, ?)');
-  modes.forEach(m => insMode.run(m.id, m.nome, m.ordem));
-  counts.modes = modes.length;
-
-  // 3. Workouts (reproduz DEFAULT_WORKOUTS: base e build) ───────────────
-  const insWk = db.prepare('INSERT INTO workouts (id, mode_id, payload, ordem) VALUES (?, ?, ?, ?)');
-  let wkTotal = 0;
-  for (const modeId of ['base', 'build']) {
-    (DEFAULT_WORKOUTS[modeId] || []).forEach((w, i) => {
-      const { id, ...rest } = w;
-      const wid = id || `wk_${modeId}_${i}`;
-      insWk.run(wid, modeId, JSON.stringify({ ...rest, id: wid }), i);
-      wkTotal++;
-    });
-  }
-  counts.workouts = wkTotal;
-
-  // 4. Home exercises (reproduz DEFAULT_HOME_EXERCISES) ─────────────────
-  // home-workout.js le ex.icon/ex.name/ex.sets/ex.desc; rowToExercise
-  // devolve {...payload, id, nome, ordem}. Guardamos payload = objeto todo.
-  const insHx = db.prepare('INSERT INTO home_exercises (id, nome, payload, ordem) VALUES (?, ?, ?, ?)');
-  DEFAULT_HOME_EXERCISES.forEach((e, i) => {
-    const nome = e.name || e.nome || `Exercicio ${i + 1}`;
-    const payload = { ...e, id: e.id, nome };
-    insHx.run(e.id, nome, JSON.stringify(payload), i);
-  });
-  counts.home_exercises = DEFAULT_HOME_EXERCISES.length;
 
   // 5. Pesagens (~90 dias, tendencia 82 -> 76kg com ruido) ─────────────
   const insW = db.prepare('INSERT INTO weights (data, peso, tipo, fonte) VALUES (?, ?, ?, ?)');

@@ -506,7 +506,7 @@ async function buildRelatorioPDF(daysWindow) {
   // ─── ATIVIDADES NO PERÍODO ───────────────────────────────────────────
   try {
     const days = daysWindow || 365 * 5;  // tudo ≈ 5 anos
-    const acts = await window.Api.get(`/activities/unified?days=${days}`);
+    const acts = await window.UnifiedActivities.get(days);
     const items = (acts?.items || acts || []).slice(0, daysWindow ? 50 : 30);
     if (items.length > 0) {
       setSection(`Histórico de atividades (${periodoTxt.toLowerCase()})`);
@@ -596,10 +596,12 @@ async function buildRelatorioPDF(daysWindow) {
           y += 12;
         }
 
-        // Componentes — tenta carregar do endpoint específico
+        // Componentes — vêm embutidos em GET /bikes desde a issue #44 (antes
+        // chamava GET /bikes/:id, que nunca existiu — esta seção nunca
+        // populou nada; os nomes de campo abaixo também estavam errados,
+        // corrigidos junto: kmDesgastado/tipo/marca, não kmAtual/nome).
         try {
-          const detalhe = await window.Api.get(`/bikes/${encodeURIComponent(bike.id)}`);
-          const comps = detalhe?.componentes || detalhe?.components || [];
+          const comps = bike.components || [];
           if (Array.isArray(comps) && comps.length > 0) {
             y += 4;
             pdf.setFont('helvetica', 'bold');
@@ -607,10 +609,10 @@ async function buildRelatorioPDF(daysWindow) {
             pdf.setFont('helvetica', 'normal');
             for (const c of comps) {
               if (y > H - 40) { pdf.addPage(); y = PAD; }
-              const km = c.kmAtual != null ? Math.round(c.kmAtual) : 0;
+              const km = c.kmDesgastado != null ? Math.round(c.kmDesgastado) : 0;
               const max = c.vidaUtilKm != null ? c.vidaUtilKm : null;
               const pct = max ? Math.min(100, Math.round((km / max) * 100)) : null;
-              const nome = (c.nome || c.tipo || 'Componente').slice(0, 30);
+              const nome = ([c.marca, c.modelo].filter(Boolean).join(' ') || c.tipo || 'Componente').slice(0, 30);
               pdf.text(nome, PAD, y);
               pdf.text(`${km} km${max ? ' / ' + max + ' km' : ''}`, PAD + 200, y);
               if (pct != null) {
@@ -630,7 +632,7 @@ async function buildRelatorioPDF(daysWindow) {
             }
           }
 
-          const logs = detalhe?.manutencoes || detalhe?.maintenance || [];
+          const logs = await window.Api.get(`/bikes/${encodeURIComponent(bike.id)}/maintenance-log`);
           const ultimos = (Array.isArray(logs) ? logs : []).filter(m => (m.data || '') >= cutoffMaint).slice(0, 10);
           if (ultimos.length) {
             y += 4;
@@ -640,7 +642,7 @@ async function buildRelatorioPDF(daysWindow) {
             for (const m of ultimos) {
               if (y > H - 40) { pdf.addPage(); y = PAD; }
               pdf.text(m.data || '—', PAD, y);
-              pdf.text((m.descricao || m.tipo || '').slice(0, 60), PAD + 90, y);
+              pdf.text((m.notas || m.componentTipo || m.tipoEvento || '').slice(0, 60), PAD + 90, y);
               y += 12;
             }
           }
@@ -696,7 +698,7 @@ function importData(file) {
     try {
       const json = e.target.result;
       const parsed = JSON.parse(json);
-      if (!parsed.user && !parsed.modes && !parsed.workouts) {
+      if (!parsed.user && !parsed.weights && !parsed.rides && !parsed.trainingLog) {
         throw new Error('Estrutura inválida: sem dados reconhecidos');
       }
       validateBackupStructure(parsed);
@@ -730,23 +732,9 @@ function validateBackupStructure(p) {
         (isNaN(u.bikePeso) || u.bikePeso < 1 || u.bikePeso > 100))
       throw new Error('user.bikePeso fora do intervalo');
   }
-  if (p.modes !== undefined) {
-    if (!Array.isArray(p.modes)) throw new Error('modes deve ser array');
-    if (p.modes.length > 50) throw new Error('modes: número excessivo de registros');
-    p.modes.forEach((m, i) => {
-      if (!m.id || !m.nome) throw new Error(`modes[${i}]: id ou nome ausente`);
-      // Mesmo formato exigido pelo backend (MODE_ID_RE em routes/modes.js): o
-      // id vai para dentro de data-* na tela de modos (BUG-057).
-      if (!/^[\w:-]{1,64}$/.test(String(m.id)))
-        throw new Error(`modes[${i}]: id com formato invalido`);
-    });
-  }
-  if (p.workouts !== undefined) {
-    if (typeof p.workouts !== 'object' || Array.isArray(p.workouts)) throw new Error('workouts deve ser objeto');
-    Object.values(p.workouts).forEach((list, i) => {
-      if (!Array.isArray(list)) throw new Error(`workouts[${i}]: valor deve ser array`);
-    });
-  }
+  // Nota: backups antigos podem trazer `modes`/`workouts`/`homeExercises`
+  // (feature removida, issue #36) — Storage.importJSON já ignora essas
+  // chaves de propósito, então não há validação correspondente aqui.
   if (p.weights !== undefined) {
     if (!Array.isArray(p.weights)) throw new Error('weights deve ser array');
     if (p.weights.length > 5000) throw new Error('weights: número excessivo de registros');
