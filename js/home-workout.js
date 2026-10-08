@@ -82,7 +82,7 @@ function openHomeExerciseModal(ex) {
 
   Modals.open({
     tag: isEdit ? 'Editar' : 'Novo exercício',
-    title: isEdit ? esc(e.name || 'Exercício') : 'Adicionar exercício',
+    title: isEdit ? (e.name || 'Exercício') : 'Adicionar exercício',
     bodyHTML: `
       <div class="field">
         <label class="field-label" for="hw-icon">Ícone</label>
