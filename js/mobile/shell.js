@@ -130,7 +130,7 @@
       const s = document.createElement('script');
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
       s.onload = resolve;
-      s.onerror = () => { _chartPromise = null; reject(new Error('Chart.js falhou ao carregar')); };
+      s.onerror = () => { _chartPromise = null; s.remove(); reject(new Error('Chart.js falhou ao carregar')); };
       document.head.appendChild(s);
     });
     return _chartPromise;
