@@ -33,10 +33,17 @@ sudo systemctl enable --now treino-bike-log-cleanup.timer
 
 # Verificar
 systemctl list-timers treino-bike-log-cleanup.timer
-sudo systemctl start treino-bike-log-cleanup.service   # dispara manualmente
+sudo systemctl start treino-bike-log-cleanup.service   # dispara manualmente — já apaga journal >30d, não é inócuo
 journalctl -u treino-bike-log-cleanup.service -n 20
 ```
 
 Retenção: últimos 30 dias (`journalctl --vacuum-time=30d`). Como o journald
 não segmenta por unit (sem namespace dedicado), isso limpa o journal do
-host como um todo — aceitável neste host de propósito único.
+host como um todo — aceitável neste host de propósito único. Roda como
+`root` (não `prod`, diferente do backup): `--vacuum-time` exige escrita em
+`/var/log/journal`, que só `root`/grupo `systemd-journal` com escrita tem.
+
+Verificar também, na hora do deploy, se `/etc/systemd/journald.conf` do host
+já define `MaxRetentionSec`/`SystemMaxUse` — se já houver política de
+retenção lá, este timer é redundante (não é um bug deste repo, é checagem
+operacional fora do código).

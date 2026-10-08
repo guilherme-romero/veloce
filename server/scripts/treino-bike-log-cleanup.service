@@ -10,6 +10,16 @@ Type=oneshot
 # unit em arquivos separados sem namespace dedicado), então isto também
 # limita o histórico de outras units do sistema — aceitável neste host
 # (single-purpose, só roda o backend e o backup).
+#
+# Precisa de root: journalctl --vacuum-time exige escrita em /var/log/journal
+# (dir root:systemd-journal, grupo só tem leitura). Diferente de
+# treino-bike-backup.service, que roda como `prod` — não copiar esse padrão
+# pra esta unit (achado de revisão de infra).
+User=root
+ProtectSystem=strict
+ReadWritePaths=/var/log/journal
+ProtectHome=yes
+NoNewPrivileges=yes
 ExecStart=/usr/bin/journalctl --vacuum-time=30d
 StandardOutput=journal
 StandardError=journal

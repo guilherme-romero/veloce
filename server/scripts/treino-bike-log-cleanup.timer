@@ -1,6 +1,5 @@
 [Unit]
 Description=Treino Bike — disparo semanal da limpeza do journal
-Requires=treino-bike-log-cleanup.service
 
 [Timer]
 # Toda madrugada de segunda às 04:00 (fora da janela do backup, domingo 03:00)
