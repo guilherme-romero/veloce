@@ -66,7 +66,16 @@
     // ausente entra neutra (50) em vez de derrubar o índice.
     const hasBBI    = bbMaxAvg != null && bbDrainAvg != null;
     const hasStress = stressAvg != null;
-    const hasHRV    = hrvSem != null && (hasBaseline ? hrvBaselineSD > 0 : arr.slice(7, 14).some(d => d.hrv_noite_avg != null));
+    // Usa a mesma função `avg` (filtra NaN/Infinity) pra checar a semana
+    // anterior, em vez de só `!= null` — evita contar HRV como "fonte
+    // válida" quando o único dado disponível é não-finito (achado de
+    // revisão). Também não exige SD>0 pra qualificar: baseline degenerada
+    // (SD=0, dado duplicado/sync quebrado) cai no fallback abaixo em vez de
+    // desistir do HRV por completo — ver uso de `hrvSemAntFallback`.
+    // '> 0' (não só '!= null'): HRV 0ms é fisiologicamente inválido — trata
+    // como "sem dado" em vez de arriscar divisão por zero no delta abaixo.
+    const hrvSemAntFallback = avg(arr.slice(7, 14), 'hrv_noite_avg');
+    const hasHRV = hrvSem != null && (hasBaseline || hrvSemAntFallback > 0);
     const bbiScore    = hasBBI    ? Math.min(100, (bbDrainAvg / Math.max(bbMaxAvg, 1)) * 100) : 50;
     const stressScore = hasStress ? Math.min(100, stressAvg * 1.5) : 50;  // stress 50 → 75
     let hrvScore = 50;
@@ -80,16 +89,14 @@
       const hrvZ = (hrvSem - hrvBaselineMean) / hrvBaselineSD;   // negativo = abaixo da baseline = fadiga
       hrvScore = Math.max(0, Math.min(100, 50 - hrvZ * 25));     // -2 SD → 100, 0 → 50, +2 SD → 0
       hrvRef = hrvBaselineMean;
-    } else if (hasHRV) {
+    } else if (hasHRV && hrvSemAntFallback > 0) {
       // Fallback: menos de 14 noites de baseline válidas (usuário novo na
-      // Garmin, ou gap longo de sync) — mantém o limiar fixo de queda de
-      // 25% como antes, só até acumular histórico suficiente.
-      const hrvSemAntFallback = avg(arr.slice(7, 14), 'hrv_noite_avg');
-      if (hrvSemAntFallback) {
-        const delta = (hrvSemAntFallback - hrvSem) / hrvSemAntFallback;
-        hrvScore = Math.max(0, Math.min(100, 50 + delta * 200));
-        hrvRef = hrvSemAntFallback;
-      }
+      // Garmin, gap longo de sync) OU baseline degenerada (SD=0) — mantém
+      // o limiar fixo de queda de 25% como antes, só até acumular
+      // histórico suficiente/variável.
+      const delta = (hrvSemAntFallback - hrvSem) / hrvSemAntFallback;
+      hrvScore = Math.max(0, Math.min(100, 50 + delta * 200));
+      hrvRef = hrvSemAntFallback;
     }
 
     const score      = Math.round(bbiScore * 0.40 + hrvScore * 0.35 + stressScore * 0.25);
