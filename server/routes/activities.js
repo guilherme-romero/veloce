@@ -86,8 +86,11 @@ async function routes(fastify) {
     return { distancia, elevacao };
   });
 
-  fastify.post('/api/activities/match', async () => {
-    const res = runMatching(fastify.db);
+  // ?full=1 força reexame total, ignorando a otimização de last_run (issue
+  // #40) — ferramenta manual/debug pra recuperar um match perdido.
+  fastify.post('/api/activities/match', async (req) => {
+    const full = req.query?.full === '1' || req.query?.full === 'true';
+    const res = runMatching(fastify.db, { full });
     return { ok: true, ...res };
   });
 
