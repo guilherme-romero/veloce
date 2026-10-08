@@ -458,17 +458,19 @@ function renderWeightAnalysis() {
 
   card.style.display = '';
 
-  const sign = a.taxaPositiva ? '+' : '';
+  // Sinal reflete o número literal (kg/semana); a cor reflete se a tendência
+  // bate com o objetivo (taxaPositiva já normaliza isso pros dois sentidos).
+  const sign = a.taxaKgSem > 0 ? '+' : '';
   const taxaEl = document.getElementById('wa-taxa');
   taxaEl.textContent = `${sign}${a.taxaKgSem.toString().replace('.', ',')}`;
-  // Perda (taxa negativa) é positiva para o objetivo → lime; ganho → magenta.
-  taxaEl.style.color = a.taxaPositiva ? 'var(--magenta)' : 'var(--lime)';
+  taxaEl.style.color = a.taxaPositiva ? 'var(--lime)' : 'var(--magenta)';
 
   const faltamEl = document.getElementById('wa-faltam');
+  const faltamAbs = Math.abs(a.faltam).toString().replace('.', ',');
   faltamEl.textContent = a.metaAtingida
     ? '✓ Meta atingida'
-    : `${a.faltam.toString().replace('.', ',')} kg`;
-  // Ainda ter peso a perder é "negativo" → magenta; meta atingida → lime.
+    : a.objetivoGanho ? `${faltamAbs} kg para ganhar` : `${faltamAbs} kg`;
+  // Ainda ter peso a perder/ganhar é "negativo" → magenta; meta atingida → lime.
   faltamEl.style.color = a.metaAtingida ? 'var(--lime)' : 'var(--magenta)';
 
   document.getElementById('wa-previsao').textContent = a.previsao;

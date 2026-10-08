@@ -41,18 +41,47 @@ function timeDiffSeconds(stravaIso, garminLocal) {
 }
 
 /**
- * Roda matching para todas as atividades nao-vinculadas.
+ * Roda matching para atividades nao-vinculadas.
+ *
+ * Issue #40: reexaminar TODO strava sem link a cada sync e desperdicio —
+ * a maioria nunca vai casar (atividade so-Strava, sem par Garmin). So
+ * reexamina (a) strava importado desde o ultimo runMatching, OU (b) strava
+ * antigo cujo DIA ganhou uma atividade Garmin nova desde entao (cobre sync
+ * tardio do Garmin — sem isso, perderiamos matches que só aparecem quando o
+ * outro lado sincroniza depois). Primeira execucao (sem last_run) continua
+ * examinando tudo, como antes.
+ *
  * @param {Database} db
+ * @param {Object} [opts]
+ * @param {boolean} [opts.full] — ignora o last_run e reexamina tudo (debug/
+ *   recuperação manual, ex.: corrigir match perdido por bug já corrigido).
  * @returns {{created:number, examined:number}}
  */
-function runMatching(db) {
-  // Strava sem link ainda
-  const unlinked = db.prepare(`
-    SELECT s.id_strava, s.data_inicio, s.inicio_iso, s.distancia_m
-      FROM strava_activities s
-      LEFT JOIN activity_links l ON l.strava_id = s.id_strava
-     WHERE l.strava_id IS NULL
-  `).all();
+function runMatching(db, { full = false } = {}) {
+  const metaRow = db.prepare('SELECT last_run FROM activity_match_meta WHERE id = 1').get();
+  const lastRun = full ? null : (metaRow ? metaRow.last_run : null);
+
+  // Margem de 5s: TEXT timestamp do SQLite tem granularidade de segundo, e
+  // sync + matching rodam em sequencia rapida — sem a margem, uma linha
+  // importada no MESMO segundo do último last_run seria ignorada (`>`
+  // estrito falha em empate), só reexaminada no próximo sync.
+  const unlinked = lastRun
+    ? db.prepare(`
+        SELECT s.id_strava, s.data_inicio, s.inicio_iso, s.distancia_m
+          FROM strava_activities s
+          LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+         WHERE l.strava_id IS NULL
+           AND (
+             s.imported_at > datetime(?, '-5 seconds')
+             OR s.data_inicio IN (SELECT data_inicio FROM garmin_activities WHERE imported_at > datetime(?, '-5 seconds'))
+           )
+      `).all(lastRun, lastRun)
+    : db.prepare(`
+        SELECT s.id_strava, s.data_inicio, s.inicio_iso, s.distancia_m
+          FROM strava_activities s
+          LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+         WHERE l.strava_id IS NULL
+      `).all();
 
   let created = 0;
   const insertStmt = db.prepare(`
@@ -81,6 +110,12 @@ function runMatching(db) {
       created++;
     }
   }
+
+  db.prepare(`
+    INSERT INTO activity_match_meta (id, last_run) VALUES (1, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET last_run = excluded.last_run
+  `).run();
+
   return { created, examined: unlinked.length };
 }
 
