@@ -66,6 +66,7 @@ function renderProfile(user) {
         ? '/api/user/avatar?ts=' + encodeURIComponent(user.avatarUpdatedAt || '')
         : null;
       avatarEl.innerHTML = window.Avatar.html({ name: user.nome, src, size: 'lg' });
+      window.Avatar.wireFallbacks(avatarEl);
     } else {
       avatarEl.innerHTML = '<i class="fa-solid fa-user"></i>';
     }

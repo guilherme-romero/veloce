@@ -157,7 +157,9 @@
     ROUTES.forEach(r => {
       const btn = document.getElementById(r.navBtn);
       if (!btn) return;
-      // Remove onclick inline (que chama scrollToSection antigo)
+      // Liga via propriedade JS (não atributo inline — issue #19/CSP). Desde
+      // #19, index.html não tem mais onclick algum nos botões de nav; esta é
+      // a ÚNICA ligação de clique deles.
       btn.onclick = (e) => {
         e.preventDefault();
         navigate(r.slug || DEFAULT_SLUG);
