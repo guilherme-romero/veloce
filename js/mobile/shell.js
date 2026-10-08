@@ -63,9 +63,9 @@
     return segmentBase([['desempenho', 'Desempenho'], ['insights', 'Insights']], ativo);
   }
 
-  /** "Treino IA | Histórico" — dentro da tab Atividades (ver activities-mobile.js / treino-ia-mobile.js). */
+  /** "Treino | Histórico" — dentro da tab Atividades (ver activities-mobile.js / treino-ia-mobile.js). */
   function segmentAtividades(ativo) {
-    return segmentBase([['treino-ia', 'Treino IA'], ['atividades', 'Histórico']], ativo);
+    return segmentBase([['treino-ia', 'Treino'], ['atividades', 'Histórico']], ativo);
   }
 
   /** Liga os cliques do seletor renderizado dentro de `view` à navegação do MRouter. */

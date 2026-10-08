@@ -2,9 +2,8 @@
    MOBILE BOOT — equivalente enxuto do boot() de js/app.js.
 
    app.js NÃO é carregado no mobile (traz renderAll, modais de perfil e o
-   wire da nav desktop), então o gate de autenticação vem duplicado aqui —
-   10 linhas, cópia fiel de ensureAuthenticated() em js/app.js:468. Extrair
-   para js/core/ só se aparecer um terceiro consumidor.
+   wire da nav desktop), mas o gate de autenticação é compartilhado via
+   js/core/session.js (issue #13 — antes vinha duplicado aqui).
 
    A ordem importa: os dados PRECISAM estar carregados antes de qualquer
    view, senão o cache em memória está vazio e as telas aparecem sem dados e
@@ -12,22 +11,7 @@
    — ver COLECOES abaixo.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
-  async function ensureAuthenticated() {
-    try {
-      const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
-      if (resp.ok) return true;
-    } catch (e) {
-      // BUG-079: erro de REDE, nao de sessao. Antes a execucao caia no
-      // redirect abaixo e o PWA nunca abria offline, apesar dos 67 arquivos do
-      // SHELL em cache. Deixa o app abrir com o que o SW guardou; se a sessao
-      // estiver mesmo invalida, a primeira chamada do Api devolve 401 e manda
-      // para o login.
-      console.warn('[auth] backend indisponível — abrindo com o cache offline');
-      return true;
-    }
-    location.replace('/login.html');
-    return false;
-  }
+  const { ensureAuthenticated } = window.Session;
 
   async function safe(label, fn) {
     try { return await fn(); }
