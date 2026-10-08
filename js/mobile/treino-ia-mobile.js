@@ -316,7 +316,7 @@
     const u = Storage.getUser();
 
     if (!perfilCompleto(u)) {
-      window.toast?.('Complete suas preferências de Treino IA no perfil (desktop) antes de gerar um plano', { kind: 'error' });
+      window.toast?.('Complete suas preferências de Treino no perfil (desktop) antes de gerar um plano', { kind: 'error' });
       return;
     }
 
@@ -399,9 +399,9 @@
     slug: 'treino-ia',
     tab: 'atividades',
     viewId: VIEW_ID,
-    label: 'Treino IA',
+    label: 'Treino',
     onEnter: () => {
-      MShell.setHeader({ eyebrow: 'Semana padrão via IA', title: 'TREINO IA', actions: headerActions() });
+      MShell.setHeader({ eyebrow: 'Semana padrão via IA', title: 'TREINO', actions: headerActions() });
       load();
     },
     onLeave: () => { _gen++; },

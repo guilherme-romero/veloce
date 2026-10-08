@@ -325,7 +325,7 @@
     const u = window.Storage.getUser();
 
     if (!perfilCompleto(u)) {
-      window.toast?.('Complete suas preferências de Treino IA no perfil antes de gerar um plano', { kind: 'error' });
+      window.toast?.('Complete suas preferências de Treino no perfil antes de gerar um plano', { kind: 'error' });
       window.openProfileModal?.();
       return;
     }
@@ -437,7 +437,7 @@
   async function abrirHistorico() {
     const itens = await buscarHistoricoItens();
     window.Modals.open({
-      tag: 'Treino IA',
+      tag: 'Treino',
       title: 'Planos anteriores',
       bodyHTML: historicoBodyHTML(itens),
       actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => window.Modals.close() }],
