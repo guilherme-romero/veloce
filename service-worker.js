@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.9.27';
+const CACHE_VERSION = 'v2.9.43';
 const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -40,6 +40,15 @@ const SHELL = [
   './css/login.css',
   './css/fonts/archivo-variable.woff2',
   './css/fonts/bebas-neue-400.woff2',
+  './css/font-awesome.min.css',
+  // @font-face é lazy — só pré-cacheia o que o projeto usa de fato (fa-solid
+  // + fa-brands, confirmado via grep). fa-regular/fa-v4compatibility ficam
+  // em disco (css/webfonts/) sem entrar no SHELL: se algum dia usar um
+  // ícone fa-regular, o navegador busca sob demanda (fora do offline-first
+  // até alguém lembrar de adicionar aqui) — trade-off aceito, achado em
+  // revisão.
+  './css/webfonts/fa-solid-900.woff2',
+  './css/webfonts/fa-brands-400.woff2',
   './css/mobile.css',
   './css/mobile-sheet.css',
   './css/mobile-bikes.css',
@@ -106,7 +115,7 @@ const SHELL = [
 
 const EXTERNAL_ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  // font-awesome saiu de aqui na issue #9 — self-hosted, já faz parte do SHELL.
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
 ];
@@ -179,9 +188,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cross-origin (CDNs como cdnjs, unpkg, fontes Google): deixa o navegador
-  // buscar diretamente. Interceptar gera responses opacas que o navegador
-  // rejeita para fontes (.woff2, .ttf) — causando ícones quebrados.
+  // Cross-origin (CDNs como cdnjs, unpkg — fontes e ícones são self-hosted
+  // desde a #9, não passam mais por aqui): deixa o navegador buscar
+  // diretamente. Interceptar gera responses opacas que o navegador rejeita
+  // para fontes (.woff2, .ttf) — causando ícones quebrados.
   if (url.origin !== self.location.origin) return;
 
   // Para HTML (navegação): network-first com fallback ao cache

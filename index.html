@@ -9,8 +9,8 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
              script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com;
-             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com;
-             font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com;
+             style-src 'self' 'unsafe-inline' https://unpkg.com;
+             font-src 'self' data: https://unpkg.com;
              img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://server.arcgisonline.com https://*.cloudfront.net https://*.strava.com;
              connect-src 'self' https://api.open-meteo.com;
              worker-src 'self';
@@ -22,23 +22,20 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.9.27"></script>
+  <script src="js/variant.js?v=2.9.43"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.27">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.27">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.27">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.27">
-  <link rel="manifest" href="manifest.json?v=2.9.27">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.43">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.43">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.43">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.43">
+  <link rel="manifest" href="manifest.json?v=2.9.43">
 
   <title>VELOCE LABS</title>
 
-  <!-- Fontes -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
-
-  <!-- Ícones -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Fontes e ícones self-hosted (issue #9) — @font-face em css/style.css,
+       arquivos em css/fonts/ e css/webfonts/. Sem Google Fonts/cdnjs pra
+       isso: só Leaflet/Chart.js/jsPDF continuam via CDN. -->
+  <link rel="stylesheet" href="css/font-awesome.min.css?v=2.9.43">
 
   <!-- Leaflet (mapa de rotas) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -47,12 +44,12 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.9.27">
-  <link rel="stylesheet" href="css/rides.css?v=2.9.27">
-  <link rel="stylesheet" href="css/routes.css?v=2.9.27">
-  <link rel="stylesheet" href="css/bikes.css?v=2.9.27">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.27">
-  <link rel="stylesheet" href="css/treino-ia.css?v=2.9.27">
+  <link rel="stylesheet" href="css/style.css?v=2.9.43">
+  <link rel="stylesheet" href="css/rides.css?v=2.9.43">
+  <link rel="stylesheet" href="css/routes.css?v=2.9.43">
+  <link rel="stylesheet" href="css/bikes.css?v=2.9.43">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.9.43">
+  <link rel="stylesheet" href="css/treino-ia.css?v=2.9.43">
 </head>
 <body>
 
@@ -1708,48 +1705,48 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.9.27"></script>
-<script src="js/utils.js?v=2.9.27"></script>
+<script src="js/version.js?v=2.9.43"></script>
+<script src="js/utils.js?v=2.9.43"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.9.27"></script>
-<script src="js/core/activity-stats.js?v=2.9.27"></script>
-<script src="js/core/weight-stats.js?v=2.9.27"></script>
-<script src="js/core/fatigue.js?v=2.9.27"></script>
-<script src="js/core/records.js?v=2.9.27"></script>
-<script src="js/core/weather-rating.js?v=2.9.27"></script>
-<script src="js/core/training-suggestion.js?v=2.9.27"></script>
-<script src="js/core/suggestion-history.js?v=2.9.27"></script>
-<script src="js/core/performance-analysis.js?v=2.9.27"></script>
-<script src="js/core/comparative-performance.js?v=2.9.27"></script>
-<script src="js/router.js?v=2.9.27"></script>
-<script src="js/defaults.js?v=2.9.27"></script>
-<script src="js/api.js?v=2.9.27"></script>
-<script src="js/storage.js?v=2.9.27"></script>
-<script src="js/profile.js?v=2.9.27"></script>
-<script src="js/charts.js?v=2.9.27"></script>
-<script src="js/modals.js?v=2.9.27"></script>
-<script src="js/workouts.js?v=2.9.27"></script>
-<script src="js/rides.js?v=2.9.27"></script>
-<script src="js/bikes.js?v=2.9.27"></script>
-<script src="js/training-log.js?v=2.9.27"></script>
-<script src="js/home-workout.js?v=2.9.27"></script>
-<script src="js/backup.js?v=2.9.27"></script>
-<script src="js/gpx.js?v=2.9.27"></script>
-<script src="js/routes.js?v=2.9.27"></script>
-<script src="js/heatmap.js?v=2.9.27"></script>
-<script src="js/strava.js?v=2.9.27"></script>
-<script src="js/garmin.js?v=2.9.27"></script>
-<script src="js/activities.js?v=2.9.27"></script>
-<script src="js/insights.js?v=2.9.27"></script>
-<script src="js/proximo-treino.js?v=2.9.27"></script>
-<script src="js/performance-analysis.js?v=2.9.27"></script>
-<script src="js/comparative-performance.js?v=2.9.27"></script>
-<script src="js/weekly-training-plan.js?v=2.9.27"></script>
-<script src="js/ferramentas.js?v=2.9.27"></script>
-<script src="js/home.js?v=2.9.27"></script>
-<script src="js/notifications.js?v=2.9.27"></script>
-<script src="js/app.js?v=2.9.27"></script>
-<script src="js/pwa.js?v=2.9.27"></script>
+<script src="js/core/metrics.js?v=2.9.43"></script>
+<script src="js/core/activity-stats.js?v=2.9.43"></script>
+<script src="js/core/weight-stats.js?v=2.9.43"></script>
+<script src="js/core/fatigue.js?v=2.9.43"></script>
+<script src="js/core/records.js?v=2.9.43"></script>
+<script src="js/core/weather-rating.js?v=2.9.43"></script>
+<script src="js/core/training-suggestion.js?v=2.9.43"></script>
+<script src="js/core/suggestion-history.js?v=2.9.43"></script>
+<script src="js/core/performance-analysis.js?v=2.9.43"></script>
+<script src="js/core/comparative-performance.js?v=2.9.43"></script>
+<script src="js/router.js?v=2.9.43"></script>
+<script src="js/defaults.js?v=2.9.43"></script>
+<script src="js/api.js?v=2.9.43"></script>
+<script src="js/storage.js?v=2.9.43"></script>
+<script src="js/profile.js?v=2.9.43"></script>
+<script src="js/charts.js?v=2.9.43"></script>
+<script src="js/modals.js?v=2.9.43"></script>
+<script src="js/workouts.js?v=2.9.43"></script>
+<script src="js/rides.js?v=2.9.43"></script>
+<script src="js/bikes.js?v=2.9.43"></script>
+<script src="js/training-log.js?v=2.9.43"></script>
+<script src="js/home-workout.js?v=2.9.43"></script>
+<script src="js/backup.js?v=2.9.43"></script>
+<script src="js/gpx.js?v=2.9.43"></script>
+<script src="js/routes.js?v=2.9.43"></script>
+<script src="js/heatmap.js?v=2.9.43"></script>
+<script src="js/strava.js?v=2.9.43"></script>
+<script src="js/garmin.js?v=2.9.43"></script>
+<script src="js/activities.js?v=2.9.43"></script>
+<script src="js/insights.js?v=2.9.43"></script>
+<script src="js/proximo-treino.js?v=2.9.43"></script>
+<script src="js/performance-analysis.js?v=2.9.43"></script>
+<script src="js/comparative-performance.js?v=2.9.43"></script>
+<script src="js/weekly-training-plan.js?v=2.9.43"></script>
+<script src="js/ferramentas.js?v=2.9.43"></script>
+<script src="js/home.js?v=2.9.43"></script>
+<script src="js/notifications.js?v=2.9.43"></script>
+<script src="js/app.js?v=2.9.43"></script>
+<script src="js/pwa.js?v=2.9.43"></script>
 
 </body>
 </html>
