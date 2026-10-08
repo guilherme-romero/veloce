@@ -66,7 +66,7 @@
     </div>`;
   }
 
-  function metaHTML(user, analise) {
+  function metaHTML(user, analise, daily) {
     if (!user.pesoMeta) {
       return `<div class="m-card">
         <div class="m-card-head"><span class="m-eyebrow">Meta de peso</span></div>
@@ -78,7 +78,7 @@
     const meta  = user.pesoMeta;
     // Progresso a partir do peso inicial conhecido (primeira pesagem do
     // período). Sem histórico, a barra fica vazia em vez de mentir 100%.
-    const inicial = analise.ok ? (WeightStats.dailyWeights(Storage.getWeights())[0] || {}).peso : null;
+    const inicial = analise.ok ? (daily[0] || {}).peso : null;
     let pct = 0;
     if (inicial != null && inicial !== meta) {
       pct = Math.max(0, Math.min(100, ((inicial - atual) / (inicial - meta)) * 100));
@@ -142,12 +142,12 @@
     </div>`;
   }
 
-  function renderChart() {
+  function renderChart(daily) {
     const canvas = document.getElementById('m-perfil-chart');
     if (!canvas) return;
 
     const corte = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
-    const pts = WeightStats.dailyWeights(Storage.getWeights()).filter(p => p.data >= corte);
+    const pts = daily.filter(p => p.data >= corte);
     if (pts.length < 2) {
       canvas.closest('.m-card').querySelector('.m-chart').innerHTML =
         '<div class="m-empty" style="border:0">Menos de duas pesagens nos últimos 90 dias.</div>';
@@ -185,18 +185,22 @@
     if (!view) return;
 
     const user    = Storage.getUser();
-    const analise = WeightStats.weightAnalysis(user, Storage.getWeights());
+    const weights = Storage.getWeights();
+    const analise = WeightStats.weightAnalysis(user, weights);
+    // Calculado uma vez e reaproveitado por metaHTML/renderChart — antes
+    // cada um chamava WeightStats.dailyWeights() de novo (achado #14).
+    const daily   = WeightStats.dailyWeights(weights);
 
     view.innerHTML =
       idCardHTML(user) +
-      metaHTML(user, analise) +
+      metaHTML(user, analise, daily) +
       `<div class="m-card">
          <div class="m-card-head"><span class="m-eyebrow">Peso · 90 dias</span></div>
          <div class="m-chart" style="height:150px"><canvas id="m-perfil-chart"></canvas></div>
        </div>` +
       zonasHTML(user);
 
-    renderChart();
+    renderChart(daily);
   }
 
   async function carregarPesagens() {
@@ -210,6 +214,9 @@
     const gen = ++_gen;
 
     if (!_everLoaded) view.innerHTML = '<div class="m-empty">Carregando pesagens…</div>';
+    // Dispara em paralelo com a busca de dados — Chart.js (#14) não bloqueia
+    // o fetch, só precisa estar pronto antes do render() chamar renderChart().
+    const chartReady = MShell.ensureChart().catch(e => console.error('[profile-mobile] chart.js', e));
     try {
       // Guarda com TTL de 5 min (padrão MShell) — era flag eterna, que nunca
       // refletia sync novo sem F5.
@@ -218,6 +225,7 @@
     } catch (e) {
       console.error('[profile-mobile] weights', e);
     }
+    await chartReady;
     if (gen !== _gen) return;   // saiu da aba durante a carga
     render();
   }

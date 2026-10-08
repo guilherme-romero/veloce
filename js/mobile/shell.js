@@ -118,6 +118,24 @@
    * onLeave da rota — canvas criado com a view escondida nasce 0×0, por
    * isso os gráficos são criados no onEnter, nunca no boot.
    */
+  // Carrega o Chart.js (205 KB) sob demanda — mobile.html não injeta mais a
+  // tag <script> síncrona, porque Home (sem gráfico) pagava esse parse+eval
+  // no boot sem usar (achado #14). Memoiza a promessa: a 1ª tela com
+  // gráfico injeta a tag, as próximas reaproveitam o mesmo load.
+  let _chartPromise = null;
+  function ensureChart() {
+    if (window.Chart) return Promise.resolve();
+    if (_chartPromise) return _chartPromise;
+    _chartPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+      s.onload = resolve;
+      s.onerror = () => { _chartPromise = null; reject(new Error('Chart.js falhou ao carregar')); };
+      document.head.appendChild(s);
+    });
+    return _chartPromise;
+  }
+
   function mChart(canvas, cfg) {
     if (!canvas || !window.Chart) return null;
     const base = {
@@ -176,7 +194,7 @@
   window.MShell = {
     setHeader, initials, segment, segmentAtividades, wireSegment,
     parseLocalDT, fmtDate, fmtDateHora, fmtDuracao, fmtNum,
-    mChart, esc,
+    mChart, ensureChart, esc,
     cached, invalidate, TTL_DADOS,
   };
 })();
