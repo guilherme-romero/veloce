@@ -9,8 +9,8 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self';
              script-src 'self' https://cdnjs.cloudflare.com https://unpkg.com;
-             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com;
-             font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://unpkg.com;
+             style-src 'self' 'unsafe-inline' https://unpkg.com;
+             font-src 'self' data: https://unpkg.com;
              img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://server.arcgisonline.com https://*.cloudfront.net https://*.strava.com;
              connect-src 'self' https://api.open-meteo.com;
              worker-src 'self';
@@ -32,13 +32,10 @@
 
   <title>VELOCE LABS</title>
 
-  <!-- Fontes -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
-
-  <!-- Ícones -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Fontes e ícones self-hosted (issue #9) — @font-face em css/style.css,
+       arquivos em css/fonts/ e css/webfonts/. Sem Google Fonts/cdnjs pra
+       isso: só Leaflet/Chart.js/jsPDF continuam via CDN. -->
+  <link rel="stylesheet" href="css/font-awesome.min.css?v=2.9.43">
 
   <!-- Leaflet (mapa de rotas) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
