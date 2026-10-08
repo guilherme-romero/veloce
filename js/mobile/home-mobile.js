@@ -234,6 +234,10 @@
       // Sem isto o TTL de 5 min viraria bug: apertar sync e ir para Insights
       // mostraria os dados ANTERIORES ao sync.
       if (window.MShell && MShell.invalidate) MShell.invalidate();
+      // #52 — syncAll chama /strava/sync e /garmin/sync DIRETO (não passa
+      // por js/strava.js/js/garmin.js, que não são carregados no mobile),
+      // então a invalidação cabeada lá não cobre este caminho.
+      window.UnifiedActivities?.invalidate();
       await load();
     }
 

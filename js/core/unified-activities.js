@@ -17,12 +17,16 @@
    telas) sem essa complexidade.
 
    Invalidação: chamada explícita após qualquer sync que possa trazer
-   atividade nova (Strava manual: js/strava.js; Garmin manual:
-   js/garmin.js) e após CRUD manual de passeio (js/rides.js). Sync
-   automático do scheduler (server-side, a cada 30 min) não tem como
-   invalidar o cache do cliente — o TTL de 5 min já limita essa janela de
-   dado desatualizado, mesmo comportamento que o mobile já tinha antes
-   desta issue.
+   atividade nova — Strava manual (js/strava.js), Garmin manual
+   (js/garmin.js), sync combinado do botão único da Home mobile
+   (js/mobile/home-mobile.js — chama os endpoints direto, não passa por
+   strava.js/garmin.js, que não são carregados no mobile) — e após excluir
+   uma atividade importada (js/home.js, único DELETE /activities/:fonte/:id
+   do frontend). js/rides.js é só leitura (calendário), não precisa
+   invalidar. Sync automático do scheduler (server-side, a cada 30 min) não
+   tem como invalidar o cache do cliente — o TTL de 5 min já limita essa
+   janela de dado desatualizado, mesmo comportamento que o mobile já tinha
+   antes desta issue.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   const TTL_MS = 5 * 60 * 1000;
