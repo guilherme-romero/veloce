@@ -31,8 +31,9 @@
   <link rel="manifest" href="manifest-mobile.json?v=2.9.29">
 
   <!-- Fontes e ícones self-hosted (issue #9) — @font-face em css/mobile.css,
-       arquivos em css/fonts/ e css/webfonts/. Só Chart.js continua via CDN. -->
-  <link rel="stylesheet" href="css/font-awesome.min.css?v=2.9.43">
+       arquivos em css/fonts/ e css/webfonts/. Chart.js carrega sob demanda
+       via MShell.ensureChart() (issue #14), não mais tag <script> fixa. -->
+  <link rel="stylesheet" href="css/font-awesome.min.css?v=2.9.29">
 
   <link rel="stylesheet" href="css/mobile.css?v=2.9.29">
   <link rel="stylesheet" href="css/mobile-sheet.css?v=2.9.29">
@@ -118,8 +119,10 @@
      insights.js, rides.js, routes.js, ferramentas.js, backup.js,
      heatmap.js, notifications.js, strava.js, garmin.js, charts.js —
      a UI mobile tem os próprios renders.
-══════════════════════════════════════════════════════════════════════ -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+     Chart.js (205 KB) saiu de aqui na #14: Home não tem gráfico e pagava
+     o parse+eval no boot sem uso. Carrega sob demanda via
+     MShell.ensureChart() nas 3 telas que de fato usam gráfico (Perfil,
+     Insights, Atividades — ver js/mobile/shell.js). -->
 
 <script src="js/version.js?v=2.9.29"></script>
 <script src="js/utils.js?v=2.9.29"></script>
@@ -156,6 +159,7 @@
 
 <script src="js/mobile/boot.js?v=2.9.29"></script>
 <script src="js/pwa.js?v=2.9.29"></script>
+>>>>>>> origin/main
 
 </body>
 </html>
