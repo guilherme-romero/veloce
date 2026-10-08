@@ -1,0 +1,13 @@
+[Unit]
+Description=Treino Bike — disparo semanal da limpeza do journal
+Requires=treino-bike-log-cleanup.service
+
+[Timer]
+# Toda madrugada de segunda às 04:00 (fora da janela do backup, domingo 03:00)
+OnCalendar=Mon *-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=treino-bike-log-cleanup.service
+
+[Install]
+WantedBy=timers.target

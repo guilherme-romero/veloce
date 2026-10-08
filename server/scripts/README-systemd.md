@@ -17,3 +17,26 @@ journalctl -u treino-bike-backup.service -n 50
 
 Os snapshots vão para `data/backups/treino-bike-data-YYYY-MM-DD.zip`
 (retenção: 8 mais recentes).
+
+## Limpeza periódica do journal (logs de sync)
+
+O backend não escreve log em arquivo próprio — tudo vai para o journal do
+systemd (`StandardOutput=journal`/`StandardError=journal` em
+`treino-bike-api.service`). Sem rotação, o journal cresce indefinidamente.
+Instalar o timer semanal:
+
+```bash
+sudo cp server/scripts/treino-bike-log-cleanup.service /etc/systemd/system/
+sudo cp server/scripts/treino-bike-log-cleanup.timer   /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now treino-bike-log-cleanup.timer
+
+# Verificar
+systemctl list-timers treino-bike-log-cleanup.timer
+sudo systemctl start treino-bike-log-cleanup.service   # dispara manualmente
+journalctl -u treino-bike-log-cleanup.service -n 20
+```
+
+Retenção: últimos 30 dias (`journalctl --vacuum-time=30d`). Como o journald
+não segmenta por unit (sem namespace dedicado), isso limpa o journal do
+host como um todo — aceitável neste host de propósito único.

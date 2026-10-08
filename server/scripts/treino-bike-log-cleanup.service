@@ -1,0 +1,15 @@
+[Unit]
+Description=Treino Bike — limpeza periódica do journal (logs via journald)
+
+[Service]
+Type=oneshot
+# O backend só escreve em StandardOutput/StandardError=journal (ver
+# treino-bike-api.service) — não há arquivo de log próprio da app pra
+# rotacionar, então a limpeza é do journal do systemd como um todo.
+# --vacuum-time opera sobre o journal inteiro (journald não segmenta por
+# unit em arquivos separados sem namespace dedicado), então isto também
+# limita o histórico de outras units do sistema — aceitável neste host
+# (single-purpose, só roda o backend e o backup).
+ExecStart=/usr/bin/journalctl --vacuum-time=30d
+StandardOutput=journal
+StandardError=journal
