@@ -10,6 +10,23 @@
    emitem (ambos referenciam var(--teal), var(--surface2), etc.).
 ═══════════════════════════════════════════════════════════════════════ */
 
+/* Self-hosted desde a #9 — mesmos arquivos de css/style.css/login.css
+   (duplicado de propósito, mesma convenção de css/fonts/ deste projeto). */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('fonts/archivo-variable.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/bebas-neue-400.woff2') format('woff2');
+}
+
 :root {
   /* Surfaces */
   --bg:        #0d0f12;

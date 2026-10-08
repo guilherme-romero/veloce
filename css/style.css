@@ -1,7 +1,24 @@
 /* ═══════════════════════════════════════════════════════════════════════
    TREINO BIKE — STYLE
-   Hi-Vis Peloton (v2.0) · Archivo + Bebas Neue (Google Fonts) · Tokens via CSS Custom Props
+   Hi-Vis Peloton (v2.0) · Archivo + Bebas Neue (self-hosted, issue #9) · Tokens via CSS Custom Props
 ═══════════════════════════════════════════════════════════════════════ */
+
+/* Self-hosted desde a #9 — mesmos arquivos que login.html já usa (v2.9.4).
+   woff2-variations cobre o range 400–800 de Archivo numa fonte só. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('fonts/archivo-variable.woff2') format('woff2-variations');
+}
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/bebas-neue-400.woff2') format('woff2');
+}
 
 /* ── TOKENS ─────────────────────────────────────────────────────────── */
 :root {

@@ -17,13 +17,19 @@
              form-action 'self';
              object-src 'none';">
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.27">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.27">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.27">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.27">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.9.29">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.9.29">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.9.29">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.9.29">
   <title>Login · VELOCE LABS</title>
 
-  <link rel="stylesheet" href="css/login.css?v=2.9.27">
+  <!-- Issue #11: elimina o flash de fonte + ganha LCP — as duas fontes
+       self-hosted usadas por css/login.css carregam em paralelo com o CSS
+       em vez de só depois dele ser parseado. -->
+  <link rel="preload" as="font" type="font/woff2" href="css/fonts/archivo-variable.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="css/fonts/bebas-neue-400.woff2" crossorigin>
+
+  <link rel="stylesheet" href="css/login.css?v=2.9.29">
 </head>
 <body>
 
@@ -94,7 +100,7 @@
   </div>
 </main>
 
-<script src="js/version.js?v=2.9.27"></script>
-<script src="js/login.js?v=2.9.27"></script>
+<script src="js/version.js?v=2.9.29"></script>
+<script src="js/login.js?v=2.9.29"></script>
 </body>
 </html>
