@@ -4,4 +4,4 @@
    - O service-worker.js usa para invalidar cache offline.
    - Os imports do index.html usam ?v= para cache busting.
 ═══════════════════════════════════════════════════════════════════════ */
-window.APP_VERSION = '2.9.30';
+window.APP_VERSION = '2.9.29';
