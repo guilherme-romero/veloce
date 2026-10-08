@@ -17,3 +17,9 @@ journalctl -u treino-bike-backup.service -n 50
 
 Os snapshots vão para `data/backups/treino-bike-data-YYYY-MM-DD.zip`
 (retenção: 8 mais recentes).
+
+> **Já instalado antes?** `treino-bike-backup.timer` tinha um `Requires=`
+> indevido no `[Unit]` que disparava o snapshot extra a cada boot/
+> `daemon-reload`, não só no horário agendado (achado de revisão de infra).
+> Corrigido — recopie o `.timer` e rode `daemon-reload` de novo pra
+> aplicar: `sudo cp server/scripts/treino-bike-backup.timer /etc/systemd/system/ && sudo systemctl daemon-reload`.
