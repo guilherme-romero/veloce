@@ -12,6 +12,14 @@ const { getUnifiedActivities } = require('../services/activities');
 
 const DEFAULT_DAYS = 180;
 
+// Tipos excluídos do record semanal: e-bike e indoor/virtual contam para
+// fitness mas não são "saída de bike" pra fins de recorde de distância/
+// elevação. Mesmo critério de server/routes/bikes.js (EXCLUDED_*_TYPES) —
+// duplicado aqui de propósito, ver issue #13 (unificação de módulos, ainda
+// não feita).
+const EXCLUDED_STRAVA_TYPES = ['VirtualRide', 'EBikeRide'];
+const EXCLUDED_GARMIN_TYPES = ['virtual_ride', 'indoor_cycling', 'e_bike_fitness'];
+
 async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
 
@@ -42,48 +50,49 @@ async function routes(fastify) {
 
   // GET /api/activities/weekly-records
   // Maior distância e maior elevação SEMANAL (semana começando no domingo),
-  // considerando só atividades de ciclismo, sobre todo o histórico. Usa a mesma
-  // regra de dedup do /unified (Garmin + Strava sem link — Garmin vence).
+  // considerando só atividades de ciclismo real (exclui e-bike/indoor/virtual),
+  // sobre todo o histórico. Usa a mesma regra de dedup do /unified (Garmin +
+  // Strava sem link — Garmin vence).
+  //
+  // Issue #41: antes, agrupava por semana num Map em JS depois de puxar TODAS
+  // as linhas pro Node. Agora o agrupamento (strftime pra achar o domingo da
+  // semana + SUM) e o top-1 de cada métrica são feitos em SQL — só 1 linha
+  // volta pro JS. Bônus: a query antiga filtrava Strava por `tipo IN
+  // ('cycling','road_biking',...)` (vocabulário do GARMIN) — o `tipo` real do
+  // Strava é 'Ride'/'VirtualRide'/etc., então NENHUMA atividade Strava jamais
+  // entrava nesse cálculo. Corrigido usando o vocabulário certo de cada fonte.
+  const weeklyRecordsStmt = fastify.db.prepare(`
+    WITH combined AS (
+      SELECT data_inicio AS d, distancia_m AS dist, elevacao_m AS elev
+        FROM garmin_activities
+       WHERE tipo IS NULL OR tipo NOT IN (${EXCLUDED_GARMIN_TYPES.map(() => '?').join(',')})
+      UNION ALL
+      SELECT s.data_inicio AS d, s.distancia_m AS dist, s.elevacao_m AS elev
+        FROM strava_activities s
+        LEFT JOIN activity_links l ON l.strava_id = s.id_strava
+       WHERE l.strava_id IS NULL
+         AND (s.tipo IS NULL OR s.tipo NOT IN (${EXCLUDED_STRAVA_TYPES.map(() => '?').join(',')}))
+    ),
+    weekly AS (
+      SELECT date(d, '-' || strftime('%w', d) || ' days') AS wk,
+             SUM(dist) AS dist, SUM(elev) AS elev
+        FROM combined
+       WHERE d IS NOT NULL
+       GROUP BY wk
+    )
+    SELECT
+      (SELECT wk   FROM weekly WHERE dist > 0 ORDER BY dist DESC LIMIT 1) AS dist_week,
+      (SELECT dist FROM weekly WHERE dist > 0 ORDER BY dist DESC LIMIT 1) AS dist_value,
+      (SELECT wk   FROM weekly WHERE elev > 0 ORDER BY elev DESC LIMIT 1) AS elev_week,
+      (SELECT elev FROM weekly WHERE elev > 0 ORDER BY elev DESC LIMIT 1) AS elev_value
+  `);
+
   fastify.get('/api/activities/weekly-records', async () => {
-    const CYCLING = ['cycling', 'road_biking', 'mountain_biking', 'gravel_cycling'];
-    const ph = CYCLING.map(() => '?').join(',');
-
-    const garmin = fastify.db.prepare(
-      `SELECT data_inicio AS d, distancia_m AS dist, elevacao_m AS elev
-         FROM garmin_activities WHERE tipo IN (${ph})`
-    ).all(...CYCLING);
-
-    const strava = fastify.db.prepare(
-      `SELECT s.data_inicio AS d, s.distancia_m AS dist, s.elevacao_m AS elev
-         FROM strava_activities s
-         LEFT JOIN activity_links l ON l.strava_id = s.id_strava
-        WHERE l.strava_id IS NULL AND s.tipo IN (${ph})`
-    ).all(...CYCLING);
-
-    // Início da semana (domingo) para uma data YYYY-MM-DD, em UTC (evita desvio de fuso).
-    const weekStart = (iso) => {
-      const dt = new Date(iso + 'T12:00:00Z');
-      if (isNaN(dt.getTime())) return null;
-      dt.setUTCDate(dt.getUTCDate() - dt.getUTCDay()); // getUTCDay(): 0 = domingo
-      return dt.toISOString().slice(0, 10);
+    const row = weeklyRecordsStmt.get(...EXCLUDED_GARMIN_TYPES, ...EXCLUDED_STRAVA_TYPES);
+    return {
+      distancia: row.dist_week != null ? { value: row.dist_value, weekStart: row.dist_week } : null,
+      elevacao:  row.elev_week != null ? { value: row.elev_value, weekStart: row.elev_week } : null,
     };
-
-    const weeks = new Map(); // weekStartISO -> { dist, elev }
-    for (const a of [...garmin, ...strava]) {
-      const wk = a.d ? weekStart(a.d) : null;
-      if (!wk) continue;
-      const cur = weeks.get(wk) || { dist: 0, elev: 0 };
-      cur.dist += a.dist || 0;
-      cur.elev += a.elev || 0;
-      weeks.set(wk, cur);
-    }
-
-    let distancia = null, elevacao = null;
-    for (const [wk, v] of weeks) {
-      if (v.dist > 0 && (!distancia || v.dist > distancia.value)) distancia = { value: v.dist, weekStart: wk };
-      if (v.elev > 0 && (!elevacao || v.elev > elevacao.value)) elevacao = { value: v.elev, weekStart: wk };
-    }
-    return { distancia, elevacao };
   });
 
   // ?full=1 força reexame total, ignorando a otimização de last_run (issue
