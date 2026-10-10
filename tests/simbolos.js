@@ -22,9 +22,6 @@ const path = require('path');
 const { launch, CDP, waitFor, evalJson, sleep } = require('./cdp.js');
 const { BASE } = require('./config.js');
 
-// Só os .woff2 são hospedados (os .ttf do CSS não existem por design).
-const WEBFONTS = ['fa-solid-900.woff2', 'fa-brands-400.woff2', 'fa-regular-400.woff2'];
-
 // Versão lida de js/version.js para montar o ?v= do CSS (mesmo cache-bust que
 // o app usa). Não cravar — senão falha a cada release por motivo errado.
 const APP_VERSION = (fs
@@ -49,29 +46,47 @@ const APP_VERSION = (fs
 
     // Tudo no contexto da página (same-origin com BASE). Erros são capturados
     // e devolvidos como dados — um throw/reject aqui abortaria a suíte inteira.
+    //
+    // ATENÇÃO (lição da regressão de 2026-10-10): NÃO usar cache:'no-store' nem
+    // paths absolutos hardcoded. O bug real foi o Cloudflare servir um CSS STALE
+    // (hotfix da #71 reusou ?v=, cache HIT com `url(../webfonts/...)` quebrado),
+    // e o @font-face resolve o url() RELATIVO ao próprio CSS. Então: buscar o CSS
+    // como de fato servido (?v=, cache do CDN valendo), parsear os url() dele e
+    // resolvê-los como o browser faz. Testar o path absoluto "certo" mascarava o bug.
     const r = await evalJson(cdp, sid, `
       const V = ${JSON.stringify(APP_VERSION)};
-      const fonts = ${JSON.stringify(WEBFONTS)};
-      const res = { css: null, assets: {}, faces: {} };
+      const res = { css: null, fonts: [], faces: {} };
       async function head(url) {
         try {
-          const r = await fetch(url, { cache: 'no-store' });
+          const r = await fetch(url);
           const ct = (r.headers.get('content-type') || '').toLowerCase();
-          return { status: r.status, ok: r.ok, ct };
-        } catch (e) { return { status: 0, ok: false, ct: '', err: String(e) }; }
+          return { url, status: r.status, ok: r.ok, ct, cf: r.headers.get('cf-cache-status') };
+        } catch (e) { return { url, status: 0, ok: false, ct: '', err: String(e) }; }
       }
-      async function face(family, url) {
+      async function face(url) {
         try {
-          const f = new FontFace(family, 'url(' + url + ')');
+          const f = new FontFace('fa_probe', 'url(' + JSON.stringify(url) + ')');
           await f.load();
           document.fonts.add(f);
-          return document.fonts.check('16px "' + family + '"');
+          return document.fonts.check('16px "fa_probe"');
         } catch (e) { return false; }
       }
-      res.css = await head('/css/font-awesome.min.css' + (V ? '?v=' + V : ''));
-      for (const f of fonts) res.assets[f] = await head('/css/webfonts/' + f);
-      res.faces.solid  = await face('fa_probe_solid',  '/css/webfonts/fa-solid-900.woff2');
-      res.faces.brands = await face('fa_probe_brands', '/css/webfonts/fa-brands-400.woff2');
+      // CSS como o app o carrega (mesmo ?v=, cache do CDN valendo).
+      const cssUrl = new URL('/css/font-awesome.min.css' + (V ? '?v=' + V : ''), location.origin).href;
+      const cr = await fetch(cssUrl);
+      const cssText = await cr.text();
+      res.css = { status: cr.status, ok: cr.ok, ct: (cr.headers.get('content-type')||'').toLowerCase(), cf: cr.headers.get('cf-cache-status') };
+      // Parsear url(...woff2) e RESOLVER relativo ao próprio CSS (como o @font-face faz).
+      const urls = [...new Set((cssText.match(/url\\(([^)]*\\.woff2)[^)]*\\)/g) || [])
+        .map(s => s.replace(/^url\\(/, '').replace(/\\).*$/, '').replace(/^["']|["']$/g, '').trim()))];
+      const resolved = [...new Set(urls.map(u => new URL(u, cssUrl).href))];
+      for (const u of resolved) res.fonts.push(await head(u));
+      // Render check sobre o que o CSS declara para o solid/brands.
+      const solid  = resolved.find(u => /fa-solid-900\\.woff2/.test(u));
+      const brands = resolved.find(u => /fa-brands-400\\.woff2/.test(u));
+      res.faces.solid  = solid  ? await face(solid)  : false;
+      res.faces.brands = brands ? await face(brands) : false;
+      res.resolved = resolved;
       return res;
     `);
     out.info.detalhe = r;
@@ -79,20 +94,25 @@ const APP_VERSION = (fs
     // a) CSS do Font Awesome servido como CSS, 200.
     chk(r.css.ok && r.css.status === 200 && /css/.test(r.css.ct),
       'font-awesome.min.css serve 200 text/css',
-      `status=${r.css.status} ct=${r.css.ct || '∅'}`);
+      `status=${r.css.status} ct=${r.css.ct || '∅'} cf=${r.css.cf || '∅'}`);
 
-    // b) Cada webfont .woff2 servido 200 e NÃO como text/html (sintoma do 404).
-    for (const f of WEBFONTS) {
-      const a = r.assets[f];
+    // b) Achou pelo menos os webfonts esperados no CSS servido.
+    chk(r.resolved && r.resolved.length >= 3,
+      'CSS declara os webfonts via url()',
+      `encontrados=${(r.resolved || []).length}`);
+
+    // c) Cada .woff2 que o CSS referencia (path RESOLVIDO como o browser) serve
+    //    200 e NÃO text/html — pega url() relativo quebrado e CSS stale do CDN.
+    for (const a of r.fonts) {
+      const nome = a.url.split('/').slice(-2).join('/').split('?')[0];
       chk(a.ok && a.status === 200 && !/text\/html/.test(a.ct),
-        `webfont ${f} serve 200 (não HTML)`,
-        `status=${a.status} ct=${a.ct || '∅'}`);
+        `webfont resolvido ${nome} serve 200 (não HTML)`,
+        `status=${a.status} ct=${a.ct || '∅'} cf=${a.cf || '∅'}`);
     }
 
-    // c) O glyph carrega de verdade (FontFace parseou o .woff2). Só o solid é
-    //    crítico — todos os ícones do app são fa-solid; brands é complementar.
-    chk(r.faces.solid, 'Font Awesome Solid carrega e renderiza (FontFace.load + check)');
-    chk(r.faces.brands, 'Font Awesome Brands carrega e renderiza (FontFace.load + check)');
+    // d) O glyph carrega de verdade (FontFace sobre o url() que o CSS declara).
+    chk(r.faces.solid, 'Font Awesome Solid carrega e renderiza (FontFace sobre url() do CSS)');
+    chk(r.faces.brands, 'Font Awesome Brands carrega e renderiza (FontFace sobre url() do CSS)');
   } catch (e) {
     bad('execução da suíte', e.message);
   }
