@@ -26,6 +26,7 @@ que parece regressão e é só sessão expirada. O `run-all.js` faz login novo a
 
 | Arquivo | O que cobre |
 |---|---|
+| `simbolos.js` | Carregamento dos ícones Font Awesome contra a URL **pública** (`TB_BASE=https://bike.arkhamcloud.net`): CSS + webfonts `.woff2` servidos 200 com MIME de fonte, e o glyph carregando via `FontFace`. **Não precisa de login** (assets públicos). Complemento over-the-wire do `tests/assets.test.js`; usada como smoke pós-deploy. Nasceu da #71 |
 | `drive.js` | Percurso das 7 telas contra dados reais, checagens de fundo (recordes, zonas de FC, heatmap, condição do clima) e as guardas de cache |
 | `bordas.js` | Bordas que os dados reais não exercitam — forçadas no cliente via CDP `Fetch.enable`, **sem tocar no banco** |
 | `desktop.js` | Fumaça da variante desktop; existe porque vários fixes tocam `js/app.js` e `js/core/`, compartilhados |
