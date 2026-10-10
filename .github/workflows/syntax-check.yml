@@ -23,5 +23,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20   # runner node:test estável a partir do 20
-      - name: Smoke test de assets
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Instala deps do backend (fastify/better-sqlite3 p/ testes de integração)
+        run: npm ci
+        working-directory: server
+      - name: Suíte de testes (assets + unit js/core + integração de rotas)
         run: node --test tests/*.test.js
