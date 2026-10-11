@@ -70,8 +70,6 @@ let gearBrand = 'Shimano';
 let gearCat   = 'MTB';
 let gearSelectedCog = null;
 let gearState = null;
-let gearDbConnected = false;
-let _loaded = false;
 
 // ─── TABS ─────────────────────────────────────────────────────────────────────
 function switchTab(id, btn) {
@@ -258,9 +256,8 @@ function renderRingChooser(rings) {
 function updateDbBadge() {
   const badge = document.getElementById('gear-db-badge');
   if (!badge) return;
-  badge.innerHTML = gearDbConnected
-    ? `<i class="fa-solid fa-database" style="color:#22c55e;font-size:10px"></i> <span style="color:var(--muted)">Conectado: cassetes.db (SQLite via sql.js)</span>`
-    : `<i class="fa-solid fa-database" style="color:var(--teal);font-size:10px"></i> <span style="color:var(--muted)">Dados embutidos (cassetes.db indisponível via file://)</span>`;
+  // Os dados de cassetes/coroas são embutidos (CASSETES_DATA) — fonte única.
+  badge.innerHTML = `<i class="fa-solid fa-database" style="color:var(--teal);font-size:10px"></i> <span style="color:var(--muted)">${CASSETES_DATA.length} cassetes (dados embutidos)</span>`;
 }
 
 function calcGear() {
@@ -341,35 +338,11 @@ function renderGearMatrix() {
   });
 }
 
-function loadScript(src, integrity) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = src;
-    if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
-    s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
-
-// sql.js via cdnjs — versão + SRI num único ponto (ao atualizar, trocar os dois
-// juntos). Se a CDN servir bytes diferentes o script é recusado e cai no
-// fallback embutido (dados JS).
-const SQLJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/';
-const SQLJS_SRI  = 'sha384-6F5mEvGKGAoGW98OnEAEY4JnkwYPkPMeAGAutPVeS92W2yTWeqBcYAX+1SkXYkPM';
-
-async function tryLoadDB() {
-  try {
-    await loadScript(`${SQLJS_BASE}sql-wasm.min.js`, SQLJS_SRI);
-    if (!window.initSqlJs) return;
-    const SQL = await window.initSqlJs({ locateFile: f => `${SQLJS_BASE}${f}` });
-    const resp = await fetch('data/cassetes.db');
-    if (!resp.ok) return;
-    const buf = await resp.arrayBuffer();
-    const db  = new SQL.Database(new Uint8Array(buf));
-    const res = db.exec('SELECT COUNT(*) FROM cassetes');
-    if (res && res.length) { gearDbConnected = true; updateDbBadge(); }
-  } catch(e) { /* mantém dados embutidos (fallback JS) */ }
-}
+// Nota (2026-10-11): removido o carregamento de sql.js/cassetes.db via WASM. Os
+// dados de cassetes/coroas sempre vieram do array embutido CASSETES_DATA — o
+// sql.js só acendia um badge "conectado" sem ler dado nenhum, e o WASM era
+// bloqueado em prod pela CSP (script-src sem 'wasm-unsafe-eval'), deixando uma
+// exception ruidosa no console. Fonte única agora é CASSETES_DATA.
 
 // ─── ROUTE CALCULATOR ─────────────────────────────────────────────────────────
 // Modelo de tempo compartilhado (calcRoute + calcNutri + Passeios): plano +
@@ -746,7 +719,6 @@ async function load() {
   populateTerrainGrid();
   populateCassetes();
   populateCoroas();
-  if (!_loaded) { _loaded = true; tryLoadDB(); }
 }
 
 window.Ferramentas = { load };
