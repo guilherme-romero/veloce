@@ -105,7 +105,7 @@
         <i class="fa-solid ${esc(w.icon || 'fa-question')}"></i>
         <span class="m-wx-t">${esc(w.tMax == null ? '—' : `${w.tMax}°`)}</span>
         <span class="m-micro">${esc(w.tMin == null ? '' : `${w.tMin}°`)}</span>
-        <span class="m-micro m-wx-rain">${esc(w.chuva ? `${w.chuva}%` : '')}</span>
+        <span class="m-micro m-wx-rain">${esc(`${w.chuva ? `${w.chuva}%` : ''}${w.chuvaMm >= 0.1 ? `${w.chuva ? ' · ' : ''}${w.chuvaMm.toFixed(w.chuvaMm < 0.95 ? 1 : 0)}mm` : ''}`)}</span>
         <span class="m-wx-esf" style="background:var(--${esc(esf.token || 'muted')})"></span>
       </button>`;
     }).join('');
