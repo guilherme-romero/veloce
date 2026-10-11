@@ -26,7 +26,7 @@ que parece regressão e é só sessão expirada. O `run-all.js` faz login novo a
 
 | Arquivo | O que cobre |
 |---|---|
-| `simbolos.js` | Carregamento dos ícones Font Awesome contra a URL **pública** (`TB_BASE=https://bike.arkhamcloud.net`): CSS + webfonts `.woff2` servidos 200 com MIME de fonte, e o glyph carregando via `FontFace`. **Não precisa de login** (assets públicos). Complemento over-the-wire do `tests/assets.test.js`; usada como smoke pós-deploy. Nasceu da #71 |
+| `simbolos.js` | Carregamento dos ícones Font Awesome contra a URL **pública** (`TB_BASE=https://veloce.arkhamcloud.net`): CSS + webfonts `.woff2` servidos 200 com MIME de fonte, e o glyph carregando via `FontFace`. **Não precisa de login** (assets públicos). Complemento over-the-wire do `tests/assets.test.js`; usada como smoke pós-deploy. Nasceu da #71 |
 | `drive.js` | Percurso das 7 telas contra dados reais, checagens de fundo (recordes, zonas de FC, heatmap, condição do clima) e as guardas de cache |
 | `bordas.js` | Bordas que os dados reais não exercitam — forçadas no cliente via CDP `Fetch.enable`, **sem tocar no banco** |
 | `desktop.js` | Fumaça da variante desktop; existe porque vários fixes tocam `js/app.js` e `js/core/`, compartilhados |
@@ -57,7 +57,7 @@ Estão aqui para ninguém redescobrir:
 
 - **Node 22+** — o `cdp.js` usa a implementação nativa de `WebSocket`, sem dependências.
 - `chrome-headless-shell` do cache do Playwright. Outro caminho? `TB_CHROME=/caminho/para/binario`.
-- Backend no ar (`systemctl status treino-bike-api`) e nginx servindo a porta 8002.
+- Backend no ar (`systemctl status veloce-api`) e nginx servindo a porta 8002.
 
 Tudo o que varia por máquina está em `config.js`, sobrescrevível por ambiente (`TB_BASE`,
 `TB_CHROME`, `TB_USER`, `TB_PASS`).

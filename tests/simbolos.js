@@ -13,7 +13,7 @@
    same-origin + FontFace API no contexto da página.
 
    Uso:
-     TB_CHROME=/usr/bin/google-chrome-stable TB_BASE=https://bike.arkhamcloud.net \
+     TB_CHROME=/usr/bin/google-chrome-stable TB_BASE=https://veloce.arkhamcloud.net \
        node tests/simbolos.js
    Default BASE (config.js): http://127.0.0.1:8002 (nginx local, isola Cloudflare).
 ═══════════════════════════════════════════════════════════════════════ */

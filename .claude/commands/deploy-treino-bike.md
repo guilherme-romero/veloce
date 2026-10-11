@@ -59,7 +59,7 @@ Se não foi bumpada, avise o usuário antes de continuar.
 ### 5. Restart do serviço (se necessário)
 
 Verifique se houve mudanças em arquivos do backend (`server/`):
-- **Sim** → `sudo systemctl restart treino-bike-api` e confirme com `sudo systemctl status treino-bike-api --no-pager -n 5`
+- **Sim** → `sudo systemctl restart veloce-api` e confirme com `sudo systemctl status veloce-api --no-pager -n 5`
 - **Apenas frontend** (css/, js/, index.html, login.html, manifest.json, service-worker.js, icone.png) → nenhuma ação extra, os arquivos são servidos diretamente do filesystem
 
 ### 5.5. Smoke test de símbolos (pós-deploy)
@@ -70,7 +70,7 @@ pega a classe da #71 (CSS/webfont servido com MIME errado, 404 virando página H
 ou cache stale do Cloudflare):
 
 ```bash
-TB_CHROME=/usr/bin/google-chrome-stable TB_BASE=https://bike.arkhamcloud.net \
+TB_CHROME=/usr/bin/google-chrome-stable TB_BASE=https://veloce.arkhamcloud.net \
   node tests/simbolos.js
 ```
 
@@ -105,8 +105,8 @@ git reset --hard <hash_do_commit_anterior>
 git push origin main --force
 
 # Reiniciar o serviço após reverter
-sudo systemctl restart treino-bike-api
-sudo systemctl status treino-bike-api --no-pager -n 5
+sudo systemctl restart veloce-api
+sudo systemctl status veloce-api --no-pager -n 5
 ```
 
 Registre o que falhou e por quê antes de tentar um novo deploy.
