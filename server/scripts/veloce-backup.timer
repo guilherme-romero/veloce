@@ -1,12 +1,12 @@
 [Unit]
-Description=Treino Bike — disparo semanal do snapshot da base
+Description=Veloce — disparo semanal do snapshot da base
 
 [Timer]
 # Toda madrugada de domingo às 03:00
 OnCalendar=Sun *-*-* 03:00:00
 Persistent=true
 RandomizedDelaySec=300
-Unit=treino-bike-backup.service
+Unit=veloce-backup.service
 
 [Install]
 WantedBy=timers.target

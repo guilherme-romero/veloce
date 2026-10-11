@@ -5,13 +5,16 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.10.1';
-const CACHE_NAME = `treino-bike-${CACHE_VERSION}`;
+const CACHE_VERSION = 'v2.10.2';
+const CACHE_NAME = `veloce-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
 // release nova nao pode apagar o offline do usuario. Limpo no logout, pelas
 // duas variantes (js/app.js e js/mobile/more-mobile.js).
-const DATA_CACHE = 'treino-bike-data';
+const DATA_CACHE = 'veloce-data';
+
+// Prefixos de cache legados a limpar na transição treino-bike → veloce (#16).
+const CACHE_PREFIXES = ['veloce-', 'treino-bike-'];
 
 // Arquivos que compõem o "shell" do app — pré-cacheados na instalação
 const SHELL = [
@@ -149,7 +152,8 @@ self.addEventListener('activate', (event) => {
     caches.keys().then(keys =>
       Promise.all(
         // DATA_CACHE fica de fora: ele nao e versionado e sobrevive as releases.
-        keys.filter(k => k.startsWith('treino-bike-') && k !== CACHE_NAME && k !== DATA_CACHE)
+        // Limpa os dois prefixos (veloce- e o legado treino-bike-) na transição.
+        keys.filter(k => CACHE_PREFIXES.some(p => k.startsWith(p)) && k !== CACHE_NAME && k !== DATA_CACHE)
             .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())

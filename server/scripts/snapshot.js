@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* ═══════════════════════════════════════════════════════════════════════
    SNAPSHOT CLI — gera ZIP da base em data/backups/ sem passar por HTTP.
-   Executado por systemd timer (treino-bike-backup.timer) semanalmente.
+   Executado por systemd timer (veloce-backup.timer) semanalmente.
 
    Uso: node server/scripts/snapshot.js
 ═══════════════════════════════════════════════════════════════════════ */
@@ -23,7 +23,7 @@ function ensureBackupsDir() {
 
 function pruneSnapshots() {
   const files = fs.readdirSync(BACKUPS_DIR)
-    .filter(n => n.startsWith('treino-bike-data-') && n.endsWith('.zip'))
+    .filter(n => /^(?:veloce|treino-bike)-data-.+\.zip$/.test(n))  // compat na transição (#16)
     .map(n => ({ name: n, mtime: fs.statSync(path.join(BACKUPS_DIR, n)).mtime }))
     .sort((a, b) => b.mtime - a.mtime);
   if (files.length <= RETENTION) return [];
@@ -51,7 +51,7 @@ async function main() {
   ensureBackupsDir();
   walCheckpoint();
 
-  const filename = `treino-bike-data-${todayISO()}.zip`;
+  const filename = `veloce-data-${todayISO()}.zip`;
   const dest     = path.join(BACKUPS_DIR, filename);
   if (fs.existsSync(dest)) {
     // Mesmo dia → sobrescreve (snapshot semanal, idempotente)
@@ -68,7 +68,7 @@ async function main() {
     if (fs.existsSync(DB_FILE))     archive.file(DB_FILE, { name: 'training.db' });
     if (fs.existsSync(AVATARS_DIR)) archive.directory(AVATARS_DIR, 'avatars');
     archive.append(JSON.stringify({
-      app: 'treino-bike',
+      app: 'veloce',
       version: require('../package.json').version,
       exportedAt: new Date().toISOString(),
       kind: 'snapshot',

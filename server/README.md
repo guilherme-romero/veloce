@@ -1,4 +1,4 @@
-# Treino Bike — Backend (server/)
+# Veloce — Backend (server/)
 
 Backend Fastify + SQLite + auth single-user.
 
@@ -48,7 +48,7 @@ npm start
 npm run dev
 ```
 
-Deve imprimir `Treino Bike API rodando em http://127.0.0.1:3000`.
+Deve imprimir `Veloce API rodando em http://127.0.0.1:3000`.
 
 ### 5. Configurar nginx (proxy /api → :3000)
 
@@ -115,10 +115,10 @@ Sem chaves Strava/Garmin → integrações aparecem como "desconectado". O
 ### 3. Habilitar o serviço systemd
 
 ```bash
-sudo cp treino-bike-demo.service /etc/systemd/system/
+sudo cp veloce-demo.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now treino-bike-demo
-sudo systemctl status treino-bike-demo --no-pager -n 5   # porta 3001
+sudo systemctl enable --now veloce-demo
+sudo systemctl status veloce-demo --no-pager -n 5   # porta 3001
 ```
 
 ### 4. nginx — server block do subdomínio
@@ -161,7 +161,7 @@ demo não desloga a sessão real.
 
 ```bash
 DB_PATH="$PWD/../data/demo.db" node scripts/seed-demo.js
-sudo systemctl restart treino-bike-demo
+sudo systemctl restart veloce-demo
 ```
 
 ## Arquitetura

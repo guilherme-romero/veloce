@@ -1,10 +1,10 @@
 [Unit]
-Description=Treino Bike — limpeza periódica do journal (logs via journald)
+Description=Veloce — limpeza periódica do journal (logs via journald)
 
 [Service]
 Type=oneshot
 # O backend só escreve em StandardOutput/StandardError=journal (ver
-# treino-bike-api.service) — não há arquivo de log próprio da app pra
+# veloce-api.service) — não há arquivo de log próprio da app pra
 # rotacionar, então a limpeza é do journal do systemd como um todo.
 # --vacuum-time opera sobre o journal inteiro (journald não segmenta por
 # unit em arquivos separados sem namespace dedicado), então isto também
@@ -13,7 +13,7 @@ Type=oneshot
 #
 # Precisa de root: journalctl --vacuum-time exige escrita em /var/log/journal
 # (dir root:systemd-journal, grupo só tem leitura). Diferente de
-# treino-bike-backup.service, que roda como `prod` — não copiar esse padrão
+# veloce-backup.service, que roda como `prod` — não copiar esse padrão
 # pra esta unit (achado de revisão de infra).
 User=root
 ProtectSystem=strict
