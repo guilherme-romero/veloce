@@ -837,7 +837,7 @@ function renderWeatherStrip(strip, daily) {
             <i class="fa-solid ${d.icon} rws-icon"></i>
             <div class="rws-tmax">${d.tMax}°</div>
             <div class="rws-tmin">${d.tMin}°</div>
-            <div class="rws-rain"><i class="fa-solid fa-droplet"></i>${d.chuva}%</div>
+            <div class="rws-rain"><i class="fa-solid fa-droplet"></i>${d.chuva}%${d.chuvaMm >= 0.1 ? ` · ${d.chuvaMm.toFixed(d.chuvaMm < 0.95 ? 1 : 0)}mm` : ''}</div>
             ${d.uv != null ? `<div class="rws-uv">UV ${Math.round(d.uv)}</div>` : ''}
             <div class="rws-esf" style="color:${d.esf.color}">${d.esf.label}</div>
           </div>`).join('')}

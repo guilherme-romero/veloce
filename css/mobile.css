@@ -444,7 +444,7 @@ img { max-width: 100%; }
 .m-wx-day.is-today { background: var(--lime-dim); }
 .m-wx-day > i { font-size: 14px; color: var(--lime); }
 .m-wx-t { font-family: var(--font-display); font-size: 15px; line-height: 1; }
-.m-wx-rain { color: var(--blue); min-height: 12px; }
+.m-wx-rain { color: var(--blue); min-height: 12px; white-space: nowrap; letter-spacing: 0; }
 
 /* Card de passeio — mesma linguagem do .m-act, com acento na data */
 .m-ride {
