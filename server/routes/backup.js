@@ -130,7 +130,7 @@ function assertValidDb(dbPath) {
 function scheduleRestart(log) {
   setTimeout(() => {
     try {
-      const child = spawn('sudo', ['-n', 'systemctl', 'restart', 'treino-bike-api'], {
+      const child = spawn('sudo', ['-n', 'systemctl', 'restart', 'veloce-api'], {
         detached: true, stdio: 'ignore',
       });
       child.on('error', (e) => {
