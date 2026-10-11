@@ -145,7 +145,7 @@ Por ser self-hosted, todos os dados ficam no servidor onde você implantar a apl
 
 Distribuído sob a licença **MIT** — uso, cópia e modificação livres, mantido o aviso de copyright. Veja o arquivo [`LICENSE`](LICENSE).
 
-Código-fonte em [github.com/guilherme1985/treino_bike](https://github.com/guilherme1985/treino_bike).
+Código-fonte em [github.com/guilherme1985/veloce](https://github.com/guilherme1985/veloce).
 
 ---
 
