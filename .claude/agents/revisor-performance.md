@@ -81,8 +81,7 @@ modelagem de schema, aponte e delegue ao `db-architect`; quando for exposição/
   re-render de seção.
 - Leaflet/heatmap com muitos pontos sem simplificação de polyline (as polylines do Garmin podem ser
   longas); mapa reinstanciado em vez de reaproveitado.
-- Assets pesados carregados antes de serem necessários: `data/cassetes.db` + sql.js (Ferramentas) e
-  as imagens de `data/pistas/`.
+- Assets pesados carregados antes de serem necessários: as imagens de `data/pistas/`.
 - Trabalho O(n) recalculado a cada navegação de hash em vez de memoizado.
 - **Cascata de chamadas sequenciais** — `await` em série quando as chamadas são independentes e
   poderiam rodar em `Promise.all`. Já mordeu este projeto duas vezes: BUG-073 (Insights refazia 7
