@@ -1,4 +1,4 @@
-# 🚴 Treino Bike
+# 🚴 VELOCE LABS
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 

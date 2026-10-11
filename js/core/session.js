@@ -39,6 +39,8 @@
    */
   async function doLogout() {
     // Antes do fetch de propósito: vale mesmo se a chamada de rede falhar.
+    // Apaga o cache novo e o legado (transição treino-bike → veloce, #16).
+    try { await caches.delete('veloce-data'); } catch (_) {}
     try { await caches.delete('treino-bike-data'); } catch (_) {}
     // BUG-075: sem checar resp.ok, uma falha de rede deixava o cookie
     // tb_session VALIDO e ainda assim mandava para o login — o usuario

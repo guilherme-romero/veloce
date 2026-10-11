@@ -1,4 +1,4 @@
-# treino_bike
+# veloce
 
 App pessoal de treino de ciclismo — planejamento, histórico e análise de carga/fadiga a partir de
 dados sincronizados da Garmin (e historicamente do Strava).

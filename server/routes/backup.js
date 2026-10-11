@@ -21,6 +21,15 @@ const RESTORE_TMP = path.join(DATA_DIR, 'restore-tmp');
 const RETENTION   = 8;  // mantém últimos 8 snapshots (≈ 2 meses semanais)
 const RESTORE_MAX = 50 * 1024 * 1024;  // 50 MB — limite do upload de restore
 
+// Transição treino-bike → veloce (#16): gera snapshots com o prefixo/app NOVOS,
+// mas list/restore aceitam também os LEGADOS para não perder os backups que já
+// existem em produção nem travar o restore de um ZIP antigo.
+const SNAP_PREFIX   = 'veloce-data-';
+const SNAP_NAME_RE  = /^(?:veloce|treino-bike)-data-\d{4}-\d{2}-\d{2}\.zip$/;  // whitelist de download
+const SNAP_LIST_RE  = /^(?:veloce|treino-bike)-data-.+\.zip$/;                 // filtro da listagem
+const BACKUP_APP          = 'veloce';                 // gravado no METADATA dos novos
+const BACKUP_APP_ACCEPTED = ['veloce', 'treino-bike']; // aceitos no restore
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -36,7 +45,7 @@ function ensureBackupsDir() {
 function listSnapshots() {
   ensureBackupsDir();
   return fs.readdirSync(BACKUPS_DIR)
-    .filter(n => n.startsWith('treino-bike-data-') && n.endsWith('.zip'))
+    .filter(n => SNAP_LIST_RE.test(n))
     .map(n => {
       const full = path.join(BACKUPS_DIR, n);
       const st = fs.statSync(full);
@@ -65,7 +74,7 @@ function buildZipToFile(destPath, fastify) {
     if (fs.existsSync(DB_FILE))     archive.file(DB_FILE, { name: 'training.db' });
     if (fs.existsSync(AVATARS_DIR)) archive.directory(AVATARS_DIR, 'avatars');
     archive.append(JSON.stringify({
-      app: 'treino-bike',
+      app: BACKUP_APP,
       version: require('../package.json').version,
       exportedAt: new Date().toISOString(),
       kind: 'snapshot',
@@ -82,7 +91,7 @@ function buildZipToFile(destPath, fastify) {
 function pruneSnapshots() {
   const list = listSnapshots();
   if (list.length <= RETENTION) return [];
-  const todaySnap = `treino-bike-data-${todayISO()}.zip`;
+  const todaySnap = `${SNAP_PREFIX}${todayISO()}.zip`;
   const toDelete = list.slice(RETENTION).filter(f => f.name !== todaySnap);
   for (const f of toDelete) {
     try { fs.unlinkSync(path.join(BACKUPS_DIR, f.name)); }
@@ -152,7 +161,7 @@ async function routes(fastify) {
     try { fastify.db.pragma('wal_checkpoint(TRUNCATE)'); }
     catch (e) { req.log.warn({ err: e }, 'wal_checkpoint pre-zip falhou'); }
 
-    const filename = `treino-bike-data-${todayISO()}.zip`;
+    const filename = `${SNAP_PREFIX}${todayISO()}.zip`;
     const archive = archiver('zip', { zlib: { level: 9 } });
 
     archive.on('warning', (err) => { if (err.code !== 'ENOENT') req.log.warn({ err }, 'archiver warning'); });
@@ -161,7 +170,7 @@ async function routes(fastify) {
     if (fs.existsSync(DB_FILE))     archive.file(DB_FILE, { name: 'training.db' });
     if (fs.existsSync(AVATARS_DIR)) archive.directory(AVATARS_DIR, 'avatars');
     archive.append(JSON.stringify({
-      app: 'treino-bike',
+      app: BACKUP_APP,
       version: require('../package.json').version,
       exportedAt: new Date().toISOString(),
       contents: ['training.db', 'avatars/'],
@@ -181,7 +190,7 @@ async function routes(fastify) {
     config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
   }, async (req, reply) => {
     ensureBackupsDir();
-    const filename = `treino-bike-data-${todayISO()}.zip`;
+    const filename = `${SNAP_PREFIX}${todayISO()}.zip`;
     const fullPath = path.join(BACKUPS_DIR, filename);
     try {
       const result = await buildZipToFile(fullPath, fastify);
@@ -199,8 +208,8 @@ async function routes(fastify) {
   // Download de snapshot por nome (com proteção contra path traversal)
   fastify.get('/api/backup/file/:name', async (req, reply) => {
     const name = String(req.params.name || '');
-    // Whitelist estrita: só nomes treino-bike-data-YYYY-MM-DD.zip
-    if (!/^treino-bike-data-\d{4}-\d{2}-\d{2}\.zip$/.test(name)) {
+    // Whitelist estrita: veloce-data- (novo) ou treino-bike-data- (legado).
+    if (!SNAP_NAME_RE.test(name)) {
       return reply.code(400).send({ error: 'nome inválido' });
     }
     const full = path.join(BACKUPS_DIR, name);
@@ -248,15 +257,15 @@ async function routes(fastify) {
         return reply.code(400).send({ error: 'falha ao extrair o ZIP' });
       }
 
-      // 2. Valida METADATA (precisa ser um backup do treino-bike)
+      // 2. Valida METADATA (backup do veloce; aceita também o legado treino-bike)
       const metaPath = path.join(extractDir, 'METADATA.json');
       if (!fs.existsSync(metaPath)) {
-        return reply.code(400).send({ error: 'METADATA.json ausente — não parece um backup do Treino Bike' });
+        return reply.code(400).send({ error: 'METADATA.json ausente — não parece um backup do Veloce' });
       }
       let meta;
       try { meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')); }
       catch { return reply.code(400).send({ error: 'METADATA.json corrompido' }); }
-      if (meta.app !== 'treino-bike') {
+      if (!BACKUP_APP_ACCEPTED.includes(meta.app)) {
         return reply.code(400).send({ error: `backup de outro app (${meta.app || '?'})` });
       }
 

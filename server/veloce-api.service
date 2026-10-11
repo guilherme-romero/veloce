@@ -1,5 +1,5 @@
 [Unit]
-Description=Treino Bike API (Fastify + SQLite)
+Description=Veloce API (Fastify + SQLite)
 After=network.target
 
 [Service]

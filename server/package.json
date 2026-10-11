@@ -1,8 +1,8 @@
 {
-  "name": "treino-bike-server",
-  "version": "2.10.1",
+  "name": "veloce-api",
+  "version": "2.10.2",
   "private": true,
-  "description": "Backend do Treino Bike — Fastify + SQLite + auth",
+  "description": "Backend do Veloce — Fastify + SQLite + auth",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

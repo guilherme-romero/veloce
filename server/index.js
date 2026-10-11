@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   TREINO BIKE — Backend Fastify
+   VELOCE — Backend Fastify
 
    `buildApp()` monta a instância Fastify (plugins + rotas + db) SEM escutar
    porta nem subir o scheduler — é o que os testes de integração usam via
@@ -144,7 +144,7 @@ function buildApp(opts = {}) {
     try {
       if (fs.existsSync(HEALTH_BACKUPS_DIR)) {
         const files = fs.readdirSync(HEALTH_BACKUPS_DIR)
-          .filter(n => n.startsWith('treino-bike-data-') && n.endsWith('.zip'))
+          .filter(n => /^(?:veloce|treino-bike)-data-.+\.zip$/.test(n))
           .map(n => ({ name: n, mtime: fs.statSync(path.join(HEALTH_BACKUPS_DIR, n)).mtime }))
           .sort((a, b) => b.mtime - a.mtime);
         if (files.length) {
@@ -197,7 +197,7 @@ if (require.main === module) {
   const start = async () => {
     try {
       await app.listen({ port: config.PORT, host: config.HOST });
-      app.log.info(`Treino Bike API rodando em http://${config.HOST}:${config.PORT}`);
+      app.log.info(`Veloce API rodando em http://${config.HOST}:${config.PORT}`);
       scheduler.setup(app.db, app.log);
     } catch (err) {
       app.log.error(err);

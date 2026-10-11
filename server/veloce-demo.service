@@ -1,5 +1,5 @@
 [Unit]
-Description=Treino Bike API — DEMO (Fastify + SQLite, login user/user)
+Description=Veloce API — DEMO (Fastify + SQLite, login user/user)
 After=network.target
 
 [Service]

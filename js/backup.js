@@ -214,7 +214,7 @@ async function exportDataZip() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const cd = resp.headers.get('Content-Disposition') || '';
     const match = cd.match(/filename="?([^"]+)"?/i);
-    const filename = match ? match[1] : `treino-bike-data-${new Date().toISOString().slice(0, 10)}.zip`;
+    const filename = match ? match[1] : `veloce-data-${new Date().toISOString().slice(0, 10)}.zip`;
     const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');

@@ -1,5 +1,5 @@
 [Unit]
-Description=Treino Bike — snapshot semanal da base de dados
+Description=Veloce — snapshot semanal da base de dados
 After=network.target
 
 [Service]
