@@ -81,6 +81,19 @@
       if (btn) btn.classList.toggle('active', r.section === route.section);
     });
 
+    // Issue #93: o botão "Editar" (modo de edição) da top bar só afeta a aba
+    // Perfil — fica visível só nela e, ao sair, desliga o modo de edição pra
+    // não deixar botões de edit/delete acesos em outra seção.
+    const editBtn = document.getElementById('btn-edit-profile');
+    if (editBtn) {
+      const onProfile = route.section === 'profile';
+      editBtn.hidden = !onProfile;
+      if (!onProfile) {
+        document.body.classList.remove('edit-mode');
+        editBtn.classList.remove('active');
+      }
+    }
+
     // Atualiza título da página
     document.title = `${route.label} · VELOCE LABS`;
 

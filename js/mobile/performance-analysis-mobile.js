@@ -132,7 +132,7 @@
 
       const resultado = window.PerformanceAnalysis.analisar({ activities });
       if (!resultado.ok) {
-        mostrarVazio('Ainda não há saídas parecidas o suficiente pra comparar — pedale mais e volte aqui.');
+        mostrarVazio('Ainda não há saídas parecidas o suficiente pra comparar — são necessárias pelo menos 3 saídas de 10 km+ com distância e elevação parecidas (±15% / ±20%), nos últimos 12 meses. Pedale mais e volte aqui.');
         return;
       }
 
