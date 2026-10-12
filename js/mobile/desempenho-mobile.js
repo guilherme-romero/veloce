@@ -70,6 +70,9 @@
       <div class="m-card mdesemp-analysis">
         <div class="m-card-head">
           <span class="m-eyebrow" id="m-pa-label">Análise</span>
+          <i class="fa-solid fa-circle-info" tabindex="0" aria-label="Como funciona a análise de performance"
+             style="color:var(--muted2);margin-left:6px;cursor:help;font-size:12px;"
+             title="Compara suas saídas parecidas — mesma faixa de distância (±15%) e elevação (±20%), nos últimos 12 meses — pra mostrar sua evolução. Precisa de pelo menos 3 saídas de 10 km+ parecidas pra formar um grupo de comparação. A análise é gerada automaticamente às 6h; o botão força agora."></i>
           <button id="m-pa-btn" class="mdesemp-btn" type="button" hidden>
             <i class="fa-solid fa-wand-magic-sparkles"></i> Analisar de novo
           </button>

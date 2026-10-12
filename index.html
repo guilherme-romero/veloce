@@ -22,20 +22,20 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.10.5"></script>
+  <script src="js/variant.js?v=2.10.6"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.10.5">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.10.5">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.10.5">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.10.5">
-  <link rel="manifest" href="manifest.json?v=2.10.5">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.10.6">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.10.6">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.10.6">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.10.6">
+  <link rel="manifest" href="manifest.json?v=2.10.6">
 
   <title>VELOCE LABS</title>
 
   <!-- Fontes e ícones self-hosted (issue #9) — @font-face em css/style.css,
        arquivos em css/fonts/ e css/webfonts/. Sem Google Fonts/cdnjs pra
        isso: só Leaflet/Chart.js/jsPDF continuam via CDN. -->
-  <link rel="stylesheet" href="css/font-awesome.min.css?v=2.10.5">
+  <link rel="stylesheet" href="css/font-awesome.min.css?v=2.10.6">
 
   <!-- Leaflet (mapa de rotas) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -44,12 +44,12 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.10.5">
-  <link rel="stylesheet" href="css/rides.css?v=2.10.5">
-  <link rel="stylesheet" href="css/routes.css?v=2.10.5">
-  <link rel="stylesheet" href="css/bikes.css?v=2.10.5">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.10.5">
-  <link rel="stylesheet" href="css/treino-ia.css?v=2.10.5">
+  <link rel="stylesheet" href="css/style.css?v=2.10.6">
+  <link rel="stylesheet" href="css/rides.css?v=2.10.6">
+  <link rel="stylesheet" href="css/routes.css?v=2.10.6">
+  <link rel="stylesheet" href="css/bikes.css?v=2.10.6">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.10.6">
+  <link rel="stylesheet" href="css/treino-ia.css?v=2.10.6">
 </head>
 <body>
 
@@ -974,6 +974,9 @@
         <div class="insight-head">
           <div class="insight-head-left">
             <div class="card-label" id="performance-analysis-label">Análise de performance</div>
+            <i class="fa-solid fa-circle-info" tabindex="0" aria-label="Como funciona a análise de performance"
+               style="color:var(--muted2);margin-left:6px;cursor:help;font-size:13px;"
+               title="Compara suas saídas parecidas — mesma faixa de distância (±15%) e elevação (±20%), nos últimos 12 meses — pra mostrar sua evolução. Precisa de pelo menos 3 saídas de 10 km+ parecidas pra formar um grupo de comparação. A análise é gerada automaticamente às 6h; o ícone à direita força agora."></i>
           </div>
           <button id="performance-analysis-btn" class="nav-icon-btn" type="button" title="Forçar nova análise agora" hidden>
             <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -1650,47 +1653,47 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.10.5"></script>
-<script src="js/utils.js?v=2.10.5"></script>
+<script src="js/version.js?v=2.10.6"></script>
+<script src="js/utils.js?v=2.10.6"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.10.5"></script>
-<script src="js/core/activity-stats.js?v=2.10.5"></script>
-<script src="js/core/weight-stats.js?v=2.10.5"></script>
-<script src="js/core/fatigue.js?v=2.10.5"></script>
-<script src="js/core/records.js?v=2.10.5"></script>
-<script src="js/core/weather-rating.js?v=2.10.5"></script>
-<script src="js/core/training-suggestion.js?v=2.10.5"></script>
-<script src="js/core/suggestion-history.js?v=2.10.5"></script>
-<script src="js/core/performance-analysis.js?v=2.10.5"></script>
-<script src="js/core/comparative-performance.js?v=2.10.5"></script>
-<script src="js/core/session.js?v=2.10.5"></script>
-<script src="js/core/unified-activities.js?v=2.10.5"></script>
-<script src="js/router.js?v=2.10.5"></script>
-<script src="js/api.js?v=2.10.5"></script>
-<script src="js/storage.js?v=2.10.5"></script>
-<script src="js/profile.js?v=2.10.5"></script>
-<script src="js/charts.js?v=2.10.5"></script>
-<script src="js/modals.js?v=2.10.5"></script>
-<script src="js/rides.js?v=2.10.5"></script>
-<script src="js/bikes.js?v=2.10.5"></script>
-<script src="js/training-log.js?v=2.10.5"></script>
-<script src="js/backup.js?v=2.10.5"></script>
-<script src="js/gpx.js?v=2.10.5"></script>
-<script src="js/routes.js?v=2.10.5"></script>
-<script src="js/heatmap.js?v=2.10.5"></script>
-<script src="js/strava.js?v=2.10.5"></script>
-<script src="js/garmin.js?v=2.10.5"></script>
-<script src="js/activities.js?v=2.10.5"></script>
-<script src="js/insights.js?v=2.10.5"></script>
-<script src="js/proximo-treino.js?v=2.10.5"></script>
-<script src="js/performance-analysis.js?v=2.10.5"></script>
-<script src="js/comparative-performance.js?v=2.10.5"></script>
-<script src="js/weekly-training-plan.js?v=2.10.5"></script>
-<script src="js/ferramentas.js?v=2.10.5"></script>
-<script src="js/home.js?v=2.10.5"></script>
-<script src="js/notifications.js?v=2.10.5"></script>
-<script src="js/app.js?v=2.10.5"></script>
-<script src="js/pwa.js?v=2.10.5"></script>
+<script src="js/core/metrics.js?v=2.10.6"></script>
+<script src="js/core/activity-stats.js?v=2.10.6"></script>
+<script src="js/core/weight-stats.js?v=2.10.6"></script>
+<script src="js/core/fatigue.js?v=2.10.6"></script>
+<script src="js/core/records.js?v=2.10.6"></script>
+<script src="js/core/weather-rating.js?v=2.10.6"></script>
+<script src="js/core/training-suggestion.js?v=2.10.6"></script>
+<script src="js/core/suggestion-history.js?v=2.10.6"></script>
+<script src="js/core/performance-analysis.js?v=2.10.6"></script>
+<script src="js/core/comparative-performance.js?v=2.10.6"></script>
+<script src="js/core/session.js?v=2.10.6"></script>
+<script src="js/core/unified-activities.js?v=2.10.6"></script>
+<script src="js/router.js?v=2.10.6"></script>
+<script src="js/api.js?v=2.10.6"></script>
+<script src="js/storage.js?v=2.10.6"></script>
+<script src="js/profile.js?v=2.10.6"></script>
+<script src="js/charts.js?v=2.10.6"></script>
+<script src="js/modals.js?v=2.10.6"></script>
+<script src="js/rides.js?v=2.10.6"></script>
+<script src="js/bikes.js?v=2.10.6"></script>
+<script src="js/training-log.js?v=2.10.6"></script>
+<script src="js/backup.js?v=2.10.6"></script>
+<script src="js/gpx.js?v=2.10.6"></script>
+<script src="js/routes.js?v=2.10.6"></script>
+<script src="js/heatmap.js?v=2.10.6"></script>
+<script src="js/strava.js?v=2.10.6"></script>
+<script src="js/garmin.js?v=2.10.6"></script>
+<script src="js/activities.js?v=2.10.6"></script>
+<script src="js/insights.js?v=2.10.6"></script>
+<script src="js/proximo-treino.js?v=2.10.6"></script>
+<script src="js/performance-analysis.js?v=2.10.6"></script>
+<script src="js/comparative-performance.js?v=2.10.6"></script>
+<script src="js/weekly-training-plan.js?v=2.10.6"></script>
+<script src="js/ferramentas.js?v=2.10.6"></script>
+<script src="js/home.js?v=2.10.6"></script>
+<script src="js/notifications.js?v=2.10.6"></script>
+<script src="js/app.js?v=2.10.6"></script>
+<script src="js/pwa.js?v=2.10.6"></script>
 
 </body>
 </html>
