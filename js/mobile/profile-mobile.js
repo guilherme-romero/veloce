@@ -234,7 +234,9 @@
   // #92 — busca a aderência ao plano e preenche o cenário "potencial" no card
   // de meta (mesmo modelo/guarda-corpos do desktop, via WeightStats). I/O na
   // borda; só mostra quando há dado real.
+  let _scenToken = 0;   // cancela respostas tardias de enrichScenario concorrentes
   async function enrichScenario(analise) {
+    const myToken = ++_scenToken;
     const el = document.getElementById('m-wa-scenario');
     if (!el || !analise || !analise.ok) return;
     let aderencia = null;
@@ -251,6 +253,7 @@
       }
     } catch (_) { /* silencioso — cenário é opcional */ }
 
+    if (myToken !== _scenToken) return;   // um enrichScenario mais novo já assumiu
     // A view pode ter sido re-renderizada enquanto o fetch rodava; revalida o nó.
     const alvo = document.getElementById('m-wa-scenario');
     if (!alvo) return;

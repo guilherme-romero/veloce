@@ -153,7 +153,7 @@
     if (!plannedWeeklyMin || plannedWeeklyMin <= 0) return null;
     const planejado = plannedWeeklyMin * weeks;
     if (planejado <= 0) return null;
-    return (realizedWindowMin || 0) / planejado;
+    return Math.max(0, realizedWindowMin || 0) / planejado;   // grampeia dado corrompido negativo
   }
 
   /**
@@ -180,9 +180,11 @@
     if (aderencia >= 1) return { mostra: false, motivo: 'ja-cumpre' };
 
     let slopeAlvoPot = slopeAlvo / aderencia;
-    // 1. cap fisiológico: 1%/semana do peso corporal → kg/dia
+    // 1. cap fisiológico: 1%/semana do peso corporal → kg/dia. Sem peso válido
+    // não dá pra limitar com segurança — não arrisca um cenário sem teto.
     const capKgDia = ((pesoCorporal || base.pesoAtual || 0) * 0.01) / 7;
-    if (capKgDia > 0) slopeAlvoPot = Math.min(slopeAlvoPot, capKgDia);
+    if (!(capKgDia > 0)) return { mostra: false, motivo: 'sem-peso' };
+    slopeAlvoPot = Math.min(slopeAlvoPot, capKgDia);
 
     const diasNec = base.faltamAbs / slopeAlvoPot;
     if (!isFinite(diasNec) || diasNec <= 0) return { mostra: false };

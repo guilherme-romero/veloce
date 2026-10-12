@@ -480,7 +480,9 @@ async function gatherAdherence() {
   } catch (_) { return null; }
 }
 
+let _waToken = 0;   // cancela respostas tardias de renders concorrentes (padrão _intensityToken)
 async function renderWeightAnalysis() {
+  const myToken = ++_waToken;
   const card = document.getElementById('weight-analysis');
   if (!card) return;
 
@@ -518,6 +520,7 @@ async function renderWeightAnalysis() {
   if (adBox)  adBox.hidden  = true;
 
   const aderencia = await gatherAdherence();
+  if (myToken !== _waToken) return;   // um render mais novo já assumiu
   const scenario  = WeightStats.metaScenario(a, { aderencia, pesoCorporal: a.pesoAtual });
 
   if (aderencia != null && isFinite(aderencia) && adBox) {

@@ -269,7 +269,11 @@ function renderWeightChart(user, weights, scenario) {
     .map(([data, ps]) => ({ t: new Date(data + 'T12:00:00').getTime(), y: ps.reduce((s, p) => s + p, 0) / ps.length }))
     .filter(p => isFinite(p.t))
     .sort((a, b) => a.t - b.t);
-  const hist = measured.filter(p => p.t >= hist0);
+  // 6 meses de histórico; se não houver ao menos 2 pesagens na janela (ex.:
+  // última pesagem tem mais de 180d), cai pra tudo que existe — evita a
+  // tendência ser desenhada sem nenhum ponto medido visível.
+  let hist = measured.filter(p => p.t >= hist0);
+  if (hist.length < 2) hist = measured;
 
   // Regressão do core — mesmo slope/t0/intercept que a previsão da meta usa.
   const base = (window.WeightStats && window.WeightStats.weightAnalysis)
