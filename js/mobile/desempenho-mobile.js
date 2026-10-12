@@ -103,7 +103,7 @@
         <div class="m-empty" id="m-comp-empty" hidden>Pedale por pelo menos 3 saídas em cada um dos últimos dois períodos de 30 dias para ver o comparativo.</div>
         <div id="m-comp-content" hidden>
           <div class="mdesemp-zone-legend" style="margin:0 0 10px">
-            <span class="mdesemp-zone-legend__item"><span class="mdesemp-zone-legend__swatch" style="background:var(--border2);"></span>Anterior</span>
+            <span class="mdesemp-zone-legend__item"><span class="mdesemp-zone-legend__swatch" style="background:var(--magenta);"></span>Anterior</span>
             <span class="mdesemp-zone-legend__item"><span class="mdesemp-zone-legend__swatch" style="background:var(--lime);"></span>Atual</span>
           </div>
           <div class="mdesemp-compare-grid">
@@ -112,7 +112,7 @@
               <div class="mdesemp-tile__value" id="m-comp-volume-value"></div>
               <div class="mdesemp-tile__delta" id="m-comp-volume-delta"></div>
               <div class="mdesemp-bars">
-                <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-volume-bar-anterior" style="background:var(--border2);"></div></div>
+                <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-volume-bar-anterior" style="background:var(--magenta);"></div></div>
                 <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-volume-bar-atual" style="background:var(--lime);"></div></div>
               </div>
             </div>
@@ -121,7 +121,7 @@
               <div class="mdesemp-tile__value" id="m-comp-tempo-value"></div>
               <div class="mdesemp-tile__delta" id="m-comp-tempo-delta"></div>
               <div class="mdesemp-bars">
-                <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-tempo-bar-anterior" style="background:var(--border2);"></div></div>
+                <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-tempo-bar-anterior" style="background:var(--magenta);"></div></div>
                 <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-tempo-bar-atual" style="background:var(--lime);"></div></div>
               </div>
             </div>
@@ -130,7 +130,7 @@
               <div class="mdesemp-tile__value" id="m-comp-altimetria-value"></div>
               <div class="mdesemp-tile__delta" id="m-comp-altimetria-delta"></div>
               <div class="mdesemp-bars">
-                <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-altimetria-bar-anterior" style="background:var(--border2);"></div></div>
+                <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-altimetria-bar-anterior" style="background:var(--magenta);"></div></div>
                 <div class="mdesemp-bar"><div class="mdesemp-bar__fill" id="m-comp-altimetria-bar-atual" style="background:var(--lime);"></div></div>
               </div>
             </div>

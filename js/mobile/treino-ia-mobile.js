@@ -280,7 +280,8 @@
     if (body) body.hidden = false;
     _dados = payload;
     _geradoEm = geradoEm;
-    _hoje = new Date().toISOString().slice(0, 10);
+    const _h = new Date();
+    _hoje = `${_h.getFullYear()}-${String(_h.getMonth() + 1).padStart(2, '0')}-${String(_h.getDate()).padStart(2, '0')}`; // local, não UTC (toISOString desloca o dia perto da meia-noite)
     const dias = diasOrdenados();
     const idxHoje = dias.findIndex((d) => d.data === _hoje);
     _selIdx = idxHoje >= 0 ? idxHoje : 0;
