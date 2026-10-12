@@ -81,6 +81,7 @@
     if (denom === 0) return { ok: false };
 
     const slope      = (n * sxy - sx * sy) / denom;   // kg/dia
+    const intercept  = (sy - slope * sx) / n;         // kg em x=0 (t0) — p/ o gráfico
     const taxaKgSem  = +(slope * 7).toFixed(2);       // negativo = perda
     const pesoAtual  = allWeights[allWeights.length - 1].peso;
     const faltam     = +(pesoAtual - u.pesoMeta).toFixed(1);
@@ -100,12 +101,13 @@
     // Normaliza "progresso bom" pra sempre ser > 0, independente da direção.
     const slopeAlvo      = objetivoGanho ? slope : -slope;
 
-    let previsao = '—', semanas = '—', msg = '';
+    let previsao = '—', semanas = '—', msg = '', diasNec = null;
     if (metaAtingida) {
       previsao = 'Meta atingida!';
       msg      = 'Parabéns! Você atingiu sua meta de peso.';
     } else if (slopeAlvo > 0) {
       const diasNecessarios = faltamAbs / Math.abs(slope);
+      diasNec = diasNecessarios;
       const semsNec = Math.ceil(diasNecessarios / 7);
       previsao = new Date(Date.now() + diasNecessarios * DIA_MS)
         .toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
@@ -127,8 +129,12 @@
 
     return {
       ok: true,
-      slope, taxaKgSem, pesoAtual, faltam, planPts,
-      previsao, semanas, msg, objetivoGanho,
+      slope, taxaKgSem, pesoAtual, faltam, faltamAbs, planPts,
+      previsao, semanas, diasNec, msg, objetivoGanho,
+      // Base da regressão exposta pro gráfico desenhar a mesma tendência que a
+      // previsão usa (evita dois slopes divergentes): trend(x) = intercept +
+      // slope * ((x - t0) / DIA_MS), x em ms.
+      t0, intercept,
       // Semântica em vez de cor: progredir na direção do objetivo é "bom", e
       // cada variante escolhe o próprio token (lime/magenta).
       taxaPositiva: objetivoGanho ? taxaKgSem > 0 : taxaKgSem < 0,
@@ -136,5 +142,57 @@
     };
   }
 
-  window.WeightStats = { dailyWeights, weightAnalysis };
+  /**
+   * Aderência ao plano de treino: minutos realizados ÷ minutos planejados na
+   * janela. Pura. @return {number|null} razão (0..1+) ou null se não dá pra medir.
+   * @param {number} plannedWeeklyMin — soma de duracaoMin dos dias de treino do plano ativo
+   * @param {number} realizedWindowMin — minutos pedalados (Garmin) na janela
+   * @param {number} weeks — tamanho da janela em semanas (default 4)
+   */
+  function adherence(plannedWeeklyMin, realizedWindowMin, weeks = 4) {
+    if (!plannedWeeklyMin || plannedWeeklyMin <= 0) return null;
+    const planejado = plannedWeeklyMin * weeks;
+    if (planejado <= 0) return null;
+    return Math.max(0, realizedWindowMin || 0) / planejado;   // grampeia dado corrompido negativo
+  }
+
+  /**
+   * Cenário "potencial" da previsão da meta (#92): escala o ritmo real pela
+   * aderência (ritmo_potencial = ritmo_real × 1/aderência), com os 5
+   * guarda-corpos. NUNCA substitui a previsão real — é um cenário otimista
+   * ("se você cumprir 100% do plano"). Puro.
+   * @param {Object} base — retorno de weightAnalysis({ok:true})
+   * @param {{aderencia:number|null, pesoCorporal:number}} opts
+   * @return {{mostra:boolean, motivo?:string, previsao?:string, semanas?:string,
+   *           diasNec?:number, slopeAlvoPot?:number}}
+   */
+  function metaScenario(base, { aderencia, pesoCorporal } = {}) {
+    if (!base || !base.ok) return { mostra: false };
+    // 5. sem plano ativo / aderência não mensurável
+    if (aderencia == null || !isFinite(aderencia)) return { mostra: false, motivo: 'sem-plano' };
+    if (base.metaAtingida) return { mostra: false, motivo: 'meta-atingida' };
+    // 2. aderência 0 (nenhum treino na janela)
+    if (aderencia <= 0) return { mostra: false, motivo: 'sem-treino' };
+    // 3. tendência real no sentido errado (não progride rumo à meta)
+    const slopeAlvo = base.objetivoGanho ? base.slope : -base.slope; // >0 = progride
+    if (slopeAlvo <= 0.0001) return { mostra: false, motivo: 'sentido-errado' };
+    // 4. já cumpre/supera o plano — não há potencial a destravar
+    if (aderencia >= 1) return { mostra: false, motivo: 'ja-cumpre' };
+
+    let slopeAlvoPot = slopeAlvo / aderencia;
+    // 1. cap fisiológico: 1%/semana do peso corporal → kg/dia. Sem peso válido
+    // não dá pra limitar com segurança — não arrisca um cenário sem teto.
+    const capKgDia = ((pesoCorporal || base.pesoAtual || 0) * 0.01) / 7;
+    if (!(capKgDia > 0)) return { mostra: false, motivo: 'sem-peso' };
+    slopeAlvoPot = Math.min(slopeAlvoPot, capKgDia);
+
+    const diasNec = base.faltamAbs / slopeAlvoPot;
+    if (!isFinite(diasNec) || diasNec <= 0) return { mostra: false };
+    const semsNec = Math.ceil(diasNec / 7);
+    const previsao = new Date(Date.now() + diasNec * DIA_MS)
+      .toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+    return { mostra: true, previsao, semanas: String(semsNec), diasNec, slopeAlvoPot };
+  }
+
+  window.WeightStats = { dailyWeights, weightAnalysis, adherence, metaScenario };
 })();

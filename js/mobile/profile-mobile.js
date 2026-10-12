@@ -125,6 +125,7 @@
       <div class="m-bar" style="margin:12px 0 8px"><span style="width:${pct.toFixed(1)}%"></span></div>
       <div class="m-sub">${faltam}${analise.ok && analise.semanas !== '—'
         ? ` · previsão <b>${esc(analise.previsao)}</b>` : ''}</div>
+      <div class="m-sub" id="m-wa-scenario" hidden style="margin-top:6px"></div>
       ${msg ? `<p class="m-sub" style="margin-top:8px">${esc(msg)}</p>` : ''}
     </div>`;
   }
@@ -157,15 +158,16 @@
     </div>`;
   }
 
-  function renderChart(daily) {
+  function renderChart(daily, analise) {
     const canvas = document.getElementById('m-perfil-chart');
     if (!canvas) return;
 
-    const corte = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    // #91: 6 meses de histórico (antes 90 dias).
+    const corte = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
     const pts = daily.filter(p => p.data >= corte);
     if (pts.length < 2) {
       canvas.closest('.m-card').querySelector('.m-chart').innerHTML =
-        '<div class="m-empty" style="border:0">Menos de duas pesagens nos últimos 90 dias.</div>';
+        '<div class="m-empty" style="border:0">Menos de duas pesagens nos últimos 6 meses.</div>';
       return;
     }
 
@@ -174,6 +176,16 @@
       data: pts.map(p => +p.peso.toFixed(1)),
       borderColor: '#c6f135', borderWidth: 2, tension: .3,
     }];
+    // #91: linha de tendência (mesma regressão do core usada na previsão).
+    if (analise && analise.ok && analise.t0 != null && analise.slope != null) {
+      const DAY = 86400000;
+      const trend = iso => +(analise.intercept + analise.slope *
+        ((new Date(iso + 'T12:00:00').getTime() - analise.t0) / DAY)).toFixed(1);
+      datasets.push({
+        data: pts.map(p => trend(p.data)),
+        borderColor: '#8b95a1', borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, tension: 0,
+      });
+    }
     if (meta) {
       datasets.push({
         data: pts.map(() => meta),
@@ -210,12 +222,49 @@
       idCardHTML(user) +
       metaHTML(user, analise, daily) +
       `<div class="m-card">
-         <div class="m-card-head"><span class="m-eyebrow">Peso · 90 dias</span></div>
+         <div class="m-card-head"><span class="m-eyebrow">Peso · 6 meses</span></div>
          <div class="m-chart" style="height:150px"><canvas id="m-perfil-chart"></canvas></div>
        </div>` +
       zonasHTML(user);
 
-    renderChart(daily);
+    renderChart(daily, analise);
+    enrichScenario(analise);   // #92 — potencial por aderência (assíncrono)
+  }
+
+  // #92 — busca a aderência ao plano e preenche o cenário "potencial" no card
+  // de meta (mesmo modelo/guarda-corpos do desktop, via WeightStats). I/O na
+  // borda; só mostra quando há dado real.
+  let _scenToken = 0;   // cancela respostas tardias de enrichScenario concorrentes
+  async function enrichScenario(analise) {
+    const myToken = ++_scenToken;
+    const el = document.getElementById('m-wa-scenario');
+    if (!el || !analise || !analise.ok) return;
+    let aderencia = null;
+    try {
+      const [planResp, acts] = await Promise.all([
+        window.Api.get('/weekly-training-plan').catch(() => ({ ok: false })),
+        window.UnifiedActivities.get(28).catch(() => ({ items: [] })),
+      ]);
+      if (planResp && planResp.ok && planResp.payload) {
+        const dias = planResp.payload.dias || [];
+        const planejado = dias.reduce((s, d) => s + (d && !d.descanso ? (+d.duracaoMin || 0) : 0), 0);
+        const realizado = ((acts && acts.items) || []).reduce((s, a) => s + ((a.tempoMovS || 0) / 60), 0);
+        aderencia = WeightStats.adherence(planejado, realizado, 4);
+      }
+    } catch (_) { /* silencioso — cenário é opcional */ }
+
+    if (myToken !== _scenToken) return;   // um enrichScenario mais novo já assumiu
+    // A view pode ter sido re-renderizada enquanto o fetch rodava; revalida o nó.
+    const alvo = document.getElementById('m-wa-scenario');
+    if (!alvo) return;
+    const scenario = WeightStats.metaScenario(analise, { aderencia, pesoCorporal: analise.pesoAtual });
+    const partes = [];
+    if (aderencia != null && isFinite(aderencia)) partes.push(`aderência <b>${Math.round(aderencia * 100)}%</b>`);
+    if (scenario.mostra) partes.push(`potencial <b style="color:#4e9ef5">${esc(scenario.previsao)}</b>`);
+    else if (aderencia == null) partes.push('gere um plano em TREINO pra ver a projeção por aderência');
+    else if (scenario.motivo === 'ja-cumpre') partes.push('você já cumpre o plano');
+    if (partes.length) { alvo.innerHTML = partes.join(' · '); alvo.hidden = false; }
+    else { alvo.hidden = true; }
   }
 
   async function carregarPesagens() {

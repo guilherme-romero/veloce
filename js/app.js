@@ -461,13 +461,35 @@ window.renderMiniReport = renderMiniReport;
    ANÁLISE DE PESO — taxa semanal por regressão linear + previsão da meta
    (Fase 5b)
 ═══════════════════════════════════════════════════════════════════════ */
-function renderWeightAnalysis() {
+// #92 — aderência ao plano: minutos pedalados (Garmin) nas últimas 4 semanas
+// ÷ minutos planejados no plano ativo. O I/O vive aqui na borda; a razão e o
+// cenário são puros (WeightStats). Devolve a razão (0..1+) ou null (sem plano).
+async function gatherAdherence() {
+  try {
+    const [planResp, acts] = await Promise.all([
+      window.Api.get('/weekly-training-plan').catch(() => ({ ok: false })),
+      window.UnifiedActivities.get(28).catch(() => ({ items: [] })),
+    ]);
+    if (!planResp || !planResp.ok || !planResp.payload) return null;
+    const dias = planResp.payload.dias || [];
+    const plannedWeeklyMin = dias.reduce(
+      (s, d) => s + (d && !d.descanso ? (+d.duracaoMin || 0) : 0), 0);
+    const items = (acts && acts.items) || [];   // já filtrados aos últimos 28d pelo backend
+    const realizedMin = items.reduce((s, a) => s + ((a.tempoMovS || 0) / 60), 0);
+    return WeightStats.adherence(plannedWeeklyMin, realizedMin, 4);
+  } catch (_) { return null; }
+}
+
+let _waToken = 0;   // cancela respostas tardias de renders concorrentes (padrão _intensityToken)
+async function renderWeightAnalysis() {
+  const myToken = ++_waToken;
   const card = document.getElementById('weight-analysis');
   if (!card) return;
 
-  // Todo o cálculo (consolidação por dia, janela da regressão, previsão)
+  // Todo o cálculo base (consolidação por dia, janela da regressão, previsão)
   // vive em js/core/weight-stats.js, compartilhado com a tela Perfil mobile.
-  const a = WeightStats.weightAnalysis(Storage.getUser(), Storage.getWeights());
+  const user = Storage.getUser();
+  const a = WeightStats.weightAnalysis(user, Storage.getWeights());
   if (!a.ok) { card.style.display = 'none'; return; }
 
   card.style.display = '';
@@ -489,8 +511,41 @@ function renderWeightAnalysis() {
 
   document.getElementById('wa-previsao').textContent = a.previsao;
   document.getElementById('wa-semanas').textContent  = a.semanas;
+
+  // #92 — cenário "potencial" por aderência (assíncrono). Tiles começam
+  // escondidos; só aparecem quando há dado real pra mostrar (anti-#94).
+  const potBox = document.getElementById('wa-potencial-box');
+  const adBox  = document.getElementById('wa-aderencia-box');
+  if (potBox) potBox.hidden = true;
+  if (adBox)  adBox.hidden  = true;
+
+  const aderencia = await gatherAdherence();
+  if (myToken !== _waToken) return;   // um render mais novo já assumiu
+  const scenario  = WeightStats.metaScenario(a, { aderencia, pesoCorporal: a.pesoAtual });
+
+  if (aderencia != null && isFinite(aderencia) && adBox) {
+    document.getElementById('wa-aderencia').textContent = Math.round(aderencia * 100) + '%';
+    adBox.hidden = false;
+  }
+  if (scenario.mostra && potBox) {
+    document.getElementById('wa-potencial').textContent = scenario.previsao;
+    potBox.hidden = false;
+  }
+
   const msgEl = document.getElementById('wa-msg');
-  if (msgEl) { msgEl.textContent = a.msg; msgEl.style.display = a.msg ? '' : 'none'; }
+  if (msgEl) {
+    const notes = [];
+    if (a.msg) notes.push(a.msg);
+    if (aderencia == null) notes.push('Gere um plano em TREINO pra ver a projeção por aderência.');
+    else if (scenario.motivo === 'ja-cumpre') notes.push('Você já cumpre o plano — este é seu ritmo real.');
+    else if (scenario.motivo === 'sem-treino') notes.push('Sem treino registrado nas últimas 4 semanas.');
+    msgEl.textContent = notes.join(' · ');
+    msgEl.style.display = notes.length ? '' : 'none';
+  }
+
+  // Redesenha o gráfico adicionando a projeção potencial (a projeção no ritmo
+  // atual já saiu na 1ª passada síncrona de Charts.renderWeight).
+  try { Charts.renderWeight(user, Storage.getWeights(), scenario); } catch (_) {}
 }
 window.renderWeightAnalysis = renderWeightAnalysis;
 

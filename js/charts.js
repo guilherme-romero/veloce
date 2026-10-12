@@ -32,21 +32,10 @@ function initCharts() {
       type: 'line',
       data: {
         labels: [],
+        // Eixo x linear por timestamp (ms) — {x,y} por ponto. Sem adapter de
+        // data (fora da CSP). Ordem: peso real, tendência (histórico),
+        // projeção ritmo atual, potencial (plano 100%, #92), meta.
         datasets: [
-          {
-            label: 'Projeção',
-            data: [],
-            borderColor: CHART_COLORS.teal,
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            borderDash: [6, 4],
-            tension: 0.25,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            pointHoverBackgroundColor: CHART_COLORS.teal,
-            fill: false,
-            spanGaps: true,
-          },
           {
             label: 'Peso real',
             data: [],
@@ -55,11 +44,54 @@ function initCharts() {
             borderWidth: 2.5,
             tension: 0.3,
             fill: true,
-            pointRadius: 4,
+            pointRadius: 3,
             pointBackgroundColor: CHART_COLORS.teal,
             pointBorderColor: '#0c0d10',
             pointBorderWidth: 2,
             spanGaps: true,
+          },
+          {
+            label: 'Tendência',
+            data: [],
+            borderColor: CHART_COLORS.muted,
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            tension: 0,
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            label: 'Projeção (ritmo atual)',
+            data: [],
+            borderColor: CHART_COLORS.muted,
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [6, 4],
+            tension: 0,
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            label: 'Potencial (plano 100%)',
+            data: [],
+            borderColor: '#4e9ef5',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [6, 4],
+            tension: 0,
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            label: 'Meta',
+            data: [],
+            borderColor: CHART_COLORS.amber,
+            backgroundColor: 'transparent',
+            borderWidth: 1,
+            borderDash: [2, 4],
+            tension: 0,
+            pointRadius: 0,
+            fill: false,
           },
         ]
       },
@@ -77,6 +109,10 @@ function initCharts() {
             titleColor: '#e8eaf0',
             bodyColor: '#9299a8',
             callbacks: {
+              title: items => {
+                const x = items && items[0] && items[0].parsed && items[0].parsed.x;
+                return x ? new Date(x).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' }) : '';
+              },
               label: ctx => {
                 if (ctx.parsed.y == null) return null;
                 return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} kg`;
@@ -94,11 +130,13 @@ function initCharts() {
             },
           },
           x: {
+            type: 'linear',
             grid: { display: false },
             ticks: {
               color: CHART_COLORS.tick,
               maxTicksLimit: 7,
-              font: { size: 10, family: "'Outfit', sans-serif" }
+              font: { size: 10, family: "'Outfit', sans-serif" },
+              callback: v => new Date(v).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
             },
           }
         }
@@ -203,120 +241,95 @@ function renderIntensity() {
 
 /* ── Render do gráfico de peso ──────────────────────────────────────── */
 /**
- * Projeção gerada a partir do histórico real de pesagens (balança Garmin):
- * regressão linear sobre as medições → linha de tendência estendida pelas
- * 12 semanas do plano. Sem entrada manual de peso. (Fase — projeção Garmin)
- * @param {Object}  user     — { pesoMeta, dataInicioPlano }
- * @param {Array}   weights  — [ { data: 'YYYY-MM-DD', peso: 84.2 } ]  (somente Garmin)
+ * Gráfico de peso (#91 + #92): 6 meses de pesagens reais do Garmin + linha de
+ * tendência (regressão), sem a projeção teórica velha de 12 semanas. Pra frente
+ * (#92): projeção no ritmo atual e, quando houver cenário, a projeção potencial
+ * (plano 100%), cada uma até cruzar a linha horizontal da meta. A regressão vem
+ * do core (WeightStats) pra tendência/projeção não divergirem do texto da
+ * previsão. Eixo x linear por timestamp (ms). Só peso do Garmin.
+ * @param {Object} user     — { pesoMeta }
+ * @param {Array}  weights  — [ { data: 'YYYY-MM-DD', peso: 84.2 } ] (Garmin)
+ * @param {Object} [scenario] — retorno de WeightStats.metaScenario (opcional)
  */
-function renderWeightChart(user, weights) {
+function renderWeightChart(user, weights, scenario) {
   if (!weightChart) return;
 
-  const meta  = user.pesoMeta  || 0;
-  const start = user.dataInicioPlano || tbToday();
+  const DAY  = 86400000;
+  const now  = Date.now();
+  const meta = (user && user.pesoMeta) || 0;
+  const hist0 = now - 180 * DAY;   // 6 meses de histórico (#91)
 
-  // Consolida todas as pesagens por dia (média) — base da regressão
+  // Pesagens consolidadas por dia (média), em ms, cronológicas
   const byDay = {};
   (weights || []).forEach(w => {
     if (w.peso == null) return;
     (byDay[w.data] = byDay[w.data] || []).push(w.peso);
   });
-  const allMeasured = Object.entries(byDay)
-    .map(([data, ps]) => ({ data, peso: ps.reduce((s, p) => s + p, 0) / ps.length }))
-    .sort((a, b) => a.data.localeCompare(b.data));
+  const measured = Object.entries(byDay)
+    .map(([data, ps]) => ({ t: new Date(data + 'T12:00:00').getTime(), y: ps.reduce((s, p) => s + p, 0) / ps.length }))
+    .filter(p => isFinite(p.t))
+    .sort((a, b) => a.t - b.t);
+  // 6 meses de histórico; se não houver ao menos 2 pesagens na janela (ex.:
+  // última pesagem tem mais de 180d), cai pra tudo que existe — evita a
+  // tendência ser desenhada sem nenhum ponto medido visível.
+  let hist = measured.filter(p => p.t >= hist0);
+  if (hist.length < 2) hist = measured;
 
-  // Janela da regressão: dataInicioPlano como primária; fallback para 180/90 dias.
-  const planStart = start; // start = user.dataInicioPlano já passado como parâmetro
-  const cut180 = new Date(Date.now() - 180 * 86400_000).toISOString().slice(0, 10);
-  const cut90  = new Date(Date.now() - 90  * 86400_000).toISOString().slice(0, 10);
-  let measured = planStart ? allMeasured.filter(w => w.data >= planStart) : [];
-  if (measured.length < 3) measured = allMeasured.filter(w => w.data >= cut180);
-  if (measured.length < 3) measured = allMeasured.filter(w => w.data >= cut90);
-  if (measured.length < 3) measured = allMeasured;
-  if (measured.length < 5) console.warn(`[projeção peso] Apenas ${measured.length} pesagem(ns) — projeção de baixa confiabilidade.`);
+  // Regressão do core — mesmo slope/t0/intercept que a previsão da meta usa.
+  const base = (window.WeightStats && window.WeightStats.weightAnalysis)
+    ? window.WeightStats.weightAnalysis(user, weights) : null;
 
-  // Regressão linear (kg/dia) sobre as medições reais → tendência
-  let slope = null, intercept = null, t0 = null;
-  if (measured.length >= 2) {
-    t0 = new Date(measured[0].data + 'T12:00:00').getTime();
-    const pts = measured.map(w => ({
-      x: (new Date(w.data + 'T12:00:00').getTime() - t0) / 86400000,
-      y: w.peso,
-    }));
-    const n  = pts.length;
-    const sx = pts.reduce((s, p) => s + p.x, 0);
-    const sy = pts.reduce((s, p) => s + p.y, 0);
-    const sxy = pts.reduce((s, p) => s + p.x * p.y, 0);
-    const sx2 = pts.reduce((s, p) => s + p.x * p.x, 0);
-    const denom = n * sx2 - sx * sx;
-    if (denom !== 0) {
-      slope = (n * sxy - sx * sy) / denom;
-      intercept = (sy - slope * sx) / n;
+  const ds = weightChart.data.datasets;
+  ds[0].data = hist.map(p => ({ x: p.t, y: +p.y.toFixed(2) }));  // peso real
+  ds[1].data = []; ds[2].data = []; ds[3].data = []; ds[4].data = [];
+
+  let xMax = now;
+  if (base && base.ok && base.t0 != null && base.slope != null) {
+    const trend = (t) => +(base.intercept + base.slope * ((t - base.t0) / DAY)).toFixed(2);
+    // Tendência (histórico): do início da janela da regressão (ou 1ª pesagem
+    // visível) até hoje.
+    const tStart = hist.length ? Math.min(hist[0].t, base.t0) : base.t0;
+    ds[1].data = [{ x: tStart, y: trend(tStart) }, { x: now, y: trend(now) }];
+
+    // Projeção no ritmo atual: hoje → meta (só quando progride rumo à meta).
+    if (meta && base.diasNec != null && isFinite(base.diasNec) && base.diasNec > 0) {
+      const tMetaReal = now + base.diasNec * DAY;
+      ds[2].data = [{ x: now, y: trend(now) }, { x: tMetaReal, y: meta }];
+      xMax = Math.max(xMax, tMetaReal);
+    }
+    // Projeção potencial (plano 100%, #92): hoje → meta ao ritmo escalado.
+    if (meta && scenario && scenario.mostra && scenario.diasNec > 0) {
+      const tMetaPot = now + scenario.diasNec * DAY;
+      ds[3].data = [{ x: now, y: trend(now) }, { x: tMetaPot, y: meta }];
+      xMax = Math.max(xMax, tMetaPot);
     }
   }
-  const trendAt = (iso) => {
-    if (slope == null) return null;
-    const x = (new Date(iso + 'T12:00:00').getTime() - t0) / 86400000;
-    return +(intercept + slope * x).toFixed(2);
-  };
 
-  // Eixo: 13 pontos (Sem 0..Sem 12) a partir do início do plano
-  const planLabels = [], planDates = [];
-  for (let i = 0; i <= 12; i++) {
-    const d = addDays(start, i * 7);
-    planDates.push(d);
-    planLabels.push(formatLabel(d, i));
-  }
-  const projection = planDates.map(trendAt);
+  // Cap do horizonte futuro (~1 ano) pra uma meta muito distante não achatar
+  // o histórico de 6 meses.
+  const xMaxCap = now + 400 * DAY;
+  if (xMax > xMaxCap) xMax = xMaxCap;
 
-  // Medições do plano mapeadas para a semana mais próxima (só dados do Garmin)
-  const real = new Array(13).fill(null);
-  (weights || []).forEach(w => {
-    const sem = weekIndex(start, w.data);
-    if (sem >= 0 && sem <= 12) real[sem] = w.peso;  // última da semana vence
-  });
+  const xMin = hist.length ? Math.min(hist[0].t, hist0) : hist0;
+  if (meta) ds[4].data = [{ x: xMin, y: meta }, { x: xMax, y: meta }];  // linha da meta
 
-  const finalLabels = planLabels;
-  const finalProj   = projection;
-  const finalReal   = real;
+  weightChart.options.scales.x.min = xMin;
+  weightChart.options.scales.x.max = xMax;
 
-  weightChart.data.labels           = finalLabels;
-  weightChart.data.datasets[0].data = finalProj;
-  weightChart.data.datasets[1].data = finalReal;
-
-  // Y axis: range com folga, considerando meta + medições + tendência
-  const pesoRef = measured.length ? measured[measured.length - 1].peso : 0;
-  const allVals = [...finalProj, ...finalReal].filter(v => v != null);
-  if (allVals.length > 0) {
-    const loBase = meta ? Math.min(meta - 2, ...allVals) : Math.min(...allVals);
-    const hiBase = Math.max(pesoRef + 1, ...allVals);
-    weightChart.options.scales.y.min = Math.floor(loBase - 0.5);
-    weightChart.options.scales.y.max = Math.ceil(hiBase + 0.5);
+  // Eixo y: folga considerando pesagens + meta + pontas das projeções.
+  const allY = [
+    ...hist.map(p => p.y),
+    ...(meta ? [meta] : []),
+    ...ds[2].data.map(p => p.y), ...ds[3].data.map(p => p.y),
+  ].filter(v => v != null && isFinite(v));
+  if (allY.length) {
+    weightChart.options.scales.y.min = Math.floor(Math.min(...allY) - 0.8);
+    weightChart.options.scales.y.max = Math.ceil(Math.max(...allY) + 0.8);
   }
 
   weightChart.update();
 }
 
-/* ── Helpers de data ────────────────────────────────────────────────── */
-function addDays(isoDate, n) {
-  const d = new Date(isoDate + 'T00:00:00');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-function daysBetween(isoA, isoB) {
-  const a = new Date(isoA + 'T00:00:00');
-  const b = new Date(isoB + 'T00:00:00');
-  return Math.round((b - a) / 86400000);
-}
-function weekIndex(startISO, dataISO) {
-  return Math.floor(daysBetween(startISO, dataISO) / 7);
-}
-function formatLabel(iso, semana) {
-  const d = new Date(iso + 'T00:00:00');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `S${semana} · ${dd}/${mm}`;
-}
 
 /* expor */
 window.Charts = {
