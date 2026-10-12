@@ -79,6 +79,81 @@ function showAnalysis(route) {
 
   initOrUpdateMap(route.waypoints);
   renderElevationChart(route.waypoints);
+  renderViability(route);
+}
+
+/* ── Viabilidade do percurso vs histórico (#2) ───────────────────────── */
+const VIABILITY_TIER = {
+  viavel:    { label: 'Viável',            icon: 'fa-circle-check',        color: 'var(--green)' },
+  limitrofe: { label: 'Limítrofe',         icon: 'fa-triangle-exclamation', color: 'var(--amber)' },
+  alem:      { label: 'Além do histórico', icon: 'fa-gauge-high',          color: 'var(--magenta)' },
+};
+
+function fmtDur(min) {
+  const m = Math.max(0, Math.round(min));
+  const h = Math.floor(m / 60), r = m % 60;
+  return h ? `${h}h ${String(r).padStart(2, '0')}min` : `${r}min`;
+}
+
+async function renderViability(route) {
+  const card = document.getElementById('route-viability');
+  if (!card || !route || !route.stats) return;
+
+  const estimateTime = window.Utils && window.Utils.estimateRideTimeMin;
+  if (!estimateTime || !window.RouteViability) { card.style.display = 'none'; return; }
+
+  // Enquanto o histórico carrega, mostra o esqueleto pra não piscar.
+  card.style.display = '';
+  card.innerHTML = `<span class="card-label">Viabilidade do percurso</span>
+    <p class="routes-viab-msg" style="color:var(--muted2);margin-top:8px;">Avaliando contra seu histórico…</p>`;
+
+  let items = [];
+  try {
+    const resp = await window.UnifiedActivities.get(180);
+    items = (resp && resp.items) || [];
+  } catch (_) { /* segue com histórico vazio → estado insuficiente */ }
+
+  // A rota pode ter sido trocada/limpa durante o fetch.
+  if (_currentRoute !== route) return;
+
+  const r = window.RouteViability.analyze({
+    distKm:      route.stats.distancia,
+    desnivelPos: route.stats.desnivelPos,
+    activities:  items,
+    estimateTime,
+  });
+
+  const info = 'Compara a duração prevista desta rota (calculada pela sua velocidade média das saídas dos últimos 6 meses) com a distribuição das suas durações reais: viável até o percentil 75, limítrofe até o seu máximo, além do histórico acima dele. Desnível acima do seu máximo recente sobe o nível. Precisa de pelo menos 3 saídas comparáveis.';
+  const iBtn = `<button class="insight-info-btn" aria-label="Como a viabilidade é calculada" data-info="${escAttr(info)}"><i class="fa-solid fa-circle-info"></i></button>`;
+
+  if (!r.ok) {
+    card.innerHTML = `<span class="card-label">Viabilidade do percurso ${iBtn}</span>
+      <p class="routes-viab-msg" style="color:var(--muted2);margin-top:8px;">
+        Histórico insuficiente pra avaliar — ${r.baseN} saída(s) comparável(is) nos últimos 6 meses
+        (são necessárias ao menos 3). Pedale mais e volte aqui.</p>`;
+    return;
+  }
+
+  const t = VIABILITY_TIER[r.tier] || VIABILITY_TIER.limitrofe;
+  const semElev = (route.stats.altMax === 0 && route.stats.desnivelPos === 0);
+
+  card.innerHTML = `
+    <span class="card-label">Viabilidade do percurso ${iBtn}</span>
+    <div style="display:flex;align-items:center;gap:10px;margin:10px 0 12px;">
+      <span style="display:inline-flex;align-items:center;gap:7px;font-weight:700;color:${t.color};">
+        <i class="fa-solid ${t.icon}"></i> ${t.label}
+      </span>
+      <span style="color:var(--muted2);">· esforço ${esc(r.esforco)}</span>
+    </div>
+    <div class="routes-viab-grid" style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div><div class="routes-stat-label">Tempo previsto</div><div class="routes-stat-val">${fmtDur(r.tempoMin)}</div></div>
+      <div><div class="routes-stat-label">Sua velocidade-base</div><div class="routes-stat-val">${esc(String(r.baseSpeed).replace('.', ','))} km/h</div></div>
+    </div>
+    <p style="color:var(--muted2);font-size:12px;margin-top:10px;">
+      Baseado em ${r.baseN} saída(s) dos últimos 6 meses · sua maior recente:
+      ${esc(String(r.recordeKm).replace('.', ','))} km / ${r.recordeElev} m${
+        semElev ? ' · ⚠️ GPX sem dados de elevação — avaliado só pela distância' : ''}
+    </p>`;
 }
 
 /* ── Mapa Leaflet ────────────────────────────────────────────────────── */
