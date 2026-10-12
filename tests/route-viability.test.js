@@ -50,6 +50,12 @@ test('route-viability: trava de elevação sobe o tier mesmo com duração viáv
   assert.equal(r.tier, 'limitrofe');
 });
 
+test('route-viability: guard de entrada (sem estimateTime ou distKm inválido)', () => {
+  assert.deepEqual(RouteViability.analyze({ distKm: 20, activities: hist() }),
+    { ok: false, insuf: true, baseN: 0 });  // sem estimateTime
+  assert.equal(RouteViability.analyze({ distKm: 0, activities: hist(), estimateTime }).ok, false);
+});
+
 test('route-viability: janela exclui saídas fora dos 6 meses', () => {
   const antigos = hist().map(r => ({ ...r, data: daysAgo(400) }));
   const r = RouteViability.analyze({ distKm: 20, desnivelPos: 100, activities: antigos, estimateTime });

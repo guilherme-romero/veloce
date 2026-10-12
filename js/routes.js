@@ -124,7 +124,7 @@ async function renderViability(route) {
   });
 
   const info = 'Compara a duração prevista desta rota (calculada pela sua velocidade média das saídas dos últimos 6 meses) com a distribuição das suas durações reais: viável até o percentil 75, limítrofe até o seu máximo, além do histórico acima dele. Desnível acima do seu máximo recente sobe o nível. Precisa de pelo menos 3 saídas comparáveis.';
-  const iBtn = `<button class="insight-info-btn" aria-label="Como a viabilidade é calculada" data-info="${info}"><i class="fa-solid fa-circle-info"></i></button>`;
+  const iBtn = `<button class="insight-info-btn" aria-label="Como a viabilidade é calculada" data-info="${escAttr(info)}"><i class="fa-solid fa-circle-info"></i></button>`;
 
   if (!r.ok) {
     card.innerHTML = `<span class="card-label">Viabilidade do percurso ${iBtn}</span>
