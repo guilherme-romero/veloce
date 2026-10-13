@@ -278,7 +278,11 @@
     const _h = new Date();
     _hoje = `${_h.getFullYear()}-${String(_h.getMonth() + 1).padStart(2, '0')}-${String(_h.getDate()).padStart(2, '0')}`; // local, não UTC (toISOString desloca o dia perto da meia-noite)
     const dias = diasOrdenados();
-    const idxHoje = dias.findIndex((d) => d.data === _hoje);
+    // Seleciona pelo dia-da-semana real (não pela data exata): o plano pode
+    // estar cacheado com as datas da semana em que foi gerado, então casar por
+    // data falharia e cairia sempre em SEG. O highlight is-today segue por _hoje.
+    const dowNome = DIAS_SEMANA[(_h.getDay() + 6) % 7]; // domingo=0 → índice 6
+    const idxHoje = dias.findIndex((d) => d.dia === dowNome);
     _selIdx = idxHoje >= 0 ? idxHoje : 0;
     render();
   }
