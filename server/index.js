@@ -108,6 +108,7 @@ function buildApp(opts = {}) {
   fastify.register(require('./routes/backup'));
   fastify.register(require('./routes/performance-analysis'));
   fastify.register(require('./routes/weekly-training-plan'));
+  fastify.register(require('./routes/report'));
 
   const _safeCount = (sql) => {
     try { return fastify.db.prepare(sql).get().c; } catch { return null; }
@@ -207,9 +208,14 @@ if (require.main === module) {
 
   start();
 
-  // Shutdown limpo
-  process.on('SIGINT',  () => { app.log.info('SIGINT recebido'); app.close().then(() => process.exit(0)); });
-  process.on('SIGTERM', () => { app.log.info('SIGTERM recebido'); app.close().then(() => process.exit(0)); });
+  // Shutdown limpo (fecha também o Chromium do Playwright, se estiver aberto)
+  const reportRender = require('./services/report-render');
+  const shutdown = (sig) => {
+    app.log.info(`${sig} recebido`);
+    reportRender.close().finally(() => app.close().then(() => process.exit(0)));
+  };
+  process.on('SIGINT',  () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 module.exports = { buildApp };

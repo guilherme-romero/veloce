@@ -50,4 +50,9 @@ module.exports = {
   // Groq (opcional — fallback da Analise de Performance quando o Gemini
   // falha ou fica sem chave/cota; ver server/services/ai-providers.js)
   GROQ_API_KEY: process.env.GROQ_API_KEY || '',
+
+  // Telegram (opcional — relatorio mensal resumido em PNG, #95 Fase 2). Sem
+  // token/chat_id, o envio automatico e' pulado. Setup: scripts/telegram-setup.sh.
+  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
+  TELEGRAM_CHAT_ID:   process.env.TELEGRAM_CHAT_ID || '',
 };
