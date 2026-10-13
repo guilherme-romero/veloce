@@ -60,6 +60,8 @@ const PROFILE_FIELDS = {
   duracaoSessaoMin:    num(15, 300),
   diaLongao:           enumVal(DIAS_SEMANA),
   nivelExperiencia:    enumVal(NIVEIS_EXPERIENCIA),
+  // Relatório mensal pelo Telegram (#95 Fase 2) — toggle do envio automático.
+  relatorioMensalTelegram: (v) => (typeof v === 'boolean' ? v : undefined),
 };
 const ALLOWED_PROFILE_KEYS = new Set(Object.keys(PROFILE_FIELDS));
 const MAX_PROFILE_BYTES = 16 * 1024; // perfil e pequeno; teto generoso

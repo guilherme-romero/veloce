@@ -18,6 +18,17 @@ cd server
 npm install
 ```
 
+O backend usa **Playwright** (Chromium headless) para gerar o relatório PDF
+server-side (ver `services/report-render.js`). Depois do `npm install`/`npm ci`,
+baixe o navegador — passo obrigatório no deploy da LXC (~190 MB + libs do SO):
+
+```bash
+npx playwright install --with-deps chromium
+```
+
+Sem o Chromium instalado, `GET /api/report/pdf` responde 500 e loga o erro de
+launch; o resto da API funciona normalmente.
+
 ### 3. Configurar `.env`
 
 ```bash

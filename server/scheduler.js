@@ -12,11 +12,14 @@ const { analisar, lerCache, gerarEArmazenarAnalise } = require('./services/perfo
 const SYNC_INTERVAL_MIN = 30;     // intervalo do sync automático (minutos)
 const CHECK_INTERVAL_MS = 60_000; // verifica a cada minuto
 const ANALISE_HORA      = 6;      // horário fixo (local da LXC, America/Sao_Paulo) do job de IA
+const RELATORIO_HORA    = 8;      // dia 1º: envio do relatório mensal pelo Telegram (#95)
 
 // Evita disparo duplo no mesmo slot (chave = "YYYY-MM-DD:HH:bloco")
 const _synced = new Set();
 // Evita disparo duplo da Análise de Performance no mesmo dia (chave = "YYYY-MM-DD")
 const _analisadoHoje = new Set();
+// Evita disparo duplo do relatório mensal no mesmo mês (chave = "YYYY-MM")
+const _relatorioEnviado = new Set();
 
 // Data local (não UTC) — mesmo padrão de js/core/suggestion-history.js: pra
 // um horário fixo perto da meia-noite, toISOString() (UTC) deslocaria a
@@ -359,6 +362,34 @@ async function runAnalisePerformance(db, log) {
   }
 }
 
+// ── Relatório mensal pelo Telegram (#95, dia 1º) ─────────────────────────
+// Gera o PNG resumido (últimos 30 dias) e envia pelo bot. Pula sem ruído se o
+// Telegram não está configurado (.env) ou se o toggle do Perfil está desligado
+// — mesmo padrão opt-in das outras integrações. Sem retry no mesmo mês: se
+// falhar, tenta de novo no dia 1º seguinte.
+async function runRelatorioMensal(db, log) {
+  const telegram = require('./services/telegram');
+  if (!telegram.isConfigured()) {
+    log.info('[scheduler] relatório mensal: telegram não configurado — pulando');
+    return;
+  }
+  let ligado = false;
+  try {
+    const row = db.prepare('SELECT payload FROM user_profile WHERE id=1').get();
+    if (row) ligado = !!JSON.parse(row.payload || '{}').relatorioMensalTelegram;
+  } catch (_) {}
+  if (!ligado) {
+    log.info('[scheduler] relatório mensal: toggle do Perfil desligado — pulando');
+    return;
+  }
+
+  const reportRender = require('./services/report-render');
+  const png = await reportRender.renderPng();
+  const mes = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  await telegram.sendPhoto(png, `Veloce Labs · seu relatório de ${mes}`);
+  log.info('[scheduler] relatório mensal enviado pelo Telegram');
+}
+
 // ── Setup ──────────────────────────────────────────────────────────────
 function setup(db, log) {
   setInterval(() => {
@@ -396,9 +427,26 @@ function setup(db, log) {
           .catch(e => log.error({ err: e }, '[scheduler] erro na análise de performance automática'));
       }
     }
+
+    // Relatório mensal pelo Telegram: dia 1º, às RELATORIO_HORA:00 (slot de
+    // sync), uma vez por mês. Encadeado no fim pra rodar depois do sync (dados
+    // já atualizados). Dedup por "YYYY-MM".
+    if (now.getDate() === 1 && now.getHours() === RELATORIO_HORA) {
+      const mesKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      if (!_relatorioEnviado.has(mesKey)) {
+        _relatorioEnviado.add(mesKey);
+        if (_relatorioEnviado.size > 3) {
+          const oldest = [..._relatorioEnviado][0];
+          _relatorioEnviado.delete(oldest);
+        }
+        chain = chain
+          .then(() => runRelatorioMensal(db, log))
+          .catch(e => log.error({ err: e }, '[scheduler] erro no relatório mensal'));
+      }
+    }
   }, CHECK_INTERVAL_MS);
 
-  log.info(`[scheduler] ativo — sync automático a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h`);
+  log.info(`[scheduler] ativo — sync a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h, relatório mensal (Telegram) dia 1º às ${RELATORIO_HORA}h`);
 }
 
 module.exports = { setup };

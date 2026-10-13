@@ -214,6 +214,17 @@ function profileTreinoIaFieldsHTML(u) {
         </div>
       </div>
     </div>
+
+    <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:16px;">
+      <label class="field-label" style="display:block;margin-bottom:8px;">Relatório mensal</label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2);cursor:pointer;">
+        <input type="checkbox" id="f-relatorio-telegram" ${u.relatorioMensalTelegram ? 'checked' : ''} />
+        Enviar o resumo mensal pelo Telegram (todo dia 1º)
+      </label>
+      <p style="font-size:11px;color:var(--muted2);margin-top:6px;">
+        Requer o bot do Telegram configurado no servidor (<code>scripts/telegram-setup.sh</code>).
+      </p>
+    </div>
   `;
 }
 
@@ -336,6 +347,7 @@ function saveProfile(modal) {
     duracaoSessaoMin: num('f-tia-duracao'),
     diaLongao:        get('f-tia-longao'),
     nivelExperiencia: get('f-tia-nivel'),
+    relatorioMensalTelegram: !!modal.querySelector('#f-relatorio-telegram')?.checked,
   };
 
   if (!updated.nome)                          { toast('Informe seu nome', { kind: 'error' }); return; }
