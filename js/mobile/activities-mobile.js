@@ -233,6 +233,7 @@
   MRouter.register({
     slug: 'atividades',
     aliases: ['historico'],
+    tab: 'treino-ia',
     viewId: VIEW_ID,
     label: 'Histórico',
     onEnter: () => {
