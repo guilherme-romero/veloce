@@ -22,13 +22,13 @@
   <!-- variant.js decide desktop x mobile e redireciona antes de qualquer CSS
        carregar. Precisa vir depois da meta viewport e da CSP, e antes do
        primeiro <link> (BUG-069). -->
-  <script src="js/variant.js?v=2.11.2"></script>
+  <script src="js/variant.js?v=2.11.3"></script>
 
-  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.11.2">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.11.2">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.11.2">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.11.2">
-  <link rel="manifest" href="manifest.json?v=2.11.2">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg?v=2.11.3">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2.11.3">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png?v=2.11.3">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2.11.3">
+  <link rel="manifest" href="manifest.json?v=2.11.3">
 
   <title>VELOCE LABS</title>
 
@@ -36,18 +36,18 @@
        arquivos em css/fonts/ e css/webfonts/. Sem Google Fonts/cdnjs pra
        isso: só Leaflet/Chart.js continuam via CDN. O relatório PDF (#95) é
        gerado server-side com Playwright, não mais com jsPDF no cliente. -->
-  <link rel="stylesheet" href="css/font-awesome.min.css?v=2.11.2">
+  <link rel="stylesheet" href="css/font-awesome.min.css?v=2.11.3">
 
   <!-- Leaflet (mapa de rotas) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <!-- Estilo do projeto (cache-busted via ?v=) -->
-  <link rel="stylesheet" href="css/style.css?v=2.11.2">
-  <link rel="stylesheet" href="css/rides.css?v=2.11.2">
-  <link rel="stylesheet" href="css/routes.css?v=2.11.2">
-  <link rel="stylesheet" href="css/bikes.css?v=2.11.2">
-  <link rel="stylesheet" href="css/ferramentas.css?v=2.11.2">
-  <link rel="stylesheet" href="css/treino-ia.css?v=2.11.2">
+  <link rel="stylesheet" href="css/style.css?v=2.11.3">
+  <link rel="stylesheet" href="css/rides.css?v=2.11.3">
+  <link rel="stylesheet" href="css/routes.css?v=2.11.3">
+  <link rel="stylesheet" href="css/bikes.css?v=2.11.3">
+  <link rel="stylesheet" href="css/ferramentas.css?v=2.11.3">
+  <link rel="stylesheet" href="css/treino-ia.css?v=2.11.3">
 </head>
 <body>
 
@@ -1021,19 +1021,20 @@
       <div class="card insight-card" id="comparative-performance-card">
         <div class="insight-head">
           <div class="insight-head-left">
-            <div class="card-label">Comparativo — últimos 30 dias
-              <button class="insight-info-btn" aria-label="Mais informações" data-info="Compara dois períodos fixos e contíguos de 30 dias corridos (não contagem de atividades) — os últimos 30 dias vs. os 30 anteriores a eles. O mínimo de 3 saídas por período é só um critério pra exibir o comparativo, não é o que está sendo comparado."><i class="fa-solid fa-circle-info"></i></button>
+            <div class="card-label">Comparativo <span id="compPeriodoLabel"></span>
+              <button class="insight-info-btn" aria-label="Mais informações" data-info="Compara o mês atual com o mês anterior pelos MESMOS dias de cada mês (até o dia de hoje) — ex.: 1–16 de setembro vs. 1–16 de outubro — para a comparação ser justa num mês ainda em curso. No fim do mês vira mês inteiro vs. mês inteiro. O mínimo de 3 saídas por mês é só um critério pra exibir o comparativo, não é o que está sendo comparado."><i class="fa-solid fa-circle-info"></i></button>
             </div>
           </div>
         </div>
         <div class="insight-msg" id="comparative-performance-empty" style="color:var(--muted2);" hidden>
-          Pedale por pelo menos 3 saídas em cada um dos últimos dois períodos de 30 dias para ver o comparativo.
+          Pedale por pelo menos 3 saídas no mês atual e no mês anterior (mesmo trecho) para ver o comparativo.
         </div>
         <div id="comparative-performance-content" hidden>
           <div class="legend-row" style="margin-bottom:12px;">
-            <span><span class="swatch" style="background:var(--magenta)"></span>Anterior (30 dias)</span>
-            <span><span class="swatch" style="background:var(--lime)"></span>Atual (últimos 30 dias)</span>
+            <span><span class="swatch" style="background:var(--magenta)"></span><span id="compLegendAnterior">Anterior</span></span>
+            <span><span class="swatch" style="background:var(--lime)"></span><span id="compLegendAtual">Atual</span></span>
           </div>
+          <div id="compPeriodoNota" style="color:var(--muted2);font-size:12px;margin:-6px 0 12px;" hidden></div>
           <div class="desemp-compare-grid">
             <div class="desemp-tile">
               <div class="desemp-tile__label">Volume</div>
@@ -1065,12 +1066,12 @@
             <div class="desemp-tile">
               <div class="desemp-tile__label">Tempo por zona</div>
               <div class="desemp-zone-row">
-                <span class="desemp-zone-row__label">Anterior</span>
+                <span class="desemp-zone-row__label" id="compZonaAnteriorLabel">Anterior</span>
                 <div class="desemp-zone-row__bar" id="compZonaAnteriorBar"></div>
                 <span class="desemp-zone-row__total" id="compZonaAnteriorTotal"></span>
               </div>
               <div class="desemp-zone-row">
-                <span class="desemp-zone-row__label">Atual</span>
+                <span class="desemp-zone-row__label" id="compZonaAtualLabel">Atual</span>
                 <div class="desemp-zone-row__bar" id="compZonaAtualBar"></div>
                 <span class="desemp-zone-row__total" id="compZonaAtualTotal"></span>
               </div>
@@ -1664,48 +1665,48 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- App scripts (com cache-busting via ?v=) -->
-<script src="js/version.js?v=2.11.2"></script>
-<script src="js/utils.js?v=2.11.2"></script>
+<script src="js/version.js?v=2.11.3"></script>
+<script src="js/utils.js?v=2.11.3"></script>
 <!-- Núcleo de cálculo compartilhado com a UI mobile (js/core/) -->
-<script src="js/core/metrics.js?v=2.11.2"></script>
-<script src="js/core/activity-stats.js?v=2.11.2"></script>
-<script src="js/core/weight-stats.js?v=2.11.2"></script>
-<script src="js/core/fatigue.js?v=2.11.2"></script>
-<script src="js/core/records.js?v=2.11.2"></script>
-<script src="js/core/weather-rating.js?v=2.11.2"></script>
-<script src="js/core/training-suggestion.js?v=2.11.2"></script>
-<script src="js/core/suggestion-history.js?v=2.11.2"></script>
-<script src="js/core/performance-analysis.js?v=2.11.2"></script>
-<script src="js/core/comparative-performance.js?v=2.11.2"></script>
-<script src="js/core/session.js?v=2.11.2"></script>
-<script src="js/core/unified-activities.js?v=2.11.2"></script>
-<script src="js/core/route-viability.js?v=2.11.2"></script>
-<script src="js/router.js?v=2.11.2"></script>
-<script src="js/api.js?v=2.11.2"></script>
-<script src="js/storage.js?v=2.11.2"></script>
-<script src="js/profile.js?v=2.11.2"></script>
-<script src="js/charts.js?v=2.11.2"></script>
-<script src="js/modals.js?v=2.11.2"></script>
-<script src="js/rides.js?v=2.11.2"></script>
-<script src="js/bikes.js?v=2.11.2"></script>
-<script src="js/training-log.js?v=2.11.2"></script>
-<script src="js/backup.js?v=2.11.2"></script>
-<script src="js/gpx.js?v=2.11.2"></script>
-<script src="js/routes.js?v=2.11.2"></script>
-<script src="js/heatmap.js?v=2.11.2"></script>
-<script src="js/strava.js?v=2.11.2"></script>
-<script src="js/garmin.js?v=2.11.2"></script>
-<script src="js/activities.js?v=2.11.2"></script>
-<script src="js/insights.js?v=2.11.2"></script>
-<script src="js/proximo-treino.js?v=2.11.2"></script>
-<script src="js/performance-analysis.js?v=2.11.2"></script>
-<script src="js/comparative-performance.js?v=2.11.2"></script>
-<script src="js/weekly-training-plan.js?v=2.11.2"></script>
-<script src="js/ferramentas.js?v=2.11.2"></script>
-<script src="js/home.js?v=2.11.2"></script>
-<script src="js/notifications.js?v=2.11.2"></script>
-<script src="js/app.js?v=2.11.2"></script>
-<script src="js/pwa.js?v=2.11.2"></script>
+<script src="js/core/metrics.js?v=2.11.3"></script>
+<script src="js/core/activity-stats.js?v=2.11.3"></script>
+<script src="js/core/weight-stats.js?v=2.11.3"></script>
+<script src="js/core/fatigue.js?v=2.11.3"></script>
+<script src="js/core/records.js?v=2.11.3"></script>
+<script src="js/core/weather-rating.js?v=2.11.3"></script>
+<script src="js/core/training-suggestion.js?v=2.11.3"></script>
+<script src="js/core/suggestion-history.js?v=2.11.3"></script>
+<script src="js/core/performance-analysis.js?v=2.11.3"></script>
+<script src="js/core/comparative-performance.js?v=2.11.3"></script>
+<script src="js/core/session.js?v=2.11.3"></script>
+<script src="js/core/unified-activities.js?v=2.11.3"></script>
+<script src="js/core/route-viability.js?v=2.11.3"></script>
+<script src="js/router.js?v=2.11.3"></script>
+<script src="js/api.js?v=2.11.3"></script>
+<script src="js/storage.js?v=2.11.3"></script>
+<script src="js/profile.js?v=2.11.3"></script>
+<script src="js/charts.js?v=2.11.3"></script>
+<script src="js/modals.js?v=2.11.3"></script>
+<script src="js/rides.js?v=2.11.3"></script>
+<script src="js/bikes.js?v=2.11.3"></script>
+<script src="js/training-log.js?v=2.11.3"></script>
+<script src="js/backup.js?v=2.11.3"></script>
+<script src="js/gpx.js?v=2.11.3"></script>
+<script src="js/routes.js?v=2.11.3"></script>
+<script src="js/heatmap.js?v=2.11.3"></script>
+<script src="js/strava.js?v=2.11.3"></script>
+<script src="js/garmin.js?v=2.11.3"></script>
+<script src="js/activities.js?v=2.11.3"></script>
+<script src="js/insights.js?v=2.11.3"></script>
+<script src="js/proximo-treino.js?v=2.11.3"></script>
+<script src="js/performance-analysis.js?v=2.11.3"></script>
+<script src="js/comparative-performance.js?v=2.11.3"></script>
+<script src="js/weekly-training-plan.js?v=2.11.3"></script>
+<script src="js/ferramentas.js?v=2.11.3"></script>
+<script src="js/home.js?v=2.11.3"></script>
+<script src="js/notifications.js?v=2.11.3"></script>
+<script src="js/app.js?v=2.11.3"></script>
+<script src="js/pwa.js?v=2.11.3"></script>
 
 </body>
 </html>
