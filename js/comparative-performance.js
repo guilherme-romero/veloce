@@ -167,26 +167,15 @@
     }
   }
 
-  // Rótulos de mês (#114): card-label, legenda e labels de zona passam a
-  // mostrar os nomes dos meses. A nota de parcialidade só aparece enquanto o
-  // mês atual não fechou (compara os primeiros N dias de cada mês).
+  // Rótulos da janela móvel (#114 v2): legenda e labels de zona refletem o N
+  // selecionado (30/60/90 dias). Sem nomes de mês nem nota de parcialidade.
   function renderRotulos(p) {
     if (!p) return;
     const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
-    set('compPeriodoLabel', `— ${p.mesAnteriorNome} vs ${p.mesAtualNome}`);
-    set('compLegendAnterior', p.mesAnteriorNome);
-    set('compLegendAtual', p.mesAtualNome);
-    set('compZonaAnteriorLabel', p.mesAnteriorNome);
-    set('compZonaAtualLabel', p.mesAtualNome);
-    const nota = $('compPeriodoNota');
-    if (nota) {
-      if (p.parcial) {
-        nota.textContent = `Comparando os primeiros ${p.diaCorte} dias de cada mês (mês atual em curso).`;
-        nota.hidden = false;
-      } else {
-        nota.hidden = true;
-      }
-    }
+    set('compLegendAnterior', `Anterior (${p.janelaDias} dias)`);
+    set('compLegendAtual', `Atual (últimos ${p.janelaDias} dias)`);
+    set('compZonaAnteriorLabel', 'Anterior');
+    set('compZonaAtualLabel', 'Atual');
   }
 
   function renderTiles(r) {
@@ -196,32 +185,80 @@
     renderPeso(r.peso);
   }
 
+  // Seletor de janela (30/60/90). A escolha é lembrada entre visitas.
+  const JANELAS = [30, 60, 90];
+  const LS_KEY = 'comp-janela-dias';
+
+  function janelaSalva() {
+    const n = parseInt(window.localStorage ? localStorage.getItem(LS_KEY) : '', 10);
+    return JANELAS.includes(n) ? n : 30;
+  }
+
+  // Busca uma única vez a janela máxima (180 = 2×90) e guarda os arrays; trocar
+  // o período só re-filtra no cliente (comparar() filtra por data), sem refetch.
+  let _dados = null;
+  let _janela = janelaSalva();
+
+  function aplicar(janelaDias) {
+    const empty   = $('comparative-performance-empty');
+    const content = $('comparative-performance-content');
+    if (!empty || !content || !_dados) return;
+
+    const resultado = window.ComparativePerformance.comparar({ ..._dados, janelaDias });
+    if (!resultado.ok) {
+      empty.hidden = false;
+      content.hidden = true;
+      return;
+    }
+    empty.hidden = true;
+    content.hidden = false;
+    renderTiles(resultado);
+  }
+
+  function wireSelector() {
+    const sel = $('comp-period-selector');
+    if (!sel || sel.dataset.wired) return;
+    sel.dataset.wired = '1';
+    sel.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-dias]');
+      if (!btn) return;
+      const n = parseInt(btn.dataset.dias, 10);
+      if (!JANELAS.includes(n) || n === _janela) return;
+      _janela = n;
+      try { localStorage.setItem(LS_KEY, String(n)); } catch (_) { /* storage off */ }
+      marcarAtivo(n);
+      aplicar(n);
+    });
+    marcarAtivo(_janela);
+  }
+
+  function marcarAtivo(n) {
+    const sel = $('comp-period-selector');
+    if (!sel) return;
+    sel.querySelectorAll('[data-dias]').forEach((b) => {
+      b.classList.toggle('is-active', parseInt(b.dataset.dias, 10) === n);
+    });
+  }
+
   async function load() {
     const empty   = $('comparative-performance-empty');
     const content = $('comparative-performance-content');
     if (!empty || !content) return;
+    wireSelector();
 
     try {
       const [unified, zoneDist, weights] = await Promise.all([
-        window.UnifiedActivities.get(70).catch(() => ({ items: [] })),
-        window.Api.get('/garmin/zone-distribution-by-activity?days=70').catch(() => ({ items: [] })),
+        window.UnifiedActivities.get(180).catch(() => ({ items: [] })),
+        window.Api.get('/garmin/zone-distribution-by-activity?days=180').catch(() => ({ items: [] })),
         window.Api.get('/weights').catch(() => []),
       ]);
 
-      const resultado = window.ComparativePerformance.comparar({
+      _dados = {
         activities: (unified && unified.items) || [],
         zoneItems:  (zoneDist && zoneDist.items) || [],
         weights:    (weights || []).filter((w) => w.fonte === 'garmin'),
-      });
-
-      if (!resultado.ok) {
-        empty.hidden = false;
-        content.hidden = true;
-        return;
-      }
-      empty.hidden = true;
-      content.hidden = false;
-      renderTiles(resultado);
+      };
+      aplicar(_janela);
     } catch (err) {
       console.error('[comparative-performance]', err);
       empty.hidden = false;

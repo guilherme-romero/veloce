@@ -148,20 +148,17 @@
     }
   }
 
-  // Rótulos de mês (#114) — espelha o desktop (js/comparative-performance.js
-  // renderRotulos). Eyebrow, sub, legenda e labels de zona passam a mostrar
-  // os nomes dos meses; o sub avisa a parcialidade do mês atual em curso.
+  // Rótulos da janela móvel (#114 v2) — espelha o desktop. Eyebrow, sub,
+  // legenda e labels de zona refletem o N selecionado; sem nomes de mês.
   function renderRotulos(p) {
     if (!p) return;
     const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
-    set('m-comp-eyebrow', `Comparativo · ${p.mesAnteriorNome} vs ${p.mesAtualNome}`);
-    set('m-comp-legend-anterior', p.mesAnteriorNome);
-    set('m-comp-legend-atual', p.mesAtualNome);
-    set('m-comp-zona-anterior-label', p.mesAnteriorNome);
-    set('m-comp-zona-atual-label', p.mesAtualNome);
-    set('m-comp-sub', p.parcial
-      ? `Mesmos primeiros ${p.diaCorte} dias de cada mês (mês atual em curso).`
-      : 'Mês anterior vs. mês atual, completos.');
+    set('m-comp-eyebrow', `Comparativo · ${p.janelaDias}d`);
+    set('m-comp-sub', `Últimos ${p.janelaDias} dias vs. os ${p.janelaDias} anteriores.`);
+    set('m-comp-legend-anterior', `Anterior (${p.janelaDias}d)`);
+    set('m-comp-legend-atual', `Atual (${p.janelaDias}d)`);
+    set('m-comp-zona-anterior-label', 'Anterior');
+    set('m-comp-zona-atual-label', 'Atual');
   }
 
   function renderTiles(r) {
@@ -177,41 +174,85 @@
   let _gen = 0;
   function invalidate() { _gen++; }
 
+  // Seletor de janela (30/60/90) — mesma persistência do desktop (chave
+  // compartilhada, então a escolha segue entre as duas variantes).
+  const JANELAS = [30, 60, 90];
+  const LS_KEY = 'comp-janela-dias';
+  function janelaSalva() {
+    const n = parseInt(window.localStorage ? localStorage.getItem(LS_KEY) : '', 10);
+    return JANELAS.includes(n) ? n : 30;
+  }
+
+  // Dados buscados uma vez (180d = 2×90); trocar N só re-filtra no cliente.
+  let _dados = null;
+  let _janela = janelaSalva();
+
+  function aplicar(janelaDias) {
+    const empty   = $('m-comp-empty');
+    const content = $('m-comp-content');
+    if (!empty || !content || !_dados) return;
+
+    const resultado = window.ComparativePerformance.comparar({ ..._dados, janelaDias });
+    if (!resultado.ok) {
+      empty.hidden = false;
+      content.hidden = true;
+      return;
+    }
+    empty.hidden = true;
+    content.hidden = false;
+    renderTiles(resultado);
+  }
+
+  function marcarAtivo(n) {
+    const sel = $('m-comp-period');
+    if (!sel) return;
+    sel.querySelectorAll('[data-dias]').forEach((b) => {
+      b.classList.toggle('is-active', parseInt(b.dataset.dias, 10) === n);
+    });
+  }
+
+  function wireSelector() {
+    const sel = $('m-comp-period');
+    if (!sel || sel.dataset.wired) return;
+    sel.dataset.wired = '1';
+    sel.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-dias]');
+      if (!btn) return;
+      const n = parseInt(btn.dataset.dias, 10);
+      if (!JANELAS.includes(n) || n === _janela) return;
+      _janela = n;
+      try { localStorage.setItem(LS_KEY, String(n)); } catch (_) { /* storage off */ }
+      marcarAtivo(n);
+      aplicar(n);
+    });
+    marcarAtivo(_janela);
+  }
+
   // activitiesPreCarregadas: desempenho-mobile.js já busca /activities/
-  // unified?days=365 (superconjunto dos 61 dias que este módulo precisa) e
+  // unified?days=365 (superconjunto dos 180 dias que este módulo precisa) e
   // repassa o array direto, evitando um segundo fetch idêntico — comparar()
-  // filtra por data internamente, então aceita a lista maior sem mudar
-  // resultado. Sem o parâmetro (uso standalone), busca por conta própria.
+  // filtra por data internamente. Sem o parâmetro (uso standalone), busca.
   async function load(activitiesPreCarregadas) {
     const empty   = $('m-comp-empty');
     const content = $('m-comp-content');
     if (!empty || !content) return;
     const gen = ++_gen;
+    wireSelector();
 
     try {
       const [unified, zoneDist, weights] = await Promise.all([
-        activitiesPreCarregadas ? Promise.resolve(null) : window.UnifiedActivities.get(70).catch(() => ({ items: [] })),
-        window.Api.get('/garmin/zone-distribution-by-activity?days=70').catch(() => ({ items: [] })),
+        activitiesPreCarregadas ? Promise.resolve(null) : window.UnifiedActivities.get(180).catch(() => ({ items: [] })),
+        window.Api.get('/garmin/zone-distribution-by-activity?days=180').catch(() => ({ items: [] })),
         window.Api.get('/weights').catch(() => []),
       ]);
       if (gen !== _gen) return;
 
-      const activities = activitiesPreCarregadas || ((unified && unified.items) || []);
-
-      const resultado = window.ComparativePerformance.comparar({
-        activities,
+      _dados = {
+        activities: activitiesPreCarregadas || ((unified && unified.items) || []),
         zoneItems:  (zoneDist && zoneDist.items) || [],
         weights:    (weights || []).filter((w) => w.fonte === 'garmin'),
-      });
-
-      if (!resultado.ok) {
-        empty.hidden = false;
-        content.hidden = true;
-        return;
-      }
-      empty.hidden = true;
-      content.hidden = false;
-      renderTiles(resultado);
+      };
+      aplicar(_janela);
     } catch (err) {
       if (gen !== _gen) return;
       console.error('[comparative-performance-mobile]', err);

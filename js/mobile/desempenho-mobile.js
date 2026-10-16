@@ -99,9 +99,14 @@
       <div class="m-card mdesemp-compare">
         <div class="m-card-head">
           <span class="m-eyebrow" id="m-comp-eyebrow">Comparativo</span>
+          <div class="m-segment m-segment--compact" id="m-comp-period" role="tablist">
+            <button type="button" class="m-segment-btn is-active" data-dias="30">30d</button>
+            <button type="button" class="m-segment-btn" data-dias="60">60d</button>
+            <button type="button" class="m-segment-btn" data-dias="90">90d</button>
+          </div>
         </div>
-        <p class="m-sub" id="m-comp-sub" style="margin:-4px 0 10px">Mês anterior vs. mês atual.</p>
-        <div class="m-empty" id="m-comp-empty" hidden>Pedale por pelo menos 3 saídas no mês atual e no anterior (mesmo trecho) para ver o comparativo.</div>
+        <p class="m-sub" id="m-comp-sub" style="margin:-4px 0 10px">Últimos 30 dias vs. os 30 anteriores.</p>
+        <div class="m-empty" id="m-comp-empty" hidden>Sem atividades neste período para comparar.</div>
         <div id="m-comp-content" hidden>
           <div class="mdesemp-zone-legend" style="margin:0 0 10px">
             <span class="mdesemp-zone-legend__item"><span class="mdesemp-zone-legend__swatch" style="background:var(--magenta);"></span><span id="m-comp-legend-anterior">Anterior</span></span>

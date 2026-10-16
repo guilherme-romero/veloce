@@ -1,70 +1,58 @@
 /* ═══════════════════════════════════════════════════════════════════════
    CORE / COMPARATIVE PERFORMANCE — motor puro do Comparativo de Desempenho
-   (GLOSSARY.md). Compara o mês atual contra o mês anterior em 5 frentes:
-   volume, tempo de pedal, altimetria, tempo por Categoria de zona, e peso
-   corporal.
+   (GLOSSARY.md). Compara os últimos N dias contra os N dias imediatamente
+   anteriores em 5 frentes: volume, tempo de pedal, altimetria, tempo por
+   Categoria de zona, e peso corporal.
 
-   Comparação "mesmo trecho" (month-to-date, #114): para ser justa num mês
-   ainda em curso, compara os MESMOS dias de cada mês — mês atual [dia 1..hoje]
-   vs. mês anterior [dia 1..mesmo dia]. O corte é min(dia de hoje, último dia
-   do mês anterior), então ambos os lados têm o mesmo número de dias (trata
-   fev e meses de 31). No último dia de cada mês vira mês inteiro vs. mês
-   inteiro.
+   Janela móvel parametrizada (#114 v2): N ∈ {30, 60, 90} escolhido por um
+   seletor na UI. Dois períodos fixos e contíguos — atual [hoje-(N-1), hoje]
+   vs. anterior [hoje-(2N-1), hoje-N]. Sem gate de nº mínimo de atividades: o
+   bloco aparece sempre que houver pelo menos UMA atividade somando os dois
+   lados (0 antes → treinos agora já é um comparativo válido de melhora); só
+   some quando ambos os períodos estão vazios.
 
    Sem rede aqui — opera só sobre arrays já buscados (activities de
    /activities/unified, zoneItems de /garmin/zone-distribution-by-activity,
    weights de /api/weights). Diferente de js/core/performance-analysis.js
    (que compara atividades parecidas entre si, ao longo de 12 meses): aqui o
-   eixo de comparação é mês-calendário, dois meses contíguos.
+   eixo de comparação é tempo corrido, dois períodos fixos e contíguos.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
 
-  const MIN_ATIVIDADES = 3;
-
-  const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const JANELA_PADRAO = 30;
 
   // Data LOCAL (não UTC) — mesmo padrão de js/core/suggestion-history.js:19.
-  // new Date().toISOString() usa UTC e deslocaria a fronteira do mês perto
-  // da meia-noite em fuso -03:00.
+  // new Date().toISOString() usa UTC e deslocaria a fronteira perto da
+  // meia-noite em fuso -03:00.
   function paraISO(d) {
     return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
   }
 
-  // Último dia (28–31) do mês `mesIdx` (0–11) do ano `ano`. Dia 0 do mês
-  // seguinte = último dia deste mês (truque padrão de Date local).
-  function ultimoDiaDoMes(ano, mesIdx) {
-    return new Date(ano, mesIdx + 1, 0).getDate();
+  function hojeISO() {
+    return paraISO(new Date());
+  }
+
+  function subDiasISO(isoBase, n) {
+    const d = new Date(isoBase + 'T12:00:00');
+    d.setDate(d.getDate() - n);
+    return paraISO(d);
   }
 
   /**
-   * Mês atual [1..corte] vs. mês anterior [1..corte], com
-   * corte = min(dia de hoje, último dia do mês anterior) — mesmo nº de dias
-   * dos dois lados. Inclui metadados de rótulo (nomes dos meses, corte e se
-   * o mês atual ainda está parcial) para a camada de apresentação.
-   * @return {{ atualInicio, atualFim, anteriorInicio, anteriorFim,
-   *            mesAtualNome, mesAnteriorNome, diaCorte, parcial }}
+   * Dois períodos fixos e contíguos de N dias: atual = [hoje-(N-1), hoje];
+   * anterior = [hoje-(2N-1), hoje-N]. Inclui `janelaDias` para os rótulos.
+   * @param  {number} janelaDias — 30, 60 ou 90 (default 30)
+   * @return {{ atualInicio, atualFim, anteriorInicio, anteriorFim, janelaDias }}
    */
-  function definirPeriodos(hojeIso) {
-    const base = hojeIso ? new Date(hojeIso + 'T12:00:00') : new Date();
-    const ano = base.getFullYear();
-    const mes = base.getMonth();           // 0–11, mês atual
-    const diaHoje = base.getDate();
-
-    const antAno = mes === 0 ? ano - 1 : ano;
-    const antMes = mes === 0 ? 11 : mes - 1;
-    const diaCorte = Math.min(diaHoje, ultimoDiaDoMes(antAno, antMes));
-
-    const dia = (a, m, d) => paraISO(new Date(a, m, d));
+  function definirPeriodos(janelaDias, hojeIso) {
+    const N = janelaDias || JANELA_PADRAO;
+    const hoje = hojeIso || hojeISO();
     return {
-      atualInicio:     dia(ano, mes, 1),
-      atualFim:        dia(ano, mes, diaCorte),
-      anteriorInicio:  dia(antAno, antMes, 1),
-      anteriorFim:     dia(antAno, antMes, diaCorte),
-      mesAtualNome:    NOMES_MESES[mes],
-      mesAnteriorNome: NOMES_MESES[antMes],
-      diaCorte,
-      parcial:         diaCorte < ultimoDiaDoMes(ano, mes),
+      atualInicio:    subDiasISO(hoje, N - 1),
+      atualFim:       hoje,
+      anteriorInicio: subDiasISO(hoje, 2 * N - 1),
+      anteriorFim:    subDiasISO(hoje, N),
+      janelaDias:     N,
     };
   }
 
@@ -131,20 +119,23 @@
 
   /**
    * Orquestrador puro: recebe os 3 arrays já buscados e devolve o pacote
-   * pronto pra render. Gate geral (>=3 atividades em CADA período) controla
-   * a seção inteira; peso tem gate próprio independente dentro do pacote.
+   * pronto pra render. Sem gate de nº mínimo — a seção some só quando AMBOS
+   * os períodos estão vazios (nada a comparar); peso tem gate próprio
+   * independente dentro do pacote.
    * @param  {Object} params
    * @param  {Array}  params.activities — /activities/unified (.items)
    * @param  {Array}  params.zoneItems  — /garmin/zone-distribution-by-activity (.items)
    * @param  {Array}  params.weights    — /api/weights (fonte='garmin')
+   * @param  {number} params.janelaDias — 30, 60 ou 90 (default 30)
    * @return {{ok:false}} | {{ok:true, periodos, volume, tempo, altimetria, zona, peso}}
    */
-  function comparar({ activities, zoneItems, weights }) {
-    const periodos = definirPeriodos();
+  function comparar({ activities, zoneItems, weights, janelaDias }) {
+    const periodos = definirPeriodos(janelaDias);
     const atual    = agregarAtividades(activities, periodos.atualInicio, periodos.atualFim);
     const anterior = agregarAtividades(activities, periodos.anteriorInicio, periodos.anteriorFim);
 
-    if (atual.count < MIN_ATIVIDADES || anterior.count < MIN_ATIVIDADES) {
+    // Exibe com >=1 atividade somando os dois lados; oculta só se ambos = 0.
+    if (atual.count === 0 && anterior.count === 0) {
       return { ok: false };
     }
 
