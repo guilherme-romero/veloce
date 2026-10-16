@@ -191,10 +191,52 @@
     if (chave == null) _cache.clear(); else _cache.delete(chave);
   }
 
+  /**
+   * Popover de info no clique (padrao .insight-info-btn + data-info), mesmo
+   * comportamento do desktop (js/insights.js). O mobile nao carrega insights.js,
+   * entao o handler vive aqui. Delegacao global: cobre qualquer botao renderizado
+   * depois, sem hover (toque nao tem hover). Idempotente.
+   */
+  let _infoPopoverReady = false;
+  function initInfoPopovers() {
+    if (_infoPopoverReady) return;
+    const popover = document.getElementById('insight-popover');
+    if (!popover) return;
+    _infoPopoverReady = true;
+    let activeBtn = null;
+
+    function hide() { popover.hidden = true; activeBtn = null; }
+
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest('.insight-info-btn');
+      if (!btn) { hide(); return; }
+      e.stopPropagation();
+      if (activeBtn === btn) { hide(); return; }
+
+      activeBtn = btn;
+      popover.textContent = btn.dataset.info || '';
+      popover.hidden = false;
+
+      // Posiciona abaixo do botao, limitado a janela.
+      const rect = btn.getBoundingClientRect();
+      const pw = Math.min(300, window.innerWidth - 24);
+      popover.style.maxWidth = pw + 'px';
+      let left = rect.left;
+      if (left + pw > window.innerWidth - 12) left = window.innerWidth - pw - 12;
+      if (left < 12) left = 12;
+      let top = rect.bottom + 8;
+      if (top + 120 > window.innerHeight) top = rect.top - 8 - popover.offsetHeight;
+      popover.style.left = left + 'px';
+      popover.style.top = top + 'px';
+    }, true);
+  }
+
+  initInfoPopovers();
+
   window.MShell = {
     setHeader, initials, segment, segmentAtividades, wireSegment,
     parseLocalDT, fmtDate, fmtDateHora, fmtDuracao, fmtNum,
     mChart, ensureChart, esc,
-    cached, invalidate, TTL_DADOS,
+    cached, invalidate, TTL_DADOS, initInfoPopovers,
   };
 })();
