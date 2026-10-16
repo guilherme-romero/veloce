@@ -111,13 +111,19 @@ resultado da análise registra qual provedor/modelo de fato gerou o texto, exibi
 na UI, para que fique visível quando a rotação estiver de fato acontecendo.
 
 **Comparativo de Desempenho**:
-Bloco da seção Desempenho que compara os últimos 30 dias contra os 30 dias imediatamente
-anteriores (janela fixa, sem seletor de período) em cinco frentes: volume, tempo de pedal,
-altimetria, tempo por Categoria de zona, e peso corporal. Diferente da Análise de Performance (que
-compara uma Atividade de referência contra um Grupo de comparação de atividades parecidas, ao
-longo de 12 meses): o Comparativo de Desempenho usa tempo corrido como eixo de comparação, não
-semelhança entre atividades — os dois blocos respondem perguntas diferentes e convivem na mesma
-seção. **Ausente** (bloco inteiro oculto, sem erro) se qualquer um dos dois períodos tiver menos de
+Bloco da seção Desempenho que compara o **mês atual** contra o **mês anterior** (meses-calendário,
+sem seletor de período) em cinco frentes: volume, tempo de pedal, altimetria, tempo por Categoria
+de zona, e peso corporal. Para ser justo num mês ainda em curso, usa comparação **"mesmo trecho"**
+(month-to-date, #114): compara os **mesmos dias de cada mês** — mês atual `[dia 1..hoje]` vs. mês
+anterior `[dia 1..mesmo dia]`, com o corte em `min(dia de hoje, último dia do mês anterior)` para
+que os dois lados tenham o mesmo número de dias (trata fevereiro e meses de 31). No último dia de
+cada mês vira mês inteiro vs. mês inteiro. Os lados são rotulados com o **nome dos meses** (ex.:
+`Setembro` / `Outubro`), e enquanto o mês atual não fechou uma nota avisa que estão sendo comparados
+os primeiros N dias de cada mês. Diferente da Análise de Performance (que compara uma Atividade de
+referência contra um Grupo de comparação de atividades parecidas, ao longo de 12 meses): o
+Comparativo de Desempenho usa mês-calendário como eixo de comparação, não semelhança entre
+atividades — os dois blocos respondem perguntas diferentes e convivem na mesma seção. **Ausente**
+(bloco inteiro oculto, sem erro) se qualquer um dos dois meses (no mesmo trecho) tiver menos de
 3 atividades. O sub-bloco de peso tem seu próprio critério de ausência, independente dos outros
 quatro (pode faltar peso mesmo com atividade suficiente). Só Volume/Tempo de pedal/Altimetria
 recebem selo de alta/baixa (verde/vermelho) — zona e peso mostram a variação sem indicar se é boa

@@ -148,7 +148,24 @@
     }
   }
 
+  // Rótulos de mês (#114) — espelha o desktop (js/comparative-performance.js
+  // renderRotulos). Eyebrow, sub, legenda e labels de zona passam a mostrar
+  // os nomes dos meses; o sub avisa a parcialidade do mês atual em curso.
+  function renderRotulos(p) {
+    if (!p) return;
+    const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
+    set('m-comp-eyebrow', `Comparativo · ${p.mesAnteriorNome} vs ${p.mesAtualNome}`);
+    set('m-comp-legend-anterior', p.mesAnteriorNome);
+    set('m-comp-legend-atual', p.mesAtualNome);
+    set('m-comp-zona-anterior-label', p.mesAnteriorNome);
+    set('m-comp-zona-atual-label', p.mesAtualNome);
+    set('m-comp-sub', p.parcial
+      ? `Mesmos primeiros ${p.diaCorte} dias de cada mês (mês atual em curso).`
+      : 'Mês anterior vs. mês atual, completos.');
+  }
+
   function renderTiles(r) {
+    renderRotulos(r.periodos);
     renderBarrasVolumeTempoAltimetria(r);
     renderZona(r.zona.atual, r.zona.anterior);
     renderPeso(r.peso);
@@ -173,8 +190,8 @@
 
     try {
       const [unified, zoneDist, weights] = await Promise.all([
-        activitiesPreCarregadas ? Promise.resolve(null) : window.UnifiedActivities.get(61).catch(() => ({ items: [] })),
-        window.Api.get('/garmin/zone-distribution-by-activity?days=61').catch(() => ({ items: [] })),
+        activitiesPreCarregadas ? Promise.resolve(null) : window.UnifiedActivities.get(70).catch(() => ({ items: [] })),
+        window.Api.get('/garmin/zone-distribution-by-activity?days=70').catch(() => ({ items: [] })),
         window.Api.get('/weights').catch(() => []),
       ]);
       if (gen !== _gen) return;

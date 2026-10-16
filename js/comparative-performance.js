@@ -167,7 +167,30 @@
     }
   }
 
+  // Rótulos de mês (#114): card-label, legenda e labels de zona passam a
+  // mostrar os nomes dos meses. A nota de parcialidade só aparece enquanto o
+  // mês atual não fechou (compara os primeiros N dias de cada mês).
+  function renderRotulos(p) {
+    if (!p) return;
+    const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
+    set('compPeriodoLabel', `— ${p.mesAnteriorNome} vs ${p.mesAtualNome}`);
+    set('compLegendAnterior', p.mesAnteriorNome);
+    set('compLegendAtual', p.mesAtualNome);
+    set('compZonaAnteriorLabel', p.mesAnteriorNome);
+    set('compZonaAtualLabel', p.mesAtualNome);
+    const nota = $('compPeriodoNota');
+    if (nota) {
+      if (p.parcial) {
+        nota.textContent = `Comparando os primeiros ${p.diaCorte} dias de cada mês (mês atual em curso).`;
+        nota.hidden = false;
+      } else {
+        nota.hidden = true;
+      }
+    }
+  }
+
   function renderTiles(r) {
+    renderRotulos(r.periodos);
     renderBarrasVolumeTempoAltimetria(r);
     renderZona(r.zona.atual, r.zona.anterior);
     renderPeso(r.peso);
@@ -180,8 +203,8 @@
 
     try {
       const [unified, zoneDist, weights] = await Promise.all([
-        window.UnifiedActivities.get(61).catch(() => ({ items: [] })),
-        window.Api.get('/garmin/zone-distribution-by-activity?days=61').catch(() => ({ items: [] })),
+        window.UnifiedActivities.get(70).catch(() => ({ items: [] })),
+        window.Api.get('/garmin/zone-distribution-by-activity?days=70').catch(() => ({ items: [] })),
         window.Api.get('/weights').catch(() => []),
       ]);
 

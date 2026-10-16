@@ -98,14 +98,14 @@
 
       <div class="m-card mdesemp-compare">
         <div class="m-card-head">
-          <span class="m-eyebrow">Comparativo · 30d</span>
+          <span class="m-eyebrow" id="m-comp-eyebrow">Comparativo</span>
         </div>
-        <p class="m-sub" style="margin:-4px 0 10px">Dois períodos fixos de 30 dias corridos (não contagem de atividades) — os últimos 30 dias vs. os 30 anteriores.</p>
-        <div class="m-empty" id="m-comp-empty" hidden>Pedale por pelo menos 3 saídas em cada um dos últimos dois períodos de 30 dias para ver o comparativo.</div>
+        <p class="m-sub" id="m-comp-sub" style="margin:-4px 0 10px">Mês anterior vs. mês atual.</p>
+        <div class="m-empty" id="m-comp-empty" hidden>Pedale por pelo menos 3 saídas no mês atual e no anterior (mesmo trecho) para ver o comparativo.</div>
         <div id="m-comp-content" hidden>
           <div class="mdesemp-zone-legend" style="margin:0 0 10px">
-            <span class="mdesemp-zone-legend__item"><span class="mdesemp-zone-legend__swatch" style="background:var(--magenta);"></span>Anterior</span>
-            <span class="mdesemp-zone-legend__item"><span class="mdesemp-zone-legend__swatch" style="background:var(--lime);"></span>Atual</span>
+            <span class="mdesemp-zone-legend__item"><span class="mdesemp-zone-legend__swatch" style="background:var(--magenta);"></span><span id="m-comp-legend-anterior">Anterior</span></span>
+            <span class="mdesemp-zone-legend__item"><span class="mdesemp-zone-legend__swatch" style="background:var(--lime);"></span><span id="m-comp-legend-atual">Atual</span></span>
           </div>
           <div class="mdesemp-compare-grid">
             <div class="mdesemp-carousel-tile">
@@ -148,12 +148,12 @@
           <div class="mdesemp-zone-card">
             <div class="mdesemp-tile__label">Tempo por zona</div>
             <div class="mdesemp-zone-row">
-              <span class="mdesemp-zone-row__label">Anterior</span>
+              <span class="mdesemp-zone-row__label" id="m-comp-zona-anterior-label">Anterior</span>
               <div class="mdesemp-zone-row__bar" id="m-comp-zona-anterior-bar"></div>
               <span class="mdesemp-zone-row__total" id="m-comp-zona-anterior-total"></span>
             </div>
             <div class="mdesemp-zone-row">
-              <span class="mdesemp-zone-row__label">Atual</span>
+              <span class="mdesemp-zone-row__label" id="m-comp-zona-atual-label">Atual</span>
               <div class="mdesemp-zone-row__bar" id="m-comp-zona-atual-bar"></div>
               <span class="mdesemp-zone-row__total" id="m-comp-zona-atual-total"></span>
             </div>

@@ -1,49 +1,70 @@
 /* ═══════════════════════════════════════════════════════════════════════
    CORE / COMPARATIVE PERFORMANCE — motor puro do Comparativo de Desempenho
-   (GLOSSARY.md). Compara os últimos 30 dias contra os 30 dias imediatamente
-   anteriores em 5 frentes: volume, tempo de pedal, altimetria, tempo por
-   Categoria de zona, e peso corporal.
+   (GLOSSARY.md). Compara o mês atual contra o mês anterior em 5 frentes:
+   volume, tempo de pedal, altimetria, tempo por Categoria de zona, e peso
+   corporal.
+
+   Comparação "mesmo trecho" (month-to-date, #114): para ser justa num mês
+   ainda em curso, compara os MESMOS dias de cada mês — mês atual [dia 1..hoje]
+   vs. mês anterior [dia 1..mesmo dia]. O corte é min(dia de hoje, último dia
+   do mês anterior), então ambos os lados têm o mesmo número de dias (trata
+   fev e meses de 31). No último dia de cada mês vira mês inteiro vs. mês
+   inteiro.
 
    Sem rede aqui — opera só sobre arrays já buscados (activities de
    /activities/unified, zoneItems de /garmin/zone-distribution-by-activity,
    weights de /api/weights). Diferente de js/core/performance-analysis.js
    (que compara atividades parecidas entre si, ao longo de 12 meses): aqui o
-   eixo de comparação é tempo corrido, dois períodos fixos e contíguos.
+   eixo de comparação é mês-calendário, dois meses contíguos.
 ═══════════════════════════════════════════════════════════════════════ */
 (function () {
 
-  const JANELA_DIAS = 30;
   const MIN_ATIVIDADES = 3;
 
+  const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
   // Data LOCAL (não UTC) — mesmo padrão de js/core/suggestion-history.js:19.
-  // new Date().toISOString() usa UTC e deslocaria a fronteira dos 30 dias
-  // perto da meia-noite em fuso -03:00.
+  // new Date().toISOString() usa UTC e deslocaria a fronteira do mês perto
+  // da meia-noite em fuso -03:00.
   function paraISO(d) {
     return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
   }
 
-  function hojeISO() {
-    return paraISO(new Date());
-  }
-
-  function subDiasISO(isoBase, n) {
-    const d = new Date(isoBase + 'T12:00:00');
-    d.setDate(d.getDate() - n);
-    return paraISO(d);
+  // Último dia (28–31) do mês `mesIdx` (0–11) do ano `ano`. Dia 0 do mês
+  // seguinte = último dia deste mês (truque padrão de Date local).
+  function ultimoDiaDoMes(ano, mesIdx) {
+    return new Date(ano, mesIdx + 1, 0).getDate();
   }
 
   /**
-   * Dois períodos fixos e contíguos: atual = [hoje-29, hoje];
-   * anterior = [hoje-59, hoje-30].
-   * @return {{ atualInicio, atualFim, anteriorInicio, anteriorFim }} (ISO strings)
+   * Mês atual [1..corte] vs. mês anterior [1..corte], com
+   * corte = min(dia de hoje, último dia do mês anterior) — mesmo nº de dias
+   * dos dois lados. Inclui metadados de rótulo (nomes dos meses, corte e se
+   * o mês atual ainda está parcial) para a camada de apresentação.
+   * @return {{ atualInicio, atualFim, anteriorInicio, anteriorFim,
+   *            mesAtualNome, mesAnteriorNome, diaCorte, parcial }}
    */
   function definirPeriodos(hojeIso) {
-    const hoje = hojeIso || hojeISO();
+    const base = hojeIso ? new Date(hojeIso + 'T12:00:00') : new Date();
+    const ano = base.getFullYear();
+    const mes = base.getMonth();           // 0–11, mês atual
+    const diaHoje = base.getDate();
+
+    const antAno = mes === 0 ? ano - 1 : ano;
+    const antMes = mes === 0 ? 11 : mes - 1;
+    const diaCorte = Math.min(diaHoje, ultimoDiaDoMes(antAno, antMes));
+
+    const dia = (a, m, d) => paraISO(new Date(a, m, d));
     return {
-      atualInicio:    subDiasISO(hoje, JANELA_DIAS - 1),
-      atualFim:       hoje,
-      anteriorInicio: subDiasISO(hoje, 2 * JANELA_DIAS - 1),
-      anteriorFim:    subDiasISO(hoje, JANELA_DIAS),
+      atualInicio:     dia(ano, mes, 1),
+      atualFim:        dia(ano, mes, diaCorte),
+      anteriorInicio:  dia(antAno, antMes, 1),
+      anteriorFim:     dia(antAno, antMes, diaCorte),
+      mesAtualNome:    NOMES_MESES[mes],
+      mesAnteriorNome: NOMES_MESES[antMes],
+      diaCorte,
+      parcial:         diaCorte < ultimoDiaDoMes(ano, mes),
     };
   }
 
