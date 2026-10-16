@@ -19,9 +19,9 @@
     "dotenv": "^16.4.5",
     "fastify": "^4.28.0",
     "jsonwebtoken": "^9.0.2",
-    "playwright": "~1.55.0"
+    "playwright": "^1.64.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
