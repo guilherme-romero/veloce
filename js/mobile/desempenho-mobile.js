@@ -100,9 +100,9 @@
         <div class="m-card-head">
           <span class="m-eyebrow" id="m-comp-eyebrow">Comparativo</span>
           <div class="m-segment m-segment--compact" id="m-comp-period" role="tablist">
-            <button type="button" class="m-segment-btn is-active" data-dias="30">30d</button>
-            <button type="button" class="m-segment-btn" data-dias="60">60d</button>
-            <button type="button" class="m-segment-btn" data-dias="90">90d</button>
+            <button type="button" class="m-period-btn is-active" data-dias="30">30d</button>
+            <button type="button" class="m-period-btn" data-dias="60">60d</button>
+            <button type="button" class="m-period-btn" data-dias="90">90d</button>
           </div>
         </div>
         <p class="m-sub" id="m-comp-sub" style="margin:-4px 0 10px">Últimos 30 dias vs. os 30 anteriores.</p>

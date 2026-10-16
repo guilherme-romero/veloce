@@ -21,7 +21,13 @@
   margin-bottom: 14px;
 }
 
-.m-segment-btn {
+/* .m-period-btn (seletor de janela do Comparativo) compartilha a pele do
+   .m-segment-btn, mas tem classe própria de propósito: o MShell.wireSegment()
+   liga TODO .m-segment-btn da view ao MRouter.navigate(dataset.slug) — herdar
+   essa classe faria o clique no período navegar para um slug inexistente
+   (ia parar na tela "Mais"). Ver js/mobile/shell.js wireSegment. */
+.m-segment-btn,
+.m-period-btn {
   min-height: 40px;
   border: 0;
   border-radius: 9px;
@@ -33,7 +39,8 @@
   cursor: pointer;
 }
 
-.m-segment-btn.is-active {
+.m-segment-btn.is-active,
+.m-period-btn.is-active {
   background: var(--lime);
   color: var(--bg);
   font-weight: 800;
@@ -47,7 +54,7 @@
   border-radius: 10px;
   flex-shrink: 0;
 }
-.m-segment--compact .m-segment-btn {
+.m-segment--compact .m-period-btn {
   min-height: 28px;
   font-size: 11.5px;
   padding: 0 10px;
