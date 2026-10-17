@@ -1,6 +1,6 @@
 {
   "name": "veloce-api",
-  "version": "2.11.6",
+  "version": "2.11.7",
   "private": true,
   "description": "Backend do Veloce — Fastify + SQLite + auth",
   "main": "index.js",

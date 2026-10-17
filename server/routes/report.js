@@ -415,19 +415,56 @@ function reportResumoClient() {
   const fetchDays = 70;
 
   async function build() {
-    const [profile, unified, health, readinessItems, bikes] = await Promise.all([
+    const [profile, unified, health, readinessItems, bikes, planResp, vo2maxResp, zoneResp] = await Promise.all([
       get('/profile'), get(`/activities/unified?days=${fetchDays}`),
-      get('/garmin/health?days=40'), get('/garmin/training-readiness?days=14'), get('/bikes'),
+      get('/garmin/health?days=70'), get('/garmin/training-readiness?days=14'), get('/bikes'),
+      get('/weekly-training-plan'), get('/garmin/vo2max'),
+      get(`/garmin/zone-distribution-by-activity?days=${fetchDays}`),
     ]);
     const u = profile || {};
-    const items = ((unified && Array.isArray(unified.items)) ? unified.items : [])
-      .filter(a => a.data && a.data >= janelaIni && a.data <= janelaFim);
+    // todosItems: histórico completo da janela de busca (p/ aquecer o EMA do
+    // CTL/ATL); items: só o mês fechado (acumulados, aderência, maior pedal).
+    const todosItems = (unified && Array.isArray(unified.items)) ? unified.items : [];
+    const noMes = (d) => d && d >= janelaIni && d <= janelaFim;
+    const items = todosItems.filter(a => noMes(a.data));
     // #108: acumulados do mês (distância, tempo, elevação; nº = items.length).
     const acumulados = items.reduce((s, a) => ({
       km:    s.km    + (a.distanciaKm || 0),
       horas: s.horas + (a.tempoMovS || 0) / 3600,
       elev:  s.elev  + (a.elevacaoM || 0),
     }), { km: 0, horas: 0, elev: 0 });
+    const diasMes = _ultimoMesAnt.getDate();
+
+    // #109 — dados do ciclista. CTL/ATL máx do mês: série EMA até o fim do mês,
+    // pico restrito aos dias do mês. VO2máx: último conhecido (a Garmin deste
+    // usuário não registra valor recente). HRV noturno: média do mês.
+    let ctlMax = null, atlMax = null;
+    if (u.fcMax && window.Metrics) {
+      const { ctlSerie, atlSerie } = window.Metrics.calcTSBMetrics(todosItems, u.fcMax, _ultimoMesAnt);
+      const tail = Math.min(diasMes, ctlSerie.length);
+      if (tail > 0) {
+        ctlMax = Math.round(Math.max(...ctlSerie.slice(-tail)));
+        atlMax = Math.round(Math.max(...atlSerie.slice(-tail)));
+      }
+    }
+    const hrvVals = (health || []).filter(h => noMes(h.data) && h.hrv_noite_avg != null && isFinite(h.hrv_noite_avg)).map(h => h.hrv_noite_avg);
+    const hrvMedia = hrvVals.length ? Math.round(hrvVals.reduce((s, v) => s + v, 0) / hrvVals.length) : null;
+    const vo2 = (vo2maxResp && vo2maxResp.latest && vo2maxResp.latest.value != null) ? Math.round(vo2maxResp.latest.value) : null;
+
+    // #111 — aderência do mês: planejado semanal × (dias do mês / 7) vs. realizado.
+    const planDias = (planResp && planResp.ok && planResp.payload && planResp.payload.dias) || [];
+    const planWeeklyMin = planDias.reduce((s, d) => s + (d && !d.descanso ? (+d.duracaoMin || 0) : 0), 0);
+    const realizadoMesMin = items.reduce((s, a) => s + (a.tempoMovS || 0) / 60, 0);
+    const aderFrac = window.WeightStats ? window.WeightStats.adherence(planWeeklyMin, realizadoMesMin, diasMes / 7) : null;
+    const aderPct = aderFrac != null ? Math.round(aderFrac * 100) : null;
+
+    // #110 — distribuição por zona de FC acumulada no mês (rosca).
+    const zonaSeg = [0, 0, 0, 0, 0];
+    ((zoneResp && Array.isArray(zoneResp.items)) ? zoneResp.items : [])
+      .filter(z => noMes(z.data))
+      .forEach(z => (z.segundosPorZona || []).forEach((s, i) => { zonaSeg[i] += (s || 0); }));
+    const zonaTotal = zonaSeg.reduce((s, v) => s + v, 0);
+
     const nome = u.nome ? String(u.nome).split(/\s+/)[0] : 'Ciclista';
     const pesoAtual = u.pesoAtual != null ? u.pesoAtual : null;
     const meta = u.pesoMeta != null ? u.pesoMeta : null;
@@ -453,6 +490,33 @@ function reportResumoClient() {
       if (venc.length) alerta = `<div style="margin:0 36px 8px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:12px;padding:14px;font-size:13px;color:#eef2f4"><strong style="color:${RED}">${esc(bike.nome)} · ${venc.length} componente${venc.length > 1 ? 's' : ''} vencido${venc.length > 1 ? 's' : ''}.</strong> ${esc(venc.map(c => COMP_LABELS[c.tipo] || c.tipo).join(', '))}.</div>`;
     }
 
+    // #109 — bloco "Dados do ciclista": só os tiles que têm valor (flex, para
+    // lidar com nº variável de métricas presentes).
+    const dadoTile = (label, val, un) => val == null ? '' :
+      `<div style="flex:1;min-width:0;padding:12px 8px;text-align:center"><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED}">${esc(label)}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;margin-top:3px">${val}${un ? `<span style="font-size:12px;color:${LIME};margin-left:2px">${un}</span>` : ''}</div></div>`;
+    const dadosTiles = [dadoTile('Carga CTL', ctlMax, ''), dadoTile('Fadiga ATL', atlMax, ''), dadoTile('VO₂máx', vo2, ''), dadoTile('HRV noturno', hrvMedia, '')].filter(Boolean);
+    const dadosBloco = dadosTiles.length
+      ? `<div style="margin:12px 36px 0"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding:0 0 6px">Dados do ciclista</div><div style="display:flex;background:${SURF};border:1px solid ${BORDER};border-radius:12px">${dadosTiles.join('')}</div></div>`
+      : '';
+
+    // #110 — rosca (donut via conic-gradient) da distribuição por zona de FC.
+    const ZCORES = ['#60a5fa', '#22c55e', '#eab308', '#f97316', '#ef4444']; // Z1..Z5
+    let _acc = 0; const stops = [];
+    zonaSeg.forEach((s, i) => { const p = zonaTotal > 0 ? s / zonaTotal * 100 : 0; stops.push(`${ZCORES[i]} ${_acc.toFixed(2)}% ${(_acc + p).toFixed(2)}%`); _acc += p; });
+    const zonaLegenda = zonaSeg.map((s, i) => {
+      const p = zonaTotal > 0 ? Math.round(s / zonaTotal * 100) : 0;
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#c4ccd4;margin:3px 0"><span style="width:10px;height:10px;border-radius:2px;background:${ZCORES[i]};display:inline-block"></span>Z${i + 1} · ${p}% · ${vírgula(s / 3600)}h</div>`;
+    }).join('');
+    const roscaBloco = zonaTotal > 0
+      ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:14px 16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding-bottom:10px">Tempo por zona de FC · ${esc(mesNome)}</div><div style="display:flex;align-items:center;gap:20px"><div style="width:110px;height:110px;border-radius:50%;background:conic-gradient(${stops.join(',')});flex-shrink:0;position:relative"><div style="position:absolute;top:22px;left:22px;right:22px;bottom:22px;background:${SURF};border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px">${vírgula(zonaTotal / 3600)}h</div></div><div style="flex:1">${zonaLegenda}</div></div></div>`
+      : '';
+
+    // #111 — aderência ao plano no mês (barra + %).
+    const aderCor = aderPct == null ? MUTED : (aderPct >= 80 ? GREEN : (aderPct >= 50 ? AMBER : RED));
+    const aderBloco = aderPct != null
+      ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:12px 16px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED}">Aderência ao plano</span><span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:${aderCor}">${aderPct}%</span></div><div style="height:6px;background:${SURF2};border-radius:3px;overflow:hidden;margin-top:8px"><div style="width:${Math.min(100, aderPct)}%;height:100%;background:${aderCor}"></div></div></div>`
+      : '';
+
     const dataTxt = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '');
 
     document.getElementById('resumo').innerHTML = `
@@ -471,6 +535,9 @@ function reportResumoClient() {
         ${kpi('Peso atual', pesoAtual != null ? `${vírgula(pesoAtual)}<span style="font-size:15px;color:${LIME};margin-left:3px">KG</span>` : '—', meta != null && faltam != null ? `<div style="font-size:11px;color:${MUTED};margin-top:4px">meta ${esc(String(meta))} kg · faltam <span style="color:${MAG};font-weight:700">${vírgula(faltam)}</span></div>` : '')}
         <td valign="top" style="width:34%;padding:16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Maior pedal</div><div style="font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1;margin-top:4px">${maiorPedal > 0 ? `${vírgula(maiorPedal)}<span style="font-size:15px;color:${LIME};margin-left:3px">KM</span>` : '—'}</div></td>
       </tr></table></div>
+      ${dadosBloco}
+      ${roscaBloco}
+      ${aderBloco}
       ${bars.length ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:8px 16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding:8px 0 2px">Como você está</div><table width="100%" cellpadding="0" cellspacing="0">${bars.join('')}</table></div>` : ''}
       <div style="height:14px"></div>
       ${alerta}
