@@ -385,8 +385,11 @@ async function runRelatorioMensal(db, log) {
 
   const reportRender = require('./services/report-render');
   const png = await reportRender.renderPng();
-  const mes = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  await telegram.sendPhoto(png, `Veloce Labs · seu relatório de ${mes}`);
+  // Relatório de FECHAMENTO do mês anterior (#106/#107): a legenda cita o mês
+  // que fechou, não o atual. Dia 0 do mês atual = último dia do mês anterior.
+  const mesAnt = new Date(); mesAnt.setDate(0);
+  const mes = mesAnt.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  await telegram.sendPhoto(png, `Veloce Labs · fechamento de ${mes}`);
   log.info('[scheduler] relatório mensal enviado pelo Telegram');
 }
 

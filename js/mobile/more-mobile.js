@@ -19,8 +19,9 @@
   // da tab Desempenho (seletor segmentado), mas o deep link #/insights
   // continua funcionando normalmente.
   const SECOES = [
-    { slug: 'perfil',   label: 'Perfil e pesagens', icon: 'fa-user' },
-    { slug: 'passeios', label: 'Passeios',          icon: 'fa-calendar-day' },
+    { slug: 'perfil',        label: 'Perfil e pesagens', icon: 'fa-user' },
+    { slug: 'passeios',      label: 'Passeios',          icon: 'fa-calendar-day' },
+    { slug: 'configuracoes', label: 'Configurações',     icon: 'fa-gear' },
   ];
 
   function itemHTML(s) {
