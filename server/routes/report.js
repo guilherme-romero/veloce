@@ -38,6 +38,7 @@ function assets() {
     archivo: fontB64('archivo-variable.woff2'),
     core: [
       'js/utils.js',
+      'js/core/metrics.js',
       'js/core/weight-stats.js',
       'js/core/fatigue.js',
       'js/core/records.js',
@@ -438,9 +439,19 @@ function reportResumoClient() {
     // #109 — dados do ciclista. CTL/ATL máx do mês: série EMA até o fim do mês,
     // pico restrito aos dias do mês. VO2máx: último conhecido (a Garmin deste
     // usuário não registra valor recente). HRV noturno: média do mês.
+    // fcMax: usa o salvo; senão estima 220 − idade (mesma regra de
+    // Profile.calcFCMax, que não está inlinado aqui). dataNascimento é ISO.
+    const _idade = (iso) => {
+      if (!iso) return 0;
+      const [y, m, dd] = iso.split('-').map(Number);
+      const t = new Date(); let a = t.getFullYear() - y;
+      if (t.getMonth() + 1 < m || (t.getMonth() + 1 === m && t.getDate() < dd)) a--;
+      return a > 0 ? a : 0;
+    };
+    const fcMax = u.fcMax || (_idade(u.dataNascimento) > 0 ? 220 - _idade(u.dataNascimento) : null);
     let ctlMax = null, atlMax = null;
-    if (u.fcMax && window.Metrics) {
-      const { ctlSerie, atlSerie } = window.Metrics.calcTSBMetrics(todosItems, u.fcMax, _ultimoMesAnt);
+    if (fcMax && window.Metrics) {
+      const { ctlSerie, atlSerie } = window.Metrics.calcTSBMetrics(todosItems, fcMax, _ultimoMesAnt);
       const tail = Math.min(diasMes, ctlSerie.length);
       if (tail > 0) {
         ctlMax = Math.round(Math.max(...ctlSerie.slice(-tail)));
