@@ -169,3 +169,22 @@ igual ao comportamento já estabelecido pela Análise de Performance.
 _Avoid_: confundir com Sugestão de Treino — são opostos em quase todo eixo: Sugestão de Treino é
 diária, reativa, 100% local/determinística (sem IA) e nunca persistida; o Plano de Treino Semanal é
 semanal, sob demanda, usa IA para a prescrição e é persistido com histórico.
+
+**Relatório de fechamento mensal**:
+Imagem-resumo (PNG) do **mês anterior fechado** (`[1º..último dia]` em horário local — não "últimos
+30 dias"; rótulo "Fechamento de {mês}") enviada pelo canal Telegram automaticamente pelo
+`scheduler.js` (dia 1º, 8h, dedup por `YYYY-MM`), opt-in via toggle `relatorioMensalTelegram` do
+Perfil E Telegram configurado. Gerada server-side pelo subsistema de relatório
+(`server/routes/report.js`, função client-side `reportResumoClient` do `#resumo`, renderizada via
+Playwright — mesma infra do relatório PDF). Entregue em fases (épico #106, sub-issues #107–#112,
+completo na v2.11.9) e composta por: **acumulados** do mês (#108 — distância, tempo, elevação, nº de
+passeios); **dados do ciclista** (#109 — Carga CTL máx e Fadiga ATL máx do mês como pico da série EMA
+de `calcTSBMetrics`, VO2máx mais recente, HRV noturno médio); **rosca de zona de FC** (#110 — donut
+`conic-gradient` com a distribuição de tempo por zona Z1–Z5); **aderência ao plano** (#111 —
+`WeightStats.adherence`, planejado vs. realizado, barra + %); e **Análise do mês** (#112 — texto de IA
+`{observacao, foco}`, gerado por `server/services/monthly-analysis.js` na cascata Gemini→Groq, nunca
+inventa números (ADR-0002); cache em `monthly_report_analysis_cache` por mês (`mes` = 'YYYY-MM');
+falha de IA → relatório sai sem a seção). Diferente do relatório PDF completo (download in-app, 2
+páginas): o fechamento mensal é um PNG resumido, retrospectivo de um mês só, disparado por agenda.
+_Avoid_: relatório mensal (ambíguo — este é especificamente o fechamento do mês anterior), relatório
+PDF (é o outro artefato do subsistema de relatório).
