@@ -408,3 +408,14 @@ CREATE TABLE IF NOT EXISTS weekly_training_plans (
   gerado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_ativo ON weekly_training_plans(ativo);
+
+-- Análise de IA do mês para o relatório de fechamento (Telegram, #106/#112).
+-- NÃO singleton (diferente de performance_analysis_cache): uma linha por mês
+-- fechado, chaveada por 'YYYY-MM' — a análise de cada mês custou uma chamada de
+-- IA e é imutável depois de gerada, então vale guardar o histórico. Falha de IA
+-- nunca grava (o relatório sai sem a seção de análise).
+CREATE TABLE IF NOT EXISTS monthly_report_analysis_cache (
+  mes       TEXT PRIMARY KEY,   -- 'YYYY-MM' do mês fechado
+  payload   TEXT NOT NULL,      -- JSON: { observacao, foco, provider, model, insumos }
+  gerado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
