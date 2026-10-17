@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const { requireAuth } = require('../middleware/auth');
 const reportRender = require('../services/report-render');
+const { lerCacheMensal, gerarEArmazenarMensal } = require('../services/monthly-analysis');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -400,6 +401,13 @@ function reportResumoClient() {
       return await r.json();
     } catch (_) { return null; }
   };
+  const post = async (p, body) => {
+    try {
+      const r = await fetch('/api' + p, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (_) { return null; }
+  };
   const COMP_LABELS = { pastilha_diant: 'Pastilha dianteira', pastilha_tras: 'Pastilha traseira', corrente: 'Corrente', cassete: 'Cassete', pneu_dianteiro: 'Pneu dianteiro', pneu_traseiro: 'Pneu traseiro', disco_diant: 'Disco dianteiro', disco_tras: 'Disco traseiro', cabo_freio: 'Cabo/Óleo de freio', outro: 'Outro' };
 
   const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -528,6 +536,24 @@ function reportResumoClient() {
       ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:12px 16px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED}">Aderência ao plano</span><span style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:${aderCor}">${aderPct}%</span></div><div style="height:6px;background:${SURF2};border-radius:3px;overflow:hidden;margin-top:8px"><div style="width:${Math.min(100, aderPct)}%;height:100%;background:${aderCor}"></div></div></div>`
       : '';
 
+    // #112 — análise de IA do mês. POST com os insumos já calculados (cache por
+    // mês no servidor). Só pede se houve atividade; falha/timeout/sem-IA → omite
+    // a seção (o PNG nunca deixa de sair por causa da IA).
+    let analiseBloco = '';
+    if (items.length > 0) {
+      const dados = {
+        acumulados: { km: Math.round(acumulados.km), horas: Math.round(acumulados.horas * 10) / 10, elev: Math.round(acumulados.elev), count: items.length },
+        ctlMax, atlMax, vo2, hrv: hrvMedia,
+        zonasPct: zonaTotal > 0 ? zonaSeg.map(s => Math.round(s / zonaTotal * 100)) : [],
+        aderPct,
+        peso: { atual: pesoAtual, meta },
+      };
+      const r = await post('/report/monthly-analysis', { mes: janelaIni.slice(0, 7), dados });
+      if (r && r.observacao) {
+        analiseBloco = `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:14px 16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${LIME};padding-bottom:6px">Análise do mês</div><div style="font-size:13px;line-height:1.5;color:#eef2f4">${esc(r.observacao)}</div>${r.foco ? `<div style="margin-top:10px;font-size:12px;line-height:1.5;color:#c4ccd4"><span style="color:${MAG};font-weight:700">Foco: </span>${esc(r.foco)}</div>` : ''}</div>`;
+      }
+    }
+
     const dataTxt = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '');
 
     document.getElementById('resumo').innerHTML = `
@@ -549,6 +575,7 @@ function reportResumoClient() {
       ${dadosBloco}
       ${roscaBloco}
       ${aderBloco}
+      ${analiseBloco}
       ${bars.length ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:8px 16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding:8px 0 2px">Como você está</div><table width="100%" cellpadding="0" cellspacing="0">${bars.join('')}</table></div>` : ''}
       <div style="height:14px"></div>
       ${alerta}
@@ -622,6 +649,32 @@ async function routes(fastify) {
   fastify.get('/api/report/print-resumo', async (req, reply) => {
     reply.type('text/html; charset=utf-8').header('Cache-Control', 'no-store');
     return resumoHtml();
+  });
+
+  // ── POST /api/report/monthly-analysis ─────────────────────────────────
+  // Análise de IA do mês (#112). Chamada pelo próprio template do resumo
+  // durante o render (loopback), com os insumos já calculados. Cache por mês:
+  // a 1ª chamada do mês gera via IA; as seguintes batem no cache. Falha de IA
+  // NUNCA quebra o relatório — responde {observacao:null} e o client omite a
+  // seção (o resto do PNG renderiza igual).
+  fastify.post('/api/report/monthly-analysis', async (req, reply) => {
+    const { mes, dados } = req.body || {};
+    if (!mes || !/^\d{4}-\d{2}$/.test(String(mes))) {
+      reply.code(400);
+      return { error: 'mes (YYYY-MM) é obrigatório' };
+    }
+    const cache = lerCacheMensal(fastify.db, mes);
+    if (cache) {
+      const p = JSON.parse(cache.payload);
+      return { observacao: p.observacao, foco: p.foco, geradoEm: cache.gerado_em, cache: true };
+    }
+    try {
+      const r = await gerarEArmazenarMensal(fastify.db, { mes, dados: dados || {} });
+      return { observacao: r.observacao, foco: r.foco, geradoEm: r.geradoEm, cache: false };
+    } catch (err) {
+      req.log.warn({ err: err.message, cascata: err.cascata }, '[report] análise mensal: IA indisponível');
+      return { observacao: null };   // 200 — relatório sai sem a seção
+    }
   });
 
   // Rate-limit: cada chamada sobe um contexto Chromium + page.pdf() (caro em
