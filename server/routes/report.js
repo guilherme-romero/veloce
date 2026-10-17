@@ -401,15 +401,33 @@ function reportResumoClient() {
   };
   const COMP_LABELS = { pastilha_diant: 'Pastilha dianteira', pastilha_tras: 'Pastilha traseira', corrente: 'Corrente', cassete: 'Cassete', pneu_dianteiro: 'Pneu dianteiro', pneu_traseiro: 'Pneu traseiro', disco_diant: 'Disco dianteiro', disco_tras: 'Disco traseiro', cabo_freio: 'Cabo/Óleo de freio', outro: 'Outro' };
 
-  const days = 30; // resumo mensal
+  const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const paraISO = (d) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  // #106/#107: relatório de FECHAMENTO do mês anterior (o scheduler dispara dia
+  // 1º). Janela = [1º dia, último dia] do mês passado, em horário LOCAL. Dia 0
+  // deste mês = último dia do mês anterior.
+  const _ultimoMesAnt = new Date(new Date().getFullYear(), new Date().getMonth(), 0);
+  const _primeiroMesAnt = new Date(_ultimoMesAnt.getFullYear(), _ultimoMesAnt.getMonth(), 1);
+  const janelaIni = paraISO(_primeiroMesAnt), janelaFim = paraISO(_ultimoMesAnt);
+  const mesNome = NOMES_MESES[_ultimoMesAnt.getMonth()];
+  // Busca com folga (cobre o mês anterior mesmo gerando no fim do mês atual) e
+  // filtra a janela no cliente — o endpoint só aceita "últimos N dias".
+  const fetchDays = 70;
 
   async function build() {
     const [profile, unified, health, readinessItems, bikes] = await Promise.all([
-      get('/profile'), get(`/activities/unified?days=${days}`),
+      get('/profile'), get(`/activities/unified?days=${fetchDays}`),
       get('/garmin/health?days=40'), get('/garmin/training-readiness?days=14'), get('/bikes'),
     ]);
     const u = profile || {};
-    const items = (unified && Array.isArray(unified.items)) ? unified.items : [];
+    const items = ((unified && Array.isArray(unified.items)) ? unified.items : [])
+      .filter(a => a.data && a.data >= janelaIni && a.data <= janelaFim);
+    // #108: acumulados do mês (distância, tempo, elevação; nº = items.length).
+    const acumulados = items.reduce((s, a) => ({
+      km:    s.km    + (a.distanciaKm || 0),
+      horas: s.horas + (a.tempoMovS || 0) / 3600,
+      elev:  s.elev  + (a.elevacaoM || 0),
+    }), { km: 0, horas: 0, elev: 0 });
     const nome = u.nome ? String(u.nome).split(/\s+/)[0] : 'Ciclista';
     const pesoAtual = u.pesoAtual != null ? u.pesoAtual : null;
     const meta = u.pesoMeta != null ? u.pesoMeta : null;
@@ -440,9 +458,14 @@ function reportResumoClient() {
     document.getElementById('resumo').innerHTML = `
       <div style="height:6px;background:repeating-linear-gradient(90deg,${LIME} 0 18px,${MAG} 18px 36px)"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 36px 0"><span style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.04em">VELOCE <span style="color:${LIME}">LABS</span></span><span style="font-size:11px;color:${MUTED}">${esc(dataTxt)}</span></div>
-      <div style="padding:26px 36px 4px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:${LIME}">Últimos 30 dias</div>
+      <div style="padding:26px 36px 4px;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:${LIME}">Fechamento de ${esc(mesNome)}</div>
       <div style="padding:0 36px;font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:.9">SEU RELATÓRIO DE EVOLUÇÃO</div>
-      <div style="padding:10px 36px 22px;font-size:14px;line-height:1.5;color:#c4ccd4">Olá, ${esc(nome)}. Aqui está o resumo do mês. O relatório completo está no app.</div>
+      <div style="padding:10px 36px 22px;font-size:14px;line-height:1.5;color:#c4ccd4">Olá, ${esc(nome)}. Aqui está o fechamento de ${esc(mesNome)}. O relatório completo está no app.</div>
+      <div style="margin:0 36px 12px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding:0 0 6px">Acumulados de ${esc(mesNome)}</div><table width="100%" cellpadding="0" cellspacing="0" style="background:${SURF};border:1px solid ${BORDER};border-radius:12px;border-collapse:separate"><tr>
+        ${kpi('Distância', acumulados.km > 0 ? `${vírgula(acumulados.km, 0)}<span style="font-size:15px;color:${LIME};margin-left:3px">KM</span>` : '—')}
+        ${kpi('Tempo', acumulados.horas > 0 ? `${vírgula(acumulados.horas)}<span style="font-size:15px;color:${LIME};margin-left:3px">H</span>` : '—')}
+        <td valign="top" style="width:34%;padding:16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Elevação</div><div style="font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1;margin-top:4px">${acumulados.elev > 0 ? `${vírgula(acumulados.elev, 0)}<span style="font-size:15px;color:${LIME};margin-left:3px">M</span>` : '—'}</div></td>
+      </tr></table></div>
       <div style="margin:0 36px"><table width="100%" cellpadding="0" cellspacing="0" style="background:${SURF};border:1px solid ${BORDER};border-radius:12px;border-collapse:separate"><tr>
         ${kpi('Passeios', String(items.length))}
         ${kpi('Peso atual', pesoAtual != null ? `${vírgula(pesoAtual)}<span style="font-size:15px;color:${LIME};margin-left:3px">KG</span>` : '—', meta != null && faltam != null ? `<div style="font-size:11px;color:${MUTED};margin-top:4px">meta ${esc(String(meta))} kg · faltam <span style="color:${MAG};font-weight:700">${vírgula(faltam)}</span></div>` : '')}

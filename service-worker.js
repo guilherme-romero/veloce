@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.11.5';
+const CACHE_VERSION = 'v2.11.6';
 const CACHE_NAME = `veloce-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -112,6 +112,7 @@ const SHELL = [
   './js/mobile/profile-mobile.js',
   './js/mobile/rides-mobile.js',
   './js/mobile/more-mobile.js',
+  './js/mobile/config-mobile.js',
   './js/mobile/boot.js',
   // dados_usuario.txt entra como cache opcional — não falha install se faltar
 ];
