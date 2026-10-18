@@ -72,7 +72,7 @@ const Api = (() => {
     get:  (path)        => request(path, { method: 'GET' }),
     post: (path, body)  => request(path, { method: 'POST', body }),
     put:  (path, body)  => request(path, { method: 'PUT',  body }),
-    del:  (path)        => request(path, { method: 'DELETE' }),
+    del:  (path, body)  => request(path, { method: 'DELETE', body: body ?? null }),
   };
 })();
 
