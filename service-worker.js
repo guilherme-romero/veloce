@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.11.9';
+const CACHE_VERSION = 'v2.12.0';
 const CACHE_NAME = `veloce-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -92,6 +92,7 @@ const SHELL = [
   './js/core/fatigue.js',
   './js/core/records.js',
   './js/core/weather-rating.js',
+  './js/core/rides-schedule.js',
   './js/core/training-suggestion.js',
   './js/core/suggestion-history.js',
   './js/core/performance-analysis.js',

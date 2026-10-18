@@ -66,15 +66,13 @@
   // dentro de ~2 dias.
   function _proximoPasseio() {
     try {
-      if (!window.Storage || !Storage.getRides) return [];
+      if (!window.Storage || !Storage.getRides || !window.RidesSchedule) return [];
       const hoje = _todayISO();
-      const futuros = Storage.getRides()
-        .filter(r => r.data >= hoje)
-        .sort((a, b) => (a.data < b.data ? -1 : 1));
-      if (!futuros.length) return [];
-      const r = futuros[0];
+      // Seleção pura (filtro/sort/horizonte) extraída pro core — fonte única
+      // com o digest de push da véspera (#3). O horizonte de 2 dias segue igual.
+      const r = RidesSchedule.nextRide(Storage.getRides(), hoje, 2);
+      if (!r) return [];
       const diff = Math.round((new Date(r.data + 'T12:00:00') - new Date(hoje + 'T12:00:00')) / DAY_MS);
-      if (diff > 2) return [];
       const quando = diff <= 0 ? 'hoje' : diff === 1 ? 'amanhã' : `em ${diff} dias`;
       return [{
         id: `ride:${r.id}`,

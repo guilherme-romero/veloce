@@ -55,4 +55,11 @@ module.exports = {
   // token/chat_id, o envio automatico e' pulado. Setup: scripts/telegram-setup.sh.
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
   TELEGRAM_CHAT_ID:   process.env.TELEGRAM_CHAT_ID || '',
+
+  // Web Push / VAPID (opcional — push ativo no celular, #3 Nivel B). Sem o par
+  // de chaves, o envio e' pulado (mesmo padrao opt-in do Telegram). Gere o par
+  // com: node scripts/vapid-setup.js — cole as 3 linhas no .env.
+  VAPID_PUBLIC_KEY:  process.env.VAPID_PUBLIC_KEY  || '',
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY || '',
+  VAPID_SUBJECT:     process.env.VAPID_SUBJECT     || 'mailto:guilhermeromero@gmail.com',
 };

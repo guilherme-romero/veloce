@@ -105,6 +105,7 @@ function buildApp(opts = {}) {
   fastify.register(require('./routes/bikes'));
   fastify.register(require('./routes/component-types'));
   fastify.register(require('./routes/weather'));
+  fastify.register(require('./routes/push'));
   fastify.register(require('./routes/backup'));
   fastify.register(require('./routes/performance-analysis'));
   fastify.register(require('./routes/weekly-training-plan'));
