@@ -51,6 +51,15 @@
     }
   });
 
+  // Navegação pedida pelo clique numa notificação push (#3 Nível B): o SW
+  // focou esta janela e manda o hash — só o cliente conhece a variante/rota.
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    const d = e.data;
+    if (d && d.type === 'PUSH_NAVIGATE' && typeof d.hash === 'string' && d.hash) {
+      location.hash = d.hash;
+    }
+  });
+
   // O SW faz skipWaiting()+clients.claim(), então 'controllerchange' pode
   // disparar sozinho (nova versão assume em background). Só recarregamos se o
   // usuário pediu (botão "Atualizar"); caso contrário, mostramos o banner e

@@ -156,3 +156,12 @@ async function routes(fastify) {
 }
 
 module.exports = routes;
+
+// Previsão diária de São Paulo (mesmo payload de GET /api/weather/forecast),
+// para reuso server-side sem passar por HTTP — ex.: o digest de push (#3 F2).
+// Reaproveita o cache de 30 min do proxy. Anexado à função exportada: o
+// fastify.register só chama `routes`, ignora propriedades extras.
+module.exports.getSpForecastDaily = async function getSpForecastDaily() {
+  const json = await fetchOpenMeteo(buildUrl({ lat: SP_LAT, lon: SP_LON }));
+  return json.daily;
+};
