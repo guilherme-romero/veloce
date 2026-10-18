@@ -137,6 +137,7 @@ function openProfileModal() {
     onMount: (modal) => {
       window.Avatar.wireFallbacks(modal);
       wireAvatarUpload(modal);
+      wirePushToggle(modal);
       modal.querySelector('#f-nome').focus();
     },
   });
@@ -225,7 +226,66 @@ function profileTreinoIaFieldsHTML(u) {
         Requer o bot do Telegram configurado no servidor (<code>scripts/telegram-setup.sh</code>).
       </p>
     </div>
+
+    <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:16px;">
+      <label class="field-label" style="display:block;margin-bottom:8px;">Notificações no celular</label>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2);cursor:pointer;">
+        <input type="checkbox" id="f-push-optin" disabled />
+        Avisar na véspera dos passeios (horário + clima)
+      </label>
+      <p id="f-push-note" style="font-size:11px;color:var(--muted2);margin-top:6px;">Verificando suporte…</p>
+    </div>
   `;
+}
+
+// Toggle de notificações push (#3 F3). Age no `change` (não no Salvar): o
+// clique é o user-gesture que o Notification.requestPermission() exige, e o
+// "ligado" é estado do device (permissão + subscription), não preferência de
+// perfil — por isso saveProfile não lê este campo.
+async function wirePushToggle(modal) {
+  const cb = modal.querySelector('#f-push-optin');
+  const note = modal.querySelector('#f-push-note');
+  if (!cb || !note) return;
+
+  if (!window.PushOptin || !PushOptin.isSupported()) {
+    cb.checked = false; cb.disabled = true;
+    note.textContent = (window.PushOptin && PushOptin.unsupportedReason() === 'ios-install')
+      ? 'No iPhone/iPad, instale o app na tela inicial para ativar as notificações.'
+      : 'Este navegador não suporta notificações push.';
+    return;
+  }
+
+  const NOTES = {
+    on:      'Ativado neste dispositivo.',
+    off:     'Receba um aviso por volta das 18h na véspera dos passeios.',
+    blocked: 'Notificações bloqueadas — libere nas configurações do navegador.',
+  };
+  const applyState = (st) => {
+    cb.checked = st === 'on';
+    cb.disabled = st === 'blocked';
+    note.textContent = NOTES[st] || NOTES.off;
+  };
+  applyState(await PushOptin.currentState());
+
+  cb.addEventListener('change', async () => {
+    cb.disabled = true;
+    try {
+      if (cb.checked) {
+        const r = await PushOptin.enable();
+        if (r === 'on') { toast('Notificações ativadas'); applyState('on'); }
+        else if (r === 'blocked')   { toast('Permissão negada', { kind: 'error' });              applyState('blocked'); }
+        else if (r === 'no-server') { toast('Push não configurado no servidor', { kind: 'error' }); applyState('off'); }
+        else                        { toast('Notificações não suportadas', { kind: 'error' });    applyState('off'); }
+      } else {
+        await PushOptin.disable();
+        toast('Notificações desativadas');
+        applyState('off');
+      }
+    } catch (e) {
+      toast('Falha nas notificações: ' + (e.message || e), { kind: 'error' });
+      applyState(await PushOptin.currentState());
+    }
+  });
 }
 
 function wireAvatarUpload(modal) {
