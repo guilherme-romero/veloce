@@ -188,3 +188,17 @@ falha de IA → relatório sai sem a seção). Diferente do relatório PDF compl
 páginas): o fechamento mensal é um PNG resumido, retrospectivo de um mês só, disparado por agenda.
 _Avoid_: relatório mensal (ambíguo — este é especificamente o fechamento do mês anterior), relatório
 PDF (é o outro artefato do subsistema de relatório).
+
+**Push da véspera**:
+Notificação **push ativa** (web-push/VAPID) enviada ao celular por volta das **18h na véspera** de
+cada passeio planejado, com horário + veredito de clima do dia seguinte — chega **mesmo com o app
+fechado**. É o **Nível B** da IDEIA-6 do sino de notificações (entregue na v2.12.0→v2.12.2, Issue #3),
+oposto ao sino **in-app** (Níveis A/A+): o sino só avisa quando o usuário **abre** o app; o push da
+véspera é proativo. Opt-in explícito pelo toggle **"Avisar na véspera dos passeios"** (modal de Perfil
+no desktop, tela Configurações no mobile), que faz `pushManager.subscribe` sob user-gesture. Disparado
+pelo `scheduler.js` (job das 18h, `server/services/push-digest.js`), no máximo 1 push/dia por passeio
+(dedup em `push_sent`). Foco **Android** no v1; no iOS exige o PWA instalado na tela inicial (detectado
+e orientado, não suportado no v1). Reusa `WeatherRating.rating` rodando em Node (mesma fonte de verdade
+do clima do app) e a lógica pura de `js/core/rides-schedule.js`.
+_Avoid_: sino (reservado para o sino in-app, Níveis A/A+ — este é o push proativo), notificação (sozinho,
+ambíguo entre as duas coisas).
