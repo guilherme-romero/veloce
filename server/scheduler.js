@@ -8,11 +8,13 @@ const { autoFillBike } = require('./utils/training-log-helper');
 const { runMatching }  = require('./utils/activity-matcher');
 const { getUnifiedActivities } = require('./services/activities');
 const { analisar, lerCache, gerarEArmazenarAnalise } = require('./services/performance-analysis');
+const pushDigest = require('./services/push-digest');
 
 const SYNC_INTERVAL_MIN = 30;     // intervalo do sync automático (minutos)
 const CHECK_INTERVAL_MS = 60_000; // verifica a cada minuto
 const ANALISE_HORA      = 6;      // horário fixo (local da LXC, America/Sao_Paulo) do job de IA
 const RELATORIO_HORA    = 8;      // dia 1º: envio do relatório mensal pelo Telegram (#95)
+const PUSH_HORA         = 18;     // digest de push da véspera dos passeios (#3 F2)
 
 // Evita disparo duplo no mesmo slot (chave = "YYYY-MM-DD:HH:bloco")
 const _synced = new Set();
@@ -447,9 +449,21 @@ function setup(db, log) {
           .catch(e => log.error({ err: e }, '[scheduler] erro no relatório mensal'));
       }
     }
+
+    // Digest de push da véspera (#3 F2): às PUSH_HORA, encadeado no fim. Sem
+    // Set de dedup aqui — a tabela push_sent (passeio+dia) garante um push só
+    // por dia, então os dois slots de PUSH_HORA (:00 e :30) convergem: o
+    // primeiro que tem assinante envia e marca, o segundo vê tudo notificado e
+    // pula. Não depende do sync (passeios são dado local), mas rodar depois
+    // não custa nada.
+    if (now.getHours() === PUSH_HORA) {
+      chain = chain
+        .then(() => pushDigest.runDigest(db, log))
+        .catch(e => log.error({ err: e }, '[scheduler] erro no digest de push'));
+    }
   }, CHECK_INTERVAL_MS);
 
-  log.info(`[scheduler] ativo — sync a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h, relatório mensal (Telegram) dia 1º às ${RELATORIO_HORA}h`);
+  log.info(`[scheduler] ativo — sync a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h, relatório mensal (Telegram) dia 1º às ${RELATORIO_HORA}h, digest de push às ${PUSH_HORA}h`);
 }
 
 module.exports = { setup };

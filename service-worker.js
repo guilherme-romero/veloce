@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.12.0';
+const CACHE_VERSION = 'v2.12.1';
 const CACHE_NAME = `veloce-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -242,4 +242,44 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+/* ── PUSH: exibe a notificação do digest da véspera (#3 Nível B) ─────── */
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (_) {}
+  const title = data.title || 'Veloce';
+  const options = {
+    body: data.body || '',
+    // tag colapsa pushes do mesmo assunto no mesmo dia (não empilha vários).
+    tag: data.tag || 'veloce',
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    // url viaja no `data` da notificação para o notificationclick abrir.
+    data: { url: data.url || './' },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+/* ── NOTIFICATIONCLICK: abre/foca o app na seção pedida ─────────────── */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || './';
+  event.waitUntil((async () => {
+    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const doApp = wins.filter(c => c.url && c.url.startsWith(self.location.origin));
+    if (doApp.length) {
+      // Manda TODAS as janelas do app navegarem (só o cliente conhece a
+      // variante desktop/mobile — o SW não lê storage) e foca a primeira.
+      const hash = url.includes('#') ? '#' + url.split('#')[1] : '';
+      for (const c of doApp) {
+        if (hash) c.postMessage({ type: 'PUSH_NAVIGATE', hash });
+      }
+      await doApp[0].focus();
+      return;
+    }
+    // Sem janela aberta: abre a raiz com o hash; variant.js preserva o hash e
+    // resolve desktop/mobile.
+    await clients.openWindow(url);
+  })());
 });
