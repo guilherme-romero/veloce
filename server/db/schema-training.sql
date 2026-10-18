@@ -419,3 +419,25 @@ CREATE TABLE IF NOT EXISTS monthly_report_analysis_cache (
   payload   TEXT NOT NULL,      -- JSON: { observacao, foco, provider, model, insumos }
   gerado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Web Push / VAPID (push ativo no celular, #3 Nível B). Uma linha por
+-- PushSubscription do navegador (chaveada pelo endpoint, único por device).
+-- p256dh/auth são as chaves públicas da subscription que o web-push usa pra
+-- cifrar o payload. Auto-limpeza: subscription expirada (410/404 no envio) é
+-- removida pelo service.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  endpoint   TEXT PRIMARY KEY,
+  p256dh     TEXT NOT NULL,
+  auth       TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Dedup do digest da véspera (#3 F2): um registro por passeio+dia já
+-- notificado, pro tick das 18h não repetir o mesmo push se rodar mais de uma
+-- vez no dia. `dia` é a data LOCAL do disparo (YYYY-MM-DD).
+CREATE TABLE IF NOT EXISTS push_sent (
+  ride_id TEXT NOT NULL,
+  dia     TEXT NOT NULL,
+  sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (ride_id, dia)
+);
