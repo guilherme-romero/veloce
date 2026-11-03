@@ -51,6 +51,11 @@
   let _selIdx = 0;
   let _hoje = null;
   let _gen = 0;
+  // Trava de reentrada da geração. Não basta o `disabled` do botão: o header
+  // é recriado a cada onEnter, então sair e voltar à aba no meio de uma
+  // geração entregaria um botão novo, habilitado, e permitiria disparar outra
+  // chamada em paralelo (Issue #133).
+  let _gerando = false;
 
   function diasOrdenados() {
     const porDia = {};
@@ -314,10 +319,34 @@
     return { ctl, atl, tsb, tendenciaPeso, limiares };
   }
 
+  // Conteúdo padrão do botão Gerar, compartilhado entre o markup do header e a
+  // restauração pós-geração — um só lugar para mudar o rótulo/ícone.
+  const BTN_GERAR_HTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Gerar';
+
+  function marcarGerando(btn) {
+    if (!btn) return;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    // No loading sobra só o spinner, sem texto: sem rótulo explícito o botão
+    // fica sem anúncio nenhum em leitor de tela.
+    btn.setAttribute('aria-label', 'Gerando plano');
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  }
+
+  function desmarcarGerando(btn) {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+    btn.removeAttribute('aria-label');
+    btn.innerHTML = BTN_GERAR_HTML;
+  }
+
   async function gerar() {
-    const view = document.getElementById(VIEW_ID);
-    const btn = view?.querySelector('#mtia-btn-gerar');
-    if (!btn || btn.disabled) return;
+    // Os botões desta tela vivem no header do shell (#m-header-actions), que
+    // é IRMÃO da view — nunca descendente. Buscar pela view devolve null e o
+    // clique morre em silêncio (BUG da Issue #131): sempre getElementById.
+    const btn = document.getElementById('mtia-btn-gerar');
+    if (!btn || btn.disabled || _gerando) return;
     const u = Storage.getUser();
 
     if (!perfilCompleto(u)) {
@@ -325,9 +354,8 @@
       return;
     }
 
-    const original = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    _gerando = true;
+    marcarGerando(btn);
     try {
       const insumos = await montarInsumos(u);
       const resp = await Api.post('/weekly-training-plan', { insumos });
@@ -345,8 +373,10 @@
         mostrarVazio((corpo && corpo.error) || err.message || 'Plano indisponível no momento.');
       }
     } finally {
-      btn.disabled = false;
-      btn.innerHTML = original;
+      _gerando = false;
+      // O botão pode ter sido recriado pelo setHeader enquanto a geração
+      // rodava (sair e voltar da aba) — reseta o que estiver no DOM agora.
+      desmarcarGerando(document.getElementById('mtia-btn-gerar') || btn);
     }
   }
 
@@ -375,7 +405,7 @@
   function headerActions() {
     return `
       <button type="button" class="m-iconbtn" id="mtia-btn-historico" aria-label="Planos anteriores"><i class="fa-solid fa-clock-rotate-left"></i></button>
-      <button type="button" class="m-btn m-btn-primary" id="mtia-btn-gerar"><i class="fa-solid fa-wand-magic-sparkles"></i> Gerar</button>
+      <button type="button" class="m-btn m-btn-primary" id="mtia-btn-gerar">${BTN_GERAR_HTML}</button>
     `;
   }
 
@@ -385,8 +415,14 @@
     const gen = ++_gen;
     view.innerHTML = skeleton();
     MShell.wireSegment(view);
-    view.querySelector('#mtia-btn-gerar')?.addEventListener('click', gerar);
-    view.querySelector('#mtia-btn-historico')?.addEventListener('click', carregarHistorico);
+    // Os dois botões vivem no header (#m-header-actions), recriado a cada
+    // onEnter pelo MShell.setHeader: o bind é aqui e por getElementById —
+    // view.querySelector não os alcança (Issue #131).
+    const btnGerar = document.getElementById('mtia-btn-gerar');
+    btnGerar?.addEventListener('click', gerar);
+    // Botão recriado no meio de uma geração em voo: reflete o estado real.
+    if (_gerando) marcarGerando(btnGerar);
+    document.getElementById('mtia-btn-historico')?.addEventListener('click', carregarHistorico);
 
     try {
       const resp = await Api.get('/weekly-training-plan').catch(() => ({ ok: false }));
