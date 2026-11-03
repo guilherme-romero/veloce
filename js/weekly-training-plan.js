@@ -337,6 +337,7 @@
 
     const original = btn.innerHTML;
     btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gerando…';
 
     try {
@@ -359,6 +360,7 @@
       }
     } finally {
       btn.disabled = false;
+      btn.removeAttribute('aria-busy');
       btn.innerHTML = original;
     }
   }
