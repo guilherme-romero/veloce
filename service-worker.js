@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.12.3';
+const CACHE_VERSION = 'v2.12.4';
 const CACHE_NAME = `veloce-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -160,7 +160,18 @@ self.addEventListener('activate', (event) => {
         keys.filter(k => CACHE_PREFIXES.some(p => k.startsWith(p)) && k !== CACHE_NAME && k !== DATA_CACHE)
             .map(k => caches.delete(k))
       )
-    ).then(() => self.clients.claim())
+    )
+      // Poda os downloads de /api/report/ que versoes anteriores cachearam no
+      // DATA_CACHE (PDFs de MBs, sem valor offline). Como esse cache nao e
+      // versionado, as entradas antigas ficariam para sempre e ainda poderiam
+      // ser servidas como "novas" pelo fallback offline. Issue #132.
+      .then(() => caches.open(DATA_CACHE).then(c =>
+        c.keys().then(reqs => Promise.all(
+          reqs.filter(r => new URL(r.url).pathname.startsWith('/api/report/'))
+              .map(r => c.delete(r))
+        ))
+      ).catch(() => {}))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -181,6 +192,12 @@ self.addEventListener('fetch', (event) => {
     // /api/auth/* NUNCA e cacheado: um /auth/me cacheado faria um usuario
     // deslogado parecer logado. Vai direto pra rede, como sempre foi.
     if (url.pathname.startsWith('/api/auth/')) return;
+    // Downloads binarios (PDF/PNG do relatorio) tambem nao: sao arquivos de
+    // alguns MB, sem nenhum valor offline, e o DATA_CACHE nao tem versao (nunca
+    // e invalidado por bump) — cada geracao ocupava quota para sempre. Pior: no
+    // fallback offline o .catch abaixo serviria um PDF VELHO como se fosse
+    // novo. Issue #132.
+    if (url.pathname.startsWith('/api/report/')) return;
     event.respondWith(
       fetch(req)
         .then(resp => {

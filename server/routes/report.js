@@ -142,7 +142,7 @@ function reportRenderClient() {
     }
 
     buildPage1(u, ws, items, health, readinessItems, prs, vo2max, weeklyRec, fitness);
-    buildPage2(u, allItems, totalItems, bikes, maint);
+    buildPage2(u, allItems, totalItems, bikes, maint, fetchDays);
   }
 
   // ── Página 1: resumo ──────────────────────────────────────────────────
@@ -260,7 +260,10 @@ function reportRenderClient() {
   }
 
   // ── Página 2: atividade e equipamento ──────────────────────────────────
-  function buildPage2(u, items, totalItems, bikes, maint) {
+  // `janelaDias` é o fetchDays real (≥120, ou 1825 em "Tudo"). Entra só no
+  // rótulo do histórico: com 30d/90d o total NÃO é o total absoluto de
+  // atividades, e dizer "de N" seco fazia o número mentir (Issue #132).
+  function buildPage2(u, items, totalItems, bikes, maint, janelaDias) {
     const nome = u.nome ? String(u.nome).split(/\s+/)[0] : 'Ciclista';
 
     // Mapa 90 dias — km por dia das atividades
@@ -324,7 +327,7 @@ function reportRenderClient() {
         ${card(`${eyebrow('Últimos 90 dias')}<div style="display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;margin-bottom:10px">${heatCells.join('')}</div><div style="display:flex;gap:16px;font-size:11.5px;color:#c4ccd4"><span><strong style="color:${LIME};font-family:'Bebas Neue',sans-serif;font-size:20px">${pctAtivos}%</strong> dias ativos</span><span><strong style="font-family:'Bebas Neue',sans-serif;font-size:20px">${streak.current}</strong> sem. seguidas</span><span><strong style="font-family:'Bebas Neue',sans-serif;font-size:20px">${streak.record}</strong> recorde</span></div>`)}
         ${card(`${eyebrow('Volume mensal · km')}<div style="flex:1;display:flex;align-items:flex-end;gap:12px;min-height:110px">${monthsHtml}</div>`, 'display:flex;flex-direction:column')}
       </div>
-      ${card(`<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Histórico de atividades</span><span style="font-size:10.5px;color:${MUTED}">${recent.length} mais recentes de ${totalItems}</span></div><div style="display:grid;grid-template-columns:${COLS};gap:10px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED};padding:0 0 7px;border-bottom:1px solid ${BORDER}"><span>Data</span><span>Atividade</span><span>Km</span><span>Tempo</span><span style="text-align:right">Elev.</span><span style="text-align:right">FC</span></div>${actsHtml || `<div style="padding:12px 0;color:${MUTED};font-size:12px">Sem atividades no período.</div>`}`, 'margin-bottom:14px')}
+      ${card(`<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Histórico de atividades</span><span style="font-size:10.5px;color:${MUTED}">${janelaDias && janelaDias < 1825 ? `${recent.length} mais recentes · ${totalItems} nos últimos ${janelaDias} dias` : `${recent.length} mais recentes de ${totalItems}`}</span></div><div style="display:grid;grid-template-columns:${COLS};gap:10px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED};padding:0 0 7px;border-bottom:1px solid ${BORDER}"><span>Data</span><span>Atividade</span><span>Km</span><span>Tempo</span><span style="text-align:right">Elev.</span><span style="text-align:right">FC</span></div>${actsHtml || `<div style="padding:12px 0;color:${MUTED};font-size:12px">Sem atividades no período.</div>`}`, 'margin-bottom:14px')}
       ${bikeCard(bikes, maint)}
       ${footer(2)}`;
   }
@@ -378,7 +381,15 @@ function reportRenderClient() {
   }
 
   build()
-    .catch(err => { try { console.error('[report] falha ao montar', err); } catch (_) {} })
+    // __reportError é o contrato com o report-render: marcar __reportReady
+    // mesmo em falha é deliberado (imprimir o que deu em vez de estourar
+    // timeout), mas sem um sinal explícito o PDF sairia em branco com HTTP
+    // 200 — falha invisível. Com o sinal, a rota devolve 500 de forma
+    // determinística, sem depender de farejar o console (Issue #132).
+    .catch(err => {
+      try { window.__reportError = String((err && err.stack) || err); } catch (_) {}
+      try { console.error('[report] falha ao montar', err); } catch (_) {}
+    })
     .finally(() => { window.__reportReady = true; });
 }
 
@@ -583,7 +594,10 @@ function reportResumoClient() {
   }
 
   build()
-    .catch(err => { try { console.error('[resumo] falha', err); } catch (_) {} })
+    .catch(err => {
+      try { window.__reportError = String((err && err.stack) || err); } catch (_) {}
+      try { console.error('[resumo] falha', err); } catch (_) {}
+    })
     .finally(() => { window.__reportReady = true; });
 }
 
@@ -688,9 +702,22 @@ async function routes(fastify) {
     const days = req.query && req.query.days ? String(req.query.days).replace(/[^0-9]/g, '') : '';
     let pdf;
     try {
-      pdf = await reportRender.renderPdf({ days });
+      const r = await reportRender.renderPdf({ days });
+      pdf = r.pdf;
+      if (r.ruido.length) {
+        // Só log: 4xx de recurso vira console.error no Chromium sem o render
+        // estar quebrado. Serve pra diagnosticar, nunca pra gate.
+        fastify.log.warn({ days: days || 'completo', ruido: r.ruido.slice(0, 5) }, '[report] erros no console do render');
+      }
+      // Erro de JS na montagem ainda marca __reportReady (decisão deliberada,
+      // ver report-render.js), então sem este guard o PDF sairia em branco ou
+      // parcial com HTTP 200 — indistinguível de sucesso pra quem baixa.
+      if (r.falhou) {
+        fastify.log.error({ days: days || 'completo', erro: r.falhou }, '[report] render do PDF falhou ao montar');
+        return reply.code(500).send({ error: 'O relatório não pôde ser montado (erro ao renderizar os dados)' });
+      }
     } catch (e) {
-      fastify.log.error({ err: e }, '[report] falha ao gerar PDF');
+      fastify.log.error({ err: e, days: days || 'completo' }, '[report] falha ao gerar PDF');
       return reply.code(500).send({ error: 'Falha ao gerar o relatório PDF' });
     }
     const hoje = new Date().toISOString().slice(0, 10);

@@ -49,9 +49,26 @@ function mintInternalToken() {
   return jwt.sign({ user: config.ADMIN_USER, internal: 'report' }, config.JWT_SECRET, { expiresIn: '10m' });
 }
 
-async function withReportPage(pathWithQuery, fn) {
+/**
+ * Abre a rota de impressão e entrega a page pronta a `fn`.
+ *
+ * A montagem da página termina com `.finally(() => __reportReady = true)` de
+ * propósito (imprimir o que deu em vez de estourar timeout), então um erro de
+ * JS produziria um PDF em branco com HTTP 200 — falha invisível (Issue #132).
+ *
+ * @return {Promise<{resultado: *, falhou: string|null, ruido: string[]}>}
+ * - `falhou`: o `window.__reportError` que a própria página seta no `.catch`
+ *   da montagem. É o sinal CONFIÁVEL de render quebrado — determinístico, sem
+ *   depender de farejar o console.
+ * - `ruido`: pageerror + console.error, só para log. NÃO serve de gate: o
+ *   Chromium registra todo recurso 4xx como console.error, e o `get()` das
+ *   páginas engole `!r.ok` devolvendo null (seção vazia, PDF válido) — usar
+ *   isso como gate transformaria em 500 um relatório que hoje sai bom.
+ */
+async function withReportPage(pathWithQuery, fn, contextOptions = {}) {
   const browser = await getBrowser();
-  const context = await browser.newContext();
+  const context = await browser.newContext(contextOptions);
+  const ruido = [];
   try {
     await context.addCookies([{
       name: COOKIE_NAME,
@@ -62,25 +79,34 @@ async function withReportPage(pathWithQuery, fn) {
       sameSite: 'Strict',
     }]);
     const page = await context.newPage();
+    page.on('pageerror', (err) => ruido.push(`pageerror: ${err && err.message ? err.message : err}`));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') ruido.push(`console.error: ${msg.text()}`);
+    });
     const url = `http://127.0.0.1:${config.PORT}${pathWithQuery}`;
     await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
     // A página busca /api/* de forma assíncrona e sinaliza quando terminou de
     // montar. Esperamos esse sinal (não só o networkidle) antes de imprimir.
     await page.waitForFunction(() => window.__reportReady === true, { timeout: 30000 });
     await page.evaluate(() => document.fonts.ready);
-    return await fn(page);
+    const falhou = await page.evaluate(() => window.__reportError || null);
+    const resultado = await fn(page);
+    return { resultado, falhou, ruido };
   } finally {
     await context.close();
   }
 }
 
 /**
- * Gera o PDF completo (2 páginas A4). @return {Promise<Buffer>}
+ * Gera o PDF completo (2 páginas A4).
  * @param {{days?: number|string}} opts — janela em dias (vazio = tudo).
+ * @return {Promise<{pdf: Buffer, falhou: string|null, ruido: string[]}>} —
+ * `falhou` não-nulo = o PDF pode ter saído em branco/parcial; a rota devolve
+ * 500 em vez de entregar um arquivo inútil.
  */
 async function renderPdf({ days } = {}) {
   const qs = days ? `?days=${encodeURIComponent(days)}` : '';
-  return withReportPage(`/api/report/print${qs}`, (page) =>
+  const { resultado, falhou, ruido } = await withReportPage(`/api/report/print${qs}`, (page) =>
     page.pdf({
       format: 'A4',
       printBackground: true,          // sem isso o fundo escuro some
@@ -88,27 +114,22 @@ async function renderPdf({ days } = {}) {
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     })
   );
+  return { pdf: resultado, falhou, ruido };
 }
 
 /**
- * Gera o PNG resumido (card único) para o Telegram. @return {Promise<Buffer>}
+ * Gera o PNG resumido (card único) para o Telegram.
+ * @return {Promise<{png: Buffer, falhou: string|null, ruido: string[]}>} — ao
+ * contrário do PDF, um resumo parcial ainda é melhor que nenhum envio mensal
+ * (o job só roda no dia 1º): quem chama só loga.
  */
 async function renderPng() {
-  const browser = await getBrowser();
-  const context = await browser.newContext({ deviceScaleFactor: 2 });
-  try {
-    await context.addCookies([{
-      name: COOKIE_NAME, value: mintInternalToken(),
-      domain: '127.0.0.1', path: '/', httpOnly: true, sameSite: 'Strict',
-    }]);
-    const page = await context.newPage();
-    await page.goto(`http://127.0.0.1:${config.PORT}/api/report/print-resumo`, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForFunction(() => window.__reportReady === true, { timeout: 30000 });
-    await page.evaluate(() => document.fonts.ready);
-    return await page.locator('#resumo').screenshot({ type: 'png' });
-  } finally {
-    await context.close();
-  }
+  const { resultado, falhou, ruido } = await withReportPage(
+    '/api/report/print-resumo',
+    (page) => page.locator('#resumo').screenshot({ type: 'png' }),
+    { deviceScaleFactor: 2 },
+  );
+  return { png: resultado, falhou, ruido };
 }
 
 // Fecha o browser no shutdown (chamado pelos handlers de sinal em index.js).
