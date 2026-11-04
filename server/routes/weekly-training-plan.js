@@ -8,8 +8,11 @@
    DELETE /api/weekly-training-plan/:id           exclui um plano inativo
    DELETE /api/weekly-training-plan/historico     exclui todos os planos inativos (preserva o ativo)
 
-   Gatilho exclusivamente sob demanda — sem job automático no scheduler
-   (diferente da Análise de Performance). Rota fina: toda a lógica mora em
+   Além desta rota (sob demanda, botão Gerar), o scheduler gera um plano
+   automaticamente toda segunda às 6h (#136) — os dois caminhos passam pelo
+   mesmo gerarEArmazenarPlano e pelo mesmo lerPerfilTreinoIa. A diferença
+   está nos `insumos`: aqui vêm do frontend no body, no job vêm de
+   montarInsumos(db). Rota fina: toda a lógica mora em
    server/services/weekly-training-plan.js.
 
    Mesmo design de preservação de performance-analysis.js: falha na geração
@@ -24,71 +27,8 @@
 const { requireAuth } = require('../middleware/auth');
 const {
   lerCacheAtivo, lerHistorico, gerarEArmazenarPlano, ativarPlano, excluirPlano, limparHistorico,
+  lerPerfilTreinoIa, sanitizarInsumos,
 } = require('../services/weekly-training-plan');
-
-const DIAS_SEMANA = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
-const OBJETIVOS_TREINO_IA = ['condicionamento', 'performance', 'perdaPeso'];
-const NIVEIS_EXPERIENCIA = ['iniciante', 'intermediario', 'avancado'];
-
-// Lê o perfil JÁ VALIDADO no banco (whitelist de server/routes/profile.js)
-// em vez de confiar no `perfil` que o cliente manda no body — evita que um
-// body malicioso/malformado injete texto arbitrário no prompt da IA (o
-// corpo do POST só precisa trazer `insumos`, calculados no frontend).
-function lerPerfilTreinoIa(db) {
-  const row = db.prepare('SELECT payload FROM user_profile WHERE id = 1').get();
-  if (!row) return null;
-  let p;
-  try { p = JSON.parse(row.payload); } catch (_) { return null; }
-
-  const objetivosPrioridade = Array.isArray(p.objetivosPrioridade)
-    ? p.objetivosPrioridade.filter((o) => OBJETIVOS_TREINO_IA.includes(o))
-    : [];
-  const diasDisponiveis = Array.isArray(p.diasDisponiveis)
-    ? p.diasDisponiveis.filter((d) => DIAS_SEMANA.includes(d))
-    : [];
-  const duracaoSessaoMin = Number.isFinite(p.duracaoSessaoMin) ? p.duracaoSessaoMin : null;
-  const diaLongao = DIAS_SEMANA.includes(p.diaLongao) ? p.diaLongao : null;
-  const nivelExperiencia = NIVEIS_EXPERIENCIA.includes(p.nivelExperiencia) ? p.nivelExperiencia : null;
-
-  if (!objetivosPrioridade.length || !diasDisponiveis.length || !duracaoSessaoMin || !diaLongao || !nivelExperiencia) {
-    return null;
-  }
-  return { objetivosPrioridade, diasDisponiveis, duracaoSessaoMin, diaLongao, nivelExperiencia };
-}
-
-// Sanitiza `insumos` (calculado no frontend) antes de entrar no prompt:
-// só os campos esperados, com coerção de tipo — nenhum texto livre do
-// corpo do POST chega ao prompt sem passar por aqui.
-function sanitizarInsumos(insumos) {
-  const num = (v) => (Number.isFinite(v) ? v : null);
-  const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : null);
-  const out = {
-    ctl: num(insumos?.ctl),
-    atl: num(insumos?.atl),
-    tsb: num(insumos?.tsb),
-    tendenciaPeso: null,
-    limiares: null,
-  };
-  if (insumos?.tendenciaPeso && typeof insumos.tendenciaPeso === 'object') {
-    out.tendenciaPeso = {
-      taxaKgSem: num(insumos.tendenciaPeso.taxaKgSem),
-      msg: str(insumos.tendenciaPeso.msg, 200),
-    };
-  }
-  if (insumos?.limiares && typeof insumos.limiares === 'object') {
-    out.limiares = {
-      zonaAltaMinPct: num(insumos.limiares.zonaAltaMinPct),
-      tssRecuperacaoIgnorada: num(insumos.limiares.tssRecuperacaoIgnorada),
-      tsbSobrecarga: num(insumos.limiares.tsbSobrecarga),
-      fallback: (insumos.limiares.fallback && typeof insumos.limiares.fallback === 'object') ? {
-        zonaAlvo: !!insumos.limiares.fallback.zonaAlvo,
-        tss: !!insumos.limiares.fallback.tss,
-        tsb: !!insumos.limiares.fallback.tsb,
-      } : null,
-    };
-  }
-  return out;
-}
 
 // parseInt sozinho trunca no primeiro caractere não numérico ("1; DROP
 // TABLE" -> 1, "1.5" -> 1) — aceitaria silenciosamente um id diferente do

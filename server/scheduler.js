@@ -9,12 +9,16 @@ const { runMatching }  = require('./utils/activity-matcher');
 const { getUnifiedActivities } = require('./services/activities');
 const { analisar, lerCache, gerarEArmazenarAnalise } = require('./services/performance-analysis');
 const pushDigest = require('./services/push-digest');
+const treinoIa = require('./services/weekly-training-plan');
+const { diaLocalKey } = require('./utils/datas');
 
 const SYNC_INTERVAL_MIN = 30;     // intervalo do sync automático (minutos)
 const CHECK_INTERVAL_MS = 60_000; // verifica a cada minuto
 const ANALISE_HORA      = 6;      // horário fixo (local da LXC, America/Sao_Paulo) do job de IA
 const RELATORIO_HORA    = 8;      // dia 1º: envio do relatório mensal pelo Telegram (#95)
 const PUSH_HORA         = 18;     // digest de push da véspera dos passeios (#3 F2)
+const TREINO_IA_DIA     = 1;      // getDay(): 1 = segunda-feira (#136)
+const TREINO_IA_HORA    = 6;      // geração automática do plano semanal de Treino IA (#136)
 
 // Evita disparo duplo no mesmo slot (chave = "YYYY-MM-DD:HH:bloco")
 const _synced = new Set();
@@ -23,13 +27,8 @@ const _analisadoHoje = new Set();
 // Evita disparo duplo do relatório mensal no mesmo mês (chave = "YYYY-MM")
 const _relatorioEnviado = new Set();
 
-// Data local (não UTC) — mesmo padrão de js/core/suggestion-history.js: pra
-// um horário fixo perto da meia-noite, toISOString() (UTC) deslocaria a
-// chave de dedup pro dia errado em fuso -03:00. Não é o caso de 6h local
-// (longe da virada UTC), mas mantém o mesmo cuidado por consistência.
-function diaLocalKey(d) {
-  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
-}
+// diaLocalKey vem de ./utils/datas — extraído daqui quando o job do Treino
+// IA (#136) passou a precisar da mesma chave de dia local no service.
 
 function slotKey() {
   const now = new Date();
@@ -429,6 +428,50 @@ async function runRelatorioMensal(db, log) {
   log.info('[scheduler] relatório mensal enviado pelo Telegram');
 }
 
+// ── Treino IA automático (#136, segunda às TREINO_IA_HORA) ───────────────
+// Gera o plano semanal sem depender de o usuário abrir o app e clicar em
+// Gerar. Decisão de produto: sempre gera — o plano anterior vira ativo=0 e
+// fica no histórico, igual ao que o botão faz.
+//
+// A dedup é PERSISTENTE (planoGeradoHoje, no service) em vez do Set em
+// memória dos outros jobs: a hora do job tem dois slots de tick (:00 e :30)
+// e um restart entre eles zeraria o Set, gerando um segundo plano e uma
+// segunda chamada de IA. Efeito colateral aceito: se o usuário gerou um
+// plano manualmente mais cedo na mesma segunda, o job pula em vez de
+// queimar outra chamada.
+//
+// atribuirDatas() ancora na segunda da semana corrente, então rodando na
+// própria segunda o plano cobre hoje→domingo — nada a ajustar aqui.
+async function runTreinoIa(db, log) {
+  if (treinoIa.planoGeradoHoje(db)) {
+    log.info('[scheduler] treino IA: já existe plano gerado hoje — pulando');
+    return;
+  }
+  const perfil = treinoIa.lerPerfilTreinoIa(db);
+  if (!perfil) {
+    log.info('[scheduler] treino IA: perfil de Treino IA incompleto — pulando');
+    return;
+  }
+  try {
+    const insumos = treinoIa.montarInsumos(db);
+    const row = await treinoIa.gerarEArmazenarPlano(db, { perfil, insumos });
+    const payload = JSON.parse(row.payload);
+    log.info({ provider: payload.provider, model: payload.model },
+      '[scheduler] plano semanal de Treino IA gerado');
+  } catch (e) {
+    // Mesmo tratamento da análise de performance: a cascata de provedores de
+    // IA falhar é esperado de vez em quando e não pode derrubar o sync. O
+    // plano ativo anterior fica intacto — gerarEArmazenarPlano só desativa
+    // dentro da transação que insere o novo, e a IA roda antes dela.
+    //
+    // Retry: como nada foi gravado, planoGeradoHoje segue false e o slot :30
+    // da mesma hora tenta mais uma vez (custa uma segunda cascata). Se
+    // falhar de novo, só na segunda seguinte.
+    log.warn({ err: e.message, cascata: e.cascata, bruto: e.bruto && String(e.bruto).slice(0, 500) },
+      '[scheduler] treino IA: geração falhou — o plano anterior segue ativo');
+  }
+}
+
 // ── Setup ──────────────────────────────────────────────────────────────
 function setup(db, log) {
   setInterval(() => {
@@ -467,6 +510,18 @@ function setup(db, log) {
       }
     }
 
+    // Treino IA: segunda, às TREINO_IA_HORA (#136). Encadeado depois da
+    // análise pra rodar com o banco já sincronizado — os insumos (CTL/ATL/TSB
+    // e tendência de peso) saem das atividades e das pesagens, então vale
+    // esperar o sync. Sem Set de dedup: quem garante uma geração por dia é
+    // planoGeradoHoje(), que consulta o banco e por isso sobrevive a restart
+    // (ver o comentário de runTreinoIa).
+    if (now.getDay() === TREINO_IA_DIA && now.getHours() === TREINO_IA_HORA) {
+      chain = chain
+        .then(() => runTreinoIa(db, log))
+        .catch(e => log.error({ err: e }, '[scheduler] erro no treino IA automático'));
+    }
+
     // Relatório mensal pelo Telegram: dia 1º, às RELATORIO_HORA:00 (slot de
     // sync), uma vez por mês. Encadeado no fim pra rodar depois do sync (dados
     // já atualizados). Dedup por "YYYY-MM".
@@ -497,7 +552,7 @@ function setup(db, log) {
     }
   }, CHECK_INTERVAL_MS);
 
-  log.info(`[scheduler] ativo — sync a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h, relatório mensal (Telegram) dia 1º às ${RELATORIO_HORA}h, digest de push às ${PUSH_HORA}h`);
+  log.info(`[scheduler] ativo — sync a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h, treino IA segunda às ${TREINO_IA_HORA}h, relatório mensal (Telegram) dia 1º às ${RELATORIO_HORA}h, digest de push às ${PUSH_HORA}h`);
 }
 
 module.exports = { setup, syncAutoLigado };

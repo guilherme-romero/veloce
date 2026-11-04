@@ -10,7 +10,9 @@
 
    Mesma regra arquitetural de performance-analysis.js (ADR-0002/0004): a IA
    nunca calcula número determinístico — `insumos` (CTL/ATL/TSB, tendência
-   de peso, limiares calibrados) já vem pronto do frontend. Esta versão vai
+   de peso, limiares calibrados) já vem pronto de quem chama: do frontend no
+   caso do botão Gerar, ou de montarInsumos() aqui no caso do job automático
+   das segundas (#136). Esta versão vai
    além: a IA também não decide a DATA de cada dia — isso é calculado aqui
    (próxima ocorrência de cada dia da semana a partir de hoje), evitando que
    a IA erre aritmética de calendário.
@@ -27,10 +29,20 @@
    histórico — sem expiração por tempo.
 ═══════════════════════════════════════════════════════════════════════ */
 const { gerarAnalise } = require('./ai-providers');
+const { getUnifiedActivities } = require('./activities');
+const { Metrics, WeightStats } = require('../utils/core-modules');
+const { diaLocalKey, dataDeTimestampSqlite } = require('../utils/datas');
 
 const DIAS_SEMANA = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+const OBJETIVOS_TREINO_IA = ['condicionamento', 'performance', 'perdaPeso'];
+const NIVEIS_EXPERIENCIA = ['iniciante', 'intermediario', 'avancado'];
 const ZONA_IDS = ['z1', 'z2', 'z3', 'z4', 'z5', 'z6'];
 const TIPOS = ['resistencia', 'intervalado', 'longao', 'descanso'];
+
+// Mesma janela que o frontend usa em UnifiedActivities.get(365)
+// (js/weekly-training-plan.js:309) — calcTSBMetrics só olha os últimos 60
+// dias, o resto é aquecimento da EMA.
+const JANELA_INSUMOS_DIAS = 365;
 
 // Normaliza "terça"→"terca" etc. — defesa extra além da instrução explícita
 // no prompt: descoberto em produção que a IA às vezes devolve o dia com a
@@ -265,6 +277,154 @@ function limparHistorico(db) {
   return info.changes;
 }
 
+/* ── Perfil, insumos e guard de duplicata (compartilhados rota × job) ────
+   Esta seção serve dois chamadores: a rota HTTP (botão Gerar) e o job
+   automático das segundas (#136) — mesmo arranjo de performance-analysis.js,
+   onde o motor mora no service e nenhum dos dois recalcula o que o outro já
+   fez. */
+
+function lerUserPayload(db) {
+  const row = db.prepare('SELECT payload FROM user_profile WHERE id = 1').get();
+  if (!row) return null;
+  try { return JSON.parse(row.payload); } catch (_) { return null; }
+}
+
+// Lê o perfil JÁ VALIDADO no banco (whitelist de server/routes/profile.js)
+// em vez de confiar no `perfil` que o cliente manda no body — evita que um
+// body malicioso/malformado injete texto arbitrário no prompt da IA (o
+// corpo do POST só precisa trazer `insumos`, calculados no frontend).
+// Devolve null quando o intake de Treino IA está incompleto: a rota vira
+// 400 e o job apenas loga e pula.
+function lerPerfilTreinoIa(db) {
+  const p = lerUserPayload(db);
+  if (!p) return null;
+
+  const objetivosPrioridade = Array.isArray(p.objetivosPrioridade)
+    ? p.objetivosPrioridade.filter((o) => OBJETIVOS_TREINO_IA.includes(o))
+    : [];
+  const diasDisponiveis = Array.isArray(p.diasDisponiveis)
+    ? p.diasDisponiveis.filter((d) => DIAS_SEMANA.includes(d))
+    : [];
+  const duracaoSessaoMin = Number.isFinite(p.duracaoSessaoMin) ? p.duracaoSessaoMin : null;
+  const diaLongao = DIAS_SEMANA.includes(p.diaLongao) ? p.diaLongao : null;
+  const nivelExperiencia = NIVEIS_EXPERIENCIA.includes(p.nivelExperiencia) ? p.nivelExperiencia : null;
+
+  if (!objetivosPrioridade.length || !diasDisponiveis.length || !duracaoSessaoMin || !diaLongao || !nivelExperiencia) {
+    return null;
+  }
+  return { objetivosPrioridade, diasDisponiveis, duracaoSessaoMin, diaLongao, nivelExperiencia };
+}
+
+// Sanitiza `insumos` antes de entrar no prompt: só os campos esperados, com
+// coerção de tipo — nenhum texto livre chega ao prompt sem passar por aqui.
+// Mora no service (e não na rota, onde nasceu) porque agora há DOIS
+// produtores de insumos: o body do POST e montarInsumos() abaixo. Com a
+// função aqui, montarInsumos fecha por ela, e a garantia de shape passa a ser
+// estrutural em vez de "os dois lugares combinam de coincidir".
+function sanitizarInsumos(insumos) {
+  const num = (v) => (Number.isFinite(v) ? v : null);
+  const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : null);
+  const out = {
+    ctl: num(insumos?.ctl),
+    atl: num(insumos?.atl),
+    tsb: num(insumos?.tsb),
+    tendenciaPeso: null,
+    limiares: null,
+  };
+  if (insumos?.tendenciaPeso && typeof insumos.tendenciaPeso === 'object') {
+    out.tendenciaPeso = {
+      taxaKgSem: num(insumos.tendenciaPeso.taxaKgSem),
+      msg: str(insumos.tendenciaPeso.msg, 200),
+    };
+  }
+  if (insumos?.limiares && typeof insumos.limiares === 'object') {
+    out.limiares = {
+      zonaAltaMinPct: num(insumos.limiares.zonaAltaMinPct),
+      tssRecuperacaoIgnorada: num(insumos.limiares.tssRecuperacaoIgnorada),
+      tsbSobrecarga: num(insumos.limiares.tsbSobrecarga),
+      fallback: (insumos.limiares.fallback && typeof insumos.limiares.fallback === 'object') ? {
+        zonaAlvo: !!insumos.limiares.fallback.zonaAlvo,
+        tss: !!insumos.limiares.fallback.tss,
+        tsb: !!insumos.limiares.fallback.tsb,
+      } : null,
+    };
+  }
+  return out;
+}
+
+/**
+ * Insumos do prompt calculados NO SERVIDOR, para o job automático (#136) —
+ * o botão Gerar continua mandando os seus pelo body (montarInsumos em
+ * js/weekly-training-plan.js:308). As FÓRMULAS não são duplicadas: tanto o
+ * frontend quanto aqui chamam os mesmos js/core/metrics.js e
+ * js/core/weight-stats.js (via server/utils/core-modules.js). O que existe
+ * em dois lugares é só a montagem — buscar atividades, peso e fcMax.
+ *
+ * `limiares` fica null de propósito: o cálculo mora dentro do closure da
+ * rota GET /api/garmin/calibration (server/routes/garmin.js:404+, com cache
+ * próprio) e renderia UMA linha no prompt — a de zona alta, e só quando há
+ * amostra suficiente para calibrar (ver montarPrompt acima). Extrair aquilo
+ * para um service é refactor de rota quente, fora do escopo do #136.
+ * sanitizarInsumos já trata null, e a UI nunca lê `payload.insumos` de
+ * volta — só o envia.
+ *
+ * @return {Object} o shape de sanitizarInsumos(), porque fecha por ela.
+ *   Pode lançar se o banco estiver indisponível (db.prepare /
+ *   getUnifiedActivities) — quem chama é runTreinoIa, que roda em try/catch.
+ */
+function montarInsumos(db) {
+  const insumos = { ctl: null, atl: null, tsb: null, tendenciaPeso: null, limiares: null };
+  const u = lerUserPayload(db);
+  if (!u) return insumos;
+
+  // Sem fcMax não há TSS: calcTSBMetrics devolveria zeros, e zero no prompt
+  // ("CTL: 0") mente mais do que a ausência da linha. Divergência consciente
+  // em relação ao frontend, que manda 0 nesse caso (js/weekly-training-plan.js
+  // passa `u.fcMax` cru). Não uso Metrics.calcFCMax como fallback de
+  // propósito: o job inventaria um número (220−idade) que o botão não usa.
+  if (Number.isFinite(u.fcMax) && u.fcMax > 0) {
+    const { items } = getUnifiedActivities(db, JANELA_INSUMOS_DIAS);
+    const m = Metrics.calcTSBMetrics(items, u.fcMax);
+    insumos.ctl = m.ctl;
+    insumos.atl = m.atl;
+    insumos.tsb = m.tsb;
+  }
+
+  // Shape da tabela (data/peso/tipo) já é o que dailyWeights espera de
+  // Storage.getWeights() — filtra tipo='atual' lá dentro.
+  const pesos = db.prepare('SELECT data, peso, tipo FROM weights ORDER BY data ASC').all();
+  const analise = WeightStats.weightAnalysis(u, pesos);
+  if (analise && analise.ok) {
+    insumos.tendenciaPeso = { taxaKgSem: analise.taxaKgSem, msg: analise.msg };
+  }
+
+  // Fecha pela mesma sanitização do body: um NaN/Infinity vindo de uma
+  // regressão degenerada, ou uma msg que cresça lá em weight-stats, não
+  // passa daqui para o prompt.
+  return sanitizarInsumos(insumos);
+}
+
+/**
+ * Já existe plano gerado no dia local de `agora`? É o guard de duplicata do
+ * job automático (#136), e é PERSISTENTE de propósito: o tick do scheduler
+ * passa duas vezes dentro da hora do job (:00 e :30), então um Set em
+ * memória — padrão dos outros jobs — não sobreviveria a um restart entre os
+ * dois slots e geraria um segundo plano (e uma segunda chamada de IA). Mesmo
+ * raciocínio pelo qual o digest de push consulta a tabela push_sent em vez
+ * de guardar estado em memória.
+ *
+ * Olha a ÚLTIMA linha inserida (maior id), não a linha ativa: reativar um
+ * plano antigo do histórico move o `ativo=1` para trás no tempo e faria um
+ * guard baseado em `ativo` liberar outra geração no mesmo dia.
+ */
+function planoGeradoHoje(db, agora = new Date()) {
+  const row = db.prepare('SELECT gerado_em FROM weekly_training_plans ORDER BY id DESC LIMIT 1').get();
+  if (!row) return false;
+  const d = dataDeTimestampSqlite(row.gerado_em);
+  if (!d) return false;
+  return diaLocalKey(d) === diaLocalKey(agora);
+}
+
 // Mesma trava de "promessa em voo" usada em performance-analysis.js (#26):
 // chamada de IA paga/cotada, acionável manualmente pelo usuário — duplo
 // toque ou retry do frontend não deve disparar 2 chamadas concorrentes.
@@ -306,4 +466,5 @@ module.exports = {
   DIAS_SEMANA, ZONA_IDS, TIPOS,
   montarPrompt, parseRespostaIA, atribuirDatas, lerCacheAtivo, lerHistorico, gerarEArmazenarPlano,
   ativarPlano, excluirPlano, limparHistorico,
+  lerPerfilTreinoIa, sanitizarInsumos, montarInsumos, planoGeradoHoje,
 };
