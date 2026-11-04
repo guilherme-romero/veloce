@@ -752,15 +752,30 @@ async function routes(fastify) {
   // deste usuario so registra VO2max de corrida ("generic") ate ~2024; nao ha
   // valor recente. Por isso devolvemos o maximo historico (para o card de
   // Recordes) e o ultimo medido com a data (para o card "atual" de Insights).
-  fastify.get('/api/garmin/vo2max', async () => {
+  // `asOf=YYYY-MM-DD` (#134): faz `latest` significar "último valor ATÉ essa
+  // data" em vez do mais recente absoluto. O resumo mensal do Telegram precisa
+  // disso para duas coisas: mostrar o VO2máx do mês que fechou (e não um valor
+  // de meses depois, se o render for sob demanda) e comparar com o mês anterior
+  // — esta tabela guarda uma leitura por dia, mas não havia como pedir "o valor
+  // naquele ponto do tempo". Sem o parâmetro, resposta idêntica à de antes.
+  // Formato inválido é ignorado (cai no caminho sem filtro) em vez de 400: quem
+  // chama é um template de render, e um PNG sem a comparação é melhor que um
+  // PNG que não sai.
+  fastify.get('/api/garmin/vo2max', async (req) => {
+    const asOf = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query?.asOf || '')) ? req.query.asOf : null;
     const max = fastify.db.prepare(
       `SELECT vo2_max AS value, data AS date FROM garmin_fitness_scores
        WHERE vo2_max IS NOT NULL ORDER BY vo2_max DESC, data DESC LIMIT 1`
     ).get();
-    const latest = fastify.db.prepare(
-      `SELECT vo2_max AS value, data AS date FROM garmin_fitness_scores
-       WHERE vo2_max IS NOT NULL ORDER BY data DESC LIMIT 1`
-    ).get();
+    const latest = asOf
+      ? fastify.db.prepare(
+        `SELECT vo2_max AS value, data AS date FROM garmin_fitness_scores
+         WHERE vo2_max IS NOT NULL AND data <= ? ORDER BY data DESC LIMIT 1`
+      ).get(asOf)
+      : fastify.db.prepare(
+        `SELECT vo2_max AS value, data AS date FROM garmin_fitness_scores
+         WHERE vo2_max IS NOT NULL ORDER BY data DESC LIMIT 1`
+      ).get();
     return { max: max || null, latest: latest || null };
   });
 }
