@@ -89,6 +89,60 @@ function connAutoWire(inputId, chave, aoMudar) {
 
 window.ConnAuto = { ligado: connAutoLigado, html: connAutoHtml, wire: connAutoWire };
 
+/* ── Componentes de bike — rótulo e desgaste (fonte única) ─────────────
+   Mora aqui, e não dentro dos clientes de relatório, porque os DOIS
+   (PDF e resumo do Telegram) são funções serializadas por toString() e
+   injetadas em páginas separadas — mas as duas páginas carregam este
+   arquivo antes, via assets().core em server/routes/report.js.
+
+   Essa separação é literalmente a causa da Issue #142: a correção do
+   rótulo custom e do critério de "vencido" entrou no cliente do resumo
+   (#134) e não alcançou o do PDF, porque cada um tinha a sua cópia da
+   tabela de rótulos. Com uma definição só, a próxima correção não tem
+   como alcançar um e esquecer o outro.
+
+   js/bikes.js mantém a tabela canônica (com vidaUtil e temLimpeza por
+   tipo), que é usada pela UI; consolidar as duas é dívida registrada
+   na #142.
+═════════════════════════════════════════════════════════════════════════ */
+const BIKE_COMP_LABELS = {
+  pneu_dianteiro: 'Pneu dianteiro', pneu_traseiro: 'Pneu traseiro', corrente: 'Corrente',
+  pastilha_diant: 'Pastilha dianteira', pastilha_tras: 'Pastilha traseira',
+  disco_diant: 'Disco dianteiro', disco_tras: 'Disco traseiro', cassete: 'Cassete',
+  cabo_freio: 'Cabo/Óleo de freio', outro: 'Outro',
+};
+
+/**
+ * Nome legível de um tipo de componente. Componentes criados como "Outro
+ * (novo)" têm tipo = 'custom:<id>' e o nome só existe em
+ * /api/component-types — sem resolver, sai a chave crua
+ * ("custom:ctype_1785877…") no relatório. Mesma regra do typeLabel() do
+ * app (js/bikes.js:49-54).
+ *
+ * @param {string} tipo            — 'corrente', 'custom:ctype_x', …
+ * @param {Array}  [tiposCustom]   — [{ id, nome }] de /api/component-types
+ */
+function bikeCompLabel(tipo, tiposCustom) {
+  if (Object.hasOwn(BIKE_COMP_LABELS, tipo)) return BIKE_COMP_LABELS[tipo];
+  const id = (typeof tipo === 'string' && tipo.startsWith('custom:')) ? tipo.slice(7) : null;
+  const t = id && Array.isArray(tiposCustom) ? tiposCustom.find(x => x && x.id === id) : null;
+  // Tipo custom excluído depois de usado: 'Outro' é melhor que a chave crua.
+  return (t && t.nome) ? t.nome : (id ? 'Outro' : tipo);
+}
+
+/**
+ * Fração de vida útil consumida (1 = vencido), ou null quando não dá para
+ * calcular. Quem desenha a barra deve usar Math.floor sobre isto: com
+ * Math.round, uma razão de 0,996 vira 100% e a barra marca "VENC."
+ * enquanto um banner que filtra por `razão >= 1` não conta o componente —
+ * a divergência da #142.
+ */
+function bikeCompRazaoUso(c) {
+  return (c && c.vidaUtilKm > 0 && c.kmDesgastado != null) ? c.kmDesgastado / c.vidaUtilKm : null;
+}
+
+window.BikeComp = { LABELS: BIKE_COMP_LABELS, label: bikeCompLabel, razaoUso: bikeCompRazaoUso };
+
 /* ── Zonas de FC — fonte única de verdade ──────────────────────────────
    Espelha as cores das classes CSS .z1–.z6 em Fisiologia.
    Usado em qualquer gráfico ou UI que precise colorir por zona.
