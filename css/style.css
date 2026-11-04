@@ -1462,6 +1462,34 @@ body.edit-mode .exercise-actions { display: flex; }
 }
 .strava-state.connected    { background: var(--lime-dim);    color: var(--lime);    border: 1px solid rgba(198,241,53,0.35); }
 .strava-state.disconnected { background: var(--magenta-dim); color: var(--magenta); border: 1px solid rgba(236,58,139,0.35); }
+/* #135 — sync automático desligado. Deliberadamente neutro: não é erro nem
+   sucesso, é uma escolha do usuário, e usar magenta aqui recriaria o alarme
+   que o toggle veio justamente silenciar. */
+.strava-state.muted        { background: var(--surface2);    color: var(--muted2); border: 1px solid var(--border); }
+
+/* #135 — linha do toggle, no rodapé do card de conexão. */
+.conn-auto {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+}
+/* accent-color em vez do azul padrão do browser, que destoa da paleta. */
+.conn-auto input { cursor: pointer; accent-color: var(--lime); }
+
+/* Nota do card do Strava quando o servidor desliga o auto-sync por ambiente. */
+.conn-auto-nota {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted2);
+}
+.conn-auto-nota code { font-size: 10.5px; }
 .strava-body {
   display: flex;
   flex-direction: column;

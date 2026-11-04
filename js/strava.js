@@ -31,25 +31,79 @@
     return window.Avatar.html({ name, size: 'md', alt: 'avatar Strava' });
   }
 
+  // Botão de sync manual — continua disponível com o toggle desligado, porque
+  // o toggle só gateia o sync automático do scheduler (#135).
+  const BTN_SYNC_HTML =
+    '<div class="strava-actions">' +
+      '<button type="button" id="btn-strava-sync" class="btn btn-primary">' +
+        '<i class="fa-solid fa-rotate"></i> Sincronizar' +
+      '</button>' +
+    '</div>';
+
+  // Escreve estado + corpo e pendura o toggle no fim (#135). Centralizar aqui
+  // garante que o toggle apareça em TODOS os estados do card — inclusive no de
+  // erro, que é justamente o que ele existe para calar.
+  // O sync automático do Strava está desligado POR AMBIENTE desde 2026-08-30
+  // (403 Application Inactive). Sem dizer isso, o toggle marcado prometeria um
+  // sync a cada 30 min que o servidor não executa — o backend informa o estado
+  // real em `autoSyncServidor` e a nota abaixo evita a promessa falsa.
+  function notaServidor() {
+    if (_ultimoStatus.autoSyncServidor !== false) return '';
+    return '<p class="conn-auto-nota">O servidor está com o sync automático do Strava desativado ' +
+      '(a API respondia <code>403 Application Inactive</code>). Enquanto estiver assim, só o ' +
+      'sync manual tem efeito.</p>';
+  }
+
+  function pintar(stateTxt, stateCls, bodyHtml, { comToggle = true } = {}) {
+    const stateEl = $('strava-state');
+    const bodyEl  = $('strava-body');
+    stateEl.textContent = stateTxt;
+    stateEl.className = 'strava-state ' + stateCls;
+    bodyEl.innerHTML = bodyHtml +
+      (comToggle ? window.ConnAuto.html('strava-auto', 'stravaSyncAuto') + notaServidor() : '');
+    const btn = $('btn-strava-sync');
+    if (btn) btn.addEventListener('click', sync);
+    if (comToggle) window.ConnAuto.wire('strava-auto', 'stravaSyncAuto', aoAlternar);
+  }
+
+  // Religar pede o estado real ao backend; desligar pode reusar o cache, já que
+  // o card desligado não mostra estado de conexão nenhum (o comentário antigo
+  // dizia que religar "traz o estado real", e com cache isso não era verdade).
+  function aoAlternar(ligado) {
+    if (ligado) load(); else render(_ultimoStatus);
+  }
+
+  let _ultimoStatus = {};
+
   function render(status) {
     const stateEl = $('strava-state');
     const bodyEl  = $('strava-body');
     if (!stateEl || !bodyEl) return;
     const esc = window.esc || ((s) => String(s || ''));
+    _ultimoStatus = status || {};
 
     if (!status.configured) {
-      stateEl.textContent = 'não configurado';
-      stateEl.className = 'strava-state disconnected';
-      bodyEl.innerHTML =
+      // Sem credenciais não há o que ligar ou desligar: o toggle só confundiria.
+      pintar('não configurado', 'disconnected',
         '<div class="strava-msg">Defina <code>STRAVA_CLIENT_ID</code>, ' +
         '<code>STRAVA_CLIENT_SECRET</code> e <code>STRAVA_REFRESH_TOKEN</code> ' +
-        'no <code>server/.env</code> e reinicie o backend.</div>';
+        'no <code>server/.env</code> e reinicie o backend.</div>', { comToggle: false });
       return;
     }
+
+    // #135 — com o sync automático desligado, o card não insiste no erro de
+    // conexão: era esse alarme recorrente (403 Application Inactive) que o
+    // toggle veio resolver. O sync manual segue ali para quando for útil.
+    if (!window.ConnAuto.ligado('stravaSyncAuto')) {
+      pintar('sync automático desativado', 'muted',
+        '<div class="strava-msg">O sync a cada 30 minutos está desligado para o Strava. ' +
+        'Você ainda pode sincronizar manualmente quando quiser.</div>' + BTN_SYNC_HTML);
+      return;
+    }
+
     if (!status.connected) {
-      stateEl.textContent = 'erro';
-      stateEl.className = 'strava-state disconnected';
-      bodyEl.innerHTML = `<div class="strava-msg">Não consegui conectar ao Strava: ${esc(status.error || 'sem detalhes')}</div>`;
+      pintar('erro', 'disconnected',
+        `<div class="strava-msg">Não consegui conectar ao Strava: ${esc(status.error || 'sem detalhes')}</div>`);
       return;
     }
 
@@ -68,14 +122,12 @@
         `<div class="strava-stat"><div class="strava-stat-val">${esc(syncMeta.data)}</div><div class="strava-stat-label">${syncLabel}</div></div>` +
       '</div>' +
       `<div class="conn-athlete">Atleta: <strong>${name}</strong></div>` +
-      '<div class="strava-actions">' +
-        '<button type="button" id="btn-strava-sync" class="btn btn-primary">' +
-          '<i class="fa-solid fa-rotate"></i> Sincronizar' +
-        '</button>' +
-      '</div>';
+      BTN_SYNC_HTML +
+      window.ConnAuto.html('strava-auto', 'stravaSyncAuto') + notaServidor();
 
     const btn = $('btn-strava-sync');
     if (btn) btn.addEventListener('click', sync);
+    window.ConnAuto.wire('strava-auto', 'stravaSyncAuto', aoAlternar);
   }
 
   // Modal explicativo (i) — como funciona a conexão Strava (Fase 17.4)
@@ -111,10 +163,10 @@
       render(status);
     } catch (err) {
       console.error('[strava]', err);
-      stateEl.textContent = 'offline';
-      stateEl.className = 'strava-state disconnected';
-      const body = $('strava-body');
-      if (body) body.innerHTML = '<div class="strava-msg">Falha ao consultar o backend.</div>';
+      // Via `pintar`, para o toggle continuar na tela: sem isso, um /status que
+      // falha deixaria o card em vermelho sem nenhuma forma de silenciá-lo —
+      // exatamente o incômodo que a #135 veio resolver.
+      pintar('offline', 'disconnected', '<div class="strava-msg">Falha ao consultar o backend.</div>');
     }
   }
 

@@ -225,10 +225,13 @@ async function syncGarminWeights(db, log) {
 // Para religar sem mexer no codigo: STRAVA_AUTO_SYNC=on no server/.env.
 // A rota MANUAL (POST /api/strava/sync) continua ativa de proposito — serve
 // para testar quando a migracao acontecer.
-const STRAVA_AUTO_SYNC = process.env.STRAVA_AUTO_SYNC === 'on';
-
+// A flag mora em services/strava.js (`autoSyncHabilitado`) para que a rota
+// /api/strava/status possa devolvê-la à UI — assim o toggle da #135 não promete
+// um sync periódico que o servidor não executa. Aqui era um `const` de módulo,
+// avaliado no require; a função também torna a flag alterável em teste.
 async function syncStravaActivities(db, log) {
-  if (!STRAVA_AUTO_SYNC) { log.info('[scheduler] strava: sync automatico desligado — pulando'); return; }
+  if (!strava.autoSyncHabilitado()) { log.info('[scheduler] strava: sync automatico desligado por ambiente — pulando'); return; }
+  if (!syncAutoLigado(db, 'stravaSyncAuto')) { log.info('[scheduler] strava: toggle de Conexões desligado — pulando'); return; }
   if (!strava.isConfigured()) { log.info('[scheduler] strava não configurado — pulando'); return; }
 
   const days = 30;
@@ -306,10 +309,34 @@ async function syncStravaActivities(db, log) {
   log.info({ imported, updated, total: bikeActs.length }, '[scheduler] strava atividades');
 }
 
+// ── Toggle de ativação por conexão (#135) ──────────────────────────────
+// Lê um booleano do JSON de `user_profile` e gateia SÓ o sync automático: o
+// sync manual, o "Sincronizar tudo" da Home e o login do Garmin seguem
+// funcionando com o toggle desligado (decisão de produto da #135).
+//
+// `undefined` = LIGADO, e essa inversão é deliberada. O outro toggle do
+// perfil (`relatorioMensalTelegram`) é opt-in e usa `!!valor`, então nasce
+// desligado; aqui o valor ausente significa "perfil nunca salvou esta chave",
+// e tratar isso como desligado pararia o sync de quem nunca abriu o Perfil —
+// uma feature nova silenciando uma integração que já funcionava.
+//
+// Qualquer falha de leitura/parse também devolve `true`: o modo de falha certo
+// é continuar sincronizando, não parar sem o usuário ter pedido.
+function syncAutoLigado(db, chave) {
+  try {
+    const row = db.prepare('SELECT payload FROM user_profile WHERE id=1').get();
+    if (!row) return true;
+    const v = JSON.parse(row.payload || '{}')[chave];
+    return v === undefined ? true : !!v;
+  } catch (_) {
+    return true;
+  }
+}
+
 // ── Sync completo ──────────────────────────────────────────────────────
 async function runFullSync(db, log) {
   log.info('[scheduler] iniciando sync automático');
-  const garminOk = garmin.isConfigured();
+  const garminOk = garmin.isConfigured() && syncAutoLigado(db, 'garminSyncAuto');
   const results = { garmin: {}, strava: {}, errors: [] };
 
   if (garminOk) {
@@ -317,8 +344,10 @@ async function runFullSync(db, log) {
     try { await syncGarminHealth(db, log);     } catch (e) { results.errors.push('garmin-health: ' + e.message); }
     try { await syncGarminReadiness(db, log);  } catch (e) { results.errors.push('garmin-readiness: ' + e.message); }
     try { await syncGarminWeights(db, log);    } catch (e) { results.errors.push('garmin-weights: ' + e.message); }
-  } else {
+  } else if (!garmin.isConfigured()) {
     log.info('[scheduler] garmin sem sessão — pulando');
+  } else {
+    log.info('[scheduler] garmin: toggle de Conexões desligado — pulando');
   }
 
   try { await syncStravaActivities(db, log); } catch (e) { results.errors.push('strava: ' + e.message); }
@@ -471,4 +500,4 @@ function setup(db, log) {
   log.info(`[scheduler] ativo — sync a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h, relatório mensal (Telegram) dia 1º às ${RELATORIO_HORA}h, digest de push às ${PUSH_HORA}h`);
 }
 
-module.exports = { setup };
+module.exports = { setup, syncAutoLigado };

@@ -24,16 +24,51 @@
     catch { return iso; }
   }
 
+  let _ultimoStatus = {};
+
   function render(status) {
     const stateEl = $('garmin-state');
     const bodyEl  = $('garmin-body');
     if (!stateEl || !bodyEl) return;
     const esc = window.esc || (s => String(s || ''));
+    _ultimoStatus = status || {};
 
     if (!status.configured) {
+      // Sem credenciais não há o que ligar ou desligar: o toggle só confundiria.
       stateEl.textContent = 'não configurado';
       stateEl.className = 'strava-state disconnected';
       bodyEl.innerHTML = '<div class="strava-msg">Defina <code>GARMIN_EMAIL</code> e <code>GARMIN_PASSWORD</code> no <code>server/.env</code> e reinicie o backend.</div>';
+      return;
+    }
+
+    // #135 — sync automático desligado: o card para de cobrar o estado da
+    // conexão. Login e sync manual continuam acessíveis.
+    if (!window.ConnAuto.ligado('garminSyncAuto')) {
+      stateEl.textContent = 'sync automático desativado';
+      stateEl.className = 'strava-state muted';
+      // Login/logout NÃO são afetados pelo toggle (escopo da #135): sem isto,
+      // desligar o sync deixaria o usuário sem como conectar ou desconectar a
+      // conta até religar — o toggle é sobre sincronizar, não sobre a sessão.
+      const acaoSessao = status.connected
+        ? '<button type="button" id="btn-garmin-logout" class="btn btn-ghost">' +
+            '<i class="fa-solid fa-right-from-bracket"></i> Desconectar' +
+          '</button>'
+        : '<button type="button" id="btn-garmin-login" class="btn btn-ghost">' +
+            '<i class="fa-solid fa-plug"></i> Conectar' +
+          '</button>';
+      bodyEl.innerHTML =
+        '<div class="strava-msg">O sync a cada 30 minutos está desligado para o Garmin. ' +
+        'Você ainda pode sincronizar manualmente quando quiser.</div>' +
+        '<div class="strava-actions">' +
+          '<button type="button" id="btn-garmin-sync" class="btn btn-primary">' +
+            '<i class="fa-solid fa-rotate"></i> Sincronizar' +
+          '</button>' + acaoSessao +
+        '</div>' +
+        window.ConnAuto.html('garmin-auto', 'garminSyncAuto');
+      $('btn-garmin-sync')?.addEventListener('click', sync);
+      $('btn-garmin-logout')?.addEventListener('click', doLogout);
+      $('btn-garmin-login')?.addEventListener('click', doLogin);
+      window.ConnAuto.wire('garmin-auto', 'garminSyncAuto', (ligado) => ligado ? load() : render(_ultimoStatus));
       return;
     }
 
@@ -49,9 +84,11 @@
           '<button type="button" id="btn-garmin-login" class="btn btn-primary">' +
             '<i class="fa-solid fa-plug"></i> Conectar' +
           '</button>' +
-        '</div>';
+        '</div>' +
+        window.ConnAuto.html('garmin-auto', 'garminSyncAuto');
       const btn = $('btn-garmin-login');
       if (btn) btn.addEventListener('click', doLogin);
+      window.ConnAuto.wire('garmin-auto', 'garminSyncAuto', (ligado) => ligado ? load() : render(_ultimoStatus));
       return;
     }
 
@@ -78,10 +115,12 @@
         '<button type="button" id="btn-garmin-logout" class="btn btn-ghost">' +
           '<i class="fa-solid fa-right-from-bracket"></i> Desconectar' +
         '</button>' +
-      '</div>';
+      '</div>' +
+      window.ConnAuto.html('garmin-auto', 'garminSyncAuto');
 
     $('btn-garmin-sync')?.addEventListener('click', sync);
     $('btn-garmin-logout')?.addEventListener('click', doLogout);
+    window.ConnAuto.wire('garmin-auto', 'garminSyncAuto', (ligado) => ligado ? load() : render(_ultimoStatus));
 
     // Carrega Training Status sob demanda (não bloqueia render)
     loadTrainingStatus();
@@ -159,7 +198,13 @@
       stateEl.textContent = 'offline';
       stateEl.className = 'strava-state disconnected';
       const body = $('garmin-body');
-      if (body) body.innerHTML = '<div class="strava-msg">Falha ao consultar o backend.</div>';
+      // Mantém o toggle na tela também aqui: um /status que falha não pode
+      // deixar o card em vermelho sem como desligar o aviso (#135).
+      if (body) {
+        body.innerHTML = '<div class="strava-msg">Falha ao consultar o backend.</div>' +
+          window.ConnAuto.html('garmin-auto', 'garminSyncAuto');
+        window.ConnAuto.wire('garmin-auto', 'garminSyncAuto', (ligado) => ligado ? load() : render(_ultimoStatus));
+      }
     }
   }
 
