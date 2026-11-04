@@ -386,7 +386,12 @@ async function runRelatorioMensal(db, log) {
   }
 
   const reportRender = require('./services/report-render');
-  const png = await reportRender.renderPng();
+  const { png, falhou, ruido } = await reportRender.renderPng();
+  // Diferente do PDF: aqui um resumo parcial ainda é melhor que nenhum envio
+  // mensal (o job só roda no dia 1º), então falha de montagem vira log e o
+  // envio segue. `ruido` é console/pageerror — diagnóstico, não veredito.
+  if (falhou) log.error({ erro: falhou }, '[scheduler] resumo falhou ao montar — enviando como saiu');
+  else if (ruido.length) log.warn({ ruido: ruido.slice(0, 5) }, '[scheduler] erros no console do render do resumo');
   // Relatório de FECHAMENTO do mês anterior (#106/#107): a legenda cita o mês
   // que fechou, não o atual. Dia 0 do mês atual = último dia do mês anterior.
   const mesAnt = new Date(); mesAnt.setDate(0);

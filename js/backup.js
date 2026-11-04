@@ -306,8 +306,15 @@ async function exportRelatorioPDF(daysWindow) {
     const resp = await fetch(`/api/report/pdf${qs}`, { credentials: 'same-origin' });
     if (resp.status === 401) { location.replace('/login.html'); return; }
     if (!resp.ok) {
-      let msg = `Erro ${resp.status}`;
-      try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (_) {}
+      // 429 vem do rate limit da rota (10/min) e o payload do Fastify diz só
+      // "Too Many Requests" — inútil pra quem clicou. 5xx é falha de render no
+      // servidor (a causa fica no journalctl). Issue #132.
+      let msg;
+      if (resp.status === 429) msg = 'muitas gerações seguidas — aguarde 1 minuto e tente de novo';
+      else {
+        try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (_) {}
+        if (!msg) msg = resp.status >= 500 ? `falha no servidor (${resp.status})` : `erro ${resp.status}`;
+      }
       throw new Error(msg);
     }
     const blob = await resp.blob();
