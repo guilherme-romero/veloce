@@ -399,7 +399,6 @@ function reportRenderClient() {
 function reportResumoClient() {
   const INK = '#0d0f12', SURF = '#14181d', SURF2 = '#1c2128', BORDER = '#2a313a';
   const LIME = '#c6f135', MAG = '#ec3a8b', AMBER = '#e5c024', GREEN = '#22c55e', RED = '#ef4444', MUTED = '#8b95a1';
-  const TOKEN_COLOR = { green: GREEN, amber: AMBER, red: RED, muted2: MUTED };
   const esc = window.esc || (s => String(s == null ? '' : s));
   const vírgula = (n, d = 1) => (n == null || !isFinite(n)) ? '—' : Number(n).toFixed(d).replace('.', ',');
   // fetch direto (não window.Api): o Api global redireciona pra /login.html em
@@ -430,34 +429,62 @@ function reportResumoClient() {
   const _primeiroMesAnt = new Date(_ultimoMesAnt.getFullYear(), _ultimoMesAnt.getMonth(), 1);
   const janelaIni = paraISO(_primeiroMesAnt), janelaFim = paraISO(_ultimoMesAnt);
   const mesNome = NOMES_MESES[_ultimoMesAnt.getMonth()];
+  // #134: segunda janela — o mês ANTERIOR ao que fechou, usada só como base de
+  // comparação (acumulados e dados do ciclista). Dia 0 do mês do fechamento =
+  // último dia do mês anterior a ele.
+  const _ultimoMesAnt2 = new Date(_primeiroMesAnt.getFullYear(), _primeiroMesAnt.getMonth(), 0);
+  const _primeiroMesAnt2 = new Date(_ultimoMesAnt2.getFullYear(), _ultimoMesAnt2.getMonth(), 1);
+  const janelaIniAnt = paraISO(_primeiroMesAnt2), janelaFimAnt = paraISO(_ultimoMesAnt2);
+  const mesNomeAnt = NOMES_MESES[_ultimoMesAnt2.getMonth()];
   // Busca com folga (cobre o mês anterior mesmo gerando no fim do mês atual) e
   // filtra a janela no cliente — o endpoint só aceita "últimos N dias".
-  const fetchDays = 70;
+  // 130 e não ~100 (#134): o pico de CTL/ATL do mês de COMPARAÇÃO sai de uma
+  // série de 60 dias que termina no fim daquele mês (calcTSBMetrics é fixa em
+  // 60). A busca precisa cobrir esses 60 dias — gerando sob demanda no último
+  // dia do mês atual, o começo deles fica ~122 dias atrás. Com janela menor o
+  // mês de comparação perderia atividades que o do fechamento tem, seu CTL
+  // sairia SUBESTIMADO e a variação apareceria falsamente positiva. Aumentar
+  // além disso NÃO melhora a precisão: a janela de 60 dias é fixa nos dois.
+  const fetchDays = 130;
 
   async function build() {
-    const [profile, unified, health, readinessItems, bikes, planResp, vo2maxResp, zoneResp] = await Promise.all([
+    // #134: `/garmin/training-readiness` saiu junto com a seção "Como você
+    // está". As duas leituras de VO2máx são datadas (`asOf`) — o valor do mês
+    // que fechou e o do mês anterior, para a variação.
+    const [profile, unified, health, bikes, planResp, vo2maxResp, vo2maxAntResp, zoneResp, tiposCustom] = await Promise.all([
       get('/profile'), get(`/activities/unified?days=${fetchDays}`),
-      get('/garmin/health?days=70'), get('/garmin/training-readiness?days=14'), get('/bikes'),
-      get('/weekly-training-plan'), get('/garmin/vo2max'),
+      get(`/garmin/health?days=${fetchDays}`), get('/bikes'),
+      get('/weekly-training-plan'),
+      get(`/garmin/vo2max?asOf=${janelaFim}`), get(`/garmin/vo2max?asOf=${janelaFimAnt}`),
       get(`/garmin/zone-distribution-by-activity?days=${fetchDays}`),
+      get('/component-types'),
     ]);
     const u = profile || {};
     // todosItems: histórico completo da janela de busca (p/ aquecer o EMA do
     // CTL/ATL); items: só o mês fechado (acumulados, aderência, maior pedal).
     const todosItems = (unified && Array.isArray(unified.items)) ? unified.items : [];
     const noMes = (d) => d && d >= janelaIni && d <= janelaFim;
+    const noMesAnt = (d) => d && d >= janelaIniAnt && d <= janelaFimAnt;
     const items = todosItems.filter(a => noMes(a.data));
+    // #134: mesmas atividades, janela do mês de comparação — só para as notas
+    // de variação. Sem query nova: filtra o histórico que já veio.
+    const itemsAnt = todosItems.filter(a => noMesAnt(a.data));
     // #108: acumulados do mês (distância, tempo, elevação; nº = items.length).
-    const acumulados = items.reduce((s, a) => ({
+    const somaAcumulados = (arr) => arr.reduce((s, a) => ({
       km:    s.km    + (a.distanciaKm || 0),
       horas: s.horas + (a.tempoMovS || 0) / 3600,
       elev:  s.elev  + (a.elevacaoM || 0),
     }), { km: 0, horas: 0, elev: 0 });
+    const acumulados = somaAcumulados(items);
+    const acumuladosAnt = somaAcumulados(itemsAnt);
     const diasMes = _ultimoMesAnt.getDate();
 
     // #109 — dados do ciclista. CTL/ATL máx do mês: série EMA até o fim do mês,
-    // pico restrito aos dias do mês. VO2máx: último conhecido (a Garmin deste
-    // usuário não registra valor recente). HRV noturno: média do mês.
+    // pico restrito aos dias do mês. VO2máx: último valor até o fim do mês
+    // (`asOf`, #134 — a Garmin deste usuário não registra valor recente, então
+    // sem a data o número exibido poderia ser posterior ao mês do relatório).
+    // HRV noturno: média do mês. Cada métrica é calculada DUAS vezes, para o
+    // mês fechado e para o anterior, de onde sai a nota de variação.
     // fcMax: usa o salvo; senão estima 220 − idade (mesma regra de
     // Profile.calcFCMax, que não está inlinado aqui). dataNascimento é ISO.
     const _idade = (iso) => {
@@ -468,18 +495,31 @@ function reportResumoClient() {
       return a > 0 ? a : 0;
     };
     const fcMax = u.fcMax || (_idade(u.dataNascimento) > 0 ? 220 - _idade(u.dataNascimento) : null);
-    let ctlMax = null, atlMax = null;
-    if (fcMax && window.Metrics) {
-      const { ctlSerie, atlSerie } = window.Metrics.calcTSBMetrics(todosItems, fcMax, _ultimoMesAnt);
-      const tail = Math.min(diasMes, ctlSerie.length);
-      if (tail > 0) {
-        ctlMax = Math.round(Math.max(...ctlSerie.slice(-tail)));
-        atlMax = Math.round(Math.max(...atlSerie.slice(-tail)));
-      }
-    }
-    const hrvVals = (health || []).filter(h => noMes(h.data) && h.hrv_noite_avg != null && isFinite(h.hrv_noite_avg)).map(h => h.hrv_noite_avg);
-    const hrvMedia = hrvVals.length ? Math.round(hrvVals.reduce((s, v) => s + v, 0) / hrvVals.length) : null;
-    const vo2 = (vo2maxResp && vo2maxResp.latest && vo2maxResp.latest.value != null) ? Math.round(vo2maxResp.latest.value) : null;
+    // Pico de CTL/ATL de um mês: série EMA fechada no último dia dele, máximo
+    // restrito aos seus dias. Extraído para rodar nos dois meses sem duplicar.
+    const picosDoMes = (fimDoMes, dias) => {
+      if (!fcMax || !window.Metrics) return { ctl: null, atl: null };
+      const { ctlSerie, atlSerie } = window.Metrics.calcTSBMetrics(todosItems, fcMax, fimDoMes);
+      const tail = Math.min(dias, ctlSerie.length);
+      if (tail <= 0) return { ctl: null, atl: null };
+      return {
+        ctl: Math.round(Math.max(...ctlSerie.slice(-tail))),
+        atl: Math.round(Math.max(...atlSerie.slice(-tail))),
+      };
+    };
+    const { ctl: ctlMax, atl: atlMax } = picosDoMes(_ultimoMesAnt, diasMes);
+    const { ctl: ctlMaxAnt, atl: atlMaxAnt } = picosDoMes(_ultimoMesAnt2, _ultimoMesAnt2.getDate());
+
+    const mediaHrv = (dentro) => {
+      const vals = (health || []).filter(h => dentro(h.data) && h.hrv_noite_avg != null && isFinite(h.hrv_noite_avg)).map(h => h.hrv_noite_avg);
+      return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : null;
+    };
+    const hrvMedia = mediaHrv(noMes);
+    const hrvMediaAnt = mediaHrv(noMesAnt);
+
+    const vo2De = (resp) => (resp && resp.latest && resp.latest.value != null) ? Math.round(resp.latest.value) : null;
+    const vo2 = vo2De(vo2maxResp);
+    const vo2Ant = vo2De(vo2maxAntResp);
 
     // #111 — aderência do mês: planejado semanal × (dias do mês / 7) vs. realizado.
     const planDias = (planResp && planResp.ok && planResp.payload && planResp.payload.dias) || [];
@@ -500,31 +540,117 @@ function reportResumoClient() {
     const meta = u.pesoMeta != null ? u.pesoMeta : null;
     const faltam = (pesoAtual != null && meta != null) ? Math.abs(pesoAtual - meta) : null;
     const maiorPedal = items.reduce((mx, a) => Math.max(mx, a.distanciaKm || 0), 0);
+    const maiorPedalAnt = itemsAnt.reduce((mx, a) => Math.max(mx, a.distanciaKm || 0), 0);
 
-    const kpi = (label, valueHtml, extra = '') =>
-      `<td valign="top" style="width:33%;padding:16px;border-right:1px solid ${BORDER}"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">${esc(label)}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1;margin-top:4px">${valueHtml}</div>${extra}</td>`;
+    // `cellStyle` (#134): a última célula de cada tabela não tem `border-right`
+    // e é mais larga. Antes isso obrigava a repetir o <td> inteiro inline duas
+    // vezes (Elevação e Maior pedal), que então ficavam sem o slot `extra` —
+    // justamente onde a nota de comparação precisa entrar. Com o parâmetro, as
+    // seis células passam pelo helper.
+    const kpi = (label, valueHtml, extra = '', cellStyle = `width:33%;padding:16px;border-right:1px solid ${BORDER}`) =>
+      `<td valign="top" style="${cellStyle}"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">${esc(label)}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1;margin-top:4px">${valueHtml}</div>${extra}</td>`;
+    const CELULA_FIM = 'width:34%;padding:16px';
 
-    const fad = window.Fatigue ? window.Fatigue.fatigueIndex(health || []) : { ok: false };
-    const rd = window.Fatigue ? window.Fatigue.readiness(readinessItems || []) : { ok: false };
-    const bar = (label, score, color) =>
-      `<tr><td style="padding:6px 0;font-size:13px;color:#c4ccd4;width:120px">${esc(label)}</td><td style="padding:6px 10px"><div style="height:6px;background:${SURF2};border-radius:3px;overflow:hidden"><div style="width:${Math.max(0, Math.min(100, score))}%;height:100%;background:${color}"></div></div></td><td align="right" style="padding:6px 0;font-size:13px;font-weight:700;color:${color};width:56px">${score}/100</td></tr>`;
-    const bars = [];
-    if (fad && fad.ok) bars.push(bar('Fadiga', fad.score, TOKEN_COLOR[fad.token] || AMBER));
-    if (rd && rd.ok && rd.score != null) bars.push(bar('Readiness', rd.score, TOKEN_COLOR[rd.token] || MAG));
+    // #134 — nota de comparação com o mês anterior, no molde da nota do PESO:
+    // 11px, MUTED, com o valor do mês anterior destacado na cor do movimento.
+    // `bomSubir=false` inverte o veredito (é o caso da fadiga ATL: carga aguda
+    // em alta não é conquista). Sem base de comparação a nota sai neutra em vez
+    // de inventar uma queda de 100%.
+    // Variação percentual já formatada, com teto: a largura da célula é fixa
+    // (o PNG tem 600 px), e uma base pequena produz número gigante — sair de
+    // 0,1 h para 100 h dá 99900%, que estouraria a coluna. Acima de 999% o
+    // número exato não informa nada que ">999%" não informe.
+    const pctVar = (atual, anterior) => {
+      const d = Math.round(Math.abs(atual - anterior) / anterior * 100);
+      return d > 999 ? '>999%' : d + '%';
+    };
+    // O veredito (seta e cor) sai do MESMO número que aparece ao lado dele.
+    // Comparar os floats crus dava "▲ 0%" em VERDE para 20,01 contra 20,00 —
+    // movimento invisível pintado como ganho. Se o delta arredonda para zero,
+    // é empate, e empate é cinza.
+    const direcao = (atual, anterior, bomSubir) => {
+      if (Math.round(Math.abs(atual - anterior) / anterior * 100) === 0) return { seta: '=', cor: MUTED };
+      const subiu = atual > anterior;
+      return { seta: subiu ? '▲' : '▼', cor: (subiu === bomSubir) ? GREEN : MAG };
+    };
+    const nota = (atual, anterior, fmt, bomSubir = true) => {
+      const temBase = anterior != null && isFinite(anterior) && anterior > 0;
+      if (!temBase) return `<div style="font-size:11px;color:${MUTED};margin-top:4px">${esc(mesNomeAnt)}: <span style="font-weight:700">—</span></div>`;
+      const atualNum = (atual == null || !isFinite(atual)) ? 0 : atual;
+      const { seta, cor } = direcao(atualNum, anterior, bomSubir);
+      return `<div style="font-size:11px;color:${MUTED};margin-top:4px">${esc(mesNomeAnt)}: ${fmt(anterior)} <span style="color:${cor};font-weight:700">${seta} ${pctVar(atualNum, anterior)}</span></div>`;
+    };
+    const fmtInt = (v) => vírgula(v, 0);
+    const fmtDec = (v) => vírgula(v);
 
+    // #134 item 5 — status da bike. Antes havia só o alerta de vencidos; agora
+    // o bloco traz km total e as barras de desgaste por componente, no mesmo
+    // critério de cor do PDF (vermelho ≥100% com "VENC.", âmbar ≥80%, verde).
+    // NÃO é o bikeCard do PDF: aquele depende dos helpers card()/eyebrow() do
+    // outro cliente e usa duas colunas que não cabem nos 528 px úteis daqui.
+    // Sem manutenções e sem outras bikes — assim o bloco se resolve com o
+    // /bikes que o resumo já busca (components e kmTotal vêm embutidos), sem
+    // nenhuma requisição nova. Sem ícones: o resumoHtml não carrega o Font
+    // Awesome nem o fallback unicode que o printHtml define, então um <i> viria
+    // como caixinha vazia no PNG.
     const list = Array.isArray(bikes) ? bikes : [];
     const bike = list.find(b => b.active) || list[0];
-    let alerta = '';
-    if (bike && Array.isArray(bike.components)) {
-      const venc = bike.components.filter(c => c.vidaUtilKm > 0 && c.kmDesgastado != null && c.kmDesgastado / c.vidaUtilKm >= 1);
-      if (venc.length) alerta = `<div style="margin:0 36px 8px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:12px;padding:14px;font-size:13px;color:#eef2f4"><strong style="color:${RED}">${esc(bike.nome)} · ${venc.length} componente${venc.length > 1 ? 's' : ''} vencido${venc.length > 1 ? 's' : ''}.</strong> ${esc(venc.map(c => COMP_LABELS[c.tipo] || c.tipo).join(', '))}.</div>`;
-    }
+    const comps = (bike && Array.isArray(bike.components)) ? bike.components : [];
+    // Uma única fonte de verdade para "vencido". Antes a barra usava
+    // `Math.round(razao*100) >= 100` e o banner usava `razao >= 1`: a razão
+    // 0,996 arredonda para 100% e a barra marcaria "VENC." num componente que
+    // o banner não conta ("1 componente vencido" sob duas barras VENC.).
+    // `Math.floor` faz `pct >= 100` coincidir exatamente com `razao >= 1`.
+    // (O bikeCard do PDF, :342-350, ainda tem essa divergência — fora do #134.)
+    const razaoUso = (c) => (c.vidaUtilKm > 0 && c.kmDesgastado != null) ? c.kmDesgastado / c.vidaUtilKm : null;
+    const vencidos = comps.filter(c => razaoUso(c) >= 1);
+    // Componentes criados como "Outro (novo)" têm `tipo = 'custom:<id>'`, e o
+    // nome legível só existe em /component-types — sem resolver, a barra sairia
+    // rotulada "custom:ctype_1785877…" no PNG. Mesma regra do typeLabel() do
+    // app (js/bikes.js:49-54). O PDF tem a MESMA falha hoje; fica registrado.
+    const labelComp = (tipo) => {
+      if (Object.hasOwn(COMP_LABELS, tipo)) return COMP_LABELS[tipo];
+      const id = (typeof tipo === 'string' && tipo.startsWith('custom:')) ? tipo.slice(7) : null;
+      const t = id && Array.isArray(tiposCustom) ? tiposCustom.find(x => x.id === id) : null;
+      return (t && t.nome) ? t.nome : (id ? 'Outro' : tipo);
+    };
+    const compRows = comps.map(c => {
+      const r = razaoUso(c);
+      const pct = r == null ? null : Math.floor(r * 100);
+      const col = pct == null ? SURF2 : pct >= 100 ? RED : pct >= 80 ? AMBER : GREEN;
+      const ptxt = pct == null ? '—' : pct >= 100 ? 'VENC.' : pct + '%';
+      return `<div style="display:grid;grid-template-columns:140px minmax(0,1fr) 46px;gap:10px;align-items:center;font-size:11.5px"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(labelComp(c.tipo))}</span><span style="height:6px;background:${SURF2};border-radius:3px;overflow:hidden"><span style="display:block;width:${pct == null ? 0 : Math.min(100, pct)}%;height:100%;background:${col};border-radius:3px"></span></span><span style="text-align:right;font-size:10.5px;font-weight:800${pct != null && pct >= 100 ? `;color:${RED}` : ''}">${ptxt}</span></div>`;
+    }).join('');
+    const alertaVenc = vencidos.length
+      ? `<div style="margin-top:12px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:10px 12px;font-size:12px;color:#eef2f4"><strong style="color:${RED}">${vencidos.length} componente${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''}:</strong> ${esc(vencidos.map(c => labelComp(c.tipo)).join(', '))}.</div>`
+      : '';
+    const bikeBloco = bike
+      ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:14px 16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding-bottom:10px">Status da bike</div><div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px"><span style="font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(String(bike.nome || '').toUpperCase())}</span><span style="font-size:10.5px;color:${MUTED};flex-shrink:0">${bike.tipo ? esc(bike.tipo) + ' · ' : ''}${bike.kmTotal != null ? vírgula(bike.kmTotal, 0) + ' km' : ''}</span></div><div style="display:flex;flex-direction:column;gap:8px">${compRows || `<span style="font-size:11.5px;color:${MUTED}">Sem componentes cadastrados.</span>`}</div>${alertaVenc}</div>`
+      : '';
 
     // #109 — bloco "Dados do ciclista": só os tiles que têm valor (flex, para
     // lidar com nº variável de métricas presentes).
-    const dadoTile = (label, val, un) => val == null ? '' :
-      `<div style="flex:1;min-width:0;padding:12px 8px;text-align:center"><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED}">${esc(label)}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;margin-top:3px">${val}${un ? `<span style="font-size:12px;color:${LIME};margin-left:2px">${un}</span>` : ''}</div></div>`;
-    const dadosTiles = [dadoTile('Carga CTL', ctlMax, ''), dadoTile('Fadiga ATL', atlMax, ''), dadoTile('VO₂máx', vo2, ''), dadoTile('HRV noturno', hrvMedia, '')].filter(Boolean);
+    // `nota` (#134): slot de variação, o equivalente ao `extra` do `kpi` — o
+    // tile não tinha nenhum. Fonte menor que a dos acumulados porque aqui são
+    // quatro tiles dividindo os mesmos 528 px.
+    const dadoTile = (label, val, un, nota = '') => val == null ? '' :
+      `<div style="flex:1;min-width:0;padding:12px 8px;text-align:center"><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED}">${esc(label)}</div><div style="font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1;margin-top:3px">${val}${un ? `<span style="font-size:12px;color:${LIME};margin-left:2px">${un}</span>` : ''}</div>${nota}</div>`;
+    // Variação de um tile: só a seta e o %, sem repetir o nome do mês (não cabe
+    // em 1/4 da largura). ATL com `bomSubir=false` — fadiga aguda em alta é o
+    // sinal ruim, ao contrário de carga, VO₂ e HRV.
+    const notaTile = (atual, anterior, bomSubir = true) => {
+      const temBase = anterior != null && isFinite(anterior) && anterior > 0;
+      if (!temBase) return '';
+      const atualNum = (atual == null || !isFinite(atual)) ? 0 : atual;
+      const { seta, cor } = direcao(atualNum, anterior, bomSubir);
+      return `<div style="font-size:10px;font-weight:700;margin-top:3px;color:${cor}">${seta} ${pctVar(atualNum, anterior)}</div>`;
+    };
+    const dadosTiles = [
+      dadoTile('Carga CTL', ctlMax, '', notaTile(ctlMax, ctlMaxAnt)),
+      dadoTile('Fadiga ATL', atlMax, '', notaTile(atlMax, atlMaxAnt, false)),
+      dadoTile('VO₂máx', vo2, '', notaTile(vo2, vo2Ant)),
+      dadoTile('HRV noturno', hrvMedia, '', notaTile(hrvMedia, hrvMediaAnt)),
+    ].filter(Boolean);
     const dadosBloco = dadosTiles.length
       ? `<div style="margin:12px 36px 0"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding:0 0 6px">Dados do ciclista</div><div style="display:flex;background:${SURF};border:1px solid ${BORDER};border-radius:12px">${dadosTiles.join('')}</div></div>`
       : '';
@@ -538,7 +664,7 @@ function reportResumoClient() {
       return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#c4ccd4;margin:3px 0"><span style="width:10px;height:10px;border-radius:2px;background:${ZCORES[i]};display:inline-block"></span>Z${i + 1} · ${p}% · ${vírgula(s / 3600)}h</div>`;
     }).join('');
     const roscaBloco = zonaTotal > 0
-      ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:14px 16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding-bottom:10px">Tempo por zona de FC · ${esc(mesNome)}</div><div style="display:flex;align-items:center;gap:20px"><div style="width:110px;height:110px;border-radius:50%;background:conic-gradient(${stops.join(',')});flex-shrink:0;position:relative"><div style="position:absolute;top:22px;left:22px;right:22px;bottom:22px;background:${SURF};border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px">${vírgula(zonaTotal / 3600)}h</div></div><div style="flex:1">${zonaLegenda}</div></div></div>`
+      ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:14px 16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding-bottom:10px">Tempo por zona de FC · ${esc(mesNome)}</div><div style="display:flex;align-items:center;justify-content:center;gap:20px"><div style="width:110px;height:110px;border-radius:50%;background:conic-gradient(${stops.join(',')});flex-shrink:0;position:relative"><div style="position:absolute;top:22px;left:22px;right:22px;bottom:22px;background:${SURF};border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px">${vírgula(zonaTotal / 3600)}h</div></div><div>${zonaLegenda}</div></div></div>`
       : '';
 
     // #111 — aderência ao plano no mês (barra + %).
@@ -574,22 +700,21 @@ function reportResumoClient() {
       <div style="padding:0 36px;font-family:'Bebas Neue',sans-serif;font-size:44px;line-height:.9">SEU RELATÓRIO DE EVOLUÇÃO</div>
       <div style="padding:10px 36px 22px;font-size:14px;line-height:1.5;color:#c4ccd4">Olá, ${esc(nome)}. Aqui está o fechamento de ${esc(mesNome)}. O relatório completo está no app.</div>
       <div style="margin:0 36px 12px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding:0 0 6px">Acumulados de ${esc(mesNome)}</div><table width="100%" cellpadding="0" cellspacing="0" style="background:${SURF};border:1px solid ${BORDER};border-radius:12px;border-collapse:separate"><tr>
-        ${kpi('Distância', acumulados.km > 0 ? `${vírgula(acumulados.km, 0)}<span style="font-size:15px;color:${LIME};margin-left:3px">KM</span>` : '—')}
-        ${kpi('Tempo', acumulados.horas > 0 ? `${vírgula(acumulados.horas)}<span style="font-size:15px;color:${LIME};margin-left:3px">H</span>` : '—')}
-        <td valign="top" style="width:34%;padding:16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Elevação</div><div style="font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1;margin-top:4px">${acumulados.elev > 0 ? `${vírgula(acumulados.elev, 0)}<span style="font-size:15px;color:${LIME};margin-left:3px">M</span>` : '—'}</div></td>
+        ${kpi('Distância', acumulados.km > 0 ? `${vírgula(acumulados.km, 0)}<span style="font-size:15px;color:${LIME};margin-left:3px">KM</span>` : '—', nota(acumulados.km, acumuladosAnt.km, fmtInt))}
+        ${kpi('Tempo', acumulados.horas > 0 ? `${vírgula(acumulados.horas)}<span style="font-size:15px;color:${LIME};margin-left:3px">H</span>` : '—', nota(acumulados.horas, acumuladosAnt.horas, fmtDec))}
+        ${kpi('Elevação', acumulados.elev > 0 ? `${vírgula(acumulados.elev, 0)}<span style="font-size:15px;color:${LIME};margin-left:3px">M</span>` : '—', nota(acumulados.elev, acumuladosAnt.elev, fmtInt), CELULA_FIM)}
       </tr></table></div>
       <div style="margin:0 36px"><table width="100%" cellpadding="0" cellspacing="0" style="background:${SURF};border:1px solid ${BORDER};border-radius:12px;border-collapse:separate"><tr>
-        ${kpi('Passeios', String(items.length))}
+        ${kpi('Passeios', String(items.length), nota(items.length, itemsAnt.length, fmtInt))}
         ${kpi('Peso atual', pesoAtual != null ? `${vírgula(pesoAtual)}<span style="font-size:15px;color:${LIME};margin-left:3px">KG</span>` : '—', meta != null && faltam != null ? `<div style="font-size:11px;color:${MUTED};margin-top:4px">meta ${esc(String(meta))} kg · faltam <span style="color:${MAG};font-weight:700">${vírgula(faltam)}</span></div>` : '')}
-        <td valign="top" style="width:34%;padding:16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Maior pedal</div><div style="font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1;margin-top:4px">${maiorPedal > 0 ? `${vírgula(maiorPedal)}<span style="font-size:15px;color:${LIME};margin-left:3px">KM</span>` : '—'}</div></td>
+        ${kpi('Maior pedal', maiorPedal > 0 ? `${vírgula(maiorPedal)}<span style="font-size:15px;color:${LIME};margin-left:3px">KM</span>` : '—', nota(maiorPedal, maiorPedalAnt, fmtDec), CELULA_FIM)}
       </tr></table></div>
       ${dadosBloco}
       ${roscaBloco}
       ${aderBloco}
       ${analiseBloco}
-      ${bars.length ? `<div style="margin:12px 36px 0;background:${SURF};border:1px solid ${BORDER};border-radius:12px;padding:8px 16px"><div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};padding:8px 0 2px">Como você está</div><table width="100%" cellpadding="0" cellspacing="0">${bars.join('')}</table></div>` : ''}
+      ${bikeBloco}
       <div style="height:14px"></div>
-      ${alerta}
       <div style="padding:14px 36px 22px;border-top:1px solid ${BORDER};font-size:11px;color:${MUTED}">Veloce Labs · relatório mensal automático</div>`;
   }
 
