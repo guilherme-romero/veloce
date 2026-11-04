@@ -62,6 +62,12 @@ const PROFILE_FIELDS = {
   nivelExperiencia:    enumVal(NIVEIS_EXPERIENCIA),
   // Relatório mensal pelo Telegram (#95 Fase 2) — toggle do envio automático.
   relatorioMensalTelegram: (v) => (typeof v === 'boolean' ? v : undefined),
+  // Ativação por conexão (#135) — gateiam SÓ o sync automático do scheduler; o
+  // sync manual e o login seguem disponíveis. Ausente = LIGADO (ver
+  // syncAutoLigado em server/scheduler.js): quem nunca abriu o Perfil continua
+  // sincronizando, ao contrário do toggle do Telegram, que é opt-in.
+  stravaSyncAuto:  (v) => (typeof v === 'boolean' ? v : undefined),
+  garminSyncAuto:  (v) => (typeof v === 'boolean' ? v : undefined),
 };
 const ALLOWED_PROFILE_KEYS = new Set(Object.keys(PROFILE_FIELDS));
 const MAX_PROFILE_BYTES = 16 * 1024; // perfil e pequeno; teto generoso

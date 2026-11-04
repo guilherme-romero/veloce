@@ -46,6 +46,14 @@ function isConfigured() {
   return !!(config.STRAVA_CLIENT_ID && config.STRAVA_CLIENT_SECRET && _refreshToken);
 }
 
+// O sync automático do Strava está desligado por ambiente desde 2026-08-30 (a
+// API passou a responder 403 Application Inactive). Fonte única: o scheduler
+// gateia por aqui e a rota /status devolve isto para a UI, para o toggle da
+// #135 não prometer um sync periódico que o servidor não vai executar.
+function autoSyncHabilitado() {
+  return process.env.STRAVA_AUTO_SYNC === 'on';
+}
+
 async function refreshAccessToken() {
   if (!isConfigured()) throw new Error('Strava nao configurado no .env');
 
@@ -118,19 +126,20 @@ async function fetchAthlete() {
 
 async function getStatus() {
   if (!isConfigured()) {
-    return { configured: false, connected: false };
+    return { configured: false, connected: false, autoSyncServidor: autoSyncHabilitado() };
   }
   try {
     if (!_athlete) await fetchAthlete();
     return {
       configured: true,
       connected:  true,
+      autoSyncServidor: autoSyncHabilitado(),
       athlete:    _athlete,
       lastSync:   _lastSync,
       tokenExpiresAt: _expiresAt ? new Date(_expiresAt * 1000).toISOString() : null,
     };
   } catch (err) {
-    return { configured: true, connected: false, error: err.message };
+    return { configured: true, connected: false, autoSyncServidor: autoSyncHabilitado(), error: err.message };
   }
 }
 
@@ -154,6 +163,7 @@ function isBikeActivity(a) {
 
 module.exports = {
   isConfigured,
+  autoSyncHabilitado,
   getAccessToken,
   apiGet,
   fetchAthlete,

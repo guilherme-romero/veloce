@@ -35,6 +35,13 @@ const DEFAULTS = {
     duracaoSessaoMin: 0,
     diaLongao: '',
     nivelExperiencia: '',
+    // Ativação por conexão (#135). Entrada explícita AQUI é obrigatória: sem
+    // ela o campo nasceria `undefined` (falsy) e a UI mostraria o sync como
+    // desligado em perfil que nunca foi salvo — foi o que aconteceu com
+    // `relatorioMensalTelegram`, que não está nesta lista. Como o default
+    // desejado é "ligado", a omissão seria visível.
+    stravaSyncAuto: true,
+    garminSyncAuto: true,
   },
 };
 

@@ -54,6 +54,41 @@ function wireAvatarFallbacks(root) {
 
 window.Avatar = { html: avatarHTML, initials: _avatarInitials, wireFallbacks: wireAvatarFallbacks };
 
+/* ── Toggle "sync automático" dos cards de Conexões (#135) ─────────────
+   Compartilhado por js/strava.js e js/garmin.js, que são IIFEs separadas.
+   Vive aqui, e não num arquivo próprio, para não ter de entrar também no
+   array SHELL do service-worker.js (addAll é atômico: uma entrada 404
+   derruba o pré-cache inteiro — ver CLAUDE.md).
+
+   O toggle gateia SÓ o sync automático do scheduler. Sync manual, login do
+   Garmin e "Sincronizar tudo" da Home seguem funcionando desligado.  */
+function connAutoLigado(chave) {
+  // Ausente = ligado. `DEFAULTS.user` já garante isso em getUser(), mas a
+  // checagem explícita protege chamadas antes do loadAll() do boot.
+  const v = (window.Storage ? Storage.getUser() : {})[chave];
+  return v === undefined ? true : !!v;
+}
+
+function connAutoHtml(inputId, chave) {
+  return '<label class="conn-auto">' +
+    `<input type="checkbox" id="${escAttr(inputId)}" ${connAutoLigado(chave) ? 'checked' : ''}>` +
+    '<span>Sincronizar automaticamente</span>' +
+  '</label>';
+}
+
+// `aoMudar` normalmente re-renderiza o card, porque desligar troca o estado
+// exibido (some o erro vermelho) e ligar traz o estado real de volta.
+function connAutoWire(inputId, chave, aoMudar) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.addEventListener('change', () => {
+    if (window.Storage) Storage.setUser({ ...Storage.getUser(), [chave]: el.checked });
+    if (typeof aoMudar === 'function') aoMudar(el.checked);
+  });
+}
+
+window.ConnAuto = { ligado: connAutoLigado, html: connAutoHtml, wire: connAutoWire };
+
 /* ── Zonas de FC — fonte única de verdade ──────────────────────────────
    Espelha as cores das classes CSS .z1–.z6 em Fisiologia.
    Usado em qualquer gráfico ou UI que precise colorir por zona.
