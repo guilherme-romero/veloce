@@ -77,12 +77,8 @@ function reportRenderClient() {
     } catch (_) { return null; }
   };
 
-  const COMP_LABELS = {
-    pneu_dianteiro: 'Pneu dianteiro', pneu_traseiro: 'Pneu traseiro', corrente: 'Corrente',
-    pastilha_diant: 'Pastilha dianteira', pastilha_tras: 'Pastilha traseira',
-    disco_diant: 'Disco dianteiro', disco_tras: 'Disco traseiro', cassete: 'Cassete',
-    cabo_freio: 'Cabo/Óleo de freio', outro: 'Outro',
-  };
+  // Rótulos de componente agora vêm de window.BikeComp (js/utils.js), que o
+  // assets().core injeta antes deste script — ver bikeCard() (#142).
 
   function fmtTempo(s) {
     if (s == null || !isFinite(s)) return '—';
@@ -113,11 +109,14 @@ function reportRenderClient() {
     // só à contagem de "Passeios" da página 1 (abaixo). Sem isso, escolher "30
     // dias" fazia o heatmap/volume mentirem (dados nunca buscados).
     const fetchDays = Math.max(days || 1825, 120);
-    const [profile, weights, unified, health, readinessItems, prs, vo2max, weeklyRec, fitness, bikes] = await Promise.all([
+    // /component-types entra aqui (e não numa chamada serial) porque é só
+    // mais uma promessa no mesmo lote: sem ela, componentes "Outro (novo)"
+    // saem rotulados com a chave crua `custom:<id>` (#142).
+    const [profile, weights, unified, health, readinessItems, prs, vo2max, weeklyRec, fitness, bikes, tiposCustom] = await Promise.all([
       get('/profile'), get('/weights'), get(`/activities/unified?days=${fetchDays}`),
       get('/garmin/health?days=40'), get('/garmin/training-readiness?days=14'),
       get('/garmin/personal-records'), get('/garmin/vo2max'), get('/activities/weekly-records'),
-      get('/garmin/fitness-scores?days=90'), get('/bikes'),
+      get('/garmin/fitness-scores?days=90'), get('/bikes'), get('/component-types'),
     ]);
 
     const u = profile || {};
@@ -142,7 +141,7 @@ function reportRenderClient() {
     }
 
     buildPage1(u, ws, items, health, readinessItems, prs, vo2max, weeklyRec, fitness);
-    buildPage2(u, allItems, totalItems, bikes, maint, fetchDays);
+    buildPage2(u, allItems, totalItems, bikes, maint, fetchDays, tiposCustom);
   }
 
   // ── Página 1: resumo ──────────────────────────────────────────────────
@@ -263,7 +262,7 @@ function reportRenderClient() {
   // `janelaDias` é o fetchDays real (≥120, ou 1825 em "Tudo"). Entra só no
   // rótulo do histórico: com 30d/90d o total NÃO é o total absoluto de
   // atividades, e dizer "de N" seco fazia o número mentir (Issue #132).
-  function buildPage2(u, items, totalItems, bikes, maint, janelaDias) {
+  function buildPage2(u, items, totalItems, bikes, maint, janelaDias, tiposCustom) {
     const nome = u.nome ? String(u.nome).split(/\s+/)[0] : 'Ciclista';
 
     // Mapa 90 dias — km por dia das atividades
@@ -328,28 +327,43 @@ function reportRenderClient() {
         ${card(`${eyebrow('Volume mensal · km')}<div style="flex:1;display:flex;align-items:flex-end;gap:12px;min-height:110px">${monthsHtml}</div>`, 'display:flex;flex-direction:column')}
       </div>
       ${card(`<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Histórico de atividades</span><span style="font-size:10.5px;color:${MUTED}">${janelaDias && janelaDias < 1825 ? `${recent.length} mais recentes · ${totalItems} nos últimos ${janelaDias} dias` : `${recent.length} mais recentes de ${totalItems}`}</span></div><div style="display:grid;grid-template-columns:${COLS};gap:10px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED};padding:0 0 7px;border-bottom:1px solid ${BORDER}"><span>Data</span><span>Atividade</span><span>Km</span><span>Tempo</span><span style="text-align:right">Elev.</span><span style="text-align:right">FC</span></div>${actsHtml || `<div style="padding:12px 0;color:${MUTED};font-size:12px">Sem atividades no período.</div>`}`, 'margin-bottom:14px')}
-      ${bikeCard(bikes, maint)}
+      ${bikeCard(bikes, maint, tiposCustom)}
       ${footer(2)}`;
   }
 
-  function bikeCard(bikes, maint) {
+  function bikeCard(bikes, maint, tiposCustom) {
+    // Rótulo e desgaste vêm de window.BikeComp (js/utils.js, injetado pelo
+    // assets().core antes deste script). Antes cada cliente de relatório
+    // tinha a sua cópia, e foi por isso que a correção do #134 não chegou
+    // aqui (#142).
+    const rotulo = (tipo) => window.BikeComp.label(tipo, tiposCustom);
+    const razaoUso = (c) => window.BikeComp.razaoUso(c);
     const list = Array.isArray(bikes) ? bikes : [];
     if (!list.length) return card(`<div style="color:${MUTED};font-size:12px">Nenhuma bicicleta cadastrada.</div>`, 'flex:1');
     const bike = list.find(b => b.active) || list[0];
     const comps = Array.isArray(bike.components) ? bike.components : [];
 
     const compRows = comps.map(c => {
-      const nome = COMP_LABELS[c.tipo] || (c.marca || c.modelo ? `${COMP_LABELS[c.tipo] || c.tipo} ${[c.marca, c.modelo].filter(Boolean).join(' ')}`.trim() : c.tipo);
-      const pct = (c.vidaUtilKm && c.vidaUtilKm > 0 && c.kmDesgastado != null) ? Math.round(c.kmDesgastado / c.vidaUtilKm * 100) : null;
+      // Só o nome do tipo: o antigo branch de marca/modelo era inalcançável
+      // para tipo conhecido (o primeiro `||` já retornava), então só teria
+      // efeito no caso custom — onde produzia "custom:ctype_… Shimano XT".
+      const nome = rotulo(c.tipo);
+      // Math.floor (não round) faz `pct >= 100` coincidir exatamente com o
+      // `razão >= 1` do banner abaixo: com round, 0,996 vira 100% e a barra
+      // marcava VENC. num componente que o banner não contava (#142).
+      const r = razaoUso(c);
+      const pct = r == null ? null : Math.floor(r * 100);
       const col = pct == null ? SURF2 : pct >= 100 ? RED : pct >= 80 ? AMBER : GREEN;
       const pstyle = `text-align:right;font-size:10.5px;font-weight:800${pct != null && pct >= 100 ? `;color:${RED}` : ''}`;
       const ptxt = pct == null ? '—' : pct >= 100 ? 'VENC.' : pct + '%';
       return `<div style="display:grid;grid-template-columns:150px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:11.5px"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nome)}</span><span style="height:6px;background:${SURF2};border-radius:3px;overflow:hidden"><span style="display:block;width:${pct == null ? 0 : Math.min(100, pct)}%;height:100%;background:${col};border-radius:3px"></span></span><span style="${pstyle}">${ptxt}</span></div>`;
     }).join('');
 
-    const vencidos = comps.filter(c => c.vidaUtilKm > 0 && c.kmDesgastado != null && c.kmDesgastado / c.vidaUtilKm >= 1);
+    // Mesmo razaoUso das barras — é o que garante que a contagem daqui bata
+    // com o número de "VENC." acima.
+    const vencidos = comps.filter(c => razaoUso(c) >= 1);
     const alerta = vencidos.length
-      ? `<div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:12px;padding:12px;font-size:12px;color:#eef2f4;display:flex;gap:10px;align-items:flex-start"><i class="fa-solid fa-triangle-exclamation" style="color:${RED};margin-top:2px"></i><span><strong>${vencidos.length} componente${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''}:</strong> ${esc(vencidos.map(c => COMP_LABELS[c.tipo] || c.tipo).join(', '))}.</span></div>`
+      ? `<div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);border-radius:12px;padding:12px;font-size:12px;color:#eef2f4;display:flex;gap:10px;align-items:flex-start"><i class="fa-solid fa-triangle-exclamation" style="color:${RED};margin-top:2px"></i><span><strong>${vencidos.length} componente${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''}:</strong> ${esc(vencidos.map(c => rotulo(c.tipo)).join(', '))}.</span></div>`
       : '';
 
     const mlist = Array.isArray(maint) ? maint : [];
@@ -357,7 +371,9 @@ function reportRenderClient() {
       ? `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Manutenções · 12 meses</div>` +
         mlist.map(m => {
           const quando = fmtDiaMes(String(m.data).slice(0, 10));
-          const oque = COMP_LABELS[m.componentTipo] || m.componentTipo || m.tipoEvento || 'Serviço';
+          // Campo diferente (`componentTipo`, não `tipo`), mesmo defeito: era
+          // aqui que a chave crua saía INTEIRA, sem as reticências da barra.
+          const oque = m.componentTipo ? rotulo(m.componentTipo) : (m.tipoEvento || 'Serviço');
           return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding-bottom:5px;border-bottom:1px solid ${SURF2}"><span style="color:${MUTED}">${esc(quando)}</span><span>${esc(oque)}</span></div>`;
         }).join('')
       : '';
@@ -418,7 +434,7 @@ function reportResumoClient() {
       return await r.json();
     } catch (_) { return null; }
   };
-  const COMP_LABELS = { pastilha_diant: 'Pastilha dianteira', pastilha_tras: 'Pastilha traseira', corrente: 'Corrente', cassete: 'Cassete', pneu_dianteiro: 'Pneu dianteiro', pneu_traseiro: 'Pneu traseiro', disco_diant: 'Disco dianteiro', disco_tras: 'Disco traseiro', cabo_freio: 'Cabo/Óleo de freio', outro: 'Outro' };
+  // Rótulos de componente: window.BikeComp (js/utils.js), via assets().core.
 
   const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const paraISO = (d) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
@@ -601,19 +617,12 @@ function reportResumoClient() {
     // 0,996 arredonda para 100% e a barra marcaria "VENC." num componente que
     // o banner não conta ("1 componente vencido" sob duas barras VENC.).
     // `Math.floor` faz `pct >= 100` coincidir exatamente com `razao >= 1`.
-    // (O bikeCard do PDF, :342-350, ainda tem essa divergência — fora do #134.)
-    const razaoUso = (c) => (c.vidaUtilKm > 0 && c.kmDesgastado != null) ? c.kmDesgastado / c.vidaUtilKm : null;
+    // Rótulo e razão vêm de window.BikeComp (js/utils.js): o cliente do PDF
+    // usa exatamente os mesmos, e era a duplicação disto aqui que fazia a
+    // correção alcançar um relatório e não o outro (#142).
+    const razaoUso = (c) => window.BikeComp.razaoUso(c);
     const vencidos = comps.filter(c => razaoUso(c) >= 1);
-    // Componentes criados como "Outro (novo)" têm `tipo = 'custom:<id>'`, e o
-    // nome legível só existe em /component-types — sem resolver, a barra sairia
-    // rotulada "custom:ctype_1785877…" no PNG. Mesma regra do typeLabel() do
-    // app (js/bikes.js:49-54). O PDF tem a MESMA falha hoje; fica registrado.
-    const labelComp = (tipo) => {
-      if (Object.hasOwn(COMP_LABELS, tipo)) return COMP_LABELS[tipo];
-      const id = (typeof tipo === 'string' && tipo.startsWith('custom:')) ? tipo.slice(7) : null;
-      const t = id && Array.isArray(tiposCustom) ? tiposCustom.find(x => x.id === id) : null;
-      return (t && t.nome) ? t.nome : (id ? 'Outro' : tipo);
-    };
+    const labelComp = (tipo) => window.BikeComp.label(tipo, tiposCustom);
     const compRows = comps.map(c => {
       const r = razaoUso(c);
       const pct = r == null ? null : Math.floor(r * 100);
