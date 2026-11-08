@@ -409,8 +409,10 @@ CREATE TABLE IF NOT EXISTS weekly_training_plans (
   favorito  INTEGER NOT NULL DEFAULT 0   -- #137: protegido de exclusão e do teto de 30
 );
 CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_ativo ON weekly_training_plans(ativo);
--- #137: a poda do teto de 30 varre os não-favoritados ordenados por id.
-CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_favorito ON weekly_training_plans(favorito, id);
+-- #137: o índice de (favorito, id) NÃO mora aqui. Este arquivo roda ANTES das
+-- migrações em db/init.js, e num banco que já existia a coluna `favorito` só
+-- aparece depois do ALTER TABLE — um CREATE INDEX sobre ela aqui derrubaria o
+-- boot com "no such column: favorito". Ele está na lista de migrations.
 
 -- Análise de IA do mês para o relatório de fechamento (Telegram, #106/#112).
 -- NÃO singleton (diferente de performance_analysis_cache): uma linha por mês

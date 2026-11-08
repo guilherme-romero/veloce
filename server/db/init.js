@@ -54,6 +54,10 @@ const migrations = [
   // #137: plano favoritado nao e' excluivel nem entra no teto de 30. Primeira
   // migracao desta tabela — ate aqui ela so tinha as 4 colunas do CREATE.
   'ALTER TABLE weekly_training_plans ADD COLUMN favorito INTEGER NOT NULL DEFAULT 0',
+  // O índice vem DEPOIS do ALTER acima, e por isso não pode morar no
+  // schema-training.sql: lá ele rodaria antes da coluna existir e o boot de
+  // qualquer banco já existente morreria com "no such column: favorito".
+  'CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_favorito ON weekly_training_plans(favorito, id)',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }
