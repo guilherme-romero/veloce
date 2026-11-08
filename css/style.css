@@ -142,9 +142,25 @@ nav {
      numa faixa de largura intermediária onde a nav precisa rolar
      (treino_bike_docs/corrigir/top_bar_nome - cortado.png). O fade nas duas
      pontas é a pista visual de que há mais conteúdo fora da área visível. */
-  mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0, black 16px, black calc(100% - 16px), transparent 100%);
 }
+/* #153, primeira causa — o fade era aplicado SEMPRE, mesmo sem nada escondido
+   daquele lado. Com a faixa parada no inicio (scrollLeft 0) nao ha o que
+   sinalizar a esquerda, e mesmo assim INICIO saia desbotado
+   (treino_bike_docs/corrigir/topbar.png). A segunda causa, independente desta,
+   era o transbordo real de 20px tratado la embaixo no padding do .nav-btn.
+   Agora o mask so e' aplicado no lado que de fato tem conteudo escondido, e
+   quem alterna as classes e' Router.updateNavFade() (js/router.js). Sem
+   nenhuma das duas classes nao ha mask algum — nem o custo da camada de
+   composicao que um mask opaco criaria a toa.
+   `black`/`transparent` aqui sao canal alfa do mask, nao cor de design: por
+   isso nao saem de var() como o resto do projeto exige. */
+.nav-links.is-overflow-left,
+.nav-links.is-overflow-right {
+  mask-image: linear-gradient(to right, var(--fade-start, black) 0, black 16px, black calc(100% - 16px), var(--fade-end, black) 100%);
+  -webkit-mask-image: linear-gradient(to right, var(--fade-start, black) 0, black 16px, black calc(100% - 16px), var(--fade-end, black) 100%);
+}
+.nav-links.is-overflow-left  { --fade-start: transparent; }
+.nav-links.is-overflow-right { --fade-end: transparent; }
 .nav-links::-webkit-scrollbar { display: none; }
 .nav-links .nav-btn { flex: 0 0 auto; }   /* botao nao espreme, a faixa e' que rola */
 
@@ -180,10 +196,15 @@ nav {
   background: none; border: none; color: var(--muted);
   font-size: 13px; font-weight: 600;
   letter-spacing: 0.04em; text-transform: uppercase;
-  /* 11px (era 14px): os 11 botoes somavam 1040px e so cabem 989px dentro do
-     container de 1400px, entao eles transbordavam a faixa mesmo num monitor
-     grande. Com 11px somam 974px e cabem de verdade (BUG-067). */
-  padding: 7px 11px; border-radius: 6px;
+  /* 9px (era 14px, depois 11px): os 11 botoes so cabem em 989px dentro do
+     container de 1400px (1344 de caixa de conteudo - 138.6 da marca - 168 dos
+     icones - 48 de gap). A nota do BUG-067 dizia que 11px somavam 974px e
+     "cabiam de verdade" — medido em 2026-11-08 isso nao valia mais: somavam
+     1009px e transbordavam 20px em QUALQUER largura de tela, deixando
+     "Conexoes" permanentemente cortada (#153, segunda causa). Com 9px somam
+     965px: 24px de folga, que e' o colchao para a variacao de largura quando
+     o Bebas Neue/Archivo ainda nao carregou. */
+  padding: 7px 9px; border-radius: 6px;
   transition: all 0.18s;
 }
 .nav-btn:hover { color: var(--text); background: var(--surface2); }

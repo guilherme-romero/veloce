@@ -273,6 +273,26 @@
     if (!burger) return window.innerWidth <= 700; // fallback
     return getComputedStyle(burger).display !== 'none';
   }
+  // #153 — liga/desliga o fade das pontas da faixa de links conforme exista,
+  // ou nao, conteudo fora da area visivel. O mask em si mora no CSS
+  // (.is-overflow-left / .is-overflow-right em css/style.css); aqui so se
+  // decide quais lados merecem.
+  //
+  // A tolerancia de 1px nao e' supersticao: scrollWidth e clientWidth sao
+  // inteiros arredondados de larguras fracionarias (zoom, DPR, scrollbar
+  // vertical aparecendo), entao numa faixa que cabe justa a diferenca oscila
+  // em ±1 e o fade piscaria a cada reflow.
+  function updateNavFade() {
+    const navLinks = document.getElementById('nav-links');
+    if (!navLinks) return;
+    // Em mobile a faixa e' o drawer (popover, coluna vertical): nao ha
+    // rolagem horizontal para sinalizar e o mask so atrapalharia.
+    const rolavel = !_isMobileNav() && navLinks.scrollWidth > navLinks.clientWidth + 1;
+    const fim = navLinks.scrollLeft + navLinks.clientWidth;
+    navLinks.classList.toggle('is-overflow-left',  rolavel && navLinks.scrollLeft > 1);
+    navLinks.classList.toggle('is-overflow-right', rolavel && fim < navLinks.scrollWidth - 1);
+  }
+
   function ensureDrawerPosition() {
     const navLinks = document.getElementById('nav-links');
     if (!navLinks) return;
@@ -326,6 +346,16 @@
       });
     }
 
+    // #153 — fade das pontas. O ResizeObserver cobre o caso que o evento
+    // 'resize' da janela NAO cobre: a faixa encolher sem a janela mudar de
+    // tamanho (scrollbar vertical da pagina aparecendo, drawer saindo do
+    // fluxo, fonte recarregando e mudando a largura dos botoes).
+    if (navLinks) {
+      navLinks.addEventListener('scroll', updateNavFade, { passive: true });
+      if (window.ResizeObserver) new ResizeObserver(updateNavFade).observe(navLinks);
+    }
+    updateNavFade();
+
     // Backdrop: cria div fixo atrás do drawer e fecha ao clicar
     let backdrop = document.getElementById('nav-backdrop');
     if (!backdrop) {
@@ -340,6 +370,7 @@
     window.addEventListener('resize', () => {
       if (!_isMobileNav()) closeDrawer();
       ensureDrawerPosition();
+      updateNavFade();   // #153 — o breakpoint pode ter mudado o modo da faixa
     });
 
     // Fecha com tecla ESC
@@ -353,5 +384,5 @@
     navigate(sectionId);
   };
 
-  window.Router = { init, navigate, rebindNav, ROUTES };
+  window.Router = { init, navigate, rebindNav, updateNavFade, ROUTES };
 })();
