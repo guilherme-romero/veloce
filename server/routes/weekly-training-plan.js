@@ -2,9 +2,10 @@
    ROTAS — /api/weekly-training-plan (Treino IA, IDEIA-7, Issue #1).
 
    GET    /api/weekly-training-plan              lê o plano ativo (nunca chama IA)
-   GET    /api/weekly-training-plan/historico     lista simplificada (sem payload completo)
+   GET    /api/weekly-training-plan/historico     lista paginada (sem payload completo)
    POST   /api/weekly-training-plan               gera um plano novo via Gemini/Groq
    POST   /api/weekly-training-plan/:id/ativar    reativa um plano do histórico
+   POST   /api/weekly-training-plan/:id/favorito  favorita/desfavorita (#137)
    DELETE /api/weekly-training-plan/:id           exclui um plano inativo
    DELETE /api/weekly-training-plan/historico     exclui todos os planos inativos (preserva o ativo)
 
@@ -27,6 +28,7 @@
 const { requireAuth } = require('../middleware/auth');
 const {
   lerCacheAtivo, lerHistorico, gerarEArmazenarPlano, ativarPlano, excluirPlano, limparHistorico,
+  favoritarPlano,
   lerPerfilTreinoIa, sanitizarInsumos,
 } = require('../services/weekly-training-plan');
 
@@ -50,8 +52,33 @@ async function routes(fastify) {
   });
 
   // ── GET /api/weekly-training-plan/historico ────────────────────────────
-  fastify.get('/api/weekly-training-plan/historico', async () => {
-    return { ok: true, itens: lerHistorico(fastify.db) };
+  // #137: `page`/`limit` na query (default 5 = o atual + 4). A resposta leva
+  // total/pagina/totalPaginas — sem isso a UI nao sabe quantas paginas ha.
+  // lerHistorico ja normaliza valores fora de faixa, entao query suja nao
+  // vira erro: cai no default.
+  fastify.get('/api/weekly-training-plan/historico', async (req) => {
+    const { page, limit } = req.query || {};
+    const r = lerHistorico(fastify.db, { page, limit });
+    return { ok: true, ...r };
+  });
+
+  // ── POST /api/weekly-training-plan/:id/favorito ─────────────────────────
+  // #137: favoritado nao e' excluivel (nem individual, nem pelo "limpar
+  // historico") e nao entra no teto de 30. Body: { favorito: true|false }.
+  fastify.post('/api/weekly-training-plan/:id/favorito', async (req, reply) => {
+    const id = parseIdParam(req.params.id);
+    if (id === null) {
+      reply.code(400);
+      return { ok: false, error: 'id inválido' };
+    }
+    let favorito;
+    try {
+      favorito = favoritarPlano(fastify.db, id, !!(req.body || {}).favorito);
+    } catch (err) {
+      if (err.notFound) { reply.code(404); return { ok: false, error: 'Plano não encontrado' }; }
+      throw err;
+    }
+    return { ok: true, id, favorito };
   });
 
   // ── POST /api/weekly-training-plan/:id/ativar ───────────────────────────
@@ -93,7 +120,7 @@ async function routes(fastify) {
     const excluido = excluirPlano(fastify.db, id);
     if (!excluido) {
       reply.code(400);
-      return { ok: false, error: 'Não é possível excluir o plano ativo, ou plano não encontrado' };
+      return { ok: false, error: 'Não é possível excluir o plano ativo nem um favoritado, ou plano não encontrado' };
     }
     return { ok: true };
   });

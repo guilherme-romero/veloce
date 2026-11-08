@@ -405,9 +405,12 @@ CREATE TABLE IF NOT EXISTS weekly_training_plans (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   ativo     INTEGER NOT NULL DEFAULT 1,  -- 0|1 — só 1 linha com ativo=1 por vez
   payload   TEXT NOT NULL,               -- JSON: { plano, observacaoGeral, perfil, insumos, provider, model }
-  gerado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  gerado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  favorito  INTEGER NOT NULL DEFAULT 0   -- #137: protegido de exclusão e do teto de 30
 );
 CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_ativo ON weekly_training_plans(ativo);
+-- #137: a poda do teto de 30 varre os não-favoritados ordenados por id.
+CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_favorito ON weekly_training_plans(favorito, id);
 
 -- Análise de IA do mês para o relatório de fechamento (Telegram, #106/#112).
 -- NÃO singleton (diferente de performance_analysis_cache): uma linha por mês

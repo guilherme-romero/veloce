@@ -380,25 +380,57 @@
     }
   }
 
+  // #137: histórico paginado (5 por página), mostrando data, badge de ATUAL,
+  // estrela de favorito e o objetivo — antes era só 'Plano #7 — <data>'.
+  //
+  // DELIBERADAMENTE SÓ LEITURA: sem selecionar, sem excluir, sem favoritar.
+  // É a decisão registrada na #137 e segue o padrão do Perfil mobile
+  // (js/mobile/profile-mobile.js:12-15), que também é só leitura e manda a
+  // escrita para o desktop. Paridade com o modal do desktop fica como
+  // follow-up — ver treino_bike_docs/MELHORIAS.md.
+  let _histPagina = 1;
+
+  function histItemHTML(it) {
+    const badges = [];
+    if (it.ativo) badges.push('<span class="mtia-hist-badge">ATUAL</span>');
+    if (it.favorito) badges.push('<i class="fa-solid fa-star" aria-label="Favorito" title="Favorito"></i>');
+    return `<div class="mtia-hist-item">
+      <div class="mtia-hist-topo">
+        <span class="m-sub">${esc(fmtDataHora(it.geradoEm))}</span>
+        <span class="mtia-hist-badges">${badges.join(' ')}</span>
+      </div>
+      <p class="mtia-hist-obj">${esc(it.objetivo || '(sem objetivo registrado)')}</p>
+    </div>`;
+  }
+
+  async function renderHistorico(el, pagina) {
+    const resp = await Api.get('/weekly-training-plan/historico?page=' + pagina).catch(() => ({ ok: false }));
+    el.replaceChildren();
+    if (!resp || !resp.ok) { el.textContent = 'Falha ao carregar o histórico.'; return; }
+    const itens = resp.itens || [];
+    if (!itens.length) { el.textContent = 'Nenhum plano anterior.'; return; }
+    _histPagina = resp.pagina;
+    const pag = resp.totalPaginas > 1
+      ? `<div class="mtia-hist-pag">
+           <button type="button" class="m-iconbtn" id="mtia-hist-prev" ${resp.pagina <= 1 ? 'disabled' : ''}
+                   aria-label="Página anterior"><i class="fa-solid fa-chevron-left"></i></button>
+           <span class="m-sub">Página ${resp.pagina} de ${resp.totalPaginas} · ${resp.total} plano(s)</span>
+           <button type="button" class="m-iconbtn" id="mtia-hist-next" ${resp.pagina >= resp.totalPaginas ? 'disabled' : ''}
+                   aria-label="Próxima página"><i class="fa-solid fa-chevron-right"></i></button>
+         </div>`
+      : '';
+    el.innerHTML = itens.map(histItemHTML).join('') + pag;
+    el.querySelector('#mtia-hist-prev')?.addEventListener('click', () => renderHistorico(el, _histPagina - 1));
+    el.querySelector('#mtia-hist-next')?.addEventListener('click', () => renderHistorico(el, _histPagina + 1));
+  }
+
   async function carregarHistorico() {
     const view = document.getElementById(VIEW_ID);
     const el = view?.querySelector('#mtia-historico');
     if (!el) return;
     el.hidden = !el.hidden;
     if (el.hidden || el.dataset.loaded) return;
-    const resp = await Api.get('/weekly-training-plan/historico').catch(() => ({ ok: false }));
-    el.replaceChildren();
-    const itens = (resp && resp.ok && resp.itens) || [];
-    if (!itens.length) {
-      el.textContent = 'Nenhum plano anterior.';
-    } else {
-      itens.forEach((it) => {
-        const p = document.createElement('p');
-        p.className = 'm-sub';
-        p.textContent = 'Plano #' + it.id + ' — ' + fmtDataHora(it.geradoEm);
-        el.appendChild(p);
-      });
-    }
+    await renderHistorico(el, 1);
     el.dataset.loaded = '1';
   }
 

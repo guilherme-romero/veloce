@@ -53,3 +53,13 @@
 .mtia-stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .mtia-stat-label{font-size:8.5px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:5px}
 .mtia-zonabar{height:10px;display:flex;border-radius:4px;overflow:hidden;margin-bottom:8px}
+
+/* ── #137: histórico paginado (só leitura — ver js/mobile/treino-ia-mobile.js) ── */
+.mtia-hist-item{padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px}
+.mtia-hist-topo{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mtia-hist-badges{display:flex;align-items:center;gap:6px;flex-shrink:0;color:var(--amber)}
+.mtia-hist-badge{font-size:9px;font-weight:800;letter-spacing:.08em;background:var(--lime);color:var(--bg);padding:2px 6px;border-radius:999px}
+/* O objetivo pode ser longo; 2 linhas e reticências mantêm o item compacto
+   numa tela estreita, sem cortar no meio de uma palavra. */
+.mtia-hist-obj{margin:6px 0 0;font-size:13px;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mtia-hist-pag{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}

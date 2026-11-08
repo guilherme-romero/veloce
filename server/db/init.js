@@ -51,6 +51,9 @@ const migrations = [
   // partir de data_install; unidade ∈ {dia,mes,ano}.
   'ALTER TABLE bike_components ADD COLUMN vida_tempo_valor INTEGER',
   'ALTER TABLE bike_components ADD COLUMN vida_tempo_unidade TEXT',
+  // #137: plano favoritado nao e' excluivel nem entra no teto de 30. Primeira
+  // migracao desta tabela — ate aqui ela so tinha as 4 colunas do CREATE.
+  'ALTER TABLE weekly_training_plans ADD COLUMN favorito INTEGER NOT NULL DEFAULT 0',
 ];
 for (const sql of migrations) {
   try { db.exec(sql); }
