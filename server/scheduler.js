@@ -11,6 +11,7 @@ const { analisar, lerCache, gerarEArmazenarAnalise } = require('./services/perfo
 const pushDigest = require('./services/push-digest');
 const treinoIa = require('./services/weekly-training-plan');
 const { diaLocalKey } = require('./utils/datas');
+const { Utils } = require('./utils/core-modules');
 
 const SYNC_INTERVAL_MIN = 30;     // intervalo do sync automático (minutos)
 const CHECK_INTERVAL_MS = 60_000; // verifica a cada minuto
@@ -526,7 +527,7 @@ function setup(db, log) {
     // sync), uma vez por mês. Encadeado no fim pra rodar depois do sync (dados
     // já atualizados). Dedup por "YYYY-MM".
     if (now.getDate() === 1 && now.getHours() === RELATORIO_HORA) {
-      const mesKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const mesKey = Utils.mesLocalISO(now);   // #151 — fonte única
       if (!_relatorioEnviado.has(mesKey)) {
         _relatorioEnviado.add(mesKey);
         if (_relatorioEnviado.size > 3) {

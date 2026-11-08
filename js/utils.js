@@ -164,6 +164,43 @@ window.FC_ZONES = [
   { id: 'z6', label: 'Z6', min: 1.00, max: Infinity, color: '#ec4899', colorDim: 'rgba(236,72,153,0.25)', desc: 'Neuromuscular' },
 ];
 
+/* ── dataLocalISO — fonte única de "YYYY-MM-DD no fuso LOCAL" (#151) ────
+   Esta lógica estava copiada inline 11 vezes (frontend desktop, mobile,
+   js/core/* e backend), sempre com alguma variação de escrita e às vezes
+   com o mesmo comentário duplicado byte a byte. É a mesma causa raiz da
+   #134/#142: duas cópias da tabela de rótulos fizeram a correção chegar ao
+   resumo do Telegram e não ao PDF.
+
+   Por que não `toISOString().slice(0,10)`: ele formata em UTC. Num fuso
+   negativo (-03:00), das 21h à meia-noite o dia UTC já virou, então a
+   "data de hoje" sairia adiantada em um dia — exatamente o BUG-#88.
+
+   Aceita Date, timestamp ou string de data; devolve null para entrada que
+   não vira data válida, em vez de "NaN-NaN-NaN" vazando para uma chave.
+═════════════════════════════════════════════════════════════════════════ */
+function dataLocalISO(entrada) {
+  const d = (entrada instanceof Date) ? entrada
+          : (entrada == null) ? new Date()
+          : new Date(entrada);
+  if (isNaN(d.getTime())) return null;
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+/* ── mesLocalISO — mesma ideia, granularidade de mês ("YYYY-MM") ────────
+   Padrão menor, 3 cópias (js/activities.js, server/routes/report.js,
+   server/scheduler.js). O risco de borda é bem menor que o do dia (o mês
+   só viraria errado nas últimas 3h do último dia), mas é a mesma lógica e
+   não há motivo para ter duas fontes de verdade para o mesmo conceito.
+═════════════════════════════════════════════════════════════════════════ */
+function mesLocalISO(entrada) {
+  const iso = dataLocalISO(entrada);
+  return iso && iso.slice(0, 7);
+}
+
 /* ── Streak de treino — fonte única (home.js × heatmap.js) ──────────────
    Recebe lista de datas ISO (YYYY-MM-DD) de dias com treino. Uma semana
    "vale" com ≥ 2 dias DISTINTOS ativos; retorna { current, record } em nº
@@ -176,11 +213,11 @@ function calcTrainingStreak(activeISODates) {
     const d = new Date(iso + 'T12:00:00');
     if (isNaN(d)) return null;
     d.setDate(d.getDate() - d.getDay()); // getDay(): 0=dom
-    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+    return dataLocalISO(d);
   };
   const _prevWk = (wk) => {
     const d = new Date(wk + 'T12:00:00'); d.setDate(d.getDate() - 7);
-    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+    return dataLocalISO(d);
   };
 
   const semanas = {}; // weekISO -> Set de datas ativas distintas
@@ -203,7 +240,7 @@ function calcTrainingStreak(activeISODates) {
   // ATUAL — conta para trás a partir da semana corrente (local). Se ainda
   // não qualifica, começa pela anterior (não quebra a sequência em curso).
   const now = new Date();
-  const todayISO = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+  const todayISO = dataLocalISO(now);   // #151 — fonte única (mesmo arquivo)
   let cursor = _wkStart(todayISO);
   if (!qualifica(cursor)) cursor = _prevWk(cursor);
   let current = 0;
@@ -237,4 +274,4 @@ function estimateRideTimeMin({ dist, speed, elev = 0, wind = 0, profile = 1.0, s
   return { flatTimeMin, climbPenMin, movTimeMin, totalTimeMin: movTimeMin + stops };
 }
 
-window.Utils = Object.assign(window.Utils || {}, { calcTrainingStreak, wmoIcon, estimateRideTimeMin });
+window.Utils = Object.assign(window.Utils || {}, { calcTrainingStreak, wmoIcon, estimateRideTimeMin, dataLocalISO, mesLocalISO });

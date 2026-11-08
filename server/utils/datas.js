@@ -10,9 +10,14 @@
 ═══════════════════════════════════════════════════════════════════════ */
 'use strict';
 
+const { Utils } = require('./core-modules');
+
 // 'YYYY-MM-DD' no fuso local do processo.
+// Desde a #151 delega para Utils.dataLocalISO (js/utils.js), a fonte única
+// que serve desktop, mobile e backend — esta era a 11ª cópia inline da
+// mesma lógica. O nome local é mantido para não mexer nos call sites.
 function diaLocalKey(d) {
-  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  return Utils.dataLocalISO(d);
 }
 
 // Converte um CURRENT_TIMESTAMP do SQLite ('YYYY-MM-DD HH:MM:SS', sempre

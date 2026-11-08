@@ -98,7 +98,7 @@
     (items || []).forEach(a => {
       const d = parseLocalDT(a.inicio || a.data);
       if (!d) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const key = window.Utils.dataLocalISO(d);   // #151 — fonte única
       porDia[key] = (porDia[key] || 0) + (a.distanciaKm || 0);
     });
 
@@ -106,7 +106,7 @@
     const cells = [];
     for (let i = dias - 1; i >= 0; i--) {
       const d = new Date(hoje); d.setDate(d.getDate() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const key = window.Utils.dataLocalISO(d);   // #151 — fonte única
       const km = porDia[key] || 0;
       cells.push({
         date: key, km,

@@ -58,6 +58,10 @@ test('fmtHora: formatos', () => {
 });
 
 // ── runDigest (com stubs) ──────────────────────────────────────────────
+// Cálculo PROPOSITALMENTE inline, não via Utils.dataLocalISO (#151): este é
+// o oráculo do teste, e delegar ao mesmo helper que o código sob teste usa
+// tornaria a asserção tautológica — um bug no helper passaria despercebido
+// porque fixture e código errariam juntos. Não "unificar" numa varredura.
 function amanhaISO() {
   const d = new Date(); d.setDate(d.getDate() + 1);
   return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');

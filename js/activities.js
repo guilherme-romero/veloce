@@ -137,7 +137,7 @@
     const byKey = Object.fromEntries(buckets.map(b => [b.key, b]));
     activities.forEach(x => {
       const d = parseDT(x.inicio);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const key = window.Utils.mesLocalISO(d);   // #151 — fonte única
       if (byKey[key]) {
         byKey[key].km    += (x.distanciaKm || 0);
         byKey[key].count += 1;

@@ -485,8 +485,9 @@ main {
 }
 .id-card-edit:hover { color: var(--teal); border-color: var(--teal); }
 
-#btn-edit-profile-2             { display: none; }
-body.edit-mode #btn-edit-profile-2 { display: flex; }
+/* #138 — sempre visível. Antes dependia de body.edit-mode, ligado por um
+   segundo lápis na top bar: editar o perfil custava dois cliques. */
+#btn-edit-profile-2 { display: flex; }
 
 .avatar-ring {
   width: 64px; height: 64px; border-radius: 50%;
@@ -1420,15 +1421,10 @@ body.edit-mode #btn-edit-profile-2 { display: flex; }
 .exercise-card {
   position: relative;
 }
-.exercise-actions {
-  display: none;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-  margin-left: auto;
-  padding-left: 8px;
-}
-body.edit-mode .exercise-actions { display: flex; }
+/* .exercise-card / .exercise-actions removidas na #138: CSS morto desde o
+   commit bb1fd48 ("remove aba Treinos"), que tirou o HTML/JS e deixou as
+   regras. A de .exercise-actions dependia de body.edit-mode, que deixou de
+   existir — ficaria um display:none sem contrapartida possível. */
 
 /* ── Card Strava (Fase 4) ───────────────────────────────────────── */
 .strava-card {
@@ -1807,7 +1803,7 @@ body.edit-mode .exercise-actions { display: flex; }
 
 /* ── Impressão / PDF (Fase 5d) ───────────────────────────────────────── */
 @media print {
-  nav, .app-footer, #btn-edit-profile, #btn-backup, #btn-logout,
+  nav, .app-footer, #btn-backup, #btn-logout,
   #btn-edit-profile-2, #btn-add-weight, .btn, .strava-actions,
   #review-card, .integrations-grid, #activities, .tip-box { display: none !important; }
   body { background: #fff !important; color: #111 !important; }
