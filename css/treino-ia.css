@@ -82,3 +82,14 @@
 .tia-hist-badge{font-size:9px;font-weight:800;letter-spacing:.08em;background:var(--lime);color:var(--bg);padding:2px 6px;border-radius:999px}
 .tia-hist-objetivo{font-size:12px;color:var(--muted2);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tia-hist-actions{display:flex;gap:8px;flex-shrink:0}
+
+/* ── #137: favorito e paginação no histórico ──────────────────────────── */
+/* Estrela apagada herda a cor de texto apagado; acesa usa o amber do design
+   system. Nunca cor literal — tokens de css/style.css. */
+.tia-hist-fav{color:var(--muted2);padding:6px 9px}
+.tia-hist-fav:hover{color:var(--amber)}
+.tia-hist-fav[aria-pressed="true"]{color:var(--amber)}
+/* Excluir desabilitado em favoritado/ativo: o motivo vai no title=, aqui só
+   o sinal visual de que não é clicável. */
+.tia-hist-actions .btn:disabled{opacity:.45;cursor:not-allowed}
+.tia-hist-pag{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px}

@@ -370,35 +370,68 @@
   // "limpar histórico" nunca tocam no plano ativo — a API já garante isso
   // (server/services/weekly-training-plan.js), aqui só desabilita os
   // controles pra não dar a falsa impressão de que dá pra tentar.
+  // #137: Excluir fica desabilitado no ATIVO e no FAVORITADO. Os dois
+  // invariantes vivem no SQL de excluirPlano(); aqui só desabilita o controle
+  // pra não dar a falsa impressão de que dá pra tentar.
   function historicoLinhaHTML(it) {
-    const desabilitado = it.ativo ? 'disabled' : '';
+    const naoExcluivel = it.ativo || it.favorito;
+    const tituloExcluir = it.ativo ? 'O plano atual não pode ser excluído'
+                        : it.favorito ? 'Desfavorite antes de excluir' : 'Excluir este plano';
     return `<div class="tia-hist-row" data-id="${it.id}">
       <div class="tia-hist-info">
         <div class="tia-hist-data">${esc(fmtDataHora(it.geradoEm))}${it.ativo ? ' <span class="tia-hist-badge">ATUAL</span>' : ''}</div>
         <div class="tia-hist-objetivo">${esc(it.objetivo || '(sem objetivo registrado)')}</div>
       </div>
       <div class="tia-hist-actions">
-        <button type="button" class="btn btn-ghost btn-sm" data-act="selecionar" ${desabilitado}>Selecionar</button>
-        <button type="button" class="btn btn-danger btn-sm" data-act="excluir" ${desabilitado}>Excluir</button>
+        <button type="button" class="btn btn-ghost btn-sm tia-hist-fav" data-act="favorito"
+                aria-pressed="${it.favorito ? 'true' : 'false'}"
+                title="${it.favorito ? 'Remover dos favoritos' : 'Favoritar — protege de exclusão e do teto de 30'}"
+                aria-label="${it.favorito ? 'Remover dos favoritos' : 'Favoritar plano'}"
+          ><i class="fa-${it.favorito ? 'solid' : 'regular'} fa-star"></i></button>
+        <button type="button" class="btn btn-ghost btn-sm" data-act="selecionar" ${it.ativo ? 'disabled' : ''}>Selecionar</button>
+        <button type="button" class="btn btn-danger btn-sm" data-act="excluir" ${naoExcluivel ? 'disabled' : ''}
+                title="${esc(tituloExcluir)}">Excluir</button>
       </div>
     </div>`;
   }
 
-  async function buscarHistoricoItens() {
-    const resp = await window.Api.get('/weekly-training-plan/historico').catch(() => ({ ok: false }));
-    return (resp && resp.ok && resp.itens) || [];
+  // #137: estado de paginação do modal. Vive no módulo porque o modal é
+  // remontado inteiro a cada troca de página (abrirHistorico re-renderiza).
+  let _histPagina = 1;
+
+  async function buscarHistorico(pagina) {
+    const resp = await window.Api.get('/weekly-training-plan/historico?page=' + pagina)
+      .catch(() => ({ ok: false }));
+    if (!resp || !resp.ok) return { itens: [], total: 0, pagina: 1, totalPaginas: 1 };
+    return resp;
   }
 
-  function historicoBodyHTML(itens) {
-    const temInativos = itens.some((it) => !it.ativo);
+  function paginacaoHTML({ pagina, totalPaginas, total }) {
+    if (totalPaginas <= 1) return '';
+    return `<div class="tia-hist-pag" style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px;">
+      <button type="button" class="btn btn-ghost btn-sm" id="tia-hist-prev" ${pagina <= 1 ? 'disabled' : ''}
+              aria-label="Página anterior"><i class="fa-solid fa-chevron-left"></i></button>
+      <span style="color:var(--muted2);font-size:13px;">Página ${pagina} de ${totalPaginas} · ${total} plano(s)</span>
+      <button type="button" class="btn btn-ghost btn-sm" id="tia-hist-next" ${pagina >= totalPaginas ? 'disabled' : ''}
+              aria-label="Próxima página"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>`;
+  }
+
+  function historicoBodyHTML(resp) {
+    const itens = resp.itens || [];
+    // "Limpar histórico" só faz sentido se houver algo que ele de fato apague:
+    // o ativo e os favoritados sobrevivem (#137).
+    const temApagavel = itens.some((it) => !it.ativo && !it.favorito);
     const lista = itens.length
       ? itens.map(historicoLinhaHTML).join('')
       : '<p style="color:var(--muted2);">Nenhum plano gerado ainda.</p>';
     return `
       <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-        <button type="button" class="btn btn-danger btn-sm" id="tia-hist-limpar" ${temInativos ? '' : 'disabled'}>Limpar histórico</button>
+        <button type="button" class="btn btn-danger btn-sm" id="tia-hist-limpar" ${temApagavel ? '' : 'disabled'}
+                title="Preserva o plano atual e os favoritados">Limpar histórico</button>
       </div>
       <div id="tia-hist-lista" style="display:flex;flex-direction:column;gap:10px;">${lista}</div>
+      ${paginacaoHTML(resp)}
     `;
   }
 
@@ -406,7 +439,7 @@
     modal.querySelector('#tia-hist-limpar')?.addEventListener('click', async () => {
       const ok = await window.Modals.confirm({
         title: 'Excluir todos os planos anteriores?',
-        message: 'O plano atual é preservado — só os planos inativos são excluídos.',
+        message: 'O plano atual e os favoritados são preservados — só os demais inativos são excluídos.',
         confirmLabel: 'Limpar histórico',
         danger: true,
       });
@@ -414,11 +447,28 @@
       const resp = await window.Api.del('/weekly-training-plan/historico').catch(() => null);
       if (!resp || !resp.ok) { window.toast?.('Falha ao limpar histórico', { kind: 'error' }); return; }
       window.toast?.(resp.excluidos + ' plano(s) excluído(s)');
-      abrirHistorico();
+      abrirHistorico(1);   // a lista encolheu — volta ao começo
     });
+
+    // #137: paginação. Recarrega o modal inteiro — o histórico é curto (5 por
+    // página) e remontar evita estado parcial entre página e lista.
+    modal.querySelector('#tia-hist-prev')?.addEventListener('click', () => { abrirHistorico(_histPagina - 1); });
+    modal.querySelector('#tia-hist-next')?.addEventListener('click', () => { abrirHistorico(_histPagina + 1); });
 
     modal.querySelectorAll('.tia-hist-row').forEach((row) => {
       const id = row.dataset.id;
+      // #137: favoritar/desfavoritar — protege de exclusão e do teto de 30.
+      row.querySelector('[data-act="favorito"]')?.addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
+        const novo = btn.getAttribute('aria-pressed') !== 'true';
+        btn.disabled = true;
+        const resp = await window.Api.post('/weekly-training-plan/' + id + '/favorito', { favorito: novo })
+          .catch(() => null);
+        btn.disabled = false;
+        if (!resp || !resp.ok) { window.toast?.('Falha ao favoritar', { kind: 'error' }); return; }
+        window.toast?.(resp.favorito ? 'Plano favoritado' : 'Favorito removido');
+        abrirHistorico(_histPagina);   // reflete o botão Excluir, que depende disto
+      });
       row.querySelector('[data-act="selecionar"]')?.addEventListener('click', async () => {
         const resp = await window.Api.post('/weekly-training-plan/' + id + '/ativar', {}).catch(() => null);
         if (!resp || !resp.ok) { window.toast?.('Falha ao selecionar o plano', { kind: 'error' }); return; }
@@ -436,17 +486,27 @@
         const resp = await window.Api.del('/weekly-training-plan/' + id).catch(() => null);
         if (!resp || !resp.ok) { window.toast?.((resp && resp.error) || 'Falha ao excluir o plano', { kind: 'error' }); return; }
         window.toast?.('Plano excluído');
-        abrirHistorico();
+        abrirHistorico(_histPagina);
       });
     });
   }
 
-  async function abrirHistorico() {
-    const itens = await buscarHistoricoItens();
+  async function abrirHistorico(pagina = 1) {
+    // Coercao defensiva: esta funcao ja foi ligada direto como handler de
+    // clique, e um MouseEvent aqui viraria `?page=NaN`. Qualquer coisa que
+    // nao seja inteiro >= 1 cai em 1.
+    const n = Math.floor(Number(pagina));
+    const resp = await buscarHistorico(Number.isFinite(n) && n >= 1 ? n : 1);
+    // A página pedida pode não existir mais (último item da última página foi
+    // excluído): o backend devolve lista vazia, então recua para a que existe.
+    if (!resp.itens.length && resp.total > 0 && resp.pagina > resp.totalPaginas) {
+      return abrirHistorico(resp.totalPaginas);
+    }
+    _histPagina = resp.pagina;
     window.Modals.open({
       tag: 'Treino',
       title: 'Planos anteriores',
-      bodyHTML: historicoBodyHTML(itens),
+      bodyHTML: historicoBodyHTML(resp),
       actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => window.Modals.close() }],
       onMount: (modal) => wireHistoricoModal(modal),
     });
@@ -461,7 +521,10 @@
     const histBtn = $('treino-ia-historico-toggle');
     if (histBtn && !histBtn._wiredWeeklyTrainingPlan) {
       histBtn._wiredWeeklyTrainingPlan = true;
-      histBtn.addEventListener('click', abrirHistorico);
+      // Arrow, NAO a referencia direta: abrirHistorico(pagina) passou a ter
+      // parametro na #137, e addEventListener entregaria o MouseEvent como
+      // numero de pagina — o historico abria em "Pagina null".
+      histBtn.addEventListener('click', () => abrirHistorico(1));
     }
     if (!document._wiredWeeklyTrainingPlanKeydown) {
       document._wiredWeeklyTrainingPlanKeydown = true;
