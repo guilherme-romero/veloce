@@ -621,13 +621,14 @@ async function renderWeightAnalysis() {
 }
 window.renderWeightAnalysis = renderWeightAnalysis;
 
-/* ═══════════════════════════════════════════════════════════════════════
-   MODO DE EDIÇÃO — toggle global que exibe botões de edit/delete
-═══════════════════════════════════════════════════════════════════════ */
-function toggleEditMode() {
-  const on = document.body.classList.toggle('edit-mode');
-  document.getElementById('btn-edit-profile')?.classList.toggle('active', on);
-}
+/* MODO DE EDIÇÃO — removido na #138.
+   Era um toggle global (body.edit-mode) acionado por um lápis na top bar, que
+   não abria nada: só revelava o SEGUNDO lápis, dentro do cartão de Perfil.
+   Editar o perfil custava dois cliques. O lápis do cartão agora é permanente.
+   A classe não deixou órfão: a #138 alertava que body.edit-mode também
+   destravava .exercise-actions (edição dos exercícios da agenda), mas isso
+   já era CSS morto — o HTML/JS da aba Treinos saiu no commit bb1fd48 e só as
+   regras ficaram para trás. Verificado antes de remover. */
 
 /* ═══════════════════════════════════════════════════════════════════════
    AUTH — gate de boot e logout. Lógica em js/core/session.js (issue #13),
@@ -715,7 +716,6 @@ async function boot() {
 
   // 8. Wire dos botões fixos da nav
   await safe('Wire dos botões da nav', () => {
-    document.getElementById('btn-edit-profile')?.addEventListener('click', toggleEditMode);
     document.getElementById('btn-edit-profile-2')?.addEventListener('click', openProfileModal);
     document.getElementById('btn-backup')?.addEventListener('click', () => Backup && Backup.open && Backup.open());
     document.getElementById('btn-logout')?.addEventListener('click', doLogout);

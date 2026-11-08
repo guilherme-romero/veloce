@@ -17,7 +17,7 @@
   // usa UTC e deslocaria a janela em 1 dia à noite para fuso -03:00, dessincronizando
   // do "hoje" usado para gravar activities/health (ambos em fuso local).
   function paraISO(d) {
-    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+    return window.Utils.dataLocalISO(d);   // #151 — fonte única
   }
 
   function hojeISO() {

@@ -20,6 +20,7 @@ const path = require('path');
 const { requireAuth } = require('../middleware/auth');
 const reportRender = require('../services/report-render');
 const { lerCacheMensal, gerarEArmazenarMensal } = require('../services/monthly-analysis');
+const { Utils } = require('../utils/core-modules');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -295,7 +296,7 @@ function reportRenderClient() {
     const months = [];
     for (let i = 3; i >= 0; i--) {
       const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const key = Utils.mesLocalISO(d);   // #151 — fonte única
       months.push({ key, label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(), km: Math.round(monthKm[key] || 0) });
     }
     const maxMonth = Math.max(1, ...months.map(m => m.km));
@@ -486,7 +487,11 @@ function reportResumoClient() {
   // Rótulos de componente: window.BikeComp (js/utils.js), via assets().core.
 
   const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const paraISO = (d) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  // #151 — window.Utils.dataLocalISO chega por assets().core (js/utils.js é
+  // inlinado antes deste script), mesmo caminho do window.BikeComp acima.
+  // Esta função é serializada por toString() e roda NO CHROMIUM: não pode
+  // fechar sobre nada do escopo Node.
+  const paraISO = (d) => window.Utils.dataLocalISO(d);
   // #106/#107: relatório de FECHAMENTO do mês anterior (o scheduler dispara dia
   // 1º). Janela = [1º dia, último dia] do mês passado, em horário LOCAL. Dia 0
   // deste mês = último dia do mês anterior.

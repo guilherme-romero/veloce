@@ -276,7 +276,7 @@
     _dados = payload;
     _geradoEm = geradoEm;
     const _h = new Date();
-    _hoje = `${_h.getFullYear()}-${String(_h.getMonth() + 1).padStart(2, '0')}-${String(_h.getDate()).padStart(2, '0')}`; // local, não UTC (toISOString desloca o dia perto da meia-noite)
+    _hoje = window.Utils.dataLocalISO(_h);   // #151 — fonte única (local, não UTC)
     const dias = diasOrdenados();
     // Seleciona pelo dia-da-semana real (não pela data exata): o plano pode
     // estar cacheado com as datas da semana em que foi gerado, então casar por

@@ -13,9 +13,7 @@
   let _loading = null;  // promise de load() em andamento (coalesce chamadas concorrentes)
 
   function _todayISO() {
-    const d = new Date();
-    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'),
-            String(d.getDate()).padStart(2, '0')].join('-');
+    return window.Utils.dataLocalISO();   // #151 — fonte única
   }
   function _fmtDate(iso) {
     try { return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }); }
