@@ -138,7 +138,14 @@ function bikeCompLabel(tipo, tiposCustom) {
  * a divergência da #142.
  */
 function bikeCompRazaoUso(c) {
-  return (c && c.vidaUtilKm > 0 && c.kmDesgastado != null) ? c.kmDesgastado / c.vidaUtilKm : null;
+  if (!c || !(c.vidaUtilKm > 0) || c.kmDesgastado == null) return null;
+  // kmDesgastado = kmBike - kmAtInstall (server/routes/bikes.js:221), então
+  // fica NEGATIVO quando o km de instalação cadastrado é maior que o km atual
+  // da bike — dado incoerente, não um componente zerado. Devolver null dá o
+  // mesmo tratamento de "sem vida útil cadastrada": barra vazia e "—", em vez
+  // de uma porcentagem negativa no relatório (#146).
+  if (c.kmDesgastado < 0) return null;
+  return c.kmDesgastado / c.vidaUtilKm;
 }
 
 window.BikeComp = { LABELS: BIKE_COMP_LABELS, label: bikeCompLabel, razaoUso: bikeCompRazaoUso };

@@ -95,6 +95,17 @@ test('razaoUso: a borda do âmbar (80%) não arredonda para cima', () => {
   assert.equal(pctBarra(c), 79, 'com Math.round viraria 80 e a barra ficaria âmbar cedo demais');
 });
 
+test('razaoUso: desgaste negativo devolve null, não porcentagem negativa', () => {
+  // kmDesgastado = kmBike - kmAtInstall: fica negativo quando o km de
+  // instalação cadastrado passa do km atual da bike. O PDF de produção
+  // chegou a imprimir "-48%" (#146). Null faz a barra mostrar "—", que é a
+  // verdade: não dá para calcular um desgaste com cadastro incoerente.
+  assert.equal(razaoUso({ vidaUtilKm: 1000, kmDesgastado: -480 }), null);
+  assert.equal(razaoUso({ vidaUtilKm: 1000, kmDesgastado: -0.1 }), null);
+  // E o banner de vencidos não pode contar um negativo: `null >= 1` é false.
+  assert.equal(razaoUso({ vidaUtilKm: 1000, kmDesgastado: -480 }) >= 1, false);
+});
+
 test('razaoUso: sem vida útil cadastrada devolve null (barra mostra "—")', () => {
   // null é diferente de 0: "não dá para calcular" não é "zerado".
   assert.equal(razaoUso({ vidaUtilKm: 0, kmDesgastado: 500 }), null);

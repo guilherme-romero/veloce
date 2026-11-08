@@ -192,6 +192,11 @@ function reportRenderClient() {
     const sub = [esc(nome), altura ? `${esc(String(altura))} cm` : ''].filter(Boolean).join(' · ');
     const periodoData = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '');
 
+    // O título usa line-height 1 (era .84): o Bebas Neue põe acento e cedilha
+    // FORA do corpo da letra, então caixa de linha menor que a fonte só
+    // funciona em texto sem acento — com .84 o til do "A" de EVOLUÇÃO subia
+    // até o "O" de RELATÓRIO e a cedilha descia sobre o subtítulo. O espaço
+    // extra é absorvido pelo flex:1 do card de recordes, no fim da página.
     document.getElementById('p1').innerHTML = `
       ${jersey}
       <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 0 26px">
@@ -199,7 +204,7 @@ function reportRenderClient() {
         <span style="white-space:nowrap;font-size:11px;color:${MUTED};letter-spacing:.06em">v${esc(window.__REPORT_VERSION || '')} · gerado automaticamente</span>
       </div>
       <div style="display:inline-flex;align-items:center;gap:9px;white-space:nowrap;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:${LIME};margin-bottom:10px"><span style="width:22px;height:2px;background:${LIME};display:block"></span>${esc(periodoTxt)} · ${esc(periodoData)}</div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:76px;line-height:.84">RELATÓRIO DE<br>EVOLUÇÃO</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:76px;line-height:1">RELATÓRIO DE<br>EVOLUÇÃO</div>
       <div style="font-size:15px;color:#c4ccd4;margin:10px 0 26px">${sub}</div>
       <div style="display:grid;grid-template-columns:repeat(${kpis.length},1fr);gap:10px;margin-bottom:14px">${kpis.join('')}</div>
       ${weightCard}
@@ -294,17 +299,33 @@ function reportRenderClient() {
       months.push({ key, label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(), km: Math.round(monthKm[key] || 0) });
     }
     const maxMonth = Math.max(1, ...months.map(m => m.km));
+    // A altura da barra é % da ÁREA DE PLOTAGEM, não da coluna inteira. Antes
+    // o `height:%` media contra a coluna, que também carrega o número e o
+    // rótulo: a barra do mês máximo pedia 100% da coluna, não cabia junto com
+    // eles e o flex a encolhia — achatando justamente o pico e comprimindo a
+    // escala (AGO 414 km saía só 10% mais alto que OUT 275 km).
+    //
+    // A área de plotagem é o wrapper `flex:1;min-height:0`, e número e barra
+    // são posicionados em absolute DENTRO dela, logo não consomem altura. O
+    // fator TOPO deixa a faixa de cima livre para o número; como ele se aplica
+    // igual a todas as barras, a razão entre duas barras continua sendo
+    // exatamente a razão entre os km.
+    const TOPO = 0.84;
     const monthsHtml = months.map(m => {
-      const h = Math.max(4, m.km / maxMonth * 100).toFixed(0);
+      const h = (Math.max(4, m.km / maxMonth * 100) * TOPO).toFixed(1);
       const col = (m.km === maxMonth && m.km > 0) ? LIME : '#3a4350';
-      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end"><span style="font-family:'Bebas Neue',sans-serif;font-size:16px">${m.km}</span><div style="width:100%;height:${h}%;background:${col};border-radius:4px 4px 0 0"></div><span style="font-size:10px;color:${MUTED};letter-spacing:.08em">${m.label}</span></div>`;
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%"><div style="position:relative;flex:1;min-height:0;width:100%"><div style="position:absolute;left:0;right:0;bottom:0;height:${h}%;background:${col};border-radius:4px 4px 0 0"></div><div style="position:absolute;left:0;right:0;bottom:${h}%;margin-bottom:3px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:16px;line-height:1">${m.km}</div></div><span style="font-size:10px;color:${MUTED};letter-spacing:.08em">${m.label}</span></div>`;
     }).join('');
 
     // Histórico (14 mais recentes)
     const ordered = [...items].sort((a, b) => String(b.data).localeCompare(String(a.data)));
     const recent = ordered.slice(0, 14);
     const maxKm = Math.max(1, ...recent.map(a => a.distanciaKm || 0));
-    const COLS = '52px minmax(0,1fr) 110px 48px 56px 36px';
+    // 62px (era 52): com 52 o formato "DD de mmm" quebrava em duas linhas para
+    // parte dos meses ("07 de / nov" quebrava, "31 de out" cabia), dobrando a
+    // altura da linha. O espaço sai da coluna de Atividade (`minmax(0,1fr)`),
+    // que já trunca com ellipsis.
+    const COLS = '62px minmax(0,1fr) 110px 48px 56px 36px';
     const actsHtml = recent.map(a => {
       const fc = a.fcMedia;
       const fcStyle = (fc != null && fc >= 150) ? `text-align:right;color:${MAG};font-weight:800` : 'text-align:right';
@@ -323,7 +344,7 @@ function reportRenderClient() {
       ${jersey}
       <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 0 20px"><span style="white-space:nowrap;font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.03em">ATIVIDADE & EQUIPAMENTO</span><span style="font-size:11px;color:${MUTED}">${esc(nome)} · ${esc(periodoTxt.toLowerCase())}</span></div>
       <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:10px;margin-bottom:14px">
-        ${card(`${eyebrow('Últimos 90 dias')}<div style="display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;margin-bottom:10px">${heatCells.join('')}</div><div style="display:flex;gap:16px;font-size:11.5px;color:#c4ccd4"><span><strong style="color:${LIME};font-family:'Bebas Neue',sans-serif;font-size:20px">${pctAtivos}%</strong> dias ativos</span><span><strong style="font-family:'Bebas Neue',sans-serif;font-size:20px">${streak.current}</strong> sem. seguidas</span><span><strong style="font-family:'Bebas Neue',sans-serif;font-size:20px">${streak.record}</strong> recorde</span></div>`)}
+        ${card(`${eyebrow('Últimos 90 dias')}<div style="display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;margin-bottom:10px">${heatCells.join('')}</div><div style="display:flex;gap:16px;font-size:11.5px;color:#c4ccd4"><span><strong style="color:${LIME};font-family:'Bebas Neue',sans-serif;font-size:20px;margin-right:5px">${pctAtivos}%</strong>dias ativos</span><span><strong style="font-family:'Bebas Neue',sans-serif;font-size:20px;margin-right:5px">${streak.current}</strong>sem. seguidas</span><span><strong style="font-family:'Bebas Neue',sans-serif;font-size:20px;margin-right:5px">${streak.record}</strong>recorde</span></div>`)}
         ${card(`${eyebrow('Volume mensal · km')}<div style="flex:1;display:flex;align-items:flex-end;gap:12px;min-height:110px">${monthsHtml}</div>`, 'display:flex;flex-direction:column')}
       </div>
       ${card(`<div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Histórico de atividades</span><span style="font-size:10.5px;color:${MUTED}">${janelaDias && janelaDias < 1825 ? `${recent.length} mais recentes · ${totalItems} nos últimos ${janelaDias} dias` : `${recent.length} mais recentes de ${totalItems}`}</span></div><div style="display:grid;grid-template-columns:${COLS};gap:10px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${MUTED};padding:0 0 7px;border-bottom:1px solid ${BORDER}"><span>Data</span><span>Atividade</span><span>Km</span><span>Tempo</span><span style="text-align:right">Elev.</span><span style="text-align:right">FC</span></div>${actsHtml || `<div style="padding:12px 0;color:${MUTED};font-size:12px">Sem atividades no período.</div>`}`, 'margin-bottom:14px')}
@@ -343,7 +364,25 @@ function reportRenderClient() {
     const bike = list.find(b => b.active) || list[0];
     const comps = Array.isArray(bike.components) ? bike.components : [];
 
-    const compRows = comps.map(c => {
+    // Teto da coluna de componentes (#146). Cabem ~11 linhas no card; acima
+    // disso a lista era recortada em silêncio pela borda, levando junto o
+    // bloco "Outras bikes". Com o teto, o que não coube vira uma linha "+N".
+    //
+    // A ordenação só entra QUANDO trunca: assim a saída de hoje (7
+    // componentes) não muda, e no caso truncado os mais gastos vêm primeiro —
+    // o que garante que todo vencido tenha a sua barra, mantendo o banner e as
+    // barras de acordo (a invariante que a #142 estabeleceu).
+    const MAX_COMPS = 10;
+    const compsOrd = comps.length > MAX_COMPS
+      ? [...comps].sort((a, b) => {
+          const ra = razaoUso(a), rb = razaoUso(b);
+          return (rb == null ? -1 : rb) - (ra == null ? -1 : ra);
+        })
+      : comps;
+    const compsVis = compsOrd.slice(0, MAX_COMPS);
+    const compsOcultos = comps.length - compsVis.length;
+
+    const compRows = compsVis.map(c => {
       // Só o nome do tipo: o antigo branch de marca/modelo era inalcançável
       // para tipo conhecido (o primeiro `||` já retornava), então só teria
       // efeito no caso custom — onde produzia "custom:ctype_… Shimano XT".
@@ -357,7 +396,9 @@ function reportRenderClient() {
       const pstyle = `text-align:right;font-size:10.5px;font-weight:800${pct != null && pct >= 100 ? `;color:${RED}` : ''}`;
       const ptxt = pct == null ? '—' : pct >= 100 ? 'VENC.' : pct + '%';
       return `<div style="display:grid;grid-template-columns:150px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:11.5px"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(nome)}</span><span style="height:6px;background:${SURF2};border-radius:3px;overflow:hidden"><span style="display:block;width:${pct == null ? 0 : Math.min(100, pct)}%;height:100%;background:${col};border-radius:3px"></span></span><span style="${pstyle}">${ptxt}</span></div>`;
-    }).join('');
+    }).join('') + (compsOcultos > 0
+      ? `<div style="font-size:10.5px;color:${MUTED}">+${compsOcultos} componente${compsOcultos > 1 ? 's' : ''} (menos desgastado${compsOcultos > 1 ? 's' : ''})</div>`
+      : '');
 
     // Mesmo razaoUso das barras — é o que garante que a contagem daqui bata
     // com o número de "VENC." acima.
@@ -367,15 +408,23 @@ function reportRenderClient() {
       : '';
 
     const mlist = Array.isArray(maint) ? maint : [];
+    // As linhas ficam num container próprio (#146). Antes eram filhas diretas
+    // da coluna e herdavam o `gap:10px` dela A CADA linha — ~60px gastos só em
+    // respiro, o bastante para a lista empurrar "Outras bikes" para fora do
+    // card e a última linha ser cortada ao meio pela borda. Aqui o gap é 5px
+    // (as linhas já têm padding-bottom + borda), e o `flex:1;min-height:0;
+    // overflow:hidden` faz qualquer sobra ser absorvida PELA LISTA, que é o
+    // conteúdo menos importante, em vez de estourar o card.
     const maintHtml = mlist.length
       ? `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED}">Manutenções · 12 meses</div>` +
+        `<div style="display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow:hidden">` +
         mlist.map(m => {
           const quando = fmtDiaMes(String(m.data).slice(0, 10));
           // Campo diferente (`componentTipo`, não `tipo`), mesmo defeito: era
           // aqui que a chave crua saía INTEIRA, sem as reticências da barra.
           const oque = m.componentTipo ? rotulo(m.componentTipo) : (m.tipoEvento || 'Serviço');
           return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding-bottom:5px;border-bottom:1px solid ${SURF2}"><span style="color:${MUTED}">${esc(quando)}</span><span>${esc(oque)}</span></div>`;
-        }).join('')
+        }).join('') + `</div>`
       : '';
 
     const others = list.filter(b => b !== bike);
@@ -393,7 +442,7 @@ function reportRenderClient() {
           ${maintHtml}
           ${othersHtml ? `<div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${MUTED};margin-top:auto">Outras bikes</div>${othersHtml}` : ''}
         </div>
-      </div>`, 'flex:1;overflow:hidden');
+      </div>`, 'flex:1;min-height:0;overflow:hidden');
   }
 
   build()
