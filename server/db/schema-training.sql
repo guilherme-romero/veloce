@@ -414,6 +414,25 @@ CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_ativo ON weekly_training_pl
 -- aparece depois do ALTER TABLE — um CREATE INDEX sobre ela aqui derrubaria o
 -- boot com "no such column: favorito". Ele está na lista de migrations.
 
+-- #160: tentativas FALHAS da geração automática do plano (job das 6h, #136).
+-- Existe porque até a v2.12.13 a falha vivia SÓ no journal do systemd, que
+-- exige senha para ler: em 2026-11-09 o job falhou nos dois ticks e o
+-- diagnóstico dependeu de o usuário rodar o journalctl.
+--
+-- Decisão de produto registrada: isto é para DIAGNÓSTICO, não para a
+-- interface — nenhuma tela lê esta tabela. O aviso de "plano vencido" que o
+-- app mostra é derivado das DATAS do próprio plano, não daqui.
+--
+-- Append-only, podada pelo service (TENTATIVAS_LIMITE). Tabela nova sem
+-- coluna nova pode morar aqui com segurança: CREATE TABLE IF NOT EXISTS é
+-- idempotente e não depende de nada que as migrações criem depois.
+CREATE TABLE IF NOT EXISTS weekly_plan_tentativas (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  quando  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- UTC, como todo CURRENT_TIMESTAMP aqui
+  erro    TEXT NOT NULL,                            -- e.message
+  detalhe TEXT                                      -- JSON: cascata/bruto, quando houver
+);
+
 -- Análise de IA do mês para o relatório de fechamento (Telegram, #106/#112).
 -- NÃO singleton (diferente de performance_analysis_cache): uma linha por mês
 -- fechado, chaveada por 'YYYY-MM' — a análise de cada mês custou uma chamada de

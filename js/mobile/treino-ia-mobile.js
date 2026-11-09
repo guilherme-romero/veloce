@@ -32,14 +32,11 @@
   // sempre UTC), sem indicador de fuso — normaliza pra ISO com "Z" explícito
   // antes de formatar, e exibe em UTC (não no fuso do aparelho) pra bater
   // sempre com o que está no banco.
-  function fmtDataHora(iso) {
-    try {
-      const isoUtc = /[Zz]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso.replace(' ', 'T') + 'Z';
-      const d = new Date(isoUtc);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' }).replace('.', '')
-        + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
-    } catch (_) { return iso; }
-  }
+  // #158: delega no helper único de js/utils.js. Havia QUATRO cópias desta
+  // função e elas divergiram: duas rotulavam " UTC" (certo, mas ilegível) e
+  // duas liam o timestamp do SQLite como hora local, mostrando 3h errado sem
+  // nenhum rótulo. Utils.fmtDataHoraLocal resolve as duas no mesmo lugar.
+  function fmtDataHora(iso) { return Utils.fmtDataHoraLocal(iso); }
   function rotuloProvider(payload) {
     if (!payload.provider || !payload.model) return '';
     const nome = payload.provider === 'gemini' ? 'Gemini' : 'Groq';
@@ -211,6 +208,21 @@
     const nextIdx = proximoTreinoIdx(dias, _selIdx);
     const next = dias[nextIdx];
 
+    // #160: aviso de plano vencido, mesmo critério do desktop. O texto sai das
+    // DATAS do plano — não afirma nada sobre falha de geração, porque a trilha
+    // de tentativas falhas é só para diagnóstico e não alimenta a interface.
+    const aviso = view.querySelector('#mtia-vencido');
+    if (aviso) {
+      const vencido = dias[0].data !== Utils.segundaDaSemanaISO();
+      aviso.hidden = !vencido;
+      aviso.innerHTML = vencido ? `
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        <div>
+          <strong>Plano de ${esc(fmtData(dias[0].data))}–${esc(fmtData(dias[6].data))}</strong>
+          <span>Não há plano para a semana atual.</span>
+        </div>` : '';
+    }
+
     const strip = view.querySelector('#mtia-strip');
     if (strip) strip.innerHTML = stripHTML(dias, _selIdx);
     const detail = view.querySelector('#mtia-detail');
@@ -257,6 +269,7 @@
       ${MShell.segmentAtividades('treino-ia')}
       <div id="mtia-empty" class="m-empty">Nenhum plano gerado ainda — toque em "Gerar" para criar sua primeira semana padrão.</div>
       <div id="mtia-body" hidden>
+        <div id="mtia-vencido" class="mtia-vencido" hidden role="status"></div>
         <div id="mtia-strip" class="mtia-strip"></div>
         <div class="m-card mtia-detail" id="mtia-detail"></div>
         <div class="m-card" id="mtia-objetivo" style="margin-top:14px;"></div>
@@ -392,7 +405,14 @@
 
   function histItemHTML(it) {
     const badges = [];
-    if (it.ativo) badges.push('<span class="mtia-hist-badge">ATUAL</span>');
+    // #160: mesmo critério do desktop — `ativo` diz que o app está usando o
+    // plano, não que ele é o desta semana. Com a geração automática falhando,
+    // o anterior segue ativo, e rotular ATUAL afirmaria algo falso.
+    if (it.ativo) {
+      badges.push(!it.semanaInicio || it.semanaInicio === Utils.segundaDaSemanaISO()
+        ? '<span class="mtia-hist-badge">ATUAL</span>'
+        : '<span class="mtia-hist-badge mtia-hist-badge-velho">SEM. PASSADA</span>');
+    }
     if (it.favorito) badges.push('<i class="fa-solid fa-star" aria-label="Favorito" title="Favorito"></i>');
     return `<div class="mtia-hist-item">
       <div class="mtia-hist-topo">

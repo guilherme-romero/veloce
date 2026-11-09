@@ -93,3 +93,26 @@
    o sinal visual de que não é clicável. */
 .tia-hist-actions .btn:disabled{opacity:.45;cursor:not-allowed}
 .tia-hist-pag{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px}
+
+/* ── #160: aviso de plano vencido ──────────────────────────────────────── */
+/* O plano "ativo" pode não ser o da semana corrente (quando a geração
+   automática falha, o anterior continua ativo). Este bloco é o que impede a
+   tela de apresentar um plano velho como se fosse o atual. Tokens do design
+   system, nunca cor literal — o amber é o mesmo do estado de atenção usado no
+   resto do app. */
+.tia-vencido{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px;
+  border:1px solid var(--amber);border-radius:10px;background:var(--amber-dim)}
+.tia-vencido > i{color:var(--amber);font-size:18px;flex-shrink:0}
+.tia-vencido > div{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.tia-vencido strong{font-size:13px;color:var(--text)}
+.tia-vencido span{font-size:12px;color:var(--muted2)}
+.tia-vencido button{flex-shrink:0}
+/* Badge do histórico: o mesmo formato do ATUAL, em amber, para distinguir sem
+   depender de o usuário ler o texto inteiro. */
+.tia-hist-badge-velho{background:var(--amber);color:var(--bg)}
+
+/* Numa largura estreita o aviso empilha, senão o botão esmaga o texto. */
+@media (max-width:640px){
+  .tia-vencido{flex-wrap:wrap}
+  .tia-vencido button{width:100%}
+}

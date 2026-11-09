@@ -83,3 +83,24 @@ test('rodar o boot de novo é idempotente (duplicate column é tolerado)', () =>
     /duplicate column/i, 'é este erro que o catch do init filtra');
   db.exec('CREATE INDEX IF NOT EXISTS idx_weekly_training_plans_favorito ON weekly_training_plans(favorito, id)');
 });
+
+/* ── #160: tabela nova também precisa nascer em banco EXISTENTE ──────────
+   `weekly_plan_tentativas` entrou pelo schema-training.sql, não pelas
+   migrations — é legítimo, porque CREATE TABLE IF NOT EXISTS não depende de
+   nenhuma coluna que as migrations criem depois. Mas "legítimo em teoria" é
+   exatamente o que se assumiu na #137 antes do boot morrer em produção, então
+   aqui vai a verificação no caminho de UPGRADE: este banco foi montado com o
+   schema pré-#137, que não tinha esta tabela.                              */
+
+test('#160: weekly_plan_tentativas é criada no boot de um banco pré-existente', () => {
+  const t = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='weekly_plan_tentativas'").get();
+  assert.ok(t, 'a tabela de tentativas falhas tem de existir depois do boot');
+
+  // E tem de ser utilizável, não só existir: o DEFAULT do `quando` é o que
+  // torna a trilha legível sem o service preencher nada.
+  db.prepare("INSERT INTO weekly_plan_tentativas (erro) VALUES ('teste de upgrade')").run();
+  const linha = db.prepare('SELECT quando, erro, detalhe FROM weekly_plan_tentativas ORDER BY id DESC LIMIT 1').get();
+  assert.equal(linha.erro, 'teste de upgrade');
+  assert.equal(linha.detalhe, null, 'detalhe é opcional');
+  assert.match(linha.quando, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/, 'CURRENT_TIMESTAMP do SQLite, em UTC');
+});

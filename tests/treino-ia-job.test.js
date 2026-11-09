@@ -237,6 +237,98 @@ test('planoGeradoHoje: olha a última linha inserida, não a ativa', () => {
   assert.equal(svc.planoGeradoHoje(db), true);
 });
 
+// ── #160: guard de SEMANA e trilha de tentativas falhas ─────────────────
+// Desde a #160 o job roda TODO DIA às 6h; quem o faz parar é
+// planoCobreSemanaAtual. Sem este guard o job regeneraria o plano todo dia.
+
+// Insere um plano cujas DATAS cobrem a semana da segunda `segundaISO`.
+const inserirPlanoDaSemana = (segundaISO, ativo = 1) => {
+  const dias = svc.DIAS_SEMANA.map((dia, i) => {
+    const d = new Date(segundaISO + 'T12:00:00');
+    d.setDate(d.getDate() + i);
+    return { dia, data: d.toISOString().slice(0, 10) };
+  });
+  return db.prepare('INSERT INTO weekly_training_plans (ativo, payload, gerado_em) VALUES (?, ?, ?)')
+    .run(ativo, JSON.stringify({ objetivo: 'x', dias }), '2026-11-09 09:00:00');
+};
+
+test('planoCobreSemanaAtual: plano da semana corrente → true', () => {
+  limpar();
+  const agora = new Date(2026, 10, 11, 6, 0);           // quarta 11/11
+  inserirPlanoDaSemana('2026-11-09');                    // semana 09→15
+  assert.equal(svc.planoCobreSemanaAtual(db, agora), true);
+});
+
+test('planoCobreSemanaAtual: plano da semana PASSADA → false (foi o bug de 09/11)', () => {
+  limpar();
+  // O cenário exato de produção: o job falhou na segunda, o plano de
+  // 02/11–08/11 seguiu ativo=1, e o app o exibia como ATUAL.
+  const agora = new Date(2026, 10, 9, 6, 0);             // segunda 09/11
+  inserirPlanoDaSemana('2026-11-02');                    // semana 02→08
+  assert.equal(svc.planoCobreSemanaAtual(db, agora), false);
+});
+
+test('planoCobreSemanaAtual: domingo ainda é coberto pela segunda da semana', () => {
+  limpar();
+  // Borda que a conta ingênua erra: no domingo, `1 - getDay()` apontaria a
+  // segunda seguinte e o job regeneraria o plano no último dia da semana.
+  inserirPlanoDaSemana('2026-11-09');
+  assert.equal(svc.planoCobreSemanaAtual(db, new Date(2026, 10, 15, 23, 0)), true);
+});
+
+test('planoCobreSemanaAtual: olha o plano ATIVO, não o último inserido', () => {
+  limpar();
+  // Simétrico ao planoGeradoHoje, que olha o último id de propósito. Aqui a
+  // pergunta é outra: "o plano que o app está USANDO cobre esta semana?".
+  inserirPlanoDaSemana('2026-11-09', 1);                 // ativo, semana certa
+  inserirPlanoDaSemana('2026-11-02', 0);                 // inserido depois, inativo
+  assert.equal(svc.planoCobreSemanaAtual(db, new Date(2026, 10, 11, 6, 0)), true);
+});
+
+test('planoCobreSemanaAtual: sem plano ativo, ou payload corrompido → false', () => {
+  limpar();
+  assert.equal(svc.planoCobreSemanaAtual(db, new Date(2026, 10, 11)), false, 'tabela vazia');
+
+  // Corrompido conta como descoberto: melhor o job gerar um plano novo do que
+  // travar para sempre por causa de uma linha ilegível.
+  db.prepare("INSERT INTO weekly_training_plans (ativo, payload) VALUES (1, 'nao é json')").run();
+  assert.equal(svc.planoCobreSemanaAtual(db, new Date(2026, 10, 11)), false, 'payload corrompido');
+
+  limpar();
+  db.prepare("INSERT INTO weekly_training_plans (ativo, payload) VALUES (1, '{\"dias\":[]}')").run();
+  assert.equal(svc.planoCobreSemanaAtual(db, new Date(2026, 10, 11)), false, 'dias vazio');
+});
+
+test('registrarTentativaFalha: grava erro e detalhe', () => {
+  db.prepare('DELETE FROM weekly_plan_tentativas').run();
+  svc.registrarTentativaFalha(db, { erro: 'IA devolveu JSON inválido', detalhe: '{"bruto":"{..."}' });
+  const t = svc.lerTentativasFalhas(db);
+  assert.equal(t.length, 1);
+  assert.equal(t[0].erro, 'IA devolveu JSON inválido');
+  assert.match(t[0].detalhe, /bruto/);
+  assert.ok(t[0].quando, 'quando preenchido pelo DEFAULT CURRENT_TIMESTAMP');
+});
+
+test('registrarTentativaFalha: poda no teto, mantendo as mais recentes', () => {
+  db.prepare('DELETE FROM weekly_plan_tentativas').run();
+  for (let i = 1; i <= svc.TENTATIVAS_LIMITE + 7; i++) {
+    svc.registrarTentativaFalha(db, { erro: 'falha ' + i });
+  }
+  const total = db.prepare('SELECT COUNT(*) AS n FROM weekly_plan_tentativas').get().n;
+  assert.equal(total, svc.TENTATIVAS_LIMITE, 'a tabela não cresce sem limite');
+  // A mais recente tem de estar lá — podar as novas em vez das velhas seria
+  // pior que não podar.
+  assert.equal(svc.lerTentativasFalhas(db, 1)[0].erro, 'falha ' + (svc.TENTATIVAS_LIMITE + 7));
+});
+
+test('registrarTentativaFalha: NUNCA lança — falhar ao registrar não pode derrubar o job', () => {
+  // Um db quebrado é o cenário real que isto protege: a função é chamada do
+  // catch do job, e lançar ali mascararia o erro de IA original.
+  const dbQuebrado = { prepare() { throw new Error('banco indisponível'); } };
+  assert.doesNotThrow(() => svc.registrarTentativaFalha(dbQuebrado, { erro: 'x' }));
+  assert.doesNotThrow(() => svc.registrarTentativaFalha(db, {}));
+});
+
 // ── Falha de IA preserva o plano ativo (critério de aceite nº 4) ────────
 test('gerarEArmazenarPlano: cascata de IA falhando NÃO desativa o plano atual', async () => {
   limpar();

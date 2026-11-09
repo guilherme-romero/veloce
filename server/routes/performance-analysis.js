@@ -19,6 +19,7 @@
 ═══════════════════════════════════════════════════════════════════════ */
 const { requireAuth } = require('../middleware/auth');
 const { lerCache, gerarEArmazenarAnalise } = require('../services/performance-analysis');
+const { dataDeTimestampSqlite } = require('../utils/datas');
 
 const CACHE_VENCIDO_MS = 24 * 60 * 60 * 1000;
 
@@ -36,7 +37,13 @@ async function routes(fastify) {
       payload: JSON.parse(row.payload),
       geradoEm: row.gerado_em,
       atualPraReferencia: referenciaId != null && row.atividade_referencia_id === referenciaId,
-      vencida: (Date.now() - Date.parse(row.gerado_em)) > CACHE_VENCIDO_MS,
+      // #158: `gerado_em` é UTC sem `Z`, e Date.parse() lê essa forma como hora
+      // LOCAL — o cache era marcado como vencido 3h tarde. dataDeTimestampSqlite
+      // é o helper que já existia para isso (server/utils/datas.js).
+      vencida: (() => {
+        const d = dataDeTimestampSqlite(row.gerado_em);
+        return d ? (Date.now() - d.getTime()) > CACHE_VENCIDO_MS : true;
+      })(),
     };
   });
 

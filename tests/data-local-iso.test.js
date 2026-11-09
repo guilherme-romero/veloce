@@ -16,7 +16,7 @@ const path = require('node:path');
 
 if (!global.window) global.window = {};
 require(path.join(__dirname, '..', 'js', 'utils.js'));
-const { dataLocalISO, mesLocalISO } = global.window.Utils;
+const { dataLocalISO, mesLocalISO, fmtDataHoraLocal, segundaDaSemanaISO } = global.window.Utils;
 
 test('dataLocalISO: formata a data no fuso local', () => {
   assert.equal(dataLocalISO(new Date(2026, 10, 8, 14, 30)), '2026-11-08');
@@ -78,4 +78,83 @@ test('mesLocalISO: devolve YYYY-MM e respeita o fuso local', () => {
 
 test('mesLocalISO: entrada inválida devolve null', () => {
   assert.equal(mesLocalISO('não é data'), null);
+});
+
+/* ── #158: fmtDataHoraLocal ──────────────────────────────────────────────
+   O teste que importa é o primeiro: sem o `Z` acrescentado, o V8 lê o
+   timestamp do SQLite como hora local e o resultado sai 3h adiantado. Era
+   exatamente o que as telas de Análise de Performance mostravam, sem rótulo.
+   Em TZ=UTC este arquivo inteiro passaria vazio — daí o pino no topo.      */
+
+test('fmtDataHoraLocal: timestamp UTC do SQLite vira hora LOCAL', () => {
+  // 09:03 UTC = 06:03 em São Paulo (-03:00). Antes da #158 as cópias cruas
+  // devolviam "09 de nov às 09:03" — o número de UTC vestido de local.
+  assert.equal(fmtDataHoraLocal('2026-11-09 09:03:11'), '09 de nov às 06:03');
+});
+
+test('fmtDataHoraLocal: a conversão atravessa a virada de dia', () => {
+  // 01:30 UTC do dia 09 é ainda 22:30 do dia 08 em São Paulo. Se alguém
+  // "simplificar" a função tirando o Z, este caso passa a errar o DIA também,
+  // não só a hora.
+  assert.equal(fmtDataHoraLocal('2026-11-09 01:30:00'), '08 de nov às 22:30');
+});
+
+test('fmtDataHoraLocal: entrada que já traz fuso é respeitada, não re-rotulada', () => {
+  assert.equal(fmtDataHoraLocal('2026-11-09T09:03:11Z'), '09 de nov às 06:03');
+  assert.equal(fmtDataHoraLocal('2026-11-09T06:03:11-03:00'), '09 de nov às 06:03');
+});
+
+test('fmtDataHoraLocal: entrada inválida volta como veio (contrato das 4 cópias)', () => {
+  // As quatro cópias originais tinham try/catch devolvendo a string crua. A UI
+  // conta com isso: prefere mostrar o valor bruto a mostrar "Invalid Date".
+  assert.equal(fmtDataHoraLocal('nao é data'), 'nao é data');
+  assert.equal(fmtDataHoraLocal(''), '');
+  assert.equal(fmtDataHoraLocal(null), null);
+  assert.equal(fmtDataHoraLocal(undefined), undefined);
+});
+
+test('fmtDataHoraLocal: NÃO rotula fuso', () => {
+  // Decisão de produto da #158: app de um único usuário em São Paulo, rótulo
+  // de fuso é ruído. O " UTC" que o Treino IA mostrava saiu.
+  assert.ok(!/UTC/.test(fmtDataHoraLocal('2026-11-09 09:03:11')));
+});
+
+/* ── #160: segundaDaSemanaISO ────────────────────────────────────────────
+   Fonte única entre backend (ancora as datas do plano) e frontend (decide se
+   o plano ainda cobre a semana corrente). Divergir aqui faz plano válido
+   aparecer como vencido, ou pior, o contrário.                             */
+
+test('segundaDaSemanaISO: segunda devolve ela mesma', () => {
+  assert.equal(segundaDaSemanaISO(new Date(2026, 10, 9, 6, 0)), '2026-11-09');
+});
+
+test('segundaDaSemanaISO: domingo pertence à semana que COMEÇOU, não à seguinte', () => {
+  // O caso que quebra a conta ingênua `1 - getDay()`: no domingo (getDay()=0)
+  // ela devolveria a segunda de AMANHÃ. Domingo 15/11 pertence à semana de
+  // 09/11 — é assim que atribuirDatas monta o plano (segunda→domingo).
+  assert.equal(segundaDaSemanaISO(new Date(2026, 10, 15, 23, 0)), '2026-11-09');
+});
+
+test('segundaDaSemanaISO: qualquer dia do meio da semana aponta a mesma segunda', () => {
+  const esperado = '2026-11-09';
+  for (const dia of [10, 11, 12, 13, 14]) {
+    assert.equal(segundaDaSemanaISO(new Date(2026, 10, dia, 12, 0)), esperado, 'dia ' + dia);
+  }
+});
+
+test('segundaDaSemanaISO: a âncora de meio-dia sobrevive às bordas do dia', () => {
+  // É o ponto do setHours(12): às 23h num fuso -03:00, um toISOString() sobre
+  // a hora original cairia no dia seguinte em UTC e a segunda sairia errada.
+  assert.equal(segundaDaSemanaISO(new Date(2026, 10, 11, 23, 59)), '2026-11-09');
+  assert.equal(segundaDaSemanaISO(new Date(2026, 10, 11, 0, 1)), '2026-11-09');
+});
+
+test('segundaDaSemanaISO: atravessa a virada de ano', () => {
+  // 01/01/2027 é uma sexta; a semana dela começou em 28/12/2026.
+  assert.equal(segundaDaSemanaISO(new Date(2027, 0, 1, 10, 0)), '2026-12-28');
+});
+
+test('segundaDaSemanaISO: entrada inválida devolve null', () => {
+  assert.equal(segundaDaSemanaISO('nao é data'), null);
+  assert.equal(segundaDaSemanaISO(NaN), null);
 });
