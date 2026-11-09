@@ -75,7 +75,12 @@
   background: var(--surface);
   flex: none;
 }
-.modal-foot .btn { flex: 1; }
+.modal-foot /* #166 — sem isto, `hidden` não esconde botão: a regra abaixo define
+   display e vence o [hidden] do navegador. Caso real: js/app.js:72, o botão
+   "remover avatar" aparecia mesmo para quem não tem avatar. */
+.btn[hidden] { display: none; }
+
+.btn { flex: 1; }
 
 /* Toasts acima da tab bar, nunca atrás dela. */
 .toast-stack {

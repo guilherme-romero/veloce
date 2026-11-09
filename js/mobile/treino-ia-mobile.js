@@ -275,7 +275,6 @@
         <div class="m-card" id="mtia-objetivo" style="margin-top:14px;"></div>
         <p class="m-sub" id="mtia-meta" style="text-align:center;margin-top:10px;"></p>
       </div>
-      <div id="mtia-historico" hidden style="margin-top:14px;"></div>
     `;
   }
 
@@ -396,11 +395,15 @@
   // #137: histórico paginado (5 por página), mostrando data, badge de ATUAL,
   // estrela de favorito e o objetivo — antes era só 'Plano #7 — <data>'.
   //
-  // DELIBERADAMENTE SÓ LEITURA: sem selecionar, sem excluir, sem favoritar.
-  // É a decisão registrada na #137 e segue o padrão do Perfil mobile
-  // (js/mobile/profile-mobile.js:12-15), que também é só leitura e manda a
-  // escrita para o desktop. Paridade com o modal do desktop fica como
-  // follow-up — ver treino_bike_docs/MELHORIAS.md.
+  // #167: deixou de ser só leitura. Na #137 (v2.12.12) nasceu assim por decisão
+  // do usuário ("por hora somente o 1"), e a paridade ficou como follow-up em
+  // MELHORIAS.md; em 2026-11-09 ele pediu a paridade completa, então aqui estão
+  // as mesmas quatro ações do modal do desktop, sobre as MESMAS rotas.
+  //
+  // E deixou de ser uma lista no fim da tela: abre em bottom sheet. Não há
+  // sistema de modal novo — css/mobile-sheet.css redefine as classes que o
+  // js/modals.js emite, então QUALQUER Modals.open() já vira sheet aqui (é o
+  // que js/mobile/rides-mobile.js faz desde a v2.9.x).
   let _histPagina = 1;
 
   function histItemHTML(it) {
@@ -413,23 +416,37 @@
         ? '<span class="mtia-hist-badge">ATUAL</span>'
         : '<span class="mtia-hist-badge mtia-hist-badge-velho">SEM. PASSADA</span>');
     }
-    if (it.favorito) badges.push('<i class="fa-solid fa-star" aria-label="Favorito" title="Favorito"></i>');
-    return `<div class="mtia-hist-item">
+    // As regras de habilitação vêm do desktop e NÃO podem divergir: o plano em
+    // uso e os favoritados são protegidos de exclusão no backend (#137), então
+    // oferecer o botão ativo aqui só produziria um erro 4xx na cara do usuário.
+    const naoExcluivel = it.ativo || it.favorito;
+    const tituloExcluir = it.ativo ? 'O plano atual não pode ser excluído'
+                        : it.favorito ? 'Desfavorite antes de excluir' : 'Excluir este plano';
+    return `<div class="mtia-hist-item" data-id="${it.id}">
       <div class="mtia-hist-topo">
         <span class="m-sub">${esc(fmtDataHora(it.geradoEm))}</span>
         <span class="mtia-hist-badges">${badges.join(' ')}</span>
       </div>
       <p class="mtia-hist-obj">${esc(it.objetivo || '(sem objetivo registrado)')}</p>
+      <div class="mtia-hist-acoes">
+        <button type="button" class="btn btn-ghost btn-sm mtia-hist-fav" data-act="favorito"
+                aria-pressed="${it.favorito ? 'true' : 'false'}"
+                title="${it.favorito ? 'Remover dos favoritos' : 'Favoritar — protege de exclusão e do teto de 30'}"
+                aria-label="${it.favorito ? 'Remover dos favoritos' : 'Favoritar plano'}"
+          ><i class="fa-${it.favorito ? 'solid' : 'regular'} fa-star"></i></button>
+        <button type="button" class="btn btn-ghost btn-sm" data-act="selecionar" ${it.ativo ? 'disabled' : ''}>Selecionar</button>
+        <button type="button" class="btn btn-danger btn-sm" data-act="excluir" ${naoExcluivel ? 'disabled' : ''}
+                title="${esc(tituloExcluir)}">Excluir</button>
+      </div>
     </div>`;
   }
 
-  async function renderHistorico(el, pagina) {
-    const resp = await Api.get('/weekly-training-plan/historico?page=' + pagina).catch(() => ({ ok: false }));
-    el.replaceChildren();
-    if (!resp || !resp.ok) { el.textContent = 'Falha ao carregar o histórico.'; return; }
+  function historicoBodyHTML(resp) {
     const itens = resp.itens || [];
-    if (!itens.length) { el.textContent = 'Nenhum plano anterior.'; return; }
-    _histPagina = resp.pagina;
+    if (!itens.length) return '<p class="m-sub">Nenhum plano anterior.</p>';
+    // "Limpar histórico" só faz sentido se houver algo que ele de fato apague:
+    // o ativo e os favoritados sobrevivem (#137).
+    const temApagavel = itens.some((it) => !it.ativo && !it.favorito);
     const pag = resp.totalPaginas > 1
       ? `<div class="mtia-hist-pag">
            <button type="button" class="m-iconbtn" id="mtia-hist-prev" ${resp.pagina <= 1 ? 'disabled' : ''}
@@ -439,19 +456,94 @@
                    aria-label="Próxima página"><i class="fa-solid fa-chevron-right"></i></button>
          </div>`
       : '';
-    el.innerHTML = itens.map(histItemHTML).join('') + pag;
-    el.querySelector('#mtia-hist-prev')?.addEventListener('click', () => renderHistorico(el, _histPagina - 1));
-    el.querySelector('#mtia-hist-next')?.addEventListener('click', () => renderHistorico(el, _histPagina + 1));
+    return `
+      <div class="mtia-hist-topo-acoes">
+        <button type="button" class="btn btn-danger btn-sm" id="mtia-hist-limpar" ${temApagavel ? '' : 'disabled'}
+                title="Preserva o plano atual e os favoritados">Limpar histórico</button>
+      </div>
+      ${itens.map(histItemHTML).join('')}
+      ${pag}`;
   }
 
-  async function carregarHistorico() {
-    const view = document.getElementById(VIEW_ID);
-    const el = view?.querySelector('#mtia-historico');
-    if (!el) return;
-    el.hidden = !el.hidden;
-    if (el.hidden || el.dataset.loaded) return;
-    await renderHistorico(el, 1);
-    el.dataset.loaded = '1';
+  async function buscarHistorico(pagina) {
+    const resp = await Api.get('/weekly-training-plan/historico?page=' + pagina).catch(() => ({ ok: false }));
+    if (!resp || !resp.ok) return null;
+    return resp;
+  }
+
+  async function abrirHistorico(pagina = 1) {
+    // Coerção defensiva, pelo mesmo motivo do desktop: esta função já é ligada
+    // direto como handler de clique, e um MouseEvent aqui viraria `?page=NaN`.
+    const n = Math.floor(Number(pagina));
+    const resp = await buscarHistorico(Number.isFinite(n) && n >= 1 ? n : 1);
+    if (!resp) {
+      if (window.toast) toast('Falha ao carregar o histórico', { kind: 'error' });
+      return;
+    }
+    // A página pedida pode não existir mais (último item dela foi excluído):
+    // o backend devolve lista vazia, então recua para a que existe.
+    if (!resp.itens.length && resp.total > 0 && resp.pagina > resp.totalPaginas) {
+      return abrirHistorico(resp.totalPaginas);
+    }
+    _histPagina = resp.pagina;
+    Modals.open({
+      tag: 'Treino',
+      title: 'Planos anteriores',
+      bodyHTML: historicoBodyHTML(resp),
+      actions: [{ label: 'Fechar', kind: 'ghost', onClick: () => Modals.close() }],
+      onMount: (sheet) => wireHistoricoSheet(sheet),
+    });
+  }
+
+  function wireHistoricoSheet(sheet) {
+    sheet.querySelector('#mtia-hist-limpar')?.addEventListener('click', async () => {
+      const ok = await Modals.confirm({
+        title: 'Excluir todos os planos anteriores?',
+        message: 'O plano atual e os favoritados são preservados — só os demais inativos são excluídos.',
+        confirmLabel: 'Limpar histórico',
+        danger: true,
+      });
+      if (!ok) return;
+      const resp = await Api.del('/weekly-training-plan/historico').catch(() => null);
+      if (!resp || !resp.ok) { if (window.toast) toast('Falha ao limpar histórico', { kind: 'error' }); return; }
+      if (window.toast) toast(resp.excluidos + ' plano(s) excluído(s)');
+      abrirHistorico(1);   // a lista encolheu — volta ao começo
+    });
+
+    // Paginação remonta o sheet inteiro: a lista é curta (5 por página) e
+    // remontar evita estado parcial entre a página e a lista. Mesma decisão do
+    // desktop.
+    sheet.querySelector('#mtia-hist-prev')?.addEventListener('click', () => { abrirHistorico(_histPagina - 1); });
+    sheet.querySelector('#mtia-hist-next')?.addEventListener('click', () => { abrirHistorico(_histPagina + 1); });
+
+    sheet.querySelectorAll('.mtia-hist-item').forEach((item) => {
+      const id = item.dataset.id;
+      item.querySelector('[data-act="favorito"]')?.addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
+        const novo = btn.getAttribute('aria-pressed') !== 'true';
+        btn.disabled = true;
+        const resp = await Api.post('/weekly-training-plan/' + id + '/favorito', { favorito: novo }).catch(() => null);
+        btn.disabled = false;
+        if (!resp || !resp.ok) { if (window.toast) toast('Falha ao favoritar', { kind: 'error' }); return; }
+        if (window.toast) toast(resp.favorito ? 'Plano favoritado' : 'Favorito removido');
+        abrirHistorico(_histPagina);   // reflete o botão Excluir, que depende disto
+      });
+      item.querySelector('[data-act="selecionar"]')?.addEventListener('click', async () => {
+        const resp = await Api.post('/weekly-training-plan/' + id + '/ativar', {}).catch(() => null);
+        if (!resp || !resp.ok) { if (window.toast) toast('Falha ao selecionar o plano', { kind: 'error' }); return; }
+        Modals.close();
+        mostrarResultado(resp.payload, resp.geradoEm);
+        if (window.toast) toast('Plano reativado');
+      });
+      item.querySelector('[data-act="excluir"]')?.addEventListener('click', async () => {
+        const ok = await Modals.confirm({ title: 'Excluir este plano?', confirmLabel: 'Excluir', danger: true });
+        if (!ok) return;
+        const resp = await Api.del('/weekly-training-plan/' + id).catch(() => null);
+        if (!resp || !resp.ok) { if (window.toast) toast((resp && resp.error) || 'Falha ao excluir o plano', { kind: 'error' }); return; }
+        if (window.toast) toast('Plano excluído');
+        abrirHistorico(_histPagina);
+      });
+    });
   }
 
   function headerActions() {
@@ -474,7 +566,7 @@
     btnGerar?.addEventListener('click', gerar);
     // Botão recriado no meio de uma geração em voo: reflete o estado real.
     if (_gerando) marcarGerando(btnGerar);
-    document.getElementById('mtia-btn-historico')?.addEventListener('click', carregarHistorico);
+    document.getElementById('mtia-btn-historico')?.addEventListener('click', () => abrirHistorico(1));
 
     try {
       const resp = await Api.get('/weekly-training-plan').catch(() => ({ ok: false }));
