@@ -568,7 +568,7 @@ async function gerarEArmazenarPlano(db, { perfil, insumos }) {
     // gerava plano nenhum. O parse roda 2× (aqui e na linha de baixo) — é
     // função pura sobre ~5 KB, e manter o retorno da cascata como texto evita
     // mudar o contrato que a Análise de Performance e o relatório mensal usam.
-    const { texto, provider, model } = await gerarAnalise(montarPrompt({ perfil, insumos }), parseRespostaIA);
+    const { texto, provider, model, tentativasFalhas } = await gerarAnalise(montarPrompt({ perfil, insumos }), parseRespostaIA);
     const { objetivo, dias: diasSemData } = parseRespostaIA(texto);
     const dias = atribuirDatas(diasSemData);
     const payload = JSON.stringify({ objetivo, dias, perfil, insumos, provider, model });
@@ -580,7 +580,13 @@ async function gerarEArmazenarPlano(db, { perfil, insumos }) {
     });
     txn();
 
-    return lerCacheAtivo(db);
+    const row = lerCacheAtivo(db);
+    // #163 — carona das tentativas falhas que a cascata atravessou ANTES de
+    // acertar. Não vai para o banco: é só para o chamador logar (o scheduler
+    // tem logger, o service não). Sem isto, um provedor morto fica invisível
+    // enquanto o fallback segura a feature.
+    if (row && tentativasFalhas && tentativasFalhas.length) row.tentativasFalhas = tentativasFalhas;
+    return row;
   })();
 
   try {

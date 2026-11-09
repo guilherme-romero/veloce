@@ -204,3 +204,88 @@ test('_ultimoSucesso guarda o modelo que VALIDOU, não o que respondeu primeiro'
   const primeiroChat = chamadas.map((c) => modeloDaUrlGemini(c.url)).filter(Boolean)[0];
   assert.equal(primeiroChat, 'gemini-2.5-flash', 'a fila devia começar pelo modelo que validou');
 });
+
+/* ── #163: fila completa de candidatos e orçamento de tempo ──────────────
+   O teto de 2 candidatos por provedor era o defeito. Medido em produção em
+   2026-11-09: no Gemini as cinco primeiras posições falhavam por cinco
+   motivos diferentes (timeout, 400, 429 e dois 404 de modelo aposentado) e o
+   primeiro modelo que respondia era o SEXTO. Com teto de 2, o provedor
+   principal ficava 100% indisponível com um modelo bom esperando na fila — e
+   a resiliência da cascata escondia isso, porque o fallback segurava tudo. */
+
+test('#163: a cascata vai ALÉM do 2º candidato até achar um que responde', async () => {
+  chamadas = [];
+  const { gerarAnalise } = moduloLimpo();
+  // Reproduz a forma do que foi medido: 5 mortos, o 6º vivo.
+  // Todos com "flash" no nome para caírem no MESMO padrão de preferência: aí a
+  // ordem da fila é a ordem da lista, e o teste mede o alcance da cascata em
+  // vez de medir a ordenação dos padrões (que é outro assunto).
+  const modelos = ['f1-flash', 'f2-flash', 'f3-flash', 'f4-flash', 'f5-flash', 'f6-flash'];
+  const falhas = { 'f1-flash': 503, 'f2-flash': 400, 'f3-flash': 429, 'f4-flash': 404, 'f5-flash': 404 };
+  handler = (u) => {
+    if (u.startsWith(GEMINI_MODELS + '?')) return listaGemini(...modelos);
+    const model = modeloDaUrlGemini(u);
+    if (falhas[model]) return resp({ error: { status: 'ERRO' } }, falhas[model]);
+    if (model === 'f6-flash') return respGemini(PLANO_OK);
+    throw new Error('url inesperada: ' + u);
+  };
+
+  const r = await gerarAnalise('prompt', validarPlano);
+  assert.equal(r.model, 'f6-flash', 'com o teto antigo de 2 a cascata morreria no f2');
+  const tentados = chamadas.map((c) => modeloDaUrlGemini(c.url)).filter(Boolean);
+  assert.equal(tentados.length, 6, 'tentou os 6 em ordem: ' + tentados.join(','));
+});
+
+test('#163: tentativas falhas vêm JUNTO com o sucesso (provedor morto deixa rastro)', async () => {
+  chamadas = [];
+  const { gerarAnalise } = moduloLimpo();
+  handler = (u) => {
+    if (u.startsWith(GEMINI_MODELS + '?')) return listaGemini('quebrado-flash', 'bom-flash');
+    const model = modeloDaUrlGemini(u);
+    if (model === 'quebrado-flash') return resp({ error: { status: 'UNAVAILABLE' } }, 503);
+    return respGemini(PLANO_OK);
+  };
+
+  const r = await gerarAnalise('prompt', validarPlano);
+  assert.equal(r.model, 'bom-flash');
+  // É este campo que faltava: antes, falha num caminho de SUCESSO era
+  // descartada em silêncio e o Gemini pôde ficar dias a zero sem sintoma.
+  assert.ok(Array.isArray(r.tentativasFalhas), 'o sucesso tem de carregar as falhas que atravessou');
+  assert.equal(r.tentativasFalhas.length, 1);
+  assert.equal(r.tentativasFalhas[0].model, 'quebrado-flash');
+  assert.match(String(r.tentativasFalhas[0].detalhe), /503/);
+});
+
+test('#163: sucesso limpo não inventa tentativasFalhas', async () => {
+  chamadas = [];
+  const { gerarAnalise } = moduloLimpo();
+  handler = (u) => {
+    if (u.startsWith(GEMINI_MODELS + '?')) return listaGemini('bom-flash');
+    return respGemini(PLANO_OK);
+  };
+  const r = await gerarAnalise('prompt', validarPlano);
+  assert.equal(r.tentativasFalhas.length, 0, 'array vazio, não falha fantasma');
+});
+
+test('#163: o orçamento de tempo limita a fila — não é ilimitada', async () => {
+  chamadas = [];
+  process.env.AI_CASCATA_BUDGET_MS = '120';   // lido no load do módulo
+  const { gerarAnalise } = moduloLimpo();
+  delete process.env.AI_CASCATA_BUDGET_MS;
+
+  const muitos = Array.from({ length: 40 }, (_, i) => 'm' + i + '-flash');
+  handler = async (u) => {
+    if (u.startsWith(GEMINI_MODELS + '?')) return listaGemini(...muitos);
+    if (u === GROQ_MODELS) return listaGroq();
+    await new Promise((r) => setTimeout(r, 40));     // cada tentativa custa 40ms
+    return resp({ error: { status: 'ERRO' } }, 500);
+  };
+
+  await assert.rejects(() => gerarAnalise('prompt', validarPlano), (err) => {
+    const tentados = chamadas.filter((c) => modeloDaUrlGemini(c.url)).length;
+    assert.ok(tentados < 40, 'o orçamento tem de cortar a fila; tentou ' + tentados);
+    assert.ok(err.cascata.some((e) => e.motivo === 'orcamento_esgotado'),
+      'e o motivo tem de ficar explícito na cascata: ' + JSON.stringify(err.cascata.slice(-2)));
+    return true;
+  });
+});

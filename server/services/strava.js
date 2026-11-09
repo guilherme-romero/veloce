@@ -10,6 +10,13 @@ const fs = require('fs');
 
 const STRAVA_OAUTH_URL = 'https://www.strava.com/oauth/token';
 const STRAVA_API_BASE  = 'https://www.strava.com/api/v3';
+// #161 — timeout explícito, no mesmo formato do CALL_TIMEOUT_MS de
+// services/ai-providers.js e dos timeouts por chamada do garmin.js. Sem ele
+// estas duas chamadas ficavam no default do undici (~300s), e o sync da
+// Strava roda DENTRO de runFullSync (scheduler.js), que encadeia a Análise de
+// Performance, o Treino IA, o relatório mensal e o digest de push depois
+// dele — uma Strava lenta atrasava toda essa fila.
+const CALL_TIMEOUT_MS  = 20_000;
 
 // Persistência do refresh_token rotacionado (BUG-012). O Strava
 // eventualmente devolve um novo refresh_token e invalida o antigo —
@@ -68,6 +75,7 @@ async function refreshAccessToken() {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
+    signal:  AbortSignal.timeout(CALL_TIMEOUT_MS),
   });
 
   if (!resp.ok) {
@@ -101,7 +109,10 @@ async function apiGet(path, query = {}) {
   const token = await getAccessToken();
   const url = new URL(STRAVA_API_BASE + path);
   Object.entries(query).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal:  AbortSignal.timeout(CALL_TIMEOUT_MS),
+  });
   if (!resp.ok) {
     const txt = await resp.text();
     throw new Error(`Strava GET ${path} ${resp.status}: ${txt}`);
