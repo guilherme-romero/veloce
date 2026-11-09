@@ -132,7 +132,7 @@
       // já está no cache do service worker, então não se economiza download,
       // mas se economiza parse e execução de 196 KB em tela sem gráfico, que é
       // o custo que se sente no celular.
-      s.src = 'js/vendor/chart-4.4.0.umd.min.js';
+      s.src = 'js/lib/chart-4.4.0.umd.min.js';
       s.onload = resolve;
       s.onerror = () => { _chartPromise = null; s.remove(); reject(new Error('Chart.js falhou ao carregar')); };
       document.head.appendChild(s);

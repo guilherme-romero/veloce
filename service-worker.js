@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.12.19';
+const CACHE_VERSION = 'v2.12.20';
 const CACHE_NAME = `veloce-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -119,7 +119,7 @@ const SHELL = [
   // #169: Chart.js auto-hospedado entra no SHELL. Custa ~196 KB no install,
   // uma vez, e em troca o gráfico funciona offline em tela NUNCA visitada —
   // que é o que o pré-cache opaco do CDN (EXTERNAL_ASSETS) não garantia.
-  './js/vendor/chart-4.4.0.umd.min.js',
+  './js/lib/chart-4.4.0.umd.min.js',
   // dados_usuario.txt entra como cache opcional — não falha install se faltar
 ];
 
