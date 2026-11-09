@@ -27,6 +27,7 @@ que parece regressão e é só sessão expirada. O `run-all.js` faz login novo a
 | Arquivo | O que cobre |
 |---|---|
 | `simbolos.js` | Carregamento dos ícones Font Awesome contra a URL **pública** (`TB_BASE=https://veloce.arkhamcloud.net`): CSS + webfonts `.woff2` servidos 200 com MIME de fonte, e o glyph carregando via `FontFace`. **Não precisa de login** (assets públicos). Complemento over-the-wire do `tests/assets.test.js`; usada como smoke pós-deploy. Nasceu da #71 |
+| `shell-publico.js` | **Sem navegador** (só `fetch`): toda entrada do `SHELL` serve **200 com Content-Type coerente na URL pública**. Nasceu da #175, depois de a v2.12.19 subir com os gráficos quebrados — o WAF do Cloudflare devolvia 403 para `/vendor/` e **nenhum teste local percebia**, porque o arquivo existia no disco e estava no SHELL. `cache.addAll` é **atômico**: uma entrada 403/404 derruba o pré-cache inteiro. Smoke pós-deploy, ao lado do `simbolos.js` |
 | `drive.js` | Percurso das 7 telas contra dados reais, checagens de fundo (recordes, zonas de FC, heatmap, condição do clima) e as guardas de cache |
 | `bordas.js` | Bordas que os dados reais não exercitam — forçadas no cliente via CDP `Fetch.enable`, **sem tocar no banco** |
 | `desktop.js` | Fumaça da variante desktop; existe porque vários fixes tocam `js/app.js` e `js/core/`, compartilhados |
@@ -38,6 +39,13 @@ regredir, a suíte falha nominalmente. Um teste que ainda afirme um bug como *ab
 próprio nome, para falhar e cobrar atualização quando for corrigido.
 
 ## Armadilhas que custaram tempo
+
+**Existir no disco não é ser servido (2026-11-09).** Entre o repositório e o navegador há nginx,
+Cloudflare, MIME e cache — quatro coisas que quebram em silêncio. A v2.12.19 subiu com os gráficos
+do desktop fora porque o WAF do Cloudflare bloqueia **qualquer caminho com `/vendor/`** (assinatura
+de exploit tipo `/vendor/phpunit/...`), e a origem servia 200. Verificação local não cobre isso:
+use `shell-publico.js` **contra a URL pública** (com `TB_BASE=http://127.0.0.1:8002` ele isola o
+nginx e deixa de cobrir justamente a borda onde o incidente aconteceu).
 
 **Service worker engole o `page.route` do Playwright (2026-11-09).** O SW do PWA intercepta o
 `fetch` **antes** do roteamento do Playwright, e as chamadas `/api/*` caem no servidor estático do
