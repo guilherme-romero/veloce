@@ -138,3 +138,39 @@ test('CSS self-hosted: todo url() local resolve relativo ao próprio CSS', () =>
     }
   }
 });
+
+/* ── SHELL do service worker: toda entrada local tem de existir (#169) ────
+   `cache.addAll(SHELL)` é ATÔMICO: uma única entrada que responda 404 derruba
+   o pré-cache INTEIRO, e hoje isso é mascarado por um `.catch` que só escreve
+   um warn no console — o app fica sem offline em silêncio.
+   Isso já era verificado, mas só pela suíte e2e de navegador (tests/pwa.js),
+   que não roda na CI nem em `npm test`. Aqui fica barato: é leitura de arquivo.
+   Entrou junto da #169, que acrescentou a primeira entrada de `js/vendor/`. */
+test('service-worker: toda entrada local do SHELL existe no disco', () => {
+  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+  const bloco = sw.match(/const SHELL\s*=\s*\[([\s\S]*?)\];/);
+  assert.ok(bloco, 'não achei o array SHELL em service-worker.js');
+
+  const entradas = [...bloco[1].matchAll(/['"]([^'"]+)['"]/g)]
+    .map((m) => m[1])
+    .filter((e) => !/^https?:/.test(e));   // externas vivem em EXTERNAL_ASSETS
+
+  assert.ok(entradas.length >= 60, `só ${entradas.length} entradas locais — o parse do SHELL quebrou?`);
+
+  const faltando = entradas.filter((e) => !fs.existsSync(path.join(ROOT, e.replace(/^\.\//, ''))));
+  assert.deepEqual(faltando, [],
+    'entrada do SHELL sem arquivo no disco — cache.addAll é atômico e derruba o pré-cache inteiro');
+});
+
+test('service-worker: o que o HTML carrega de js/vendor/ está no SHELL', () => {
+  // A regra do CLAUDE.md ("arquivo novo em js/ também entra no SHELL") é fácil
+  // de esquecer justamente para terceiros, que a gente trata como "externos"
+  // por hábito — foi assim que Chart.js e Leaflet ficaram anos fora.
+  const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
+  for (const html of ['index.html', 'mobile.html', 'login.html']) {
+    const src = fs.readFileSync(path.join(ROOT, html), 'utf8');
+    for (const m of src.matchAll(/(?:src|href)=["'](js\/vendor\/[^"'?]+)/g)) {
+      assert.ok(sw.includes(m[1]), `${html} carrega ${m[1]}, que não está no SHELL`);
+    }
+  }
+});

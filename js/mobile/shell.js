@@ -128,7 +128,11 @@
     if (_chartPromise) return _chartPromise;
     _chartPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+      // #169: local, não CDN. A carga TARDIA continua de propósito — o arquivo
+      // já está no cache do service worker, então não se economiza download,
+      // mas se economiza parse e execução de 196 KB em tela sem gráfico, que é
+      // o custo que se sente no celular.
+      s.src = 'js/vendor/chart-4.4.0.umd.min.js';
       s.onload = resolve;
       s.onerror = () => { _chartPromise = null; s.remove(); reject(new Error('Chart.js falhou ao carregar')); };
       document.head.appendChild(s);
