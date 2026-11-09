@@ -19,6 +19,12 @@ const GROQ_MODELS_URL   = 'https://api.groq.com/openai/v1/models';
 const GROQ_CHAT_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 const CALL_TIMEOUT_MS   = 20_000;
 const MODEL_LIST_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// Orçamento de tokens de SAÍDA, um dono só para os dois provedores. Generoso
+// porque o Treino IA pede um JSON de 7 dias — bem maior que a resposta curta
+// da Análise de Performance. Nasceu embutido no Gemini e foi extraído na #159,
+// quando o Groq (que não mandava orçamento algum) truncou o JSON do Treino IA
+// em 3 de 4 tentativas observadas.
+const MAX_TOKENS_SAIDA  = 8192;
 
 // A listagem de modelos de cada provedor inclui variantes que NÃO são chat
 // de texto (TTS, imagem, transcrição, classificadores de segurança/guard) —
@@ -122,11 +128,10 @@ async function chamarGemini(apiKey, model, prompt) {
     // invisível; descoberto em produção truncando a resposta JSON do Treino
     // IA logo no primeiro campo. Modelos sem suporte a thinking ignoram o
     // parâmetro (compatibilidade futura da API, não gera erro 400).
-    // maxOutputTokens generoso porque o Treino IA pede um JSON de 7 dias —
-    // bem maior que a resposta curta da Análise de Performance.
+    // O orçamento de saída vive em MAX_TOKENS_SAIDA (ver lá o porquê do valor).
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: { maxOutputTokens: MAX_TOKENS_SAIDA, thinkingConfig: { thinkingBudget: 0 } },
     }),
     signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
   });
@@ -150,7 +155,24 @@ async function chamarGroq(apiKey, model, prompt) {
   const resp = await fetch(GROQ_CHAT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }] }),
+    // #159 — o par do que o Gemini já tinha, e que faltava aqui:
+    //
+    // max_completion_tokens: sem ele a resposta ficava no default do provedor,
+    // e o JSON de 7 dias do Treino IA saía cortado no meio.
+    //
+    // reasoning_effort: análogo do thinkingBudget:0 do Gemini. Os modelos
+    // gpt-oss/qwen3 do Groq "pensam" antes de responder, e o reasoning divide
+    // o MESMO orçamento de saída com o content — medido em produção: 1201
+    // tokens de reasoning numa chamada. Quando o reasoning cresce, é o JSON
+    // que é cortado. Um modelo futuro que não aceite o parâmetro responde 400,
+    // a cascata trata como falha deste candidato e segue para o próximo, com o
+    // motivo preservado em err.upstreamBody abaixo.
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_completion_tokens: MAX_TOKENS_SAIDA,
+      reasoning_effort: 'low',
+    }),
     signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
   });
   if (!resp.ok) {
@@ -161,8 +183,19 @@ async function chamarGroq(apiKey, model, prompt) {
     throw err;
   }
   const json = await resp.json();
-  const texto = json?.choices?.[0]?.message?.content;
-  if (!texto) throw new Error('Groq não devolveu texto');
+  const escolha = json?.choices?.[0];
+  // finish_reason 'length' = resposta cortada no limite de tokens. Devolver
+  // esse corpo entregaria JSON truncado a quem chamou, e no Treino IA isso
+  // morria no parseRespostaIA SEM retentativa (#159). Lançar transforma o
+  // truncamento em falha deste candidato, e a cascata tenta o próximo. Mesma
+  // postura do Gemini, que já expõe finishReason no erro de resposta vazia.
+  if (escolha?.finish_reason === 'length') {
+    throw new Error(`Groq cortou a resposta no limite de tokens (finish_reason: length, max_completion_tokens: ${MAX_TOKENS_SAIDA})`);
+  }
+  const texto = escolha?.message?.content;
+  if (!texto) {
+    throw new Error('Groq não devolveu texto' + (escolha?.finish_reason ? ` (finish_reason: ${escolha.finish_reason})` : ''));
+  }
   return texto.trim();
 }
 
@@ -172,11 +205,25 @@ async function chamarGroq(apiKey, model, prompt) {
  * sinal pra tentar o próximo candidato — não há confirmação de documentação
  * sobre um código de erro específico pra "modelo descontinuado" em nenhum
  * dos dois provedores (ADR-0004).
+ * `validar` é OPCIONAL e, quando dado, roda sobre o texto de cada candidato:
+ * se lançar, aquele candidato conta como falha e a cascata segue para o
+ * próximo — em vez de devolver um corpo que quem chamou vai rejeitar sozinho,
+ * sem retentativa (era o bug da #159: um HTTP 200 cujo JSON não parseava
+ * queimava a cascata inteira e a geração de segunda-feira não acontecia).
+ * Vem por injeção, e não por import, porque o validador do Treino IA é o
+ * parseRespostaIA de weekly-training-plan.js — que já requer este módulo.
+ * Sem `validar`, o comportamento é idêntico ao anterior: é o caminho da
+ * Análise de Performance e do relatório mensal, que toleram resposta fora de
+ * JSON (caem para o texto cru) e por isso não querem esta malha.
+ *
+ * @param {string} prompt
+ * @param {(texto: string) => unknown} [validar] lança para rejeitar o candidato
  * @return {{ texto: string, provider: 'gemini'|'groq', model: string }}
  * @throws {Error} com .cascata = [{ provider, model?, motivo, ... }] quando
- *   todos os provedores falharem (inclusive por falta de chave).
+ *   todos os provedores falharem (inclusive por falta de chave ou por nenhuma
+ *   resposta ter passado em `validar`).
  */
-async function gerarAnalise(prompt) {
+async function gerarAnalise(prompt, validar) {
   const providers = [
     { nome: 'gemini', apiKey: config.GEMINI_API_KEY, listar: listarModelosGemini, chamar: chamarGemini },
     { nome: 'groq', apiKey: config.GROQ_API_KEY, listar: listarModelosGroq, chamar: chamarGroq },
@@ -201,6 +248,22 @@ async function gerarAnalise(prompt) {
     for (const model of candidatosParaProvider(p.nome, modelos)) {
       try {
         const texto = await p.chamar(p.apiKey, model, prompt);
+        if (validar) {
+          try {
+            validar(texto);
+          } catch (errVal) {
+            // Falha de FORMATO, não de transporte: o modelo respondeu, mas o
+            // corpo não serve. Conta como falha deste candidato e segue.
+            erros.push({
+              provider: p.nome, model, motivo: 'resposta_invalida',
+              detalhe: errVal.message, bruto: String(texto).slice(0, 500),
+            });
+            continue;
+          }
+        }
+        // Só depois de validar. Gravar antes fixaria como "último sucesso" um
+        // modelo que devolveu lixo, e candidatosParaProvider começaria a
+        // próxima geração justamente por ele.
         _ultimoSucesso = { provider: p.nome, model };
         return { texto, provider: p.nome, model };
       } catch (err) {
