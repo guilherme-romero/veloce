@@ -18,6 +18,16 @@ const GEMINI_MODELS_URL = 'https://generativelanguage.googleapis.com/v1beta/mode
 const GROQ_MODELS_URL   = 'https://api.groq.com/openai/v1/models';
 const GROQ_CHAT_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 const CALL_TIMEOUT_MS   = 20_000;
+// #163 — orçamento de tempo da cascata INTEIRA, que substituiu o teto fixo de
+// 2 candidatos por provedor. O teto era o defeito: falha rápida (404 de modelo
+// aposentado, 400, 429) custa ~0,3s e consumia a mesma cota de um timeout de
+// 20s, então duas posições ruins no início da fila zeravam o provedor. Com
+// orçamento, a cascata atravessa os mortos baratos e ainda alcança um modelo
+// bom. 75s é folgado para o job das 6h e aceitável no clique manual, que já
+// mostra estado de carregando.
+// Ajustável por env: serve ao teste unitário (que não pode esperar 75s) e dá
+// uma alavanca de operação sem deploy, caso um provedor fique lento.
+const CASCATA_BUDGET_MS = Number(process.env.AI_CASCATA_BUDGET_MS) || 75_000;
 const MODEL_LIST_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 // Orçamento de tokens de SAÍDA, um dono só para os dois provedores. Generoso
 // porque o Treino IA pede um JSON de 7 dias — bem maior que a resposta curta
@@ -96,29 +106,41 @@ async function obterModelosComCache(provider, fetcher, apiKey) {
   return modelos;
 }
 
-// Até 2 candidatos: [modelo-que-funcionou-da-última-vez (se mesmo
-// provider), melhor-modelo-pelo-padrão, segundo-melhor-pelo-padrão] —
-// dedupe. O 2o candidato também respeita PADROES_PREFERIDOS (percorre os
-// padrões em ordem antes de aceitar qualquer modelo cru da lista), pra não
-// escolher algo "preview"/"deprecated" só por ser o próximo item bruto.
+/**
+ * Fila ORDENADA de candidatos de um provedor: [modelo-que-funcionou-da-última-
+ * vez (se mesmo provider), depois todos os elegíveis em ordem de
+ * PADROES_PREFERIDOS], com dedupe.
+ *
+ * #163 — esta função devolvia no máximo DOIS candidatos, e o teto era o
+ * defeito. Medido em produção em 2026-11-09: no Gemini, as cinco primeiras
+ * posições falhavam por cinco motivos diferentes — timeout, 400
+ * INVALID_ARGUMENT, 429 RESOURCE_EXHAUSTED e dois 404 "no longer available" —
+ * e o primeiro modelo que respondia era o SEXTO (`gemini-3.1-flash-lite`). Com
+ * teto de 2, o provedor principal ficava 100% indisponível enquanto um modelo
+ * bom esperava na fila, e a resiliência da cascata escondia isso.
+ *
+ * Quem limita o custo agora é o orçamento de TEMPO em gerarAnalise, não uma
+ * contagem fixa: um 404 custa ~0,3s e não deveria consumir a mesma cota que um
+ * timeout de 20s. Ordenar por número de versão continua proibido (ADR-0004:
+ * "3.8" vs "3.10" não ordena como string).
+ */
 function candidatosParaProvider(provider, modelosAoVivo) {
   const candidatos = [];
   if (_ultimoSucesso && _ultimoSucesso.provider === provider && modelosAoVivo.includes(_ultimoSucesso.model)) {
     candidatos.push(_ultimoSucesso.model);
   }
   for (const padrao of PADROES_PREFERIDOS) {
-    const achado = modelosAoVivo.find((m) => padrao(m) && !candidatos.includes(m));
-    if (achado) candidatos.push(achado);
-    if (candidatos.length >= 2) break;
+    for (const m of modelosAoVivo) {
+      if (padrao(m) && !candidatos.includes(m)) candidatos.push(m);
+    }
   }
-  if (candidatos.length < 2) {
-    const alternativa = modelosAoVivo.find((m) => !candidatos.includes(m));
-    if (alternativa) candidatos.push(alternativa);
-  }
-  return candidatos.slice(0, 2);
+  // O último padrão aceita qualquer nome sem "preview/exp/deprecated", então
+  // sobra pouco; o resto entra no fim para não deixar modelo elegível de fora.
+  for (const m of modelosAoVivo) if (!candidatos.includes(m)) candidatos.push(m);
+  return candidatos;
 }
 
-async function chamarGemini(apiKey, model, prompt) {
+async function chamarGemini(apiKey, model, prompt, orcamentoMs = CALL_TIMEOUT_MS) {
   const url = `${GEMINI_MODELS_URL}/${model}:generateContent?key=${apiKey}`;
   const resp = await fetch(url, {
     method: 'POST',
@@ -133,7 +155,7 @@ async function chamarGemini(apiKey, model, prompt) {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: { maxOutputTokens: MAX_TOKENS_SAIDA, thinkingConfig: { thinkingBudget: 0 } },
     }),
-    signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+    signal: AbortSignal.timeout(Math.max(1, Math.min(CALL_TIMEOUT_MS, orcamentoMs))),
   });
   if (!resp.ok) {
     const corpo = await resp.text().catch(() => '');
@@ -151,7 +173,7 @@ async function chamarGemini(apiKey, model, prompt) {
   return texto.trim();
 }
 
-async function chamarGroq(apiKey, model, prompt) {
+async function chamarGroq(apiKey, model, prompt, orcamentoMs = CALL_TIMEOUT_MS) {
   const resp = await fetch(GROQ_CHAT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -173,7 +195,7 @@ async function chamarGroq(apiKey, model, prompt) {
       max_completion_tokens: MAX_TOKENS_SAIDA,
       reasoning_effort: 'low',
     }),
-    signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+    signal: AbortSignal.timeout(Math.max(1, Math.min(CALL_TIMEOUT_MS, orcamentoMs))),
   });
   if (!resp.ok) {
     const corpo = await resp.text().catch(() => '');
@@ -229,6 +251,11 @@ async function gerarAnalise(prompt, validar) {
     { nome: 'groq', apiKey: config.GROQ_API_KEY, listar: listarModelosGroq, chamar: chamarGroq },
   ];
   const erros = [];
+  // #163 — prazo da cascata inteira. É o que permite a fila de candidatos ser
+  // completa em vez de cortada em 2: falha barata não gasta o que um timeout
+  // gastaria, e o pior caso continua limitado.
+  const prazo = Date.now() + CASCATA_BUDGET_MS;
+  const restante = () => prazo - Date.now();
   for (const p of providers) {
     if (!p.apiKey) {
       erros.push({ provider: p.nome, motivo: 'sem_chave' });
@@ -246,8 +273,12 @@ async function gerarAnalise(prompt, validar) {
       continue;
     }
     for (const model of candidatosParaProvider(p.nome, modelos)) {
+      if (restante() <= 0) {
+        erros.push({ provider: p.nome, motivo: 'orcamento_esgotado' });
+        break;   // passa ao próximo PROVEDOR: a chave dele pode estar sadia
+      }
       try {
-        const texto = await p.chamar(p.apiKey, model, prompt);
+        const texto = await p.chamar(p.apiKey, model, prompt, restante());
         if (validar) {
           try {
             validar(texto);
@@ -265,7 +296,11 @@ async function gerarAnalise(prompt, validar) {
         // modelo que devolveu lixo, e candidatosParaProvider começaria a
         // próxima geração justamente por ele.
         _ultimoSucesso = { provider: p.nome, model };
-        return { texto, provider: p.nome, model };
+        // #163 — as tentativas falhas vão JUNTO com o sucesso. Antes elas só
+        // apareciam em err.cascata quando TODOS falhavam, e num caminho de
+        // sucesso eram descartadas em silêncio: foi por isso que o Gemini
+        // ficou 100% indisponível por dias sem ninguém notar. Quem chama loga.
+        return { texto, provider: p.nome, model, tentativasFalhas: erros };
       } catch (err) {
         erros.push({ provider: p.nome, model, motivo: 'chamada_falhou', status: err.upstreamStatus, detalhe: err.message });
       }

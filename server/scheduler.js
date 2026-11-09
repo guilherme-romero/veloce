@@ -467,6 +467,14 @@ async function runTreinoIa(db, log) {
     const payload = JSON.parse(row.payload);
     log.info({ provider: payload.provider, model: payload.model },
       '[scheduler] plano semanal de Treino IA gerado');
+    // #163 — sucesso que precisou atravessar falhas é sinal de provedor
+    // doente, e antes dessa linha isso não aparecia em lugar nenhum: o Gemini
+    // ficou 100% indisponível por dias sem deixar rastro, porque o Groq
+    // segurava a feature. Nível warn de propósito — é para ser visto.
+    if (row.tentativasFalhas) {
+      log.warn({ tentativasFalhas: row.tentativasFalhas },
+        '[scheduler] treino IA: a cascata de IA só acertou DEPOIS de falhas — verificar provedor');
+    }
   } catch (e) {
     // Mesmo tratamento da análise de performance: a cascata de provedores de
     // IA falhar é esperado de vez em quando e não pode derrubar o sync. O
