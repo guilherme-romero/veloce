@@ -92,3 +92,11 @@
 .mtia-hist-acoes .mtia-hist-fav{margin-right:auto;color:var(--muted2);padding:9px 11px}
 .mtia-hist-acoes .mtia-hist-fav[aria-pressed="true"]{color:var(--amber)}
 .mtia-hist-topo-acoes{display:flex;justify-content:flex-end;margin-bottom:12px}
+/* O `.btn{flex:1}` do mobile-sheet.css (linha 83) vale para QUALQUER botão
+   dentro de um sheet — faz sentido no rodapé, onde as ações dividem a largura.
+   Aqui não: esticado, "Limpar histórico" vira o elemento mais proeminente do
+   painel, em vermelho, sendo a ação mais destrutiva e a menos frequente. No
+   desktop ele é pequeno e alinhado à direita; esta linha restaura essa
+   proporção. Os botões de CADA item seguem dividindo a linha de propósito —
+   ali a largura vira alvo de toque. */
+.mtia-hist-topo-acoes .btn{flex:0 0 auto}
