@@ -78,9 +78,17 @@ async function abrirApp({ mobile = false, pagina, semear } = {}) {
   const base = 'http://127.0.0.1:' + srv.address().port;
 
   const nav = await chromium.launch();
+  // O userAgent importa: js/variant.js escolhe a variante por SINAIS DE
+  // DISPOSITIVO, nunca por innerWidth (BUG-069). Com viewport de celular mas UA
+  // de desktop, ele serve o index.html e a suíte testa a tela errada —
+  // aconteceu comigo numa sondagem em 2026-11-09 e o sintoma foi confuso
+  // (`window.Chart` definido, `window.MShell` ausente).
+  const UA_ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 '
+                   + '(KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
   const ctxBrowser = await nav.newContext({
     viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 },
     isMobile: mobile, hasTouch: mobile,
+    ...(mobile ? { userAgent: UA_ANDROID } : {}),
     serviceWorkers: 'block',   // ← ver armadilha 1 no cabeçalho
   });
   const pg = await ctxBrowser.newPage();

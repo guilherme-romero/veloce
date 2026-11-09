@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.12.18';
+const CACHE_VERSION = 'v2.12.19';
 const CACHE_NAME = `veloce-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -116,12 +116,23 @@ const SHELL = [
   './js/mobile/more-mobile.js',
   './js/mobile/config-mobile.js',
   './js/mobile/boot.js',
+  // #169: Chart.js auto-hospedado entra no SHELL. Custa ~196 KB no install,
+  // uma vez, e em troca o gráfico funciona offline em tela NUNCA visitada —
+  // que é o que o pré-cache opaco do CDN (EXTERNAL_ASSETS) não garantia.
+  './js/vendor/chart-4.4.0.umd.min.js',
   // dados_usuario.txt entra como cache opcional — não falha install se faltar
 ];
 
+// Pré-cache best-effort de terceiros que ainda vêm de CDN. O fetch é
+// `no-cors`, então a resposta é OPACA: status sempre 0, e um 404 do CDN é
+// cacheado em silêncio como se fosse sucesso. É por isso que estamos
+// esvaziando esta lista (#169) em vez de confiar nela.
+//
+// font-awesome saiu na #9 e Chart.js na #169 — os dois estão no SHELL agora.
+// Quando o Leaflet sair (etapa 2 da #169), este array e o bloco que o consome
+// no install são REMOVIDOS: mecanismo sem usuário vira convite para alguém
+// "só adicionar mais um CDN aqui".
 const EXTERNAL_ASSETS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js',
-  // font-awesome saiu de aqui na issue #9 — self-hosted, já faz parte do SHELL.
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
 ];
