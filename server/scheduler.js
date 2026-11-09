@@ -18,7 +18,8 @@ const CHECK_INTERVAL_MS = 60_000; // verifica a cada minuto
 const ANALISE_HORA      = 6;      // horário fixo (local da LXC, America/Sao_Paulo) do job de IA
 const RELATORIO_HORA    = 8;      // dia 1º: envio do relatório mensal pelo Telegram (#95)
 const PUSH_HORA         = 18;     // digest de push da véspera dos passeios (#3 F2)
-const TREINO_IA_DIA     = 1;      // getDay(): 1 = segunda-feira (#136)
+// Não há mais TREINO_IA_DIA: desde a #160 o job é avaliado TODO DIA nesta
+// hora, e quem decide se há trabalho é planoCobreSemanaAtual() no service.
 const TREINO_IA_HORA    = 6;      // geração automática do plano semanal de Treino IA (#136)
 
 // Evita disparo duplo no mesmo slot (chave = "YYYY-MM-DD:HH:bloco")
@@ -444,6 +445,13 @@ async function runRelatorioMensal(db, log) {
 // atribuirDatas() ancora na segunda da semana corrente, então rodando na
 // própria segunda o plano cobre hoje→domingo — nada a ajustar aqui.
 async function runTreinoIa(db, log) {
+  // #160 — guard de SEMANA, não de dia. O job passou a rodar todo dia às 6h
+  // (antes, só segunda), e é este guard que o faz parar assim que a semana
+  // está coberta. Olha as datas dentro do plano ativo, não o gerado_em.
+  if (treinoIa.planoCobreSemanaAtual(db)) {
+    log.info('[scheduler] treino IA: já existe plano cobrindo a semana corrente — pulando');
+    return;
+  }
   if (treinoIa.planoGeradoHoje(db)) {
     log.info('[scheduler] treino IA: já existe plano gerado hoje — pulando');
     return;
@@ -470,6 +478,13 @@ async function runTreinoIa(db, log) {
     // falhar de novo, só na segunda seguinte.
     log.warn({ err: e.message, cascata: e.cascata, bruto: e.bruto && String(e.bruto).slice(0, 500) },
       '[scheduler] treino IA: geração falhou — o plano anterior segue ativo');
+    // #160 — a mesma falha, agora também no banco. Antes isto vivia só aqui no
+    // journal, cuja leitura exige senha: em 2026-11-09 o diagnóstico dependeu
+    // de o usuário rodar o journalctl. Nenhuma tela lê essa tabela.
+    treinoIa.registrarTentativaFalha(db, {
+      erro: e.message,
+      detalhe: JSON.stringify({ cascata: e.cascata, bruto: e.bruto && String(e.bruto).slice(0, 500) }),
+    });
   }
 }
 
@@ -511,13 +526,16 @@ function setup(db, log) {
       }
     }
 
-    // Treino IA: segunda, às TREINO_IA_HORA (#136). Encadeado depois da
-    // análise pra rodar com o banco já sincronizado — os insumos (CTL/ATL/TSB
-    // e tendência de peso) saem das atividades e das pesagens, então vale
-    // esperar o sync. Sem Set de dedup: quem garante uma geração por dia é
-    // planoGeradoHoje(), que consulta o banco e por isso sobrevive a restart
-    // (ver o comentário de runTreinoIa).
-    if (now.getDay() === TREINO_IA_DIA && now.getHours() === TREINO_IA_HORA) {
+    // Treino IA: TODO DIA às TREINO_IA_HORA (#160 — antes era só segunda).
+    // Quem decide se há trabalho é runTreinoIa, por planoCobreSemanaAtual():
+    // na prática gera na segunda e, nos outros dias, só se a semana ainda
+    // estiver descoberta. A mudança existe porque em 2026-11-09 o job falhou
+    // nos dois ticks da segunda e a próxima tentativa seria 16/11 — uma semana
+    // inteira sem plano. Encadeado depois da análise pra rodar com o banco já
+    // sincronizado (os insumos CTL/ATL/TSB e tendência de peso saem das
+    // atividades e das pesagens). Sem Set de dedup: os guards consultam o
+    // banco e por isso sobrevivem a restart (ver o comentário de runTreinoIa).
+    if (now.getHours() === TREINO_IA_HORA) {
       chain = chain
         .then(() => runTreinoIa(db, log))
         .catch(e => log.error({ err: e }, '[scheduler] erro no treino IA automático'));
@@ -553,7 +571,7 @@ function setup(db, log) {
     }
   }, CHECK_INTERVAL_MS);
 
-  log.info(`[scheduler] ativo — sync a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h, treino IA segunda às ${TREINO_IA_HORA}h, relatório mensal (Telegram) dia 1º às ${RELATORIO_HORA}h, digest de push às ${PUSH_HORA}h`);
+  log.info(`[scheduler] ativo — sync a cada ${SYNC_INTERVAL_MIN} min, análise de performance às ${ANALISE_HORA}h, treino IA diário às ${TREINO_IA_HORA}h (gera só se a semana estiver descoberta), relatório mensal (Telegram) dia 1º às ${RELATORIO_HORA}h, digest de push às ${PUSH_HORA}h`);
 }
 
 module.exports = { setup, syncAutoLigado };

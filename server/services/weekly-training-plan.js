@@ -30,7 +30,7 @@
 ═══════════════════════════════════════════════════════════════════════ */
 const { gerarAnalise } = require('./ai-providers');
 const { getUnifiedActivities } = require('./activities');
-const { Metrics, WeightStats } = require('../utils/core-modules');
+const { Metrics, WeightStats, Utils } = require('../utils/core-modules');
 const { diaLocalKey, dataDeTimestampSqlite } = require('../utils/datas');
 
 const DIAS_SEMANA = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
@@ -211,12 +211,12 @@ function parseRespostaIA(texto) {
 // Data de cada dia = próxima ocorrência daquele dia da semana a partir da
 // segunda-feira da semana atual — calculado aqui, nunca pela IA.
 function atribuirDatas(dias, refDate = new Date()) {
-  const d = new Date(refDate);
-  const dow = d.getDay(); // 0=domingo..6=sabado
-  const diffParaSegunda = dow === 0 ? -6 : 1 - dow;
-  const segunda = new Date(d);
-  segunda.setDate(segunda.getDate() + diffParaSegunda);
-  segunda.setHours(12, 0, 0, 0);
+  // A segunda-feira vem de Utils.segundaDaSemanaISO (#160): fonte única com o
+  // frontend, que precisa da MESMA conta para decidir se um plano ainda cobre
+  // a semana corrente. Duas implementações divergiriam nas viradas de mês/ano
+  // e um plano válido apareceria como vencido. O 'T12:00:00' sem Z reconstrói
+  // a data em hora LOCAL, mantendo a âncora de meio-dia do helper.
+  const segunda = new Date(Utils.segundaDaSemanaISO(refDate) + 'T12:00:00');
 
   return dias.map((dia) => {
     const offset = DIAS_SEMANA.indexOf(dia.dia);
@@ -254,12 +254,23 @@ function lerHistorico(db, { page = 1, limit = HIST_LIMIT_DEFAULT } = {}) {
   ).all(lim, (pag - 1) * lim);
   const itens = rows.map((r) => {
     let objetivo = '';
-    try { objetivo = JSON.parse(r.payload)?.objetivo || ''; } catch (_) { /* payload corrompido — segue com objetivo vazio */ }
+    // #160: `semanaInicio` é a segunda-feira que o plano cobre, lida das datas
+    // do payload. Sem ela a UI não consegue distinguir "ATUAL" de "plano de uma
+    // semana que já passou, ainda marcado ativo porque a geração falhou" — e o
+    // histórico não carrega os 7 dias de cada item, só este resumo.
+    let semanaInicio = null;
+    try {
+      const p = JSON.parse(r.payload);
+      objetivo = p?.objetivo || '';
+      const d = p?.dias?.[0]?.data;
+      if (typeof d === 'string') semanaInicio = d;
+    } catch (_) { /* payload corrompido — segue com objetivo vazio e semana nula */ }
     return {
       id: r.id,
       ativo: !!r.ativo,
       favorito: !!r.favorito,
       geradoEm: r.gerado_em,
+      semanaInicio,
       objetivo: objetivo.length > 80 ? objetivo.slice(0, 79) + '…' : objetivo,
     };
   });
@@ -478,6 +489,60 @@ function planoGeradoHoje(db, agora = new Date()) {
   return diaLocalKey(d) === diaLocalKey(agora);
 }
 
+/**
+ * O plano ATIVO cobre a semana de `agora`? (#160)
+ *
+ * Olha as DATAS dentro do payload, não o `gerado_em`: é a pergunta que
+ * interessa ("tenho plano para esta semana?"), e é a mesma que a UI faz para
+ * decidir se ainda pode rotular o plano como ATUAL. Compara com
+ * Utils.segundaDaSemanaISO, a mesma função que atribuirDatas usou para gravar.
+ *
+ * É este o guard do job diário desde a #160: `planoGeradoHoje` sozinho fazia o
+ * job tentar uma vez por semana e, falhando, deixar a semana inteira sem plano
+ * (aconteceu em 2026-11-09). Os dois guards convivem — este responde "a semana
+ * já está coberta?", aquele evita gerar duas vezes no mesmo dia.
+ */
+function planoCobreSemanaAtual(db, agora = new Date()) {
+  const row = lerCacheAtivo(db);
+  if (!row) return false;
+  try {
+    const primeiroDia = JSON.parse(row.payload)?.dias?.[0]?.data;
+    return typeof primeiroDia === 'string' && primeiroDia === Utils.segundaDaSemanaISO(agora);
+  } catch (_) {
+    // Payload corrompido conta como "não cobre": melhor o job tentar gerar um
+    // plano novo do que ficar travado por uma linha ilegível.
+    return false;
+  }
+}
+
+// Quantas tentativas falhas guardar. Não é dado de produto — é trilha de
+// diagnóstico, e 50 cobre meses de falhas semanais sem a tabela crescer.
+const TENTATIVAS_LIMITE = 50;
+
+/**
+ * Registra uma tentativa FALHA da geração automática (#160).
+ *
+ * Para diagnóstico apenas: nenhuma tela lê esta tabela (decisão de produto).
+ * Existe porque antes a falha vivia só no journal do systemd, cuja leitura
+ * exige senha. Nunca lança — falhar ao registrar a falha não pode derrubar o
+ * job nem mascarar o erro original.
+ */
+function registrarTentativaFalha(db, { erro, detalhe } = {}) {
+  try {
+    db.prepare('INSERT INTO weekly_plan_tentativas (erro, detalhe) VALUES (?, ?)')
+      .run(String(erro || 'erro sem mensagem').slice(0, 300),
+           detalhe == null ? null : String(detalhe).slice(0, 2000));
+    db.prepare(`DELETE FROM weekly_plan_tentativas WHERE id NOT IN (
+                  SELECT id FROM weekly_plan_tentativas ORDER BY id DESC LIMIT ?)`)
+      .run(TENTATIVAS_LIMITE);
+  } catch (_) { /* trilha de diagnóstico é best-effort, por definição */ }
+}
+
+function lerTentativasFalhas(db, limite = 10) {
+  return db.prepare('SELECT id, quando, erro, detalhe FROM weekly_plan_tentativas ORDER BY id DESC LIMIT ?')
+    .all(Math.max(1, Math.min(TENTATIVAS_LIMITE, Number(limite) || 10)));
+}
+
 // Mesma trava de "promessa em voo" usada em performance-analysis.js (#26):
 // chamada de IA paga/cotada, acionável manualmente pelo usuário — duplo
 // toque ou retry do frontend não deve disparar 2 chamadas concorrentes.
@@ -531,4 +596,5 @@ module.exports = {
   ativarPlano, excluirPlano, limparHistorico, favoritarPlano, podarHistorico,
   HIST_LIMIT_DEFAULT, TETO_NAO_FAVORITOS,
   lerPerfilTreinoIa, sanitizarInsumos, montarInsumos, planoGeradoHoje,
+  planoCobreSemanaAtual, registrarTentativaFalha, lerTentativasFalhas, TENTATIVAS_LIMITE,
 };

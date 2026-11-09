@@ -274,4 +274,55 @@ function estimateRideTimeMin({ dist, speed, elev = 0, wind = 0, profile = 1.0, s
   return { flatTimeMin, climbPenMin, movTimeMin, totalTimeMin: movTimeMin + stops };
 }
 
-window.Utils = Object.assign(window.Utils || {}, { calcTrainingStreak, wmoIcon, estimateRideTimeMin, dataLocalISO, mesLocalISO });
+/* ── fmtDataHoraLocal — timestamp do SQLite → data/hora LOCAL ───────────
+   #158. `gerado_em` e companhia vêm do SQLite como "YYYY-MM-DD HH:MM:SS"
+   em UTC, SEM `Z` e sem offset. O V8 parseia essa forma separada por espaço
+   como hora LOCAL, não UTC:
+
+     new Date("2026-11-09 06:00:03").toISOString()  →  2026-11-09T09:00:03Z
+
+   ou seja, sem o `Z` explícito a hora sai 3h errada. Era o bug das telas de
+   Análise de Performance (`js/performance-analysis.js` e a versão mobile),
+   que mostravam o número UTC como se fosse local, sem rótulo nenhum que
+   denunciasse. O Treino IA fazia o oposto — convertia certo e rotulava
+   " UTC" —, correto mas exigindo conversão mental num app de um único
+   usuário em São Paulo.
+
+   Aqui: acrescenta o `Z` quando falta, e formata no fuso do dispositivo
+   SEM rótulo (decisão de produto). Entrada já com `Z`/offset é respeitada.
+   Entrada inválida volta como veio, igual às 4 cópias que isto substitui.
+═════════════════════════════════════════════════════════════════════════ */
+function fmtDataHoraLocal(ts) {
+  try {
+    if (typeof ts !== 'string' || !ts) return ts;
+    const iso = /[Zz]|[+-]\d{2}:?\d{2}$/.test(ts) ? ts : ts.replace(' ', 'T') + 'Z';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return ts;
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
+      + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch (_) { return ts; }
+}
+
+/* ── segundaDaSemanaISO — segunda-feira da semana de `ref` ──────────────
+   #160. Fonte ÚNICA entre backend e frontend: o backend usa para ancorar as
+   datas do plano gerado (`atribuirDatas`), e o frontend para decidir se um
+   plano ainda cobre a semana corrente — se as duas contas divergissem, um
+   plano válido apareceria como vencido (ou pior, o contrário) nas viradas
+   de ano e de mês.
+
+   O `setHours(12)` é o que torna o `toISOString()` seguro aqui: ancorada ao
+   meio-dia local, a data UTC coincide com a local em qualquer fuso de ±12h.
+   Não é o caso proibido pelo BUG-#88 (que é formatar "agora" em UTC).
+═════════════════════════════════════════════════════════════════════════ */
+function segundaDaSemanaISO(entrada) {
+  const d = (entrada instanceof Date) ? new Date(entrada)
+          : (entrada == null) ? new Date()
+          : new Date(entrada);
+  if (isNaN(d.getTime())) return null;
+  const dow = d.getDay();                       // 0=domingo..6=sábado
+  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  d.setHours(12, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+window.Utils = Object.assign(window.Utils || {}, { calcTrainingStreak, wmoIcon, estimateRideTimeMin, dataLocalISO, mesLocalISO, fmtDataHoraLocal, segundaDaSemanaISO });

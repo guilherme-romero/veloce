@@ -45,14 +45,11 @@
   // esse formato como hora local, dando um horário errado. Normaliza pra
   // ISO com "Z" explícito antes de formatar, e exibe em UTC (não no fuso
   // do navegador) pra bater sempre com o que está no banco.
-  function fmtDataHora(iso) {
-    try {
-      const isoUtc = /[Zz]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso.replace(' ', 'T') + 'Z';
-      const d = new Date(isoUtc);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' }).replace('.', '')
-        + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
-    } catch (_) { return iso; }
-  }
+  // #158: delega no helper único de js/utils.js. Havia QUATRO cópias desta
+  // função e elas divergiram: duas rotulavam " UTC" (certo, mas ilegível) e
+  // duas liam o timestamp do SQLite como hora local, mostrando 3h errado sem
+  // nenhum rótulo. Utils.fmtDataHoraLocal resolve as duas no mesmo lugar.
+  function fmtDataHora(iso) { return Utils.fmtDataHoraLocal(iso); }
   function rotuloProvider(payload) {
     if (!payload.provider || !payload.model) return '';
     const nome = payload.provider === 'gemini' ? 'Gemini' : 'Groq';
@@ -227,9 +224,25 @@
     const sel = dias[_selIdx];
     const nextIdx = proximoTreinoIdx(dias, _selIdx);
     const next = dias[nextIdx];
+    // #160: o plano "ativo" não é necessariamente o plano DESTA semana. Quando
+    // a geração automática falha, o anterior continua com ativo=1 e a tela o
+    // exibia como ATUAL — em 2026-11-09 isso significou mostrar um plano de
+    // 02/11–08/11, com os sete dias no passado, como se fosse o da semana.
+    // Compara pela segunda-feira, usando a MESMA função que o backend usou
+    // para gravar as datas (Utils.segundaDaSemanaISO).
+    const vencido = dias[0].data !== Utils.segundaDaSemanaISO();
     const weekLabel = `Semana · ${fmtData(dias[0].data)}–${fmtData(dias[6].data)}`;
 
     body.innerHTML = `
+      ${vencido ? `
+      <div class="tia-vencido" role="status">
+        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+        <div>
+          <strong>Este plano cobre ${esc(fmtData(dias[0].data))}–${esc(fmtData(dias[6].data))}</strong>
+          <span>Não há plano para a semana atual.</span>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="tia-gerar-semana">Gerar plano desta semana</button>
+      </div>` : ''}
       <div class="tia-summary">${resumoSemanaHTML(dias)}</div>
       <div class="tia-week-label"><span>${esc(weekLabel)}</span><span class="tia-week-hint"><i class="fa-solid fa-hand-pointer"></i> Clique em um dia para ver o detalhe</span></div>
       <div class="tia-week"><div class="tia-week-grid">${dias.map((d, i) => diaCardHTML(d, i, _selIdx)).join('')}</div></div>
@@ -255,6 +268,9 @@
     body.querySelector('[data-next="1"]')?.addEventListener('click', () => { _selIdx = nextIdx; render(); });
     $('tia-prev-day')?.addEventListener('click', () => { _selIdx = (_selIdx + 6) % 7; render(); });
     $('tia-next-day')?.addEventListener('click', () => { _selIdx = (_selIdx + 1) % 7; render(); });
+    // #160: o CTA do aviso reusa o botão Gerar do cabeçalho em vez de duplicar
+    // a lógica de geração (que trata estado de carregando, erro e refresh).
+    $('tia-gerar-semana')?.addEventListener('click', () => $('treino-ia-btn-gerar')?.click());
   }
 
   function mostrarVazio(msg) {
@@ -373,13 +389,27 @@
   // #137: Excluir fica desabilitado no ATIVO e no FAVORITADO. Os dois
   // invariantes vivem no SQL de excluirPlano(); aqui só desabilita o controle
   // pra não dar a falsa impressão de que dá pra tentar.
+  // #160: `ativo` significa "é o plano que o app está usando", não "é o plano
+  // desta semana". Quando a geração automática falha, o anterior segue ativo e
+  // rotulá-lo ATUAL afirma algo falso. O rótulo passa a depender das DATAS.
+  // `semanaInicio` vem do backend (lerHistorico) porque o histórico não carrega
+  // os 7 dias de cada item; se vier nulo (payload corrompido), não arrisca
+  // rótulo nenhum.
+  function badgeSemanaHTML(it) {
+    if (!it.ativo) return '';
+    if (!it.semanaInicio) return ' <span class="tia-hist-badge">ATUAL</span>';
+    return it.semanaInicio === Utils.segundaDaSemanaISO()
+      ? ' <span class="tia-hist-badge">ATUAL</span>'
+      : ' <span class="tia-hist-badge tia-hist-badge-velho">SEMANA PASSADA</span>';
+  }
+
   function historicoLinhaHTML(it) {
     const naoExcluivel = it.ativo || it.favorito;
     const tituloExcluir = it.ativo ? 'O plano atual não pode ser excluído'
                         : it.favorito ? 'Desfavorite antes de excluir' : 'Excluir este plano';
     return `<div class="tia-hist-row" data-id="${it.id}">
       <div class="tia-hist-info">
-        <div class="tia-hist-data">${esc(fmtDataHora(it.geradoEm))}${it.ativo ? ' <span class="tia-hist-badge">ATUAL</span>' : ''}</div>
+        <div class="tia-hist-data">${esc(fmtDataHora(it.geradoEm))}${badgeSemanaHTML(it)}</div>
         <div class="tia-hist-objetivo">${esc(it.objetivo || '(sem objetivo registrado)')}</div>
       </div>
       <div class="tia-hist-actions">

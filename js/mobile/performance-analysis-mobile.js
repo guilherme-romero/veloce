@@ -12,13 +12,11 @@
 (function () {
   const $ = (id) => document.getElementById(id);
 
-  function fmtDataHora(iso) {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
-        + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    } catch (_) { return iso; }
-  }
+  // #158: delega no helper único de js/utils.js. Havia QUATRO cópias desta
+  // função e elas divergiram: duas rotulavam " UTC" (certo, mas ilegível) e
+  // duas liam o timestamp do SQLite como hora local, mostrando 3h errado sem
+  // nenhum rótulo. Utils.fmtDataHoraLocal resolve as duas no mesmo lugar.
+  function fmtDataHora(iso) { return Utils.fmtDataHoraLocal(iso); }
 
   // Sem innerHTML pro texto da IA — mesma disciplina de XSS do desktop.
   function renderTexto(container, texto) {
