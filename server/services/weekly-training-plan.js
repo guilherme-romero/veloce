@@ -486,15 +486,24 @@ function planoGeradoHoje(db, agora = new Date()) {
 let emVoo = null;
 
 /**
- * @throws {Error} com .cascata (de gerarAnalise) ou .bruto (de parseRespostaIA)
- *   quando a geração falha — quem chama decide (a rota devolve 502 + cache antigo).
+ * @throws {Error} com .cascata (de gerarAnalise) quando a geração falha. Desde
+ *   a #159 o parseRespostaIA entra na cascata como validador, então uma resposta
+ *   fora de formato aparece como item `motivo: 'resposta_invalida'` (com o
+ *   `bruto` daquele candidato) dentro de .cascata, em vez de virar um erro solto
+ *   com .bruto na raiz. Quem chama decide (a rota devolve 502 + cache antigo).
  * @return {Object} a linha ativa já atualizada (mesmo shape de lerCacheAtivo())
  */
 async function gerarEArmazenarPlano(db, { perfil, insumos }) {
   if (emVoo) return emVoo;
 
   emVoo = (async () => {
-    const { texto, provider, model } = await gerarAnalise(montarPrompt({ perfil, insumos }));
+    // parseRespostaIA vai como validador: um candidato cuja resposta não
+    // parseia é descartado e a cascata tenta o próximo (#159). Sem isso, um
+    // único JSON malformado queimava as 4 tentativas e o job de segunda não
+    // gerava plano nenhum. O parse roda 2× (aqui e na linha de baixo) — é
+    // função pura sobre ~5 KB, e manter o retorno da cascata como texto evita
+    // mudar o contrato que a Análise de Performance e o relatório mensal usam.
+    const { texto, provider, model } = await gerarAnalise(montarPrompt({ perfil, insumos }), parseRespostaIA);
     const { objetivo, dias: diasSemData } = parseRespostaIA(texto);
     const dias = atribuirDatas(diasSemData);
     const payload = JSON.stringify({ objetivo, dias, perfil, insumos, provider, model });
