@@ -5,7 +5,7 @@
    o CACHE_VERSION sincronizado manualmente — ele é a fonte da verdade do SW).
 ═══════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'v2.12.21';
+const CACHE_VERSION = 'v2.12.22';
 const CACHE_NAME = `veloce-${CACHE_VERSION}`;
 
 // Cache das respostas de dados (/api/* GET). SEM versao de proposito: uma
@@ -120,22 +120,23 @@ const SHELL = [
   // uma vez, e em troca o gráfico funciona offline em tela NUNCA visitada —
   // que é o que o pré-cache opaco do CDN (EXTERNAL_ASSETS) não garantia.
   './js/lib/chart-4.4.0.umd.min.js',
+  // #169 etapa 2: Leaflet auto-hospedado. As imagens entram porque o
+  // leaflet.css as referencia por url(images/...) — sem elas o CSS pede um
+  // arquivo que não existe assim que o mapa desenha o controle de camadas.
+  './js/lib/leaflet-1.9.4/leaflet.js',
+  './js/lib/leaflet-1.9.4/leaflet.css',
+  './js/lib/leaflet-1.9.4/images/layers.png',
+  './js/lib/leaflet-1.9.4/images/layers-2x.png',
+  './js/lib/leaflet-1.9.4/images/marker-icon.png',
   // dados_usuario.txt entra como cache opcional — não falha install se faltar
 ];
 
-// Pré-cache best-effort de terceiros que ainda vêm de CDN. O fetch é
-// `no-cors`, então a resposta é OPACA: status sempre 0, e um 404 do CDN é
-// cacheado em silêncio como se fosse sucesso. É por isso que estamos
-// esvaziando esta lista (#169) em vez de confiar nela.
-//
-// font-awesome saiu na #9 e Chart.js na #169 — os dois estão no SHELL agora.
-// Quando o Leaflet sair (etapa 2 da #169), este array e o bloco que o consome
-// no install são REMOVIDOS: mecanismo sem usuário vira convite para alguém
-// "só adicionar mais um CDN aqui".
-const EXTERNAL_ASSETS = [
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-];
+// Não há mais terceiros vindo de CDN: Font Awesome saiu na #9, Chart.js e
+// Leaflet na #169. O array EXTERNAL_ASSETS e o bloco que o consumia no install
+// foram REMOVIDOS aqui, de propósito — o fetch era `no-cors` e devolvia
+// resposta OPACA (status sempre 0), então um 404 do CDN era cacheado em
+// silêncio como se fosse sucesso. Mecanismo sem usuário também é convite para
+// alguém "só adicionar mais um CDN aqui", que é o hábito que isto corrigiu.
 
 /* ── INSTALL: pré-cacheia o shell ───────────────────────────────────── */
 self.addEventListener('install', (event) => {
@@ -146,12 +147,6 @@ self.addEventListener('install', (event) => {
       await cache.addAll(SHELL).catch(err => {
         console.warn('[SW] addAll partial failure:', err);
       });
-      // Assets externos (best-effort)
-      await Promise.all(EXTERNAL_ASSETS.map(u =>
-        fetch(u, { mode: 'no-cors' })
-          .then(r => cache.put(u, r))
-          .catch(() => null)
-      ));
       // Ativa SEMPRE a nova versão imediatamente (não espera o banner).
       // Combinado com clients.claim() no activate + reload no pwa.js, garante
       // que toda atualização publicada reflete na próxima carga, sem o usuário
