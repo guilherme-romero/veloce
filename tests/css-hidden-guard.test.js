@@ -47,11 +47,6 @@ const FONTES = [
 // `${cond ? '' : 'hidden'}` — é como js/app.js:72 esconde o botão de remover
 // avatar, e a primeira versão deste teste passava por cima dele justamente
 // porque ali o `hidden` está entre aspas, não solto no markup.
-// ⚠️ LIMITE CONHECIDO: a segunda alternativa NÃO está funcionando — removi o
-// guard de `.btn` para testar e esta suíte seguiu verde, então o caso
-// `js/app.js:72` continua descoberto. O guard está lá e o bug está corrigido,
-// mas a REGRESSÃO dele não é pega por este teste. Não deixei como se
-// estivesse coberto.
 const ATTR_HIDDEN = /(?<![-\w])hidden(?=[\s/>=])|\$\{[^}]*['"`]hidden['"`][^}]*\}/;
 
 function alvos() {
@@ -75,13 +70,20 @@ function alvos() {
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
 
-// Procura a 1ª regra da classe e lê o `display` dela.
+// Varre TODAS as regras da classe, não só a primeira.
+//
+// A primeira versão parava na primeira, e isso a cegava para o caso real de
+// `.btn`: a primeira regra `.btn` do CSS concatenado é `.btn{flex:1 1 45%}`,
+// sem `display`, então o alvo era descartado antes de chegar à regra que
+// define `display:inline-flex`. Cheguei a declarar isso como "o regex do
+// atributo não funciona" — diagnóstico errado; o regex sempre casou.
 function displayDaClasse(classe) {
-  const re = new RegExp('\\.' + esc(classe) + '\\s*(?:,[^{]*?)?\\{([^}]*)\\}');
-  const m = re.exec(CSS);
-  if (!m) return null;
-  const d = /display\s*:\s*([\w-]+)/.exec(m[1]);
-  return d && d[1] !== 'none' ? d[1] : null;
+  const re = new RegExp('\\.' + esc(classe) + '\\s*(?:,[^{]*?)?\\{([^}]*)\\}', 'g');
+  for (const m of CSS.matchAll(re)) {
+    const d = /display\s*:\s*([\w-]+)/.exec(m[1]);
+    if (d && d[1] !== 'none') return d[1];
+  }
+  return null;
 }
 
 function temGuard(classe, id) {

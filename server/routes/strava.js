@@ -37,6 +37,9 @@ async function routes(fastify) {
   fastify.addHook('preHandler', requireAuth);
 
   // ── helpers internos ─────────────────────────────────────────────
+  // #168: preparado uma vez, como o upsertStmt abaixo. Ver a nota em
+  // routes/garmin.js — é consistência, não ganho de performance.
+  const existsStmt = fastify.db.prepare('SELECT 1 FROM strava_activities WHERE id_strava = ?');
   const upsertStmt = fastify.db.prepare(`
     INSERT INTO strava_activities (
       id_strava, nome, tipo, data_inicio, inicio_iso, distancia_m,
@@ -97,7 +100,7 @@ async function routes(fastify) {
         for (const a of items) {
           const dataIso = (a.start_date_local || a.start_date || '').slice(0, 10);
           if (!dataIso) continue;
-          const before = fastify.db.prepare('SELECT 1 FROM strava_activities WHERE id_strava = ?').get(a.id);
+          const before = existsStmt.get(a.id);
           upsertStmt.run({
             id_strava:       a.id,
             nome:            a.name || null,
