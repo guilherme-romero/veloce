@@ -211,6 +211,7 @@ nav {
 .nav-btn.active { color: var(--teal); background: var(--teal-dim); }
 
 .nav-right { display: flex; align-items: center; gap: 8px; }
+.nav-icon-btn[hidden] { display: none; }         /* #166 */
 .nav-icon-btn {
   width: 36px; height: 36px; border-radius: 50%;
   background: var(--surface2); border: 1px solid var(--border);
@@ -417,6 +418,11 @@ main {
 .ins-rec.magenta .ins-rec-title i { color: var(--magenta); }
 
 /* ── BUTTONS ────────────────────────────────────────────────────────── */
+/* #166 — sem isto, `hidden` não esconde botão: a regra abaixo define
+   display e vence o [hidden] do navegador. Caso real: js/app.js:72, o botão
+   "remover avatar" aparecia mesmo para quem não tem avatar. */
+.btn[hidden] { display: none; }
+
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 10px 18px; border-radius: 8px;
@@ -1814,6 +1820,7 @@ main {
 }
 
 /* ── Insights (Fase 7) ───────────────────────────────────────────────── */
+.insights-grid[hidden] { display: none; }        /* #166 */
 .insights-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -2207,6 +2214,7 @@ main {
   isolation: isolate;
 }
 @media (max-width: 720px) { .last5-item { grid-template-columns: 1fr; } }
+.last5-pagination[hidden] { display: none; }     /* #166 */
 .last5-pagination {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 12px 0 4px;
@@ -2503,6 +2511,7 @@ main {
 }
 
 /* ── Guia do Endurance Score ─────────────────────────────────────────── */
+.score-guide-link[hidden] { display: none; }     /* #166 */
 .score-guide-link {
   flex-shrink: 0;
   display: inline-flex;

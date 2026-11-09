@@ -71,8 +71,24 @@
    Tokens do design system, nunca cor literal. */
 .mtia-vencido{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;margin-bottom:12px;
   border:1px solid var(--amber);border-radius:10px;background:var(--amber-dim)}
+/* #166 — OBRIGATÓRIO junto de qualquer `display` numa classe cujo elemento seja
+   alternado pelo atributo `hidden`: a regra de classe vence o
+   `[hidden]{display:none}` da folha do navegador, e o aviso ficava na tela como
+   uma barra âmbar VAZIA de 22px. Testar `el.hidden` não pega isso — só o
+   display computado pega. */
+.mtia-vencido[hidden]{display:none}
 .mtia-vencido > i{color:var(--amber);font-size:16px;flex-shrink:0;margin-top:1px}
 .mtia-vencido > div{display:flex;flex-direction:column;gap:2px;min-width:0}
 .mtia-vencido strong{font-size:13px;color:var(--text)}
 .mtia-vencido span{font-size:12px;color:var(--muted2)}
 .mtia-hist-badge-velho{background:var(--amber);color:var(--bg)}
+
+/* ── #167: ações do histórico dentro do bottom sheet ───────────────────── */
+/* Os botões vêm das classes que o modals.js emite (.btn/.btn-sm/.btn-ghost/
+   .btn-danger), já estilizadas em css/mobile-sheet.css — aqui é só o layout.
+   Favorito primeiro e empurrado para a esquerda, destrutivo por último, na
+   mesma ordem do modal do desktop. */
+.mtia-hist-acoes{display:flex;gap:8px;margin-top:10px;align-items:center}
+.mtia-hist-acoes .mtia-hist-fav{margin-right:auto;color:var(--muted2);padding:9px 11px}
+.mtia-hist-acoes .mtia-hist-fav[aria-pressed="true"]{color:var(--amber)}
+.mtia-hist-topo-acoes{display:flex;justify-content:flex-end;margin-bottom:12px}
