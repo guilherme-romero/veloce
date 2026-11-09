@@ -31,12 +31,29 @@ que parece regressão e é só sessão expirada. O `run-all.js` faz login novo a
 | `bordas.js` | Bordas que os dados reais não exercitam — forçadas no cliente via CDP `Fetch.enable`, **sem tocar no banco** |
 | `desktop.js` | Fumaça da variante desktop; existe porque vários fixes tocam `js/app.js` e `js/core/`, compartilhados |
 | `pwa.js` | Service worker, pré-cache do `SHELL`, fallback offline por variante, cache de dados e logout |
+| `browser-treino-ia-mobile.js` | **Família diferente** (#167) — Chromium contra o Fastify REAL sobre **SQLite temporário**, não o banco de produção. Por isso pode exercitar **escrita**: favoritar, selecionar, excluir e limpar o histórico, conferindo o banco depois de cada ação. Roda sozinha: `node tests/browser-treino-ia-mobile.js`, **sem** `TB_USER`/`TB_PASS`. A infraestrutura está em `browser-setup.js`, para a próxima view custar só um arquivo de asserções |
 
 Vários testes afirmam o comportamento **corrigido** de um `BUG-NNN` (ver `treino_bike_docs/BUGS.md`): se um deles
 regredir, a suíte falha nominalmente. Um teste que ainda afirme um bug como *aberto* diz isso no
 próprio nome, para falhar e cobrar atualização quando for corrigido.
 
 ## Armadilhas que custaram tempo
+
+**Service worker engole o `page.route` do Playwright (2026-11-09).** O SW do PWA intercepta o
+`fetch` **antes** do roteamento do Playwright, e as chamadas `/api/*` caem no servidor estático do
+harness como 404. O sintoma é a view **nunca renderizar**, sem erro que aponte a causa — e eu
+diagnostiquei errado antes de achar (culpei a glob de rota). Em contexto de Playwright:
+`serviceWorkers: 'block'`. Já embutido no `browser-setup.js`.
+
+**Chart.js de CDN derruba o boot num ambiente sem rede.** `Charts.init()` lança
+`ReferenceError: Chart is not defined` durante o boot do `app.js`, e a wiring da seção nunca
+acontece: a tela fica inerte, sem gráfico nenhum à vista para sugerir a causa. Stub de
+`window.Chart` via `addInitScript` — também já embutido. (Issue #169 quer resolver na raiz.)
+
+**Para afirmar que algo NÃO aparece, asserte `display` computado ou `getBoundingClientRect()`.**
+Nunca `el.hidden` nem `:not([hidden])`: na #166 o atributo estava correto e o elemento estava na
+tela, porque uma regra de classe com `display` vence o `[hidden]` do navegador.
+
 
 Estão aqui para ninguém redescobrir:
 

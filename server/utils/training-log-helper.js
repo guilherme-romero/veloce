@@ -38,8 +38,36 @@ function shouldOverwrite(currentFonte, newFonte) {
  * @param {string} idPrefix - prefixo para criar id novo se nao houver entrada
  * @returns {"created"|"updated"|"locked"|"noop"}
  */
+// #168: statements preparados UMA vez por instância de `db`, não por chamada.
+// A função é invocada uma vez por atividade em quatro pontos de sync
+// (scheduler.js, routes/garmin.js, routes/strava.js), e preparava três SQLs em
+// cada uma.
+//
+// Medido antes de mudar, para não deixar a impressão errada: em 109 chamadas o
+// ganho é 0,53 ms por sync — ~25 ms por DIA, com o scheduler rodando a cada 30
+// min. **Não é otimização que se sinta**; o valor aqui é não recompilar SQL
+// conhecido num laço, que é o padrão que o resto do backend já segue.
+//
+// WeakMap e não variável de módulo: os testes criam várias instâncias de `db`
+// (SQLite temporário por arquivo de teste), e um statement preparado está
+// amarrado à conexão que o criou — cacheá-lo globalmente vazaria entre bancos.
+const _stmts = new WeakMap();
+function stmts(db) {
+  let s = _stmts.get(db);
+  if (!s) {
+    s = {
+      sel: db.prepare('SELECT * FROM training_log WHERE data = ?'),
+      upd: db.prepare('UPDATE training_log SET tipos = ?, payload = ? WHERE id = ?'),
+      ins: db.prepare('INSERT INTO training_log (id, data, tipos, notas, payload) VALUES (?, ?, ?, ?, ?)'),
+    };
+    _stmts.set(db, s);
+  }
+  return s;
+}
+
 function autoFillBike(db, dataISO, bike, fonte, fonteId, idPrefix = 'tl') {
-  const row = db.prepare('SELECT * FROM training_log WHERE data = ?').get(dataISO);
+  const st = stmts(db);
+  const row = st.sel.get(dataISO);
 
   let tipos, payload;
   if (row) {
@@ -81,16 +109,14 @@ function autoFillBike(db, dataISO, bike, fonte, fonteId, idPrefix = 'tl') {
   const tiposJson   = JSON.stringify(tipos);
 
   if (row) {
-    db.prepare('UPDATE training_log SET tipos = ?, payload = ? WHERE id = ?')
-      .run(tiposJson, payloadJson, row.id);
+    st.upd.run(tiposJson, payloadJson, row.id);
     // Mudou algo se gravou a bike OU se acabou de adicionar o tipo "bike".
     // (No caminho manual, bikeWritten é sempre false → decide só pelo tipo.)
     const changed = bikeWritten || !hadBikeTipo;
     return changed ? 'updated' : 'noop';
   } else {
     const id = `${idPrefix}_${fonte}_${dataISO.replace(/-/g, '')}`;
-    db.prepare('INSERT INTO training_log (id, data, tipos, notas, payload) VALUES (?, ?, ?, ?, ?)')
-      .run(id, dataISO, tiposJson, '', payloadJson);
+    st.ins.run(id, dataISO, tiposJson, '', payloadJson);
     return 'created';
   }
 }
