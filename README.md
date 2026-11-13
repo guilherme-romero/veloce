@@ -2,11 +2,17 @@
 
 App pessoal para acompanhar treinos de ciclismo, evolução de peso e dados de saúde — integrado com **Strava** e **Garmin Connect**.
 
-> Versão atual: **2.0** — identidade visual *Hi-Vis Peloton* · PWA self-hosted (frontend estático + backend Node/SQLite)
+> Versão atual: **2.12.22** · PWA self-hosted (frontend estático + backend Node/SQLite), sem build step
 
-### 🎨 v2.0 · Identidade visual "Hi-Vis Peloton"
+### 🎨 Identidade visual "Hi-Vis Peloton"
 
-Redesenho completo da interface: tema escuro "ink" (`#0d0f12`), acento **lima** (`#c6f135`) e **magenta** (`#ec3a8b`), tipografia **Bebas Neue** (títulos e números) + **Archivo** (texto), faixas-jersey e números em destaque em todas as seções. Favicons e ícones de PWA próprios. A semana é contada de **domingo a sábado** de forma consistente em todo o app.
+Tema escuro "ink" (`#0d0f12`), acento **lima** (`#c6f135`) e **magenta** (`#ec3a8b`), tipografia **Bebas Neue** (títulos e números) + **Archivo** (texto), faixas-jersey e números em destaque. Favicons e ícones de PWA próprios. A semana é contada de **domingo a sábado** de forma consistente em todo o app.
+
+**Nenhuma dependência de CDN.** Fontes, ícones, Chart.js e Leaflet são servidos pelo próprio repositório, e a CSP é `script-src 'self'` — o app carrega e funciona offline sem depender de terceiro no ar.
+
+### 📱 Duas interfaces
+
+`js/variant.js` escolhe a variante por **sinais de dispositivo** (nunca por largura de tela) e serve `index.html` no desktop ou `mobile.html` no celular — duas UIs de verdade, não um layout responsivo. O mobile tem navegação própria por abas (Início, Atividades, Bikes, Desempenho, Mais) e reaproveita a lógica compartilhada de `js/core/` e `js/utils.js`.
 
 ---
 
@@ -36,10 +42,17 @@ Cadastro de bicicletas com rastreamento automático de desgaste de componentes:
 - **Durabilidade de componentes** — média de km e nota por marca/modelo (ex.: "Pneu Continental GP5000 · 4.200 km média · ★4,3 · 3 trocas") para apoiar a recompra
 - **Página de detalhe do componente** + gerações anteriores + histórico completo de manutenções e revisões
 
-### 🚴 Treinos
-Agrupa fortalecimento em casa e agenda semanal de bike na mesma aba:
-- **Em casa** — CRUD de exercícios de fortalecimento (core, pernas, mobilidade)
-- **Semana padrão** — agenda semanal personalizável com modos de treino dinâmicos
+### 🧠 Treino (plano semanal via IA)
+Um plano de treino da semana inteira gerado por IA a partir do seu perfil e dos seus dados reais (CTL/ATL/TSB, tendência de peso, dias disponíveis, nível e dia de longão):
+- **Sete dias** com tipo (resistência, intervalado, longão, descanso), duração, RPE e blocos por zona de FC
+- **Geração automática** — o job roda todo dia às 6h e gera só quando a semana ainda não tem plano; o resto do tempo não faz nada
+- **Histórico** paginado com objetivo de cada plano, **favoritos** (protegidos de exclusão) e teto de 30 planos não-favoritados
+- No celular, o histórico abre em **bottom sheet** com as mesmas ações do desktop
+
+### 📈 Desempenho
+- **Sugestão do dia** — o que treinar hoje, a partir da carga e da forma recentes
+- **Análise de Performance** — comentário gerado por IA comparando a última atividade com um grupo de rides semelhantes; roda sozinha às 6h e só gasta IA quando a atividade de referência muda
+- **Comparativo de Desempenho** — evolução entre períodos
 
 ### 🗓️ Passeios & Rotas
 - Calendário mensal de passeios planejados, com **símbolo de clima em cada dia** dentro da janela de previsão
@@ -77,7 +90,7 @@ Calculadoras do ciclista, embarcadas como página própria (mesmo design *Hi-Vis
 - **Strava** — importa atividades de bike, marca os dias treinados
 - **Garmin Connect** — atividades, pesagens da balança, dados de saúde diários e estados de treino (Productive, Recovery, Maintaining)
 - **Botão (i) em cada card** explicando como funciona a conexão de cada serviço (OAuth oficial do Strava × login não-oficial da Garmin com MFA)
-- **Auto-sync** — sincronização automática a cada 30 minutos (Strava + Garmin, sem intervenção manual)
+- **Auto-sync** — sincronização automática a cada 30 minutos (Strava + Garmin, sem intervenção manual), com **toggle por serviço** para desligar um sem desligar o outro
 - De-duplicação automática quando a mesma ride aparece nos dois
 - Edição manual sempre prevalece sobre o sync (regra "manual wins")
 
@@ -86,13 +99,19 @@ Calculadoras do ciclista, embarcadas como página própria (mesmo design *Hi-Vis
 - Lista de snapshots disponíveis para download direto no app
 - Exportar/importar JSON completo (inclui resumo de atividades Strava/Garmin e a garagem de bikes)
 - Exportar pesagens em CSV
-- **Relatório completo em PDF** com filtro de período (30 dias / 90 dias / tudo)
+- **Relatório completo em PDF**, renderizado **no servidor** (Chromium headless via Playwright), com filtro de período (30 dias / 90 dias / tudo)
   - Capa, perfil, evolução de peso (gráfico), pesagens, atividades, insights, recordes
   - **Heat-map de atividade dos últimos 90 dias** desenhado no PDF, volume mensal e HRV × Carga
   - Seção de Bike: km total por bike, vida útil de componentes, histórico de manutenções
 - **Download da base completa em ZIP** — `training.db` + avatares (tokens não incluídos)
 - **Restauração da base a partir de um ZIP** — com confirmação dupla (digitar "RESTAURAR"), backup de segurança automático antes da troca e reinício do serviço ao final
-- Imprimir / salvar como PDF
+- **Fechamento mensal pelo Telegram** (opcional) — no dia 1º, um resumo do mês anterior em imagem, com análise do período gerada por IA. Exige `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID` no `.env` **e** o toggle ligado no Perfil; sem os dois, o job simplesmente não roda. Para mandar uma prévia fora do dia 1º: `node server/scripts/enviar-resumo.js --dry-run`
+
+### 🔔 Notificações push
+Push de verdade no celular, via Web Push/VAPID (opcional — exige chaves VAPID no `.env`):
+- **Digest da véspera** às 18h: para cada passeio de amanhã, horário e veredito de clima
+- Opt-in explícito pelo app, com a subscription removida sozinha quando o navegador a invalida
+- Foco em Android; no iOS exige o PWA instalado (o app detecta e orienta)
 
 ### 🌤️ Previsão do tempo (Passeios + Rotas)
 - Faixa de previsão com ícone WMO, máx/mín, % chuva, UV e indicador de esforço para ciclismo (com nota de quantos dias de previsão estão disponíveis)
@@ -119,7 +138,12 @@ Não há build step: o frontend é servido como arquivos estáticos e o backend 
 2. **Frontend** — sirva a raiz do repositório com nginx (ou qualquer servidor estático) e proxie `/api/*` para `127.0.0.1:3000`.
 3. **HTTPS/domínio** — aponte seu domínio para o servidor através de um proxy reverso / CDN à sua escolha. O PWA exige HTTPS para instalar e funcionar offline.
 
-O fluxo de versão exige incrementar `js/version.js`, `service-worker.js`, `server/package.json` e os `?v=` em `index.html`/`login.html`.
+> ⚠️ O relatório em PDF usa Chromium headless: depois do `npm install`, rode
+> `npx playwright install --with-deps chromium` no servidor (~190 MB) antes de subir o serviço.
+
+O fluxo de versão exige incrementar `js/version.js`, `service-worker.js`, `server/package.json` e os `?v=` nos **três** HTML — `index.html`, `login.html` e `mobile.html`. Esquecer o `mobile.html` serve assets antigos justamente para a superfície mais usada.
+
+Arquivo novo em `js/`, `css/` ou na raiz também precisa entrar no array `SHELL` do `service-worker.js`: o `cache.addAll` é atômico e uma entrada que não responda 200 derruba o pré-cache inteiro.
 
 ---
 
@@ -127,9 +151,11 @@ O fluxo de versão exige incrementar `js/version.js`, `service-worker.js`, `serv
 
 - **Frontend:** HTML5, CSS puro e JavaScript vanilla (sem framework)
 - **Backend:** Node.js (Fastify) + SQLite + autenticação JWT (cookie httpOnly)
-- **Garmin:** wrapper Python chamado pelo Node via subprocess, usando [`cyberjunky/python-garminconnect`](https://github.com/cyberjunky/python-garminconnect) v0.3.5 (instalado em venv isolado em `server/garmin/venv/`)
+- **Garmin:** wrapper Python chamado pelo Node via subprocess, usando um **fork** de `python-garminconnect` (v0.3.6, em [`guilherme1985/python-garminconnect`](https://github.com/guilherme1985/python-garminconnect)), instalado em venv isolado em `server/garmin/venv/`
 - **Strava:** OAuth simplificado single-user
-- **Gráficos:** Chart.js · **Mapas:** Leaflet · **Clima:** Open-Meteo
+- **IA:** cascata Gemini → Groq, com os nomes de modelo **descobertos em runtime** pelo endpoint de listagem de cada provedor — nomes saem de circulação em poucos meses, então nada é fixado no código
+- **Gráficos:** Chart.js 4.4 · **Mapas:** Leaflet 1.9 · **Clima:** Open-Meteo — os dois primeiros auto-hospedados em `js/lib/`
+- **Testes:** 210 testes `node:test` (sem browser, rodam na CI) mais suítes locais que dirigem Chromium por CDP contra o app real
 
 A ordem de carregamento dos módulos JS, o esquema do banco e as responsabilidades de cada arquivo estão documentados em comentários no próprio código.
 
@@ -145,7 +171,7 @@ Por ser self-hosted, todos os dados ficam no servidor onde você implantar a apl
 
 Distribuído sob a licença **MIT** — uso, cópia e modificação livres, mantido o aviso de copyright. Veja o arquivo [`LICENSE`](LICENSE).
 
-Código-fonte em [github.com/guilherme1985/veloce](https://github.com/guilherme1985/veloce).
+Código-fonte em [github.com/guilherme-romero/veloce](https://github.com/guilherme-romero/veloce).
 
 ---
 
