@@ -2,6 +2,10 @@
 server/node_modules/
 server/.env
 server/.env.demo
+# Cópias do .env (backups de deploy) — contêm segredos em texto plano.
+# Os *.example são versionados de propósito e não casam com estes padrões.
+server/.env.bak*
+server/.env.local
 
 # Python venv (Garmin CLI)
 server/garmin/venv/
