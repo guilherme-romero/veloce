@@ -151,7 +151,7 @@ Arquivo novo em `js/`, `css/` ou na raiz também precisa entrar no array `SHELL`
 
 - **Frontend:** HTML5, CSS puro e JavaScript vanilla (sem framework)
 - **Backend:** Node.js (Fastify) + SQLite + autenticação JWT (cookie httpOnly)
-- **Garmin:** wrapper Python chamado pelo Node via subprocess, usando um **fork** de `python-garminconnect` (v0.3.6, em [`guilherme1985/python-garminconnect`](https://github.com/guilherme1985/python-garminconnect)), instalado em venv isolado em `server/garmin/venv/`
+- **Garmin:** wrapper Python chamado pelo Node via subprocess, usando um **fork** de `python-garminconnect` (v0.3.6, em [`guilherme-romero/python-garminconnect`](https://github.com/guilherme-romero/python-garminconnect)), instalado em venv isolado em `server/garmin/venv/`
 - **Strava:** OAuth simplificado single-user
 - **IA:** cascata Gemini → Groq, com os nomes de modelo **descobertos em runtime** pelo endpoint de listagem de cada provedor — nomes saem de circulação em poucos meses, então nada é fixado no código
 - **Gráficos:** Chart.js 4.4 · **Mapas:** Leaflet 1.9 · **Clima:** Open-Meteo — os dois primeiros auto-hospedados em `js/lib/`
